@@ -24,7 +24,12 @@ Set `FRONTEND_ORIGIN` to your deployed client and admin URLs (comma-separated, H
 
 ## API
 
-1. Build Docker image from `apps/api`
+1. Build Docker image from the **monorepo root** (workspace packages must be in context):
+
+   ```bash
+   docker build -f apps/api/Dockerfile -t chronomint-api .
+   ```
+
 2. Set env per checklist above
 3. Run `prisma migrate deploy` on release (see [CONTRIBUTING.md](../development/CONTRIBUTING.md))
 4. Health check: `GET /health` — documented in [api/ROUTES.md](../api/ROUTES.md)

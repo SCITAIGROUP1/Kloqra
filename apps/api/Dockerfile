@@ -1,20 +1,26 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN corepack enable
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY packages ./packages
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/config-typescript ./packages/config-typescript
+COPY packages/contracts ./packages/contracts
 COPY apps/api ./apps/api
-RUN pnpm install --frozen-lockfile || pnpm install
+
+RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @chronomint/contracts build
 RUN pnpm --filter @chronomint/api prisma:generate
 RUN pnpm --filter @chronomint/api build
+RUN pnpm --filter @chronomint/api deploy --prod /prod
 
-FROM node:20-alpine
+FROM node:20-alpine AS runner
 WORKDIR /app
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
-COPY --from=builder /app/node_modules ./root_node_modules
-COPY --from=builder /app/apps/api/package.json ./
 ENV NODE_ENV=production
+
+COPY --from=builder /prod/dist ./dist
+COPY --from=builder /prod/node_modules ./node_modules
+COPY --from=builder /prod/package.json ./package.json
+COPY --from=builder /prod/prisma ./prisma
+
 EXPOSE 3001
 CMD ["node", "dist/main.js"]
