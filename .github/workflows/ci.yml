@@ -53,5 +53,6 @@ jobs:
       - run: pnpm prisma:generate
       - run: pnpm --filter @chronomint/api exec prisma migrate deploy
       - run: pnpm lint
+      - run: pnpm --filter @chronomint/contracts build
       - run: pnpm test
       - run: pnpm build
