@@ -12,6 +12,9 @@ RUN pnpm --filter @chronomint/contracts build
 RUN pnpm --filter @chronomint/api prisma:generate
 RUN pnpm --filter @chronomint/api build
 RUN pnpm --filter @chronomint/api deploy --prod /prod
+# pnpm deploy copies contracts source; ensure compiled dist is present at runtime
+RUN test -d /prod/node_modules/@chronomint/contracts/dist || \
+    cp -r /app/packages/contracts/dist /prod/node_modules/@chronomint/contracts/dist
 
 FROM node:20-alpine AS runner
 WORKDIR /app

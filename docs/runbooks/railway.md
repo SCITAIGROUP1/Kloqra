@@ -51,7 +51,8 @@ In the project, click **+ New**:
 
 1. **+ New** → **GitHub Repo** → same repo (or use the service created in step 1).
 2. **Settings → Source:**
-   - Root directory: **empty** (monorepo root)
+   - Root directory: **empty** (monorepo root — **not** `apps/api`)
+   - **Builder:** Dockerfile
    - Dockerfile path: `apps/api/Dockerfile`
 3. Railway reads [`railway.toml`](../../railway.toml) for build and health check (`GET /health`).
 
@@ -179,12 +180,12 @@ Run migrations **before** or **with** each API rollout. Railway auto-deploys on 
 
 ## Troubleshooting
 
-| Issue                              | Fix                                                              |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| Build fails — can't find contracts | Ensure root directory is monorepo root, not `apps/api`           |
-| Health check failing               | Check logs; verify `PORT=3001` and `/health` responds            |
-| Timer/presence broken              | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset          |
-| CORS errors                        | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)  |
-| Migrations pending                 | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL` |
+| Issue                              | Fix                                                                                                                                                                                                                                             |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build fails — can't find contracts | Logs show `/app/apps/api` + `pnpm start` → Railway is using Nixpacks with wrong root. Set **Root Directory** to repo root (empty), **Builder** to Dockerfile `apps/api/Dockerfile`. Or redeploy with latest code (`prebuild` builds contracts). |
+| Health check failing               | Check logs; verify `PORT=3001` and `/health` responds                                                                                                                                                                                           |
+| Timer/presence broken              | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset                                                                                                                                                                                         |
+| CORS errors                        | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)                                                                                                                                                                                 |
+| Migrations pending                 | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL`                                                                                                                                                                                |
 
 See also [deploy.md](./deploy.md), [vercel.md](./vercel.md), [ENVIRONMENT.md](../development/ENVIRONMENT.md).

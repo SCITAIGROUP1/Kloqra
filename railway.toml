@@ -11,8 +11,10 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "apps/api/Dockerfile"
+watchPatterns = ["apps/api/**", "packages/contracts/**"]
 
 [deploy]
+startCommand = "node dist/main.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
