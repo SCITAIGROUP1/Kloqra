@@ -3,8 +3,8 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY packages/config-typescript ./packages/config-typescript
-COPY packages/contracts ./packages/contracts
+# Root devDependencies (config-eslint, config-prettier) must exist for pnpm deploy workspace resolution
+COPY packages/config-eslint packages/config-prettier packages/config-typescript packages/contracts ./packages/
 COPY apps/api ./apps/api
 
 RUN pnpm install --frozen-lockfile
