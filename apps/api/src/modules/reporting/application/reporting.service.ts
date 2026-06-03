@@ -189,6 +189,45 @@ export class ReportingService {
     const wsTotal = workspaceAgg.totalHours;
     const billablePercent = wsTotal > 0 ? round((workspaceAgg.billableHours / wsTotal) * 100) : 0;
 
+    const topProjectIds = [...byProject.entries()]
+      .sort((a, b) => b[1].totalHours - a[1].totalHours)
+      .slice(0, 6)
+      .map(([id]) => id);
+    const topProjectSet = new Set(topProjectIds);
+
+    const dailyProjectStacks = new Map<string, Map<string, { projectName: string; hours: number }>>();
+    for (const log of logs) {
+      const pid = log.task.projectId;
+      if (!topProjectSet.has(pid)) continue;
+      const dayKey = log.startTime.toISOString().slice(0, 10);
+      const dayMap = dailyProjectStacks.get(dayKey) ?? new Map();
+      const entry = dayMap.get(pid) ?? {
+        projectName: log.task.project.name,
+        hours: 0
+      };
+      entry.hours += log.durationSec / 3600;
+      dayMap.set(pid, entry);
+      dailyProjectStacks.set(dayKey, dayMap);
+    }
+
+    const dailyByProject = [...daily.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date]) => {
+        const dayMap = dailyProjectStacks.get(date) ?? new Map();
+        const stacks = topProjectIds
+          .map((projectId) => {
+            const v = dayMap.get(projectId);
+            if (!v || v.hours <= 0) return null;
+            return {
+              projectId,
+              projectName: v.projectName,
+              hours: round(v.hours)
+            };
+          })
+          .filter((s): s is NonNullable<typeof s> => s !== null);
+        return { date, stacks };
+      });
+
     return {
       period: { from: query.from, to: query.to },
       workspace: {
@@ -222,7 +261,8 @@ export class ReportingService {
           date,
           ...this.stripName(v)
         }))
-        .sort((a, b) => a.date.localeCompare(b.date))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+      dailyByProject
     };
   }
 

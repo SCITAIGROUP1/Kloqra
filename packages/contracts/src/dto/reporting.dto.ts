@@ -34,6 +34,17 @@ export const dailyHoursSchema = hoursBreakdownSchema.extend({
   date: z.string()
 });
 
+export const dailyProjectStackSchema = z.object({
+  projectId: uuidSchema,
+  projectName: z.string(),
+  hours: z.number()
+});
+
+export const dailyByProjectRowSchema = z.object({
+  date: z.string(),
+  stacks: z.array(dailyProjectStackSchema)
+});
+
 export const dashboardReportSchema = z.object({
   period: z.object({
     from: isoDatetimeSchema,
@@ -49,7 +60,9 @@ export const dashboardReportSchema = z.object({
   timeByProject: z.array(timeByProjectSchema),
   timeByUser: z.array(timeByUserSchema),
   weeklyHours: z.array(weeklyHoursSchema),
-  dailyHours: z.array(dailyHoursSchema)
+  dailyHours: z.array(dailyHoursSchema),
+  /** Top projects per day for stacked “chart by project” bars */
+  dailyByProject: z.array(dailyByProjectRowSchema)
 });
 
 export type ReportQueryDto = z.infer<typeof reportQuerySchema>;

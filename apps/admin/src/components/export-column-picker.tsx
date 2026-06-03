@@ -63,7 +63,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
   }
 
   return (
-    <div className="rounded-md border border-border p-3">
+    <div className="p-1">
       <div className="mb-2 flex items-center justify-between">
         <Label className="text-sm font-medium">{REPORT_LABELS[report]} columns</Label>
         <Button type="button" variant="ghost" size="sm" onClick={reset}>

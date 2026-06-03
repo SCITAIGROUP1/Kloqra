@@ -1,23 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis
-} from "recharts";
+import Link from "next/link";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, XAxis, YAxis } from "recharts";
 import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   Label,
@@ -26,14 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  ProjectColorDot,
-  ProjectNameWithColor,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+  ProjectColorDot
 } from "@chronomint/ui";
 import {
   ChartContainer,
@@ -43,6 +26,14 @@ import {
 } from "@chronomint/ui/chart";
 import { DEFAULT_EXPORT_COLUMNS, ROUTES } from "@chronomint/contracts";
 import type { DashboardReportDto, ProjectDto, TeamDto } from "@chronomint/contracts";
+import {
+  DashboardSkeleton,
+  EmptyState,
+  PageHeader,
+  SegmentedControl,
+  StatCard
+} from "@/components/admin-page";
+import { ReportVisualsSection, formatDurationClock } from "@/components/report-charts";
 import { api, apiDownloadPost } from "@/lib/api";
 import { saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -57,6 +48,12 @@ const revenueChartConfig = {
 } satisfies ChartConfig;
 
 type RangeDays = 7 | 30 | 90;
+
+const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
+  { value: 7, label: "7 days" },
+  { value: 30, label: "30 days" },
+  { value: 90, label: "90 days" }
+];
 
 function rangeQuery(days: RangeDays, filters?: { projectId?: string; userId?: string }) {
   const to = new Date();
@@ -75,6 +72,10 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function formatMoney(n: number) {
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function DashboardPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [range, setRange] = useState<RangeDays>(7);
@@ -86,15 +87,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [showMoreCharts, setShowMoreCharts] = useState(false);
 
   const selectedProject = projects.find((p) => p.id === projectId);
   const selectedMember = teamMembers.find((m) => m.userId === userId);
 
-  const pageTitle = selectedMember
+  const scopeLabel = selectedMember
     ? `${selectedMember.userName} · ${selectedProject!.name}`
     : selectedProject
       ? selectedProject.name
-      : "Workspace";
+      : "All workspace";
 
   useEffect(() => {
     if (!ws) return;
@@ -184,431 +186,290 @@ export default function DashboardPage() {
   })();
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading analytics...</p>;
+    return (
+      <div className="space-y-8">
+        <PageHeader title="Reports" description="Loading workspace analytics…" />
+        <DashboardSkeleton />
+      </div>
+    );
   }
 
   if (error || !report) {
-    return <p className="text-destructive">{error ?? "No report data"}</p>;
+    return (
+      <div className="space-y-8">
+        <PageHeader title="Reports" description="Workspace time and revenue overview." />
+        <EmptyState
+          title="Could not load reports"
+          description={error ?? "No data returned from the API."}
+          action={
+            <Button variant="outline" onClick={load}>
+              Try again
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
-  const pieData = [
-    { name: "Billable", key: "billableHours", value: report.workspace.billableHours },
-    { name: "Non-billable", key: "nonBillableHours", value: report.workspace.nonBillableHours }
-  ].filter((d) => d.value > 0);
-
-  const pieColors = ["var(--color-billableHours)", "var(--color-nonBillableHours)"];
-
   const colorByProjectId = Object.fromEntries(projects.map((p) => [p.id, p.color]));
+  const hasData = report.workspace.totalHours > 0;
+  const periodLabel = `${formatDate(report.period.from)} – ${formatDate(report.period.to)}`;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">{pageTitle} analytics</h2>
-          <p className="text-sm text-muted-foreground">
-            {formatDate(report.period.from)} – {formatDate(report.period.to)}
-            {selectedProject?.clientName && !selectedMember
-              ? ` · ${selectedProject.clientName}`
-              : ""}
-            {selectedMember ? ` · ${selectedMember.userEmail}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[200px] space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Project</Label>
-            <Select
-              value={projectId || "__all__"}
-              onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="All projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All projects</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot color={p.color} />
-                      {p.name}
-                      {p.clientName ? ` (${p.clientName})` : ""}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="min-w-[200px] space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Team member</Label>
-            {projectId ? (
+    <div className="space-y-8">
+      <PageHeader
+        title="Reports"
+        description={
+          <>
+            {scopeLabel} · {periodLabel}
+            {selectedProject?.clientName && !selectedMember ? ` · ${selectedProject.clientName}` : null}
+          </>
+        }
+        actions={
+          <>
+            <Button size="sm" variant="secondary" onClick={quickExport} disabled={exporting}>
+              {exporting ? "Exporting…" : "Quick export"}
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href={customizeHref}>Full export</Link>
+            </Button>
+          </>
+        }
+      />
+
+      <Card>
+        <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="space-y-2 min-w-[200px]">
+              <Label className="text-xs font-medium text-muted-foreground">Period</Label>
+              <SegmentedControl value={range} onChange={setRange} options={RANGE_OPTIONS} />
+            </div>
+            <div className="space-y-2 min-w-[200px]">
+              <Label className="text-xs font-medium text-muted-foreground">Project</Label>
               <Select
-                value={userId || "__all__"}
-                onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
+                value={projectId || "__all__"}
+                onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
               >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="All team members" />
+                <SelectTrigger className="h-9 bg-background">
+                  <SelectValue placeholder="All projects" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All team members</SelectItem>
-                  {teamMembers.map((m) => (
-                    <SelectItem key={m.userId} value={m.userId}>
-                      {m.userName}
+                  <SelectItem value="__all__">All projects</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="flex items-center gap-2">
+                        <ProjectColorDot color={p.color} />
+                        {p.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
-              <p className="flex h-9 items-center text-xs text-muted-foreground">
-                Select a project first
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            {([7, 30, 90] as const).map((d) => (
-              <Button
-                key={d}
-                size="sm"
-                variant={range === d ? "default" : "outline"}
-                onClick={() => setRange(d)}
-              >
-                {d}d
-              </Button>
-            ))}
-            <Button size="sm" variant="secondary" onClick={quickExport} disabled={exporting}>
-              {exporting ? "Exporting…" : "Export"}
-            </Button>
-            <Button size="sm" variant="ghost" asChild>
-              <a href={customizeHref}>Customize…</a>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard label="Total hours" value={`${report.workspace.totalHours}h`} />
-        <SummaryCard label="Billable" value={`${report.workspace.billableHours}h`} />
-        <SummaryCard label="Non-billable" value={`${report.workspace.nonBillableHours}h`} />
-        <SummaryCard label="Billable %" value={`${report.workspace.billablePercent}%`} />
-        <SummaryCard label="Revenue" value={`$${report.workspace.totalAmount}`} />
-        <SummaryCard
-          label="Active"
-          value={`${report.workspace.activeMembers} members · ${report.workspace.activeProjects} projects`}
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Billable vs non-billable
-              {!selectedProject && !selectedMember ? " (workspace)" : ""}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pieData.length === 0 ? (
-              <EmptyHint />
-            ) : (
-              <ChartContainer config={billableChartConfig} className="mx-auto min-h-[260px] w-full max-w-md">
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={2}>
-                    {pieData.map((entry, i) => (
-                      <Cell key={entry.key} fill={pieColors[i % pieColors.length]} />
+            </div>
+            <div className="space-y-2 min-w-[200px]">
+              <Label className="text-xs font-medium text-muted-foreground">Team member</Label>
+              {projectId ? (
+                <Select
+                  value={userId || "__all__"}
+                  onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Everyone on project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Everyone on project</SelectItem>
+                    {teamMembers.map((m) => (
+                      <SelectItem key={m.userId} value={m.userId}>
+                        {m.userName}
+                      </SelectItem>
                     ))}
-                  </Pie>
-                  <Legend />
-                </PieChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily hours trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {report.dailyHours.length === 0 ? (
-              <EmptyHint />
-            ) : (
-              <ChartContainer config={billableChartConfig} className="min-h-[260px] w-full">
-                <LineChart data={report.dailyHours} accessibilityLayer>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(v) => formatDate(`${v}T12:00:00Z`)}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="billableHours"
-                    stroke="var(--color-billableHours)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="nonBillableHours"
-                    stroke="var(--color-nonBillableHours)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Hours by project (billable vs non-billable)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.timeByProject.length === 0 ? (
-            <EmptyHint />
-          ) : (
-            <ChartContainer config={billableChartConfig} className="min-h-[300px] w-full">
-              <BarChart data={report.timeByProject} accessibilityLayer>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="projectName"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                <Bar
-                  dataKey="billableHours"
-                  stackId="a"
-                  fill="var(--color-billableHours)"
-                  radius={[0, 0, 0, 0]}
-                />
-                <Bar
-                  dataKey="nonBillableHours"
-                  stackId="a"
-                  fill="var(--color-nonBillableHours)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ChartContainer>
-          )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="flex h-9 items-center rounded-md border border-dashed border-border px-3 text-xs text-muted-foreground">
+                  Pick a project to filter by member
+                </p>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Hours by member (billable vs non-billable)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.timeByUser.length === 0 ? (
-            <EmptyHint />
-          ) : (
-            <ChartContainer config={billableChartConfig} className="min-h-[300px] w-full">
-              <BarChart data={report.timeByUser} accessibilityLayer>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="userName"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                <Bar dataKey="billableHours" stackId="a" fill="var(--color-billableHours)" />
-                <Bar
-                  dataKey="nonBillableHours"
-                  stackId="a"
-                  fill="var(--color-nonBillableHours)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {report.weeklyHours.length === 0 ? (
-              <EmptyHint />
-            ) : (
-              <ChartContainer config={billableChartConfig} className="min-h-[260px] w-full">
-                <BarChart data={report.weeklyHours} accessibilityLayer>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="weekStart"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(v) => formatDate(`${v}T12:00:00Z`)}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
-                  <Bar dataKey="billableHours" stackId="w" fill="var(--color-billableHours)" />
-                  <Bar
-                    dataKey="nonBillableHours"
-                    stackId="w"
-                    fill="var(--color-nonBillableHours)"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue by project</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {report.timeByProject.length === 0 ? (
-              <EmptyHint />
-            ) : (
-              <ChartContainer config={revenueChartConfig} className="min-h-[260px] w-full">
-                <BarChart data={report.timeByProject} accessibilityLayer>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="projectName"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="billableAmount" radius={4}>
-                    {report.timeByProject.map((entry) => (
-                      <Cell
-                        key={entry.projectId}
-                        fill={colorByProjectId[entry.projectId] ?? "var(--color-billableAmount)"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <BreakdownTable
-          title="Project breakdown"
-          rows={report.timeByProject.map((p) => ({
-            id: p.projectId,
-            name: p.projectName,
-            color: colorByProjectId[p.projectId],
-            ...p
-          }))}
+      {!hasData ? (
+        <EmptyState
+          title="No time in this period"
+          description="Log time in the client app or seed demo data to see charts and breakdowns."
+          action={
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">pnpm prisma:seed</code>
+          }
         />
-        <BreakdownTable
-          title="Member breakdown"
-          rows={report.timeByUser.map((u) => ({
-            id: u.userId,
-            name: u.userName,
-            totalHours: u.totalHours,
-            billableHours: u.billableHours,
-            nonBillableHours: u.nonBillableHours,
-            billableAmount: u.billableAmount
-          }))}
-        />
-      </div>
-    </div>
-  );
-}
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            <StatCard
+              label="Total hours"
+              value={formatDurationClock(report.workspace.totalHours)}
+              hint={`${report.workspace.activeMembers} members active`}
+            />
+            <StatCard
+              label="Billable"
+              value={formatDurationClock(report.workspace.billableHours)}
+              hint={`${report.workspace.billablePercent}% of total`}
+              accent="billable"
+            />
+            <StatCard
+              label="Non-billable"
+              value={formatDurationClock(report.workspace.nonBillableHours)}
+              accent="muted"
+            />
+            <StatCard
+              label="Revenue"
+              value={`$${formatMoney(report.workspace.totalAmount)}`}
+              hint={report.workspace.currency}
+              accent="revenue"
+            />
+            <StatCard
+              label="Projects"
+              value={String(report.workspace.activeProjects)}
+              hint="With time logged"
+            />
+            <StatCard
+              label="Members"
+              value={String(report.workspace.activeMembers)}
+              hint="With time logged"
+            />
+          </div>
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-lg font-bold leading-tight">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
+          <ReportVisualsSection report={report} projectColors={colorByProjectId} />
 
-function EmptyHint() {
-  return (
-    <p className="text-sm text-muted-foreground">
-      No time logged in this period. Use the client app or run{" "}
-      <code className="rounded bg-muted px-1">pnpm prisma:seed</code>.
-    </p>
-  );
-}
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMoreCharts((v) => !v)}
+              className="text-muted-foreground"
+            >
+              {showMoreCharts ? "Hide additional charts" : "Show weekly, revenue & member charts"}
+            </Button>
+          </div>
 
-function BreakdownTable({
-  title,
-  rows
-}: {
-  title: string;
-  rows: {
-    id: string;
-    name: string;
-    color?: string;
-    totalHours: number;
-    billableHours: number;
-    nonBillableHours: number;
-    billableAmount: number;
-  }[];
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <EmptyHint />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Billable</TableHead>
-                <TableHead className="text-right">Non-bill.</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">
-                    {r.color ? (
-                      <ProjectNameWithColor name={r.name} color={r.color} />
+          {showMoreCharts ? (
+            <div className="space-y-6">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Weekly breakdown</CardTitle>
+                    <CardDescription>Billable vs non-billable by week</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {report.weeklyHours.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-8 text-center">No weekly data</p>
                     ) : (
-                      r.name
+                      <ChartContainer config={billableChartConfig} className="min-h-[260px] w-full">
+                        <BarChart data={report.weeklyHours} accessibilityLayer>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="weekStart"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                            tickFormatter={(v) => formatDate(`${v}T12:00:00Z`)}
+                            tick={{ fontSize: 11 }}
+                          />
+                          <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Legend />
+                          <Bar dataKey="billableHours" stackId="w" fill="var(--color-billableHours)" />
+                          <Bar
+                            dataKey="nonBillableHours"
+                            stackId="w"
+                            fill="var(--color-nonBillableHours)"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ChartContainer>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right">{r.totalHours}h</TableCell>
-                  <TableCell className="text-right">{r.billableHours}h</TableCell>
-                  <TableCell className="text-right">{r.nonBillableHours}h</TableCell>
-                  <TableCell className="text-right">${r.billableAmount}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Revenue by project</CardTitle>
+                    <CardDescription>Billable amount in period</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {report.timeByProject.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-8 text-center">No project revenue</p>
+                    ) : (
+                      <ChartContainer config={revenueChartConfig} className="min-h-[260px] w-full">
+                        <BarChart data={report.timeByProject} accessibilityLayer>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="projectName"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                            tick={{ fontSize: 11 }}
+                          />
+                          <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar dataKey="billableAmount" radius={4}>
+                            {report.timeByProject.map((entry) => (
+                              <Cell
+                                key={entry.projectId}
+                                fill={
+                                  colorByProjectId[entry.projectId] ?? "var(--color-billableAmount)"
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ChartContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Hours by member</CardTitle>
+                  <CardDescription>Stacked billable and non-billable hours</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {report.timeByUser.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">No member data</p>
+                  ) : (
+                    <ChartContainer config={billableChartConfig} className="min-h-[300px] w-full">
+                      <BarChart data={report.timeByUser} accessibilityLayer>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="userName"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                          tick={{ fontSize: 11 }}
+                        />
+                        <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Bar dataKey="billableHours" stackId="a" fill="var(--color-billableHours)" />
+                        <Bar
+                          dataKey="nonBillableHours"
+                          stackId="a"
+                          fill="var(--color-nonBillableHours)"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+        </>
+      )}
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+    </div>
   );
 }

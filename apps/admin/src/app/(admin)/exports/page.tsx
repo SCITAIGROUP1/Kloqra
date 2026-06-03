@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  Badge,
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   Input,
@@ -28,6 +30,13 @@ import {
   type ReportShareDto,
   type WorkspaceMemberDto
 } from "@chronomint/contracts";
+import {
+  PageHeader,
+  PreviewBanner,
+  Section,
+  SegmentedControl,
+  ToggleChip
+} from "@/components/admin-page";
 import { ExportColumnPicker } from "@/components/export-column-picker";
 import { ExportSchedulesPanel } from "@/components/export-schedules-panel";
 import { api, apiDownloadPost } from "@/lib/api";
@@ -41,25 +50,40 @@ import {
 import { saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-const REPORT_OPTIONS: { id: ExportReportType; label: string }[] = [
-  { id: "time_entries", label: "Time entries" },
-  { id: "daily_summary", label: "Daily summary" },
-  { id: "weekly_summary", label: "Weekly summary" },
-  { id: "by_project", label: "By project" },
-  { id: "by_member", label: "By member" },
-  { id: "by_task", label: "By task" },
-  { id: "invoice", label: "Invoice (billable)" },
-  { id: "users_without_time", label: "Users without time" },
-  { id: "budget_vs_actual", label: "Budget vs actual" },
-  { id: "utilization", label: "Utilization" }
+const REPORT_GROUPS: { title: string; reports: { id: ExportReportType; label: string }[] }[] = [
+  {
+    title: "Time data",
+    reports: [
+      { id: "time_entries", label: "Time entries" },
+      { id: "daily_summary", label: "Daily summary" },
+      { id: "weekly_summary", label: "Weekly summary" }
+    ]
+  },
+  {
+    title: "Breakdowns",
+    reports: [
+      { id: "by_project", label: "By project" },
+      { id: "by_member", label: "By member" },
+      { id: "by_task", label: "By task" }
+    ]
+  },
+  {
+    title: "Finance & planning",
+    reports: [
+      { id: "invoice", label: "Invoice" },
+      { id: "budget_vs_actual", label: "Budget vs actual" },
+      { id: "utilization", label: "Utilization" },
+      { id: "users_without_time", label: "Users without time" }
+    ]
+  }
 ];
 
 const PERIOD_PRESETS: { id: DatePreset; label: string }[] = [
   { id: "today", label: "Today" },
   { id: "week", label: "This week" },
-  { id: "7d", label: "Last 7 days" },
-  { id: "30d", label: "Last 30 days" },
-  { id: "90d", label: "Last 90 days" },
+  { id: "7d", label: "7 days" },
+  { id: "30d", label: "30 days" },
+  { id: "90d", label: "90 days" },
   { id: "month", label: "This month" }
 ];
 
@@ -70,6 +94,12 @@ function defaultColumnsMap(): Record<ExportReportType, string[]> {
       [...DEFAULT_EXPORT_COLUMNS[k]]
     ])
   ) as Record<ExportReportType, string[]>;
+}
+
+function formatPeriodLabel(from: string, to: string) {
+  const f = new Date(from + "T12:00:00");
+  const t = new Date(to + "T12:00:00");
+  return `${f.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${t.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
 }
 
 export default function ExportsPage() {
@@ -90,12 +120,14 @@ export default function ExportsPage() {
     "by_project"
   ]);
   const [columnsByReport, setColumnsByReport] = useState(defaultColumnsMap);
+  const [expandedReport, setExpandedReport] = useState<ExportReportType | null>("time_entries");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [preview, setPreview] = useState<ExportPreviewResponseDto | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [localPresets, setLocalPresets] = useState<StoredExportPreset[]>([]);
   const [serverPresets, setServerPresets] = useState<ExportPresetDto[]>([]);
   const [presetName, setPresetName] = useState("");
@@ -160,22 +192,37 @@ export default function ExportsPage() {
     if (!ws) return;
     const t = setTimeout(() => {
       setPreviewLoading(true);
+      setPreviewError(null);
       api<ExportPreviewResponseDto>(ROUTES.EXPORT.PREVIEW, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify(previewBody)
       })
-        .then(setPreview)
-        .catch(() => setPreview(null))
+        .then((data) => {
+          setPreview(data);
+          setPreviewError(null);
+        })
+        .catch((e) => {
+          setPreview(null);
+          setPreviewError(
+            e instanceof Error ? e.message : "Could not reach the export preview API."
+          );
+        })
         .finally(() => setPreviewLoading(false));
     }, 400);
     return () => clearTimeout(t);
   }, [ws, previewBody]);
 
   function toggleReport(rt: ExportReportType) {
-    setReportTypes((prev) =>
-      prev.includes(rt) ? (prev.length > 1 ? prev.filter((r) => r !== rt) : prev) : [...prev, rt]
-    );
+    setReportTypes((prev) => {
+      const next = prev.includes(rt)
+        ? prev.length > 1
+          ? prev.filter((r) => r !== rt)
+          : prev
+        : [...prev, rt];
+      if (!prev.includes(rt)) setExpandedReport(rt);
+      return next;
+    });
   }
 
   function applyPresetBody(body: ExportBodyDto) {
@@ -196,6 +243,7 @@ export default function ExportsPage() {
         return next;
       });
     }
+    setExpandedReport(body.reportTypes[0] ?? null);
   }
 
   const saveLocalPreset = () => {
@@ -234,8 +282,13 @@ export default function ExportsPage() {
         })
       });
       setShareUrl(result.shareUrl);
-    } catch {
-      setError("Could not create share link.");
+      setError(null);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `Share link failed: ${e.message}`
+          : "Could not create share link."
+      );
     } finally {
       setSharing(false);
     }
@@ -255,275 +308,371 @@ export default function ExportsPage() {
     }
   }
 
-  const previewLine = useCallback(() => {
-    if (previewLoading) return "Estimating row counts…";
-    if (!preview) return null;
-    if (preview.isEmpty) return "No rows match the current filters.";
+  const previewContent = useCallback(() => {
+    if (previewLoading) return "Estimating how many rows will be exported…";
+    if (previewError) return previewError;
+    if (!preview) return "Preview unavailable.";
+    if (preview.isEmpty) return "No rows match these filters. Try a wider date range or fewer filters.";
     const parts = reportTypes.map((rt) => {
       const n = preview.counts[rt];
       if (n === undefined) return null;
-      const label = REPORT_OPTIONS.find((o) => o.id === rt)?.label ?? rt;
-      return `~${n.toLocaleString()} ${label}`;
+      const label =
+        REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
+      return `${n.toLocaleString()} ${label}`;
     });
-    return `${parts.filter(Boolean).join(" · ")} (${preview.totalLogRows.toLocaleString()} time logs)`;
-  }, [preview, previewLoading, reportTypes]);
+    return `${parts.filter(Boolean).join(" · ")} · ${preview.totalLogRows.toLocaleString()} underlying time logs`;
+  }, [preview, previewLoading, previewError, reportTypes]);
 
   const canExport = reportTypes.every((rt) => columnsByReport[rt]?.length > 0);
+  const allPresets = [
+    ...serverPresets.map((p) => ({ ...p, source: "workspace" as const })),
+    ...localPresets.map((p) => ({ id: p.id, name: p.name, body: p.body, source: "local" as const }))
+  ];
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Exports</h2>
-      <p className="text-sm text-muted-foreground">
-        Download workspace time data. Pick reports, columns, and format — or use{" "}
-        <Link href="/dashboard" className="underline">
-          dashboard quick export
-        </Link>
-        .
-      </p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Exports"
+        description={
+          <>
+            Build multi-sheet reports for your workspace. Filters and date range sync with the{" "}
+            <Link href="/dashboard" className="font-medium text-primary underline-offset-4 hover:underline">
+              dashboard
+            </Link>
+            .
+          </>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Export wizard</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-wrap items-end gap-2">
-            <span className="text-sm text-muted-foreground w-full sm:w-auto">Period</span>
-            {PERIOD_PRESETS.map(({ id, label }) => (
-              <Button
-                key={id}
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const range = applyDatePreset(id);
-                  setFrom(range.from);
-                  setTo(range.to);
-                }}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
+      <div className="grid gap-8 lg:grid-cols-12">
+        <div className="space-y-6 lg:col-span-8">
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Period & filters</CardTitle>
+              <CardDescription>Quick ranges or custom dates. Scope narrows all selected reports.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <Section title="Quick range">
+                <div className="flex flex-wrap gap-2">
+                  {PERIOD_PRESETS.map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => {
+                        const range = applyDatePreset(id);
+                        setFrom(range.from);
+                        setTo(range.to);
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </Section>
 
-          <div className="flex flex-wrap gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="from">From</Label>
-              <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="to">To</Label>
-              <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </div>
-            <div className="space-y-2 min-w-[180px]">
-              <Label>Project</Label>
-              <Select
-                value={projectId || "__all__"}
-                onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All projects</SelectItem>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot color={p.color} />
-                        {p.name}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="from">From</Label>
+                  <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="to">To</Label>
+                  <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Billable</Label>
+                  <Select
+                    value={billable}
+                    onValueChange={(v) => setBillable(v as ExportBodyDto["billable"])}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All entries</SelectItem>
+                      <SelectItem value="billable">Billable only</SelectItem>
+                      <SelectItem value="non_billable">Non-billable only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Project</Label>
+                  <Select
+                    value={projectId || "__all__"}
+                    onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All projects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All projects</SelectItem>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <span className="flex items-center gap-2">
+                            <ProjectColorDot color={p.color} />
+                            {p.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Member</Label>
+                  <Select
+                    value={userId || "__all__"}
+                    onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All members" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All members</SelectItem>
+                      {members.map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {m.userName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {projectId ? (
+                <label className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={teamOnly}
+                    onChange={(e) => setTeamOnly(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  Only include project team members
+                </label>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Reports</CardTitle>
+              <CardDescription>Select one or more. Configure columns for each report below.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {REPORT_GROUPS.map((group) => (
+                <Section key={group.title} title={group.title}>
+                  <div className="flex flex-wrap gap-2">
+                    {group.reports.map((opt) => (
+                      <ToggleChip
+                        key={opt.id}
+                        selected={reportTypes.includes(opt.id)}
+                        onClick={() => toggleReport(opt.id)}
+                      >
+                        {opt.label}
+                      </ToggleChip>
+                    ))}
+                  </div>
+                </Section>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Columns</CardTitle>
+              <CardDescription>Choose and reorder columns per report. At least one column required.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {reportTypes.map((rt) => {
+                const label =
+                  REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
+                const open = expandedReport === rt;
+                return (
+                  <div
+                    key={rt}
+                    className="rounded-lg border border-border overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-2 bg-muted/30 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50"
+                      onClick={() => setExpandedReport(open ? null : rt)}
+                    >
+                      <span>
+                        {label}
+                        <Badge variant="secondary" className="ml-2 font-normal">
+                          {columnsByReport[rt]?.length ?? 0} cols
+                        </Badge>
                       </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 min-w-[180px]">
-              <Label>Member</Label>
-              <Select
-                value={userId || "__all__"}
-                onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All members" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All members</SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.userId} value={m.userId}>
-                      {m.userName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 min-w-[140px]">
-              <Label>Billable</Label>
-              <Select
-                value={billable}
-                onValueChange={(v) => setBillable(v as ExportBodyDto["billable"])}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="billable">Billable only</SelectItem>
-                  <SelectItem value="non_billable">Non-billable only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 min-w-[120px]">
-              <Label>Format</Label>
-              <Select
-                value={format}
-                onValueChange={(v) => setFormat(v as ExportBodyDto["format"])}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="csv">CSV</SelectItem>
-                  <SelectItem value="xlsx">Excel</SelectItem>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+                      <span className="text-muted-foreground text-xs">{open ? "Hide" : "Edit"}</span>
+                    </button>
+                    {open ? (
+                      <div className="border-t border-border p-3">
+                        <ExportColumnPicker
+                          report={rt}
+                          selected={columnsByReport[rt] ?? []}
+                          onChange={(cols) =>
+                            setColumnsByReport((prev) => ({ ...prev, [rt]: cols }))
+                          }
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
 
-          {projectId ? (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={teamOnly}
-                onChange={(e) => setTeamOnly(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Only project team members
-            </label>
-          ) : null}
+        <div className="lg:col-span-4">
+          <div className="sticky top-6 space-y-4">
+            <Card className="shadow-md border-primary/10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Export summary</CardTitle>
+                <CardDescription>{formatPeriodLabel(from, to)}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <PreviewBanner
+                  loading={previewLoading}
+                  error={!!previewError && !previewLoading}
+                  empty={!!preview?.isEmpty && !previewLoading && !previewError}
+                >
+                  {previewContent()}
+                </PreviewBanner>
 
-          <div className="space-y-2">
-            <Label>Presets</Label>
-            <div className="flex flex-wrap gap-2 items-end">
-              <Input
-                className="max-w-[200px]"
-                placeholder="Preset name"
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-              />
-              <Button type="button" size="sm" variant="outline" onClick={saveLocalPreset}>
-                Save locally
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={saveServerPreset}>
-                Save to workspace
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {serverPresets.map((p) => (
-                <span key={p.id} className="inline-flex items-center gap-1">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">File format</Label>
+                  <SegmentedControl
+                    value={format}
+                    onChange={setFormat}
+                    size="md"
+                    fullWidth
+                    options={[
+                      { value: "csv", label: "CSV" },
+                      { value: "xlsx", label: "Excel" },
+                      { value: "pdf", label: "PDF" }
+                    ]}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1">
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={runExport}
+                    disabled={!canExport || exporting}
+                  >
+                    {exporting ? "Preparing download…" : `Download ${format.toUpperCase()}`}
+                  </Button>
                   <Button
                     type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => applyPresetBody(p.body)}
+                    variant="outline"
+                    className="w-full"
+                    onClick={createShareLink}
+                    disabled={sharing}
                   >
-                    {p.name}
+                    {sharing ? "Creating link…" : "Create read-only share link"}
                   </Button>
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                    onClick={async () => {
-                      await api(ROUTES.EXPORT.PRESET(p.id), { method: "DELETE", workspaceId: ws });
-                      const list = await api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, {
-                        workspaceId: ws
-                      });
-                      setServerPresets(list);
-                    }}
-                    aria-label={`Delete ${p.name}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {localPresets.map((p) => (
-                <span key={p.id} className="inline-flex items-center gap-1">
+                </div>
+
+                {shareUrl ? (
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs break-all">
+                    <p className="font-medium text-foreground mb-1">Share link (30 days)</p>
+                    <a href={shareUrl} className="text-primary underline" target="_blank" rel="noreferrer">
+                      {shareUrl}
+                    </a>
+                  </div>
+                ) : null}
+
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Saved presets</CardTitle>
+                <CardDescription>Reload a configuration or save the current setup.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Preset name"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => applyPresetBody(p.body)}
+                    disabled={!presetName.trim()}
+                    onClick={saveLocalPreset}
                   >
-                    {p.name} (local)
+                    Save locally
                   </Button>
-                  <button
+                  <Button
                     type="button"
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                    onClick={() => ws && setLocalPresets(deleteLocalExportPreset(ws, p.id))}
-                    aria-label={`Delete ${p.name}`}
+                    size="sm"
+                    variant="secondary"
+                    disabled={!presetName.trim()}
+                    onClick={saveServerPreset}
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
+                    Save to workspace
+                  </Button>
+                </div>
+                {allPresets.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No presets yet.</p>
+                ) : (
+                  <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {allPresets.map((p) => (
+                      <li
+                        key={`${p.source}-${p.id}`}
+                        className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5"
+                      >
+                        <button
+                          type="button"
+                          className="text-left text-sm font-medium truncate hover:underline"
+                          onClick={() => applyPresetBody(p.body)}
+                        >
+                          {p.name}
+                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge variant="outline" className="text-[10px] px-1.5">
+                            {p.source === "local" ? "Local" : "Team"}
+                          </Badge>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-destructive text-xs px-1"
+                            aria-label={`Delete ${p.name}`}
+                            onClick={async () => {
+                              if (p.source === "local") {
+                                ws && setLocalPresets(deleteLocalExportPreset(ws, p.id));
+                              } else {
+                                await api(ROUTES.EXPORT.PRESET(p.id), {
+                                  method: "DELETE",
+                                  workspaceId: ws
+                                });
+                                const list = await api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, {
+                                  workspaceId: ws
+                                });
+                                setServerPresets(list);
+                              }
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
           </div>
-
-          <div className="space-y-2">
-            <Label>Reports</Label>
-            <div className="flex flex-wrap gap-3">
-              {REPORT_OPTIONS.map((opt) => (
-                <label key={opt.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={reportTypes.includes(opt.id)}
-                    onChange={() => toggleReport(opt.id)}
-                    className="h-4 w-4"
-                  />
-                  {opt.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            {reportTypes.map((rt) => (
-              <ExportColumnPicker
-                key={rt}
-                report={rt}
-                selected={columnsByReport[rt] ?? []}
-                onChange={(cols) =>
-                  setColumnsByReport((prev) => ({ ...prev, [rt]: cols }))
-                }
-              />
-            ))}
-          </div>
-
-          {previewLine() ? (
-            <p
-              className={`text-sm ${preview?.isEmpty ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
-            >
-              {previewLine()}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={runExport} disabled={!canExport || exporting}>
-              {exporting ? "Exporting…" : "Export"}
-            </Button>
-            <Button type="button" variant="outline" onClick={createShareLink} disabled={sharing}>
-              {sharing ? "Creating link…" : "Create share link"}
-            </Button>
-          </div>
-          {shareUrl ? (
-            <p className="text-sm break-all">
-              Share link (30 days):{" "}
-              <a href={shareUrl} className="underline" target="_blank" rel="noreferrer">
-                {shareUrl}
-              </a>
-            </p>
-          ) : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <ExportSchedulesPanel workspaceId={ws} currentBody={exportBody} />
     </div>

@@ -22,7 +22,7 @@ export class ReportShareService {
   async create(
     workspaceId: string,
     dto: CreateReportShareDto,
-    publicBaseUrl: string
+    adminPublicBaseUrl: string
   ): Promise<ReportShareDto> {
     const parsed = createReportShareSchema.parse(dto);
     exportPreviewBodySchema.parse(parsed.body);
@@ -40,12 +40,12 @@ export class ReportShareService {
       }
     });
 
-    const base = publicBaseUrl.replace(/\/$/, "");
+    const base = adminPublicBaseUrl.replace(/\/$/, "");
     return {
       id: row.id,
       token: row.token,
       expiresAt: row.expiresAt.toISOString(),
-      shareUrl: `${base}/export/share/${row.token}`
+      shareUrl: `${base}/share/${row.token}`
     };
   }
 

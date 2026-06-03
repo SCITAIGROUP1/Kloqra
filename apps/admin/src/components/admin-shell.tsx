@@ -63,24 +63,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <aside className="w-56 border-r border-border bg-card p-4">
         <h1 className="font-bold text-primary">ChronoMint Admin</h1>
         <WorkspaceSwitcher />
-        <nav className="mt-6 flex flex-col gap-1">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded px-3 py-2 text-sm ${
-                pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="mt-6 flex flex-col gap-0.5">
+          {nav.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
         <Button className="mt-8" variant="secondary" size="sm" onClick={() => { clear(); router.push("/login"); }}>
           Logout
         </Button>
       </aside>
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-7xl p-6 lg:p-8">{children}</div>
+      </main>
     </div>
   );
 }

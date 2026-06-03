@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   Input,
@@ -95,13 +96,13 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Scheduled exports</CardTitle>
+        <CardTitle className="text-base">Scheduled exports</CardTitle>
+        <CardDescription>
+          Email recurring exports using your current filters and report selection (server logs runs when
+          email is not configured).
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Saves the current wizard settings and runs an export on a recurring schedule (logged on the
-          server when email is not configured).
-        </p>
         <div className="flex flex-wrap gap-4">
           <div className="space-y-2 min-w-[160px]">
             <Label>Name</Label>

@@ -44,7 +44,8 @@ describe("contracts", () => {
       timeByProject: [],
       timeByUser: [],
       weeklyHours: [],
-      dailyHours: []
+      dailyHours: [],
+      dailyByProject: []
     });
     expect(r.success).toBe(true);
   });

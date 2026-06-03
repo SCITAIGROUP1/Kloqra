@@ -20,9 +20,22 @@ export async function api<T>(
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
-      const body = (await res.json()) as { message?: string | string[] };
+      const body = (await res.json()) as {
+        message?: string | string[];
+        details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+      };
       if (typeof body.message === "string") message = body.message;
       else if (Array.isArray(body.message)) message = body.message.join(", ");
+      const fieldMsgs = body.details?.fieldErrors
+        ? Object.entries(body.details.fieldErrors).flatMap(([k, v]) =>
+            (v ?? []).map((m) => `${k}: ${m}`)
+          )
+        : [];
+      const formMsgs = body.details?.formErrors ?? [];
+      const extra = [...formMsgs, ...fieldMsgs];
+      if (extra.length > 0) {
+        message = `${message} — ${extra.join("; ")}`;
+      }
     } catch {
       /* non-JSON error body */
     }

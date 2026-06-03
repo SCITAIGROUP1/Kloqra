@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UseGuards
+} from "@nestjs/common";
 import { Response } from "express";
 import {
   createExportPresetSchema,
@@ -49,6 +61,7 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @HttpCode(200)
   @Post(ROUTES.EXPORT.PREVIEW)
   async preview(
     @CurrentUser() user: RequestUser,
@@ -125,19 +138,24 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @HttpCode(200)
   @Post(ROUTES.EXPORT.SHARES)
   async createShare(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createReportShareSchema)) body: unknown
   ) {
-    const base =
-      process.env.PUBLIC_API_BASE_URL ??
-      process.env.API_PUBLIC_URL ??
-      "http://localhost:3001";
+    const adminBase =
+      process.env.PUBLIC_ADMIN_URL ??
+      process.env.ADMIN_PUBLIC_URL ??
+      (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
+        .split(",")
+        .map((o) => o.trim())
+        .find((o) => o.includes(":3002")) ??
+      "http://localhost:3002";
     return this.reportShares.create(
       user.workspaceId,
       body as Parameters<ReportShareService["create"]>[1],
-      base
+      adminBase
     );
   }
 
