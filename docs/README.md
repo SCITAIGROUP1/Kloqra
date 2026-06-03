@@ -15,6 +15,8 @@ Start here for architecture, development, API reference, feature specs, user gui
 | Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md) |
 | Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)   |
 | Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                       |
+| Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                     |
+| Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                       |
 | Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)         |
 | Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                             |
 
@@ -43,7 +45,10 @@ Start here for architecture, development, API reference, feature specs, user gui
 
 ### Ops
 
-- [runbooks/deploy.md](runbooks/deploy.md) — staging/production deployment
+- [runbooks/deploy.md](runbooks/deploy.md) — staging/production deployment hub
+- [runbooks/railway.md](runbooks/railway.md) — API, Postgres, Redis on Railway
+- [runbooks/vercel.md](runbooks/vercel.md) — client and admin on Vercel
+- [deploy/](../deploy/) — env templates and deploy scripts
 - [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md) — common local failures
 
 ### Agent / process

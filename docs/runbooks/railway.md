@@ -1,0 +1,190 @@
+# Deploy API on Railway (staging and production)
+
+Railway hosts the **NestJS API** with managed PostgreSQL and Redis. Frontends deploy separately on [Vercel](./vercel.md).
+
+## Topology
+
+| Environment | Railway project      | Vercel client               | Vercel admin               |
+| ----------- | -------------------- | --------------------------- | -------------------------- |
+| Staging     | `chronomint-staging` | `chronomint-client-staging` | `chronomint-admin-staging` |
+| Production  | `chronomint-prod`    | `chronomint-client`         | `chronomint-admin`         |
+
+Each environment uses **isolated** Postgres, Redis, and JWT secrets.
+
+---
+
+## Quick start (CLI)
+
+```bash
+# 1. Railway API + DB + Redis
+bash scripts/deploy/setup-railway.sh staging
+
+# 2. Vercel frontends (after API URL is known)
+bash scripts/deploy/setup-vercel.sh staging https://your-staging-api.up.railway.app
+
+# 3. Wire CORS and smoke test
+bash scripts/deploy/wire-cors.sh https://chronomint-client-staging.vercel.app https://chronomint-admin-staging.vercel.app
+# → paste output as FRONTEND_ORIGIN on Railway API service
+
+bash scripts/deploy/smoke.sh https://your-staging-api.up.railway.app
+```
+
+Repeat with `production` for the prod environment.
+
+---
+
+## Dashboard setup (staging)
+
+### 1. Create project
+
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → select `ChronoMint`.
+2. Name the project `chronomint-staging`.
+
+### 2. Add databases
+
+In the project, click **+ New**:
+
+- **PostgreSQL** — note the service name (e.g. `Postgres`).
+- **Redis** — note the connection variable (`REDIS_URL` or `REDIS_PRIVATE_URL`).
+
+### 3. Add API service
+
+1. **+ New** → **GitHub Repo** → same repo (or use the service created in step 1).
+2. **Settings → Source:**
+   - Root directory: **empty** (monorepo root)
+   - Dockerfile path: `apps/api/Dockerfile`
+3. Railway reads [`railway.toml`](../../railway.toml) for build and health check (`GET /health`).
+
+### 4. Environment variables
+
+On the **API service** → **Variables**:
+
+| Variable             | Value                                                               |
+| -------------------- | ------------------------------------------------------------------- |
+| `DATABASE_URL`       | `${{Postgres.DATABASE_URL}}` (reference your Postgres service name) |
+| `REDIS_URL`          | From Redis plugin                                                   |
+| `JWT_ACCESS_SECRET`  | `bash scripts/deploy/generate-secrets.sh`                           |
+| `JWT_REFRESH_SECRET` | Same script — unique per environment                                |
+| `FRONTEND_ORIGIN`    | Staging Vercel URLs (update after [vercel.md](./vercel.md))         |
+| `PUBLIC_ADMIN_URL`   | `https://chronomint-admin-staging.vercel.app`                       |
+| `PORT`               | `3001`                                                              |
+| `NODE_ENV`           | `production`                                                        |
+
+**Do not set** `REDIS_USE_MEMORY`.
+
+Template: [`deploy/env.staging.example`](../../deploy/env.staging.example).
+
+### 5. Deploy branch
+
+**Settings → Deploy** → set branch to `staging` or `develop` (your staging branch).
+
+### 6. Run migrations
+
+Once Postgres is reachable:
+
+```bash
+DATABASE_URL="<railway-postgres-url>" bash scripts/deploy/migrate.sh
+```
+
+Optional seed for staging:
+
+```bash
+DATABASE_URL="<railway-postgres-url>" pnpm --filter @chronomint/api exec prisma db seed
+```
+
+Or use Railway shell: **API service → Shell** → run migrate with `DATABASE_URL` already set.
+
+### 7. Public URL
+
+**Settings → Networking → Generate Domain** → note URL, e.g. `https://chronomint-api-staging.up.railway.app`.
+
+Smoke test:
+
+```bash
+bash scripts/deploy/smoke.sh https://chronomint-api-staging.up.railway.app
+```
+
+---
+
+## Production setup
+
+Duplicate the staging project as **`chronomint-prod`** with these differences:
+
+| Item              | Production                               |
+| ----------------- | ---------------------------------------- |
+| Branch            | `main`                                   |
+| JWT secrets       | **New** values — never copy from staging |
+| Database          | Separate Postgres instance               |
+| Redis             | Separate Redis instance                  |
+| Custom domain     | `api.example.com` via Railway Networking |
+| `FRONTEND_ORIGIN` | Production Vercel URLs + custom domains  |
+| Seed              | Do not seed unless intentional           |
+
+Template: [`deploy/env.production.example`](../../deploy/env.production.example).
+
+### Production checklist
+
+- [ ] Separate Railway project `chronomint-prod`
+- [ ] Unique JWT secrets (`generate-secrets.sh`)
+- [ ] `prisma migrate deploy` against prod DB before traffic
+- [ ] Custom domains on Railway (API) and Vercel (client/admin)
+- [ ] `FRONTEND_ORIGIN` lists all HTTPS frontend origins
+- [ ] Smoke: health, login, timer, presence, export
+- [ ] Entry in [CHANGELOG.md](../../CHANGELOG.md)
+
+---
+
+## Wire CORS after Vercel deploy
+
+Once both Vercel apps are live:
+
+```bash
+bash scripts/deploy/wire-cors.sh \
+  https://chronomint-client-staging.vercel.app \
+  https://chronomint-admin-staging.vercel.app
+```
+
+Set the output as `FRONTEND_ORIGIN` on the Railway API service and redeploy.
+
+For custom domains, include every origin:
+
+```env
+FRONTEND_ORIGIN=https://app.example.com,https://admin.example.com
+```
+
+---
+
+## CI migrations
+
+GitHub Actions runs `prisma migrate deploy` on pushes to `staging` / `main` when API or Prisma files change. Configure:
+
+- GitHub **Environment** `staging` → secret `DATABASE_URL`
+- GitHub **Environment** `production` → secret `DATABASE_URL`
+
+See [`.github/workflows/deploy-api.yml`](../../.github/workflows/deploy-api.yml).
+
+Run migrations **before** or **with** each API rollout. Railway auto-deploys on push; ensure the migrate workflow completes first (or run migrate manually).
+
+---
+
+## Alternatives
+
+| Platform | Config                                                            | Runbook                        |
+| -------- | ----------------------------------------------------------------- | ------------------------------ |
+| Render   | [`render.yaml`](../../render.yaml)                                | Same env vars as Railway       |
+| Fly.io   | `fly launch` + [`apps/api/Dockerfile`](../../apps/api/Dockerfile) | [vercel.md](./vercel.md) § API |
+| AWS ECS  | See [deploy.md](./deploy.md)                                      | When PaaS limits are hit       |
+
+---
+
+## Troubleshooting
+
+| Issue                              | Fix                                                              |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| Build fails — can't find contracts | Ensure root directory is monorepo root, not `apps/api`           |
+| Health check failing               | Check logs; verify `PORT=3001` and `/health` responds            |
+| Timer/presence broken              | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset          |
+| CORS errors                        | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)  |
+| Migrations pending                 | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL` |
+
+See also [deploy.md](./deploy.md), [vercel.md](./vercel.md), [ENVIRONMENT.md](../development/ENVIRONMENT.md).

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Deployment infrastructure: Railway config ([`railway.toml`](railway.toml)), deploy scripts ([`scripts/deploy/`](scripts/deploy/)), env templates ([`deploy/`](deploy/)), API migrate CI workflow ([`.github/workflows/deploy-api.yml`](.github/workflows/deploy-api.yml)), and runbooks ([`docs/runbooks/railway.md`](docs/runbooks/railway.md)).
 - Complete documentation set under `docs/` (hub, development guides, architecture, API reference, feature specs, user guides, runbooks).
 
 ## [0.2.0] - 2025-06-02

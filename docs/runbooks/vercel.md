@@ -8,7 +8,27 @@ ChronoMint has **three** deployable parts:
 | **Admin** (`apps/admin`)   | Vercel                     | Next.js 15                                                        |
 | **API** (`apps/api`)       | Railway, Render, or Fly.io | NestJS + PostgreSQL + Redis (long-running, not Vercel serverless) |
 
-Deploy the **API first** (or use a staging API URL), then point both frontends at it.
+Deploy the **API first** (see [railway.md](./railway.md)), then point both frontends at it.
+
+---
+
+## Staging and production projects
+
+Use **four Vercel projects per environment** (two apps × two envs), or one project per app with Preview/Production env vars.
+
+| Environment | Client project              | Admin project              | Git branch            |
+| ----------- | --------------------------- | -------------------------- | --------------------- |
+| Staging     | `chronomint-client-staging` | `chronomint-admin-staging` | `staging` / `develop` |
+| Production  | `chronomint-client`         | `chronomint-admin`         | `main`                |
+
+Env templates: [`deploy/env.staging.example`](../../deploy/env.staging.example), [`deploy/env.production.example`](../../deploy/env.production.example).
+
+### CLI bootstrap
+
+```bash
+bash scripts/deploy/setup-vercel.sh staging https://your-staging-api.up.railway.app
+bash scripts/deploy/setup-vercel.sh production https://api.example.com
+```
 
 ---
 
@@ -18,36 +38,18 @@ Use a host that supports Docker or Node 20 + Postgres + Redis.
 
 ### Option A — Railway (recommended)
 
-1. [railway.app](https://railway.app) → New project → Deploy from GitHub → select `ChronoMint`.
-2. Add **PostgreSQL** and **Redis** plugins to the project.
-3. Add a **service** from repo with:
-   - **Root directory:** leave empty (monorepo root)
-   - **Dockerfile path:** `apps/api/Dockerfile`
-   - Or use Nixpacks with start command `node apps/api/dist/main.js` after build (Docker is simpler).
-4. Set variables on the API service:
+Full guide: **[railway.md](./railway.md)**.
 
-   | Variable             | Value                                                                                       |
-   | -------------------- | ------------------------------------------------------------------------------------------- |
-   | `DATABASE_URL`       | From Railway Postgres (`${{Postgres.DATABASE_URL}}`)                                        |
-   | `REDIS_URL`          | From Railway Redis                                                                          |
-   | `JWT_ACCESS_SECRET`  | Random 32+ chars                                                                            |
-   | `JWT_REFRESH_SECRET` | Random 32+ chars                                                                            |
-   | `FRONTEND_ORIGIN`    | `https://YOUR-CLIENT.vercel.app,https://YOUR-ADMIN.vercel.app` (update after Vercel deploy) |
-   | `PORT`               | `3001`                                                                                      |
+Summary:
 
-5. Run migrations once (Railway shell or local against prod DB):
-
-   ```bash
-   DATABASE_URL="..." pnpm --filter @chronomint/api exec prisma migrate deploy
-   ```
-
-6. Note the public API URL, e.g. `https://chronomint-api-production.up.railway.app`.
+1. Project `chronomint-staging` or `chronomint-prod`
+2. PostgreSQL + Redis plugins
+3. API service: monorepo root, Dockerfile `apps/api/Dockerfile`, config in [`railway.toml`](../../railway.toml)
+4. Run migrations: `bash scripts/deploy/migrate.sh <DATABASE_URL>`
 
 ### Option B — Render
 
-1. **Web Service** → Docker → repo root, Dockerfile `apps/api/Dockerfile`.
-2. Add managed Postgres + Redis (or Upstash Redis).
-3. Same env vars as above.
+Import [`render.yaml`](../../render.yaml) or create a Docker web service manually. Same env vars as Railway.
 
 Health check: `GET /health` on your API URL.
 
@@ -55,12 +57,12 @@ Health check: `GET /health` on your API URL.
 
 ## 2. Vercel — Client app
 
-1. [vercel.com](https://vercel.com) → **Add New Project** → Import `SCITAIGROUP1/ChronoMint` (or your fork).
-2. **Project name:** e.g. `chronomint-client`
-3. **Root Directory:** `apps/client` (Edit → Root Directory)
+1. [vercel.com](https://vercel.com) → **Add New Project** → Import your GitHub repo.
+2. **Project name:** e.g. `chronomint-client-staging` or `chronomint-client`
+3. **Root Directory:** `apps/client`
 4. **Framework Preset:** Next.js (auto)
 5. Enable **“Include source files outside of the Root Directory”** (required for `packages/ui` and `packages/contracts`).
-6. Build settings (usually auto from `apps/client/vercel.json`):
+6. Build settings (from [`apps/client/vercel.json`](../../apps/client/vercel.json)):
    - Install: `pnpm install --frozen-lockfile`
    - Build: `pnpm --filter @chronomint/client... build`
 7. **Environment variables:**
@@ -68,8 +70,9 @@ Health check: `GET /health` on your API URL.
    | Name                       | Value                                                   |
    | -------------------------- | ------------------------------------------------------- |
    | `NEXT_PUBLIC_API_BASE_URL` | `https://your-api-host.example.com` (no trailing slash) |
+   | `NEXT_PUBLIC_AUTH_SCOPE`   | `client`                                                |
 
-8. Deploy → copy production URL, e.g. `https://chronomint-client.vercel.app`.
+8. Deploy → copy production URL.
 
 ---
 
@@ -78,42 +81,53 @@ Health check: `GET /health` on your API URL.
 Create a **second** Vercel project (same repo, different root):
 
 1. **Add New Project** → same GitHub repo.
-2. **Project name:** e.g. `chronomint-admin`
+2. **Project name:** e.g. `chronomint-admin-staging` or `chronomint-admin`
 3. **Root Directory:** `apps/admin`
 4. **Include source files outside of the Root Directory:** ON
-5. Build from `apps/admin/vercel.json`:
+5. Build from [`apps/admin/vercel.json`](../../apps/admin/vercel.json):
    - Build: `pnpm --filter @chronomint/admin... build`
 6. **Environment variables:**
 
-   | Name                       | Value                  |
-   | -------------------------- | ---------------------- |
-   | `NEXT_PUBLIC_API_BASE_URL` | Same API URL as client |
+   | Name                       | Value                          |
+   | -------------------------- | ------------------------------ |
+   | `NEXT_PUBLIC_API_BASE_URL` | Same API URL as client         |
+   | `NEXT_PUBLIC_AUTH_SCOPE`   | `admin`                        |
+   | `NEXT_PUBLIC_ADMIN_URL`    | Admin public URL (share links) |
 
-7. Deploy → e.g. `https://chronomint-admin.vercel.app`.
+7. Deploy.
 
 ---
 
 ## 4. Wire CORS on the API
 
-Update API `FRONTEND_ORIGIN` to both Vercel URLs (comma-separated, HTTPS):
+After both frontends are deployed:
 
-```env
-FRONTEND_ORIGIN=https://chronomint-client.vercel.app,https://chronomint-admin.vercel.app
+```bash
+bash scripts/deploy/wire-cors.sh \
+  https://chronomint-client-staging.vercel.app \
+  https://chronomint-admin-staging.vercel.app
 ```
 
-Redeploy or restart the API service after changing this.
+Set the output as `FRONTEND_ORIGIN` on the Railway API service and redeploy.
+
+For production with custom domains:
+
+```env
+FRONTEND_ORIGIN=https://app.example.com,https://admin.example.com
+```
 
 ---
 
 ## 5. Smoke test
 
 ```bash
-curl https://your-api-host/health
+bash scripts/deploy/smoke.sh https://your-api-host
 ```
 
-1. Open admin URL → login (`admin@chronomint.dev` if you ran seed against prod DB).
+1. Open admin URL → login (`admin@chronomint.dev` if you seeded staging).
 2. Open client URL → login as member → start timer.
 3. Admin **Team live** should show activity.
+4. Run an **Export** from admin and confirm download.
 
 ---
 
@@ -122,40 +136,48 @@ curl https://your-api-host/health
 From repo root, with [Vercel CLI](https://vercel.com/docs/cli) installed and logged in:
 
 ```bash
-# Client (first time: follow prompts, set root to apps/client)
+# Staging client
 cd apps/client && vercel link
 vercel env add NEXT_PUBLIC_API_BASE_URL production
+vercel env add NEXT_PUBLIC_AUTH_SCOPE production
 vercel --prod
 
-# Admin (separate project)
+# Staging admin (separate project)
 cd apps/admin && vercel link
 vercel env add NEXT_PUBLIC_API_BASE_URL production
+vercel env add NEXT_PUBLIC_AUTH_SCOPE production
+vercel env add NEXT_PUBLIC_ADMIN_URL production
 vercel --prod
 ```
 
+Or use `scripts/deploy/setup-vercel.sh`.
+
 ---
 
-## Custom domains
+## Custom domains (production)
 
-In each Vercel project: **Settings → Domains** → e.g. `app.yourdomain.com` (client), `admin.yourdomain.com` (admin).
+In each Vercel project: **Settings → Domains**:
 
-Add those origins to API `FRONTEND_ORIGIN` as well.
+- Client: `app.yourdomain.com`
+- Admin: `admin.yourdomain.com`
+
+Add those origins to API `FRONTEND_ORIGIN`. Set API custom domain on Railway (`api.yourdomain.com`).
 
 ---
 
 ## Why not all three on Vercel?
 
-The API is a **NestJS** server with **Prisma**, **PostgreSQL**, **Redis** (timer/presence), and long-lived connections. Vercel is optimized for Next.js and serverless functions, not a persistent Node API + Redis. Running it on Railway/Render matches [deploy.md](./deploy.md) and avoids timeouts and missing Redis.
+The API is a **NestJS** server with **Prisma**, **PostgreSQL**, **Redis** (timer/presence), SSE streams, and a background export scheduler. Vercel is optimized for Next.js and serverless functions, not a persistent Node API + Redis.
 
 ---
 
 ## Troubleshooting
 
-| Issue                              | Fix                                                                                                            |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Build can’t find `@chronomint/ui`  | Turn on “Include source files outside Root Directory”; ensure `vercel.json` build uses `...` filter            |
-| `pnpm: command not found`          | Vercel project Settings → enable pnpm (or set `packageManager` in root `package.json` — already `pnpm@9.15.0`) |
-| Login works locally, fails in prod | Check `NEXT_PUBLIC_API_BASE_URL`, API `FRONTEND_ORIGIN`, and API logs                                          |
-| CORS error in browser              | `FRONTEND_ORIGIN` must list exact frontend origins (scheme + host)                                             |
+| Issue                              | Fix                                                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Build can’t find `@chronomint/ui`  | Turn on “Include source files outside Root Directory”; ensure `vercel.json` build uses `...` filter |
+| `pnpm: command not found`          | Vercel project Settings → enable pnpm (`packageManager` in root `package.json` is `pnpm@9.15.0`)    |
+| Login works locally, fails in prod | Check `NEXT_PUBLIC_API_BASE_URL`, API `FRONTEND_ORIGIN`, and API logs                               |
+| CORS error in browser              | `FRONTEND_ORIGIN` must list exact frontend origins (scheme + host)                                  |
 
-See also [deploy.md](./deploy.md) and [ENVIRONMENT.md](../development/ENVIRONMENT.md).
+See also [deploy.md](./deploy.md), [railway.md](./railway.md), [ENVIRONMENT.md](../development/ENVIRONMENT.md).

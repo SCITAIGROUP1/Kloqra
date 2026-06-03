@@ -1,0 +1,19 @@
+# ChronoMint API — Railway service config
+# https://docs.railway.com/guides/config-as-code
+#
+# Create two Railway projects (staging + production), each with:
+#   - PostgreSQL plugin
+#   - Redis plugin
+#   - This API service (monorepo root, Dockerfile below)
+#
+# See docs/runbooks/railway.md for full setup.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/api/Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

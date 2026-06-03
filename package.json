@@ -18,7 +18,12 @@
     "prisma:generate": "pnpm --filter @chronomint/api prisma:generate",
     "prisma:migrate": "pnpm --filter @chronomint/api prisma:migrate",
     "prisma:seed": "pnpm --filter @chronomint/api prisma:seed",
-    "prisma:validate": "pnpm --filter @chronomint/api prisma:validate"
+    "prisma:validate": "pnpm --filter @chronomint/api prisma:validate",
+    "deploy:migrate": "bash scripts/deploy/migrate.sh",
+    "deploy:smoke": "bash scripts/deploy/smoke.sh",
+    "deploy:secrets": "bash scripts/deploy/generate-secrets.sh",
+    "deploy:railway": "railway",
+    "deploy:vercel": "vercel"
   },
   "engines": {
     "node": ">=20"
@@ -28,11 +33,13 @@
     "@chronomint/config-prettier": "workspace:*",
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
+    "@railway/cli": "^4.6.0",
     "eslint": "^9.17.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.3.0",
     "prettier": "^3.4.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vercel": "^41.0.0"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,md}": [
