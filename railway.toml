@@ -11,7 +11,14 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "apps/api/Dockerfile"
-watchPatterns = ["apps/api/**", "packages/contracts/**"]
+watchPatterns = [
+  "apps/api/**",
+  "packages/contracts/**",
+  "packages/config-*",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+]
 
 [deploy]
 startCommand = "node dist/main.js"
