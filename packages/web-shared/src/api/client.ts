@@ -1,7 +1,11 @@
 import { getAccessToken } from "../stores/session.store";
 
 export function getApiBase(): string {
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+  let raw = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+  // Without a scheme the host is treated as a relative path → 404 on the Vercel origin.
+  if (raw && !/^https?:\/\//i.test(raw)) {
+    raw = `https://${raw.replace(/^\/+/, "")}`;
+  }
   // HTTPS pages cannot call HTTP APIs (mixed content). Common deploy mistake.
   if (
     typeof window !== "undefined" &&
