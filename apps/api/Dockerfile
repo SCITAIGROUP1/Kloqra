@@ -25,8 +25,7 @@ RUN test -d /prod/node_modules/@chronomint/contracts/dist || \
 # pnpm deploy skips postinstall — generate Prisma Client inside /prod (not the monorepo tree)
 ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build"
 RUN pnpm --filter @chronomint/api exec prisma generate --schema=/prod/prisma/schema.prisma && \
-    test -d /prod/node_modules/.prisma/client && \
-    test -n "$(find /prod/node_modules/.prisma/client -name 'libquery_engine-linux-musl*.so.node' -print -quit)"
+    test -n "$(find /prod/node_modules -name 'libquery_engine-linux-musl*.so.node' -print -quit)"
 
 FROM node:20-alpine3.20 AS runner
 WORKDIR /app
