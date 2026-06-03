@@ -68,10 +68,9 @@ On the **API service** → **Variables**:
 | `JWT_REFRESH_SECRET` | Same script — unique per environment                                |
 | `FRONTEND_ORIGIN`    | Staging Vercel URLs (update after [vercel.md](./vercel.md))         |
 | `PUBLIC_ADMIN_URL`   | `https://chronomint-admin-staging.vercel.app`                       |
-| `PORT`               | `3001`                                                              |
 | `NODE_ENV`           | `production`                                                        |
 
-**Do not set** `REDIS_USE_MEMORY`.
+Do **not** set `PORT` — Railway injects it. Do **not** set `REDIS_USE_MEMORY`.
 
 Template: [`deploy/env.staging.example`](../../deploy/env.staging.example).
 
@@ -185,7 +184,7 @@ Run migrations **before** or **with** each API rollout. Railway auto-deploys on 
 | Build fails — can't find contracts           | Logs show `/app/apps/api` + `pnpm start` → Railway is using Nixpacks with wrong root. Set **Root Directory** to repo root (empty), **Builder** to Dockerfile `apps/api/Dockerfile`. Or redeploy with latest code (`prebuild` builds contracts). |
 | `pnpm deploy` / `WORKSPACE_PKG_NOT_FOUND`    | Dockerfile must include root workspace packages (`config-eslint`, `config-prettier`) so `pnpm deploy --prod` can resolve the monorepo. Use latest `apps/api/Dockerfile`.                                                                        |
 | `Cannot find module '@chronomint/contracts'` | `packages/contracts` missing from the image — use per-package `COPY` lines in `apps/api/Dockerfile` (not one multi-source `COPY`). Confirm **Root Directory** is repo root (empty).                                                             |
-| Health check failing                         | Check logs; verify `PORT=3001` and `/health` responds                                                                                                                                                                                           |
+| Health check failing                         | Check deploy logs for startup crash (often `DATABASE_URL` / Prisma). App must listen on Railway's injected `PORT` at `0.0.0.0`. Verify `GET /health` returns 200. Do not hardcode `PORT=3001` in Railway variables.                             |
 | Timer/presence broken                        | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset                                                                                                                                                                                         |
 | CORS errors                                  | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)                                                                                                                                                                                 |
 | Migrations pending                           | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL`                                                                                                                                                                                |

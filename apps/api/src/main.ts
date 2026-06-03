@@ -9,9 +9,12 @@ async function bootstrap() {
     origin: (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000").split(","),
     credentials: true
   });
-  const port = process.env.PORT ?? 3001;
-  await app.listen(port);
-  console.log(`API listening on http://localhost:${port}`);
+  const port = Number(process.env.PORT ?? 3001);
+  await app.listen(port, "0.0.0.0");
+  console.log(`API listening on 0.0.0.0:${port}`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error("Failed to start API:", err);
+  process.exit(1);
+});
