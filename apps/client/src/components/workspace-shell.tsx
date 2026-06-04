@@ -15,7 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 const nav = [
@@ -34,20 +34,17 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session) return;
-    const ws = getWorkspaceId();
-    if (!ws) {
-      router.replace("/login");
-      return;
-    }
     const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
     }
-    api<AuthSessionDto>(ROUTES.AUTH.ME, { workspaceId: ws })
+    api<AuthSessionDto>(ROUTES.AUTH.ME)
       .then((s) => {
         setSession(s, token);
-        return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: ws });
+        return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+          workspaceId: s.workspaceId
+        });
       })
       .then((list) => {
         setWorkspaces(list);

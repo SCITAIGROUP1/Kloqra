@@ -125,7 +125,14 @@ export function TimerPage() {
       setTaskChoice("");
       setNewTaskName("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start timer");
+      const message = e instanceof Error ? e.message : "Could not start timer";
+      if (message.toLowerCase().includes("timer already running")) {
+        setError(
+          "A timer is already running in this workspace. Stop it on this device or another device, then try again."
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setStarting(false);
     }

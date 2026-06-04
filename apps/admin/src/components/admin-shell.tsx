@@ -23,7 +23,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 const nav = [
@@ -46,24 +46,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       if (session.workspaceRole !== "ADMIN") router.replace("/login?error=admin");
       return;
     }
-    const ws = getWorkspaceId();
-    if (!ws) {
-      router.replace("/login");
-      return;
-    }
     const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
     }
-    api<AuthSessionDto>(ROUTES.AUTH.ME, { workspaceId: ws })
+    api<AuthSessionDto>(ROUTES.AUTH.ME)
       .then((s) => {
         if (s.workspaceRole !== "ADMIN") {
           router.replace("/login?error=admin");
           return;
         }
         setSession(s, token);
-        return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: ws });
+        return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+          workspaceId: s.workspaceId
+        });
       })
       .then((list) => {
         if (list) setWorkspaces(list);

@@ -61,6 +61,13 @@ export function getWorkspaceId(): string | null {
   return localStorage.getItem(workspaceKey());
 }
 
+/** Align localStorage workspace with JWT after login or when another tab switched workspace. */
+export function syncWorkspaceIdToStorage(workspaceId: string): void {
+  if (typeof window === "undefined") return;
+  migrateLegacyStorage();
+  localStorage.setItem(workspaceKey(), workspaceId);
+}
+
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
   migrateLegacyStorage();

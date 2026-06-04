@@ -26,18 +26,26 @@ sequenceDiagram
 
 Each frontend stores `accessToken` in **scoped** `localStorage` keys (`cm-client-*` / `cm-admin-*` via `NEXT_PUBLIC_AUTH_SCOPE`) and sends `Authorization: Bearer <token>`. The API guard prefers the Bearer header over cookies when both are present.
 
-**Two apps (client + admin):** Login cookies (`access_token`, `refresh_token`) are set on the **API host** and are shared by any app calling that API. Logging out in one app must call `DELETE /auth/logout` to clear those cookies for the other app. Client and admin use separate browser origins in local dev (`:3000` / `:3002`), so in-memory tokens are isolated; cookie/session confusion was the main cross-app issue.
+**Two apps (client + admin):** Auth cookies are scoped per app via `X-Auth-Scope` (`client` / `admin`): `access_token_client`, `refresh_token_admin`, etc. Admin and client can stay logged in on the same browser without overwriting each other's refresh cookie. Legacy unscoped `access_token` / `refresh_token` cookies are still read until cleared.
 
 ## Refresh
 
-`POST /auth/refresh` reads the `refresh_token` cookie, issues a new access token, and updates the `access_token` cookie. No body required.
+`POST /auth/refresh` reads the scoped refresh cookie for the caller's `X-Auth-Scope`, issues a new access token, and updates the matching access cookie. The refresh JWT includes `workspaceId` so refresh does not jump to an arbitrary workspace when the user has multiple memberships.
+
+## Multiple devices / tabs
+
+| Scenario                                                                             | Behavior                                                                                                            |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Same user, **admin + client**, same browser                                          | Allowed — separate scoped cookies and `localStorage` keys per app.                                                  |
+| Same user, **two devices** (e.g. laptop + phone)                                     | Allowed — stateless JWTs; each device keeps its own Bearer token and workspace in `localStorage`.                   |
+| **Stale `X-Workspace-Id`** (switch workspace on device A, device B still has old id) | API returns **403** with workspace mismatch — sign in again or switch workspace on that device.                     |
+| **One running timer** per user per workspace                                         | Second device gets `TIMER_ALREADY_ACTIVE` (409) — by design; stop timer on one device or use one device for timing. |
+
+Parallel logins do **not** invalidate other devices unless you add a server-side session store (not implemented today). Full matrix: [MULTI_DEVICE_SESSIONS.md](./MULTI_DEVICE_SESSIONS.md).
 
 ## Workspace context
 
-`JwtAuthGuard` accepts workspace from:
-
-1. `X-Workspace-Id` request header (preferred for API clients), or
-2. `workspaceId` claim embedded in the JWT at login
+`JwtAuthGuard` resolves workspace from the JWT `workspaceId` claim. If `X-Workspace-Id` is sent and **differs** from the token, the request is rejected (stale tab / other device switched workspace). If the header is omitted, the token workspace is used.
 
 Missing workspace → `WORKSPACE_REQUIRED` error.
 
@@ -47,7 +55,9 @@ Missing workspace → `WORKSPACE_REQUIRED` error.
 
 ## Logout
 
-`DELETE /auth/logout` clears `access_token` and `refresh_token` cookies.
+`DELETE /auth/logout` clears scoped (`access_token_{scope}`, `refresh_token_{scope}`) and legacy cookies for the calling app only. Other devices and the other app remain signed in.
+
+See [MULTI_DEVICE_SESSIONS.md](./MULTI_DEVICE_SESSIONS.md) for the full multi-device model.
 
 ## Role-based access
 

@@ -37,7 +37,7 @@ export class TimerService {
     if (existing) {
       throw new DomainException(
         ErrorCodes.TIMER_ALREADY_ACTIVE,
-        "Timer already running",
+        "Timer already running for this workspace (stop it on this or another device first)",
         HttpStatus.CONFLICT
       );
     }

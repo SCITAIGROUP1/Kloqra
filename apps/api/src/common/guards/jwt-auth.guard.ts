@@ -2,10 +2,13 @@ import { ErrorCodes } from "@chronomint/contracts";
 import {
   type CanActivate,
   type ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { accessCookieName, getAuthScope } from "../auth/auth-scope";
+import { resolveWorkspaceId } from "../auth/resolve-workspace-id";
 import type { RequestUser } from "../decorators/current-user.decorator";
 
 @Injectable()
@@ -19,7 +22,8 @@ export class JwtAuthGuard implements CanActivate {
       typeof authHeader === "string" && authHeader.startsWith("Bearer ")
         ? authHeader.slice(7).trim()
         : null;
-    const token = bearer || req.cookies?.access_token;
+    const scope = getAuthScope(req);
+    const token = bearer || req.cookies?.[accessCookieName(scope)] || req.cookies?.access_token;
 
     if (!token) {
       throw new UnauthorizedException({
@@ -33,20 +37,16 @@ export class JwtAuthGuard implements CanActivate {
         secret: process.env.JWT_ACCESS_SECRET
       }) as RequestUser & { sub: string };
       const headerWs = req.headers["x-workspace-id"];
-      const workspaceId = (Array.isArray(headerWs) ? headerWs[0] : headerWs) ?? payload.workspaceId;
+      const headerValue = Array.isArray(headerWs) ? headerWs[0] : headerWs;
+      const workspaceId = resolveWorkspaceId(payload.workspaceId, headerValue);
       req.user = {
         userId: payload.sub ?? payload.userId,
         workspaceId,
         role: payload.role
       };
-      if (!req.user.workspaceId) {
-        throw new UnauthorizedException({
-          code: ErrorCodes.WORKSPACE_REQUIRED,
-          message: "Workspace required"
-        });
-      }
       return true;
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof ForbiddenException || err instanceof UnauthorizedException) throw err;
       throw new UnauthorizedException({ code: ErrorCodes.UNAUTHORIZED, message: "Invalid token" });
     }
   }

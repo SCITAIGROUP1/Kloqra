@@ -120,29 +120,35 @@ export class AuthService {
     );
   }
 
-  signRefreshToken(userId: string): string {
+  signRefreshToken(userId: string, workspaceId: string): string {
     const secret = process.env.JWT_REFRESH_SECRET?.trim();
     if (!secret) {
       throw new Error("JWT_REFRESH_SECRET is not set on the API service");
     }
     return this.jwt.sign(
-      { sub: userId },
+      { sub: userId, workspaceId },
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
     );
   }
 
-  verifyRefresh(token: string): { userId: string } {
+  verifyRefresh(token: string): { userId: string; workspaceId?: string } {
     const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
       sub: string;
+      workspaceId?: string;
     };
-    return { userId: payload.sub };
+    return { userId: payload.sub, workspaceId: payload.workspaceId };
   }
 
-  async refreshSession(userId: string): Promise<AuthSessionDto | null> {
-    const membership = await this.prisma.workspaceMember.findFirst({
-      where: { userId },
-      include: { user: true, workspace: true }
-    });
+  async refreshSession(userId: string, workspaceId?: string): Promise<AuthSessionDto | null> {
+    const membership = workspaceId
+      ? await this.prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId, userId } },
+          include: { user: true, workspace: true }
+        })
+      : await this.prisma.workspaceMember.findFirst({
+          where: { userId },
+          include: { user: true, workspace: true }
+        });
     if (!membership) return null;
     return this.buildSession(
       membership.user,
