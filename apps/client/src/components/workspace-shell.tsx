@@ -87,7 +87,19 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       // Ignored
     } finally {
       useSessionStore.getState().clear();
-      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3002";
+      let adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+      if (!adminUrl) {
+        if (typeof window !== "undefined") {
+          const host = window.location.hostname;
+          if (host.includes("vercel.app")) {
+            adminUrl = `https://${host.replace("-client", "-admin")}`;
+          } else {
+            adminUrl = "http://localhost:3002";
+          }
+        } else {
+          adminUrl = "http://localhost:3002";
+        }
+      }
       window.location.href = `${adminUrl}/workspace`;
     }
   }

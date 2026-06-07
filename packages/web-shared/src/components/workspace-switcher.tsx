@@ -56,7 +56,19 @@ export function WorkspaceSwitcher({
 
   async function onChange(nextId: string) {
     if (nextId === "create_new_workspace") {
-      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3002";
+      let adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+      if (!adminUrl) {
+        if (typeof window !== "undefined") {
+          const host = window.location.hostname;
+          if (host.includes("vercel.app")) {
+            adminUrl = `https://${host.replace("-client", "-admin")}`;
+          } else {
+            adminUrl = "http://localhost:3002";
+          }
+        } else {
+          adminUrl = "http://localhost:3002";
+        }
+      }
       if (typeof window !== "undefined") {
         window.location.href = `${adminUrl}/workspace?create=true`;
       }

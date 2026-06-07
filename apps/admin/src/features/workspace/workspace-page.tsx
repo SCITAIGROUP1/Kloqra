@@ -75,7 +75,19 @@ export function WorkspacePage() {
         body: JSON.stringify({ userId })
       });
       toast.success("Impersonation cookies set. Redirecting to Client...");
-      const clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL || "http://localhost:3000";
+      let clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL;
+      if (!clientUrl) {
+        if (typeof window !== "undefined") {
+          const host = window.location.hostname;
+          if (host.includes("vercel.app")) {
+            clientUrl = `https://${host.replace("-admin", "-client")}`;
+          } else {
+            clientUrl = "http://localhost:3000";
+          }
+        } else {
+          clientUrl = "http://localhost:3000";
+        }
+      }
       window.location.href = `${clientUrl}/dashboard?impersonate=true`;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to view as member");
