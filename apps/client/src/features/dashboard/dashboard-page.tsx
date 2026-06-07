@@ -11,6 +11,7 @@ import type {
 import {
   Button,
   Card,
+  CardContent,
   Label,
   Select,
   SelectContent,
@@ -18,8 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
   ProjectColorDot,
-  Input
+  Input,
+  SegmentedControl
 } from "@chronomint/ui";
+import { toDateInputValue } from "@chronomint/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -34,7 +37,7 @@ import { TodayLogsWidget } from "./widgets/today-logs-widget";
 import { WeeklyProgressWidget } from "./widgets/weekly-progress-widget";
 import { DailyGoalWidget } from "@/features/timer/daily-goal-widget";
 import { QuickActions } from "@/features/timer/quick-actions";
-import { startOfWeek, getWeekDays, toDateKey } from "@/features/timesheet/calendar-utils";
+import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-dialog";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -43,6 +46,14 @@ import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 const NEW_TASK = "__new__";
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
+  { value: 7, label: "7 days" },
+  { value: 30, label: "30 days" },
+  { value: 90, label: "90 days" }
+];
+
+type RangeDays = 7 | 30 | 90;
 
 function formatElapsed(sec: number) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00:00";
@@ -57,6 +68,45 @@ export function DashboardPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
+
+  // Dashboard filter states
+  const [range, setRange] = useState<RangeDays | "">(7);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return toDateInputValue(d);
+  });
+  const [endDate, setEndDate] = useState<string>(() => toDateInputValue(new Date()));
+  const [filterProjectId, setFilterProjectId] = useState("");
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  function handleRangePresetChange(newRange: RangeDays) {
+    setRange(newRange);
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - newRange);
+    setStartDate(toDateInputValue(from));
+    setEndDate(toDateInputValue(to));
+  }
+
+  function handleCustomDateChange(newStart: string, newEnd: string) {
+    setStartDate(newStart);
+    setEndDate(newEnd);
+
+    // Check if it matches a preset
+    const todayStr = toDateInputValue(new Date());
+    if (newEnd === todayStr) {
+      const fromDate = new Date(newStart + "T12:00:00");
+      const toDate = new Date(newEnd + "T12:00:00");
+      const diffTime = toDate.getTime() - fromDate.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays === 7 || diffDays === 30 || diffDays === 90) {
+        setRange(diffDays as RangeDays);
+        return;
+      }
+    }
+    setRange("");
+  }
 
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
   const [submissions, setSubmissions] = useState<TimesheetPeriodDto[]>([]);
@@ -131,12 +181,11 @@ export function DashboardPage() {
   const fetchLogs = useCallback(async () => {
     if (!ws) return;
     try {
-      const today = new Date();
-      const weekStart = startOfWeek(today);
-      const weekDays = getWeekDays(weekStart);
+      const from = new Date(startDate + "T00:00:00");
+      const to = new Date(endDate + "T23:59:59.999");
       const params = new URLSearchParams({
-        from: weekDays[0]!.toISOString(),
-        to: new Date().toISOString()
+        from: from.toISOString(),
+        to: to.toISOString()
       });
       const res = await api<{ items: TimeLogDto[] }>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
         workspaceId: ws
@@ -145,7 +194,7 @@ export function DashboardPage() {
     } catch {
       // ignore
     }
-  }, [ws]);
+  }, [ws, startDate, endDate]);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -192,6 +241,14 @@ export function DashboardPage() {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  // Trigger fetchLogs when date range changes (after initial mount)
+  useEffect(() => {
+    if (!loading) {
+      setLogsLoading(true);
+      fetchLogs().finally(() => setLogsLoading(false));
+    }
+  }, [startDate, endDate, fetchLogs, loading]);
 
   // Keep timer ticking
   useEffect(() => {
@@ -325,32 +382,38 @@ export function DashboardPage() {
     setTaskChoice(tId);
   };
 
-  // Aggregates for Stats Cards
-  const weekStats = useMemo(() => {
-    const today = new Date();
-    const weekStart = startOfWeek(today);
-    const weekDays = getWeekDays(weekStart);
-    const dateKeys = weekDays.map((d) => toDateKey(d));
-
-    const weekLogs = logs.filter((log) => {
-      const logDate = new Date(log.startTime);
-      return dateKeys.includes(toDateKey(logDate));
+  // Filter logs by selected project
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      if (filterProjectId) {
+        const task = tasks.find((t) => t.id === log.taskId);
+        if (!task || task.projectId !== filterProjectId) {
+          return false;
+        }
+      }
+      return true;
     });
+  }, [logs, filterProjectId, tasks]);
 
+  // Aggregates for Stats Cards
+  const periodStats = useMemo(() => {
     let totalSec = 0;
     let billableSec = 0;
 
-    for (const log of weekLogs) {
+    for (const log of filteredLogs) {
       totalSec += log.durationSec;
       if (log.isBillable) {
         billableSec += log.durationSec;
       }
     }
 
-    if (tracking) {
-      totalSec += elapsedSec;
-      if (isBillable) {
-        billableSec += elapsedSec;
+    if (tracking && activeTask) {
+      const activeProjectMatches = !filterProjectId || activeTask.projectId === filterProjectId;
+      if (activeProjectMatches) {
+        totalSec += elapsedSec;
+        if (isBillable) {
+          billableSec += elapsedSec;
+        }
       }
     }
 
@@ -359,13 +422,13 @@ export function DashboardPage() {
       billableHours: Math.round((billableSec / 3600) * 10) / 10,
       assignedProjects: projects.filter((p) => p.isActive).length
     };
-  }, [logs, projects, tracking, elapsedSec, isBillable]);
+  }, [filteredLogs, projects, tracking, activeTask, filterProjectId, elapsedSec, isBillable]);
 
   const todayLoggedSec = useMemo(() => {
     const todayStr = toDateKey(new Date());
-    const todayLogs = logs.filter((log) => toDateKey(new Date(log.startTime)) === todayStr);
+    const todayLogs = filteredLogs.filter((log) => toDateKey(new Date(log.startTime)) === todayStr);
     return todayLogs.reduce((sum, log) => sum + log.durationSec, 0);
-  }, [logs]);
+  }, [filteredLogs]);
 
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
 
@@ -455,8 +518,65 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* Filters Toolbar */}
+      <Card>
+        <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Period</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                <SegmentedControl
+                  value={range as RangeDays}
+                  onChange={(v) => handleRangePresetChange(v as RangeDays)}
+                  options={RANGE_OPTIONS}
+                />
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
+                    className="h-9 bg-background w-[145px] text-xs px-2.5"
+                  />
+                  <span className="text-muted-foreground text-xs font-medium">—</span>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
+                    className="h-9 bg-background w-[145px] text-xs px-2.5"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2 min-w-[200px]">
+              <Label className="text-xs font-medium text-muted-foreground">Project</Label>
+              <Select
+                value={filterProjectId || "__all__"}
+                onValueChange={(v) => setFilterProjectId(v === "__all__" ? "" : v)}
+              >
+                <SelectTrigger className="h-9 bg-background">
+                  <SelectValue placeholder="All projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All projects</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="flex items-center gap-2">
+                        <ProjectColorDot color={p.color} />
+                        {p.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Grid container */}
-      <div className="relative">
+      <div
+        className={`relative transition-opacity duration-200 ${logsLoading ? "opacity-60 pointer-events-none" : ""}`}
+      >
         {mounted && initialized && (
           <ResponsiveGridLayout
             className={`layout -mx-4 ${isArranging ? "layout-customizing" : ""}`}
@@ -477,7 +597,13 @@ export function DashboardPage() {
           >
             {visibleItems.map((item) => {
               const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);
-              const label = widgetDef?.label ?? "Widget";
+              let label = widgetDef?.label ?? "Widget";
+              if (item.i === "stat_total_hours" && range !== 7) {
+                label = "Total Hours (Period)";
+              }
+              if (item.i === "weekly_progress" && range !== 7) {
+                label = "Progress Chart";
+              }
 
               return (
                 <div key={item.i} className="w-full h-full">
@@ -493,10 +619,10 @@ export function DashboardPage() {
                           return (
                             <div className="flex flex-col justify-center h-full">
                               <span className="text-2xl font-bold tracking-tight text-foreground">
-                                {weekStats.totalHours}h
+                                {periodStats.totalHours}h
                               </span>
                               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
-                                {weekStats.billableHours}h billable
+                                {periodStats.billableHours}h billable
                               </span>
                             </div>
                           );
@@ -504,15 +630,15 @@ export function DashboardPage() {
                           return (
                             <div className="flex flex-col justify-center h-full">
                               <span className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                                {weekStats.billableHours}h
+                                {periodStats.billableHours}h
                               </span>
                               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
-                                {weekStats.totalHours > 0
+                                {periodStats.totalHours > 0
                                   ? Math.round(
-                                      (weekStats.billableHours / weekStats.totalHours) * 100
+                                      (periodStats.billableHours / periodStats.totalHours) * 100
                                     )
                                   : 0}
-                                % of weekly total
+                                % of period total
                               </span>
                             </div>
                           );
@@ -520,7 +646,7 @@ export function DashboardPage() {
                           return (
                             <div className="flex flex-col justify-center h-full">
                               <span className="text-2xl font-bold tracking-tight text-foreground">
-                                {weekStats.assignedProjects}
+                                {periodStats.assignedProjects}
                               </span>
                               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
                                 Assigned projects
@@ -528,10 +654,20 @@ export function DashboardPage() {
                             </div>
                           );
                         case "weekly_progress":
-                          return <WeeklyProgressWidget logs={logs} />;
+                          return (
+                            <WeeklyProgressWidget
+                              logs={filteredLogs}
+                              startDate={startDate}
+                              endDate={endDate}
+                            />
+                          );
                         case "project_split":
                           return (
-                            <ProjectSplitWidget logs={logs} projects={projects} tasks={tasks} />
+                            <ProjectSplitWidget
+                              logs={filteredLogs}
+                              projects={projects}
+                              tasks={tasks}
+                            />
                           );
                         case "pinned_favorites":
                           return (
@@ -554,7 +690,7 @@ export function DashboardPage() {
                         case "today_logs":
                           return (
                             <TodayLogsWidget
-                              logs={logs}
+                              logs={filteredLogs}
                               projects={projects}
                               tasks={tasks}
                               onDeleteLog={handleDeleteLog}

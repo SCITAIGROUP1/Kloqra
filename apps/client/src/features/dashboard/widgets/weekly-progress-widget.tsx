@@ -9,10 +9,12 @@ import {
 } from "@chronomint/ui/chart";
 import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
-import { startOfWeek, getWeekDays, toDateKey } from "@/features/timesheet/calendar-utils";
+import { toDateKey } from "@/features/timesheet/calendar-utils";
 
 interface WeeklyProgressWidgetProps {
   logs: TimeLogDto[];
+  startDate: string;
+  endDate: string;
 }
 
 const chartConfig = {
@@ -20,15 +22,18 @@ const chartConfig = {
   nonBillable: { label: "Non-billable Hours", color: "var(--chart-2)" }
 } satisfies ChartConfig;
 
-export function WeeklyProgressWidget({ logs }: WeeklyProgressWidgetProps) {
+export function WeeklyProgressWidget({ logs, startDate, endDate }: WeeklyProgressWidgetProps) {
   const chartData = useMemo(() => {
-    const today = new Date();
-    const weekStart = startOfWeek(today);
-    const weekDays = getWeekDays(weekStart);
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T23:59:59.999");
+    const days: Date[] = [];
+    const curr = new Date(start);
+    while (curr <= end) {
+      days.push(new Date(curr));
+      curr.setDate(curr.getDate() + 1);
+    }
 
-    const weekdaysAbbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-    return weekDays.map((dayDate, index) => {
+    return days.map((dayDate) => {
       const dateKey = toDateKey(dayDate);
 
       // Find logs for this specific date
@@ -49,13 +54,19 @@ export function WeeklyProgressWidget({ logs }: WeeklyProgressWidgetProps) {
         }
       }
 
+      // X-Axis label format: if 7 days or less, show weekday name. Otherwise show month/day
+      const showShortDate = days.length > 7;
+      const dayName = showShortDate
+        ? dayDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+        : dayDate.toLocaleDateString(undefined, { weekday: "short" });
+
       return {
-        dayName: weekdaysAbbr[index],
+        dayName,
         billable: Math.round(billableHours * 100) / 100,
         nonBillable: Math.round(nonBillableHours * 100) / 100
       };
     });
-  }, [logs]);
+  }, [logs, startDate, endDate]);
 
   return (
     <div className="flex h-full flex-col justify-center min-h-[200px] min-w-0">
