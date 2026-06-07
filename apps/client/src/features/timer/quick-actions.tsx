@@ -207,8 +207,8 @@ export function QuickActions({ onSelect, currentProjectId, currentTaskId }: Quic
           </div>
         </div>
       )}
-      {/* Favorites & Recents Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Favorites & Recents Stack */}
+      <div className="flex flex-col gap-4">
         {/* Favorites Card */}
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
@@ -244,14 +244,18 @@ export function QuickActions({ onSelect, currentProjectId, currentTaskId }: Quic
                     key={f.taskId}
                     variant="outline"
                     size="sm"
-                    className="justify-start text-left text-xs w-full py-1.5 h-auto hover:bg-muted"
+                    className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
                     onClick={() => onSelect(f.projectId, f.taskId)}
                   >
-                    <ProjectColorDot color={f.projectColor} size="sm" className="mr-2" />
-                    <span className="truncate max-w-[120px] font-medium mr-1.5">
-                      {f.projectName}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ProjectColorDot color={f.projectColor} size="sm" className="shrink-0" />
+                      <span className="font-semibold text-foreground truncate">
+                        {f.projectName}
+                      </span>
+                    </div>
+                    <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
+                      {f.taskName}
                     </span>
-                    <span className="text-muted-foreground truncate">{f.taskName}</span>
                   </Button>
                 ))}
               </div>
@@ -279,14 +283,18 @@ export function QuickActions({ onSelect, currentProjectId, currentTaskId }: Quic
                     key={r.taskId}
                     variant="outline"
                     size="sm"
-                    className="justify-start text-left text-xs w-full py-1.5 h-auto hover:bg-muted"
+                    className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
                     onClick={() => onSelect(r.projectId, r.taskId)}
                   >
-                    <ProjectColorDot color={r.projectColor} size="sm" className="mr-2" />
-                    <span className="truncate max-w-[120px] font-medium mr-1.5">
-                      {r.projectName}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ProjectColorDot color={r.projectColor} size="sm" className="shrink-0" />
+                      <span className="font-semibold text-foreground truncate">
+                        {r.projectName}
+                      </span>
+                    </div>
+                    <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
+                      {r.taskName}
                     </span>
-                    <span className="text-muted-foreground truncate">{r.taskName}</span>
                   </Button>
                 ))}
               </div>
