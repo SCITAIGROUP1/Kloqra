@@ -76,7 +76,7 @@ export function WorkspacePage() {
       });
       toast.success("Impersonation cookies set. Redirecting to Client...");
       const clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL || "http://localhost:3000";
-      window.location.href = `${clientUrl}/timer?impersonate=true`;
+      window.location.href = `${clientUrl}/dashboard?impersonate=true`;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to view as member");
     } finally {
