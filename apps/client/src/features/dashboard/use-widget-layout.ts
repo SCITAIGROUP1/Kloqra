@@ -12,7 +12,7 @@ interface WidgetLayoutState {
   resetLayout: (workspaceId: string) => void;
 }
 
-const getStorageKey = (workspaceId: string) => `chronomint-member-layout-v2-${workspaceId}`;
+const getStorageKey = (workspaceId: string) => `chronomint-member-layout-v3-${workspaceId}`;
 
 export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
   layoutsByWorkspace: {},

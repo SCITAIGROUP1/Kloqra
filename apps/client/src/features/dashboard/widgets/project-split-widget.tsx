@@ -47,7 +47,7 @@ export function ProjectSplitWidget({ logs, projects, tasks }: ProjectSplitWidget
     const data = Object.keys(projectHoursMap).map((projectId, idx) => {
       const project = projects.find((p) => p.id === projectId);
       const name = project?.name ?? (projectId === "unknown" ? "No Project" : "Other Project");
-      const color = project?.color ?? "hsl(var(--muted))";
+      const color = project?.color ?? "var(--muted)";
       const value = Math.round(projectHoursMap[projectId]! * 100) / 100;
       total += value;
 

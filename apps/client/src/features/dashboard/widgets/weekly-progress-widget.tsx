@@ -16,8 +16,8 @@ interface WeeklyProgressWidgetProps {
 }
 
 const chartConfig = {
-  billable: { label: "Billable Hours", color: "hsl(var(--chart-1))" },
-  nonBillable: { label: "Non-billable Hours", color: "hsl(var(--chart-2))" }
+  billable: { label: "Billable Hours", color: "var(--chart-1)" },
+  nonBillable: { label: "Non-billable Hours", color: "var(--chart-2)" }
 } satisfies ChartConfig;
 
 export function WeeklyProgressWidget({ logs }: WeeklyProgressWidgetProps) {
@@ -84,12 +84,12 @@ export function WeeklyProgressWidget({ logs }: WeeklyProgressWidgetProps) {
           <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
           <ReferenceLine
             y={8}
-            stroke="hsl(var(--destructive))"
+            stroke="var(--destructive)"
             strokeDasharray="4 4"
             label={{
               value: "8h Goal",
               position: "insideTopRight",
-              fill: "hsl(var(--destructive))",
+              fill: "var(--destructive)",
               fontSize: 9,
               fontWeight: "bold"
             }}

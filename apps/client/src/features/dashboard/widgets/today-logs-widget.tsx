@@ -64,7 +64,7 @@ export function TodayLogsWidget({
         const task = tasks.find((t) => t.id === log.taskId);
         const project = task ? projects.find((p) => p.id === task.projectId) : null;
         const projectName = project?.name ?? "No Project";
-        const projectColor = project?.color ?? "hsl(var(--muted))";
+        const projectColor = project?.color ?? "var(--muted)";
 
         return (
           <div

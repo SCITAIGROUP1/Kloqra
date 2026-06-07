@@ -78,7 +78,7 @@ export function TimesheetSubmissionsWidget({
           {itemsToShow.map((sub) => {
             const project = projects.find((p) => p.id === sub.projectId);
             const projectName = project?.name ?? sub.projectName ?? "No Project";
-            const projectColor = project?.color ?? "hsl(var(--muted))";
+            const projectColor = project?.color ?? "var(--muted)";
 
             return (
               <tr
