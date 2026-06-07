@@ -2,15 +2,33 @@
 
 import { ROUTES } from "@chronomint/contracts";
 import type { ActiveTimerCountDto } from "@chronomint/contracts";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-export function ActiveTimersWidget() {
+interface ActiveTimersWidgetProps {
+  projectFilterName?: string;
+  userId?: string;
+}
+
+export function ActiveTimersWidget({ projectFilterName, userId }: ActiveTimersWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [data, setData] = useState<ActiveTimerCountDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredMembers = useMemo(() => {
+    if (!data) return [];
+    return data.members.filter((m) => {
+      if (projectFilterName && m.projectName !== projectFilterName) {
+        return false;
+      }
+      if (userId && m.userId !== userId) {
+        return false;
+      }
+      return true;
+    });
+  }, [data, projectFilterName, userId]);
 
   const fetchActiveCount = useCallback(async () => {
     if (!ws) return;
@@ -52,16 +70,16 @@ export function ActiveTimersWidget() {
     <div className="flex flex-col justify-between h-full min-h-[100px]">
       <div className="flex items-center gap-3">
         <div className="relative flex size-3 shrink-0">
-          {data.count > 0 && (
+          {filteredMembers.length > 0 && (
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
           )}
           <span
-            className={`relative inline-flex size-3 rounded-full ${data.count > 0 ? "bg-emerald-500" : "bg-muted-foreground/30"}`}
+            className={`relative inline-flex size-3 rounded-full ${filteredMembers.length > 0 ? "bg-emerald-500" : "bg-muted-foreground/30"}`}
           />
         </div>
         <div>
           <p className="text-3xl font-bold tracking-tight tabular-nums leading-none">
-            {data.count}
+            {filteredMembers.length}
           </p>
           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1">
             Running Timers
@@ -69,10 +87,10 @@ export function ActiveTimersWidget() {
         </div>
       </div>
 
-      {data.count > 0 ? (
+      {filteredMembers.length > 0 ? (
         <div className="mt-3 border-t border-border/30 pt-2 flex-1 overflow-auto max-h-[100px] pr-1">
           <div className="flex flex-col gap-1.5">
-            {data.members.map((m, idx) => (
+            {filteredMembers.map((m, idx) => (
               <div
                 key={idx}
                 className="text-[10px] text-muted-foreground flex items-center justify-between gap-2"

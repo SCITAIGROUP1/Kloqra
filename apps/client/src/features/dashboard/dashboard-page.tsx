@@ -395,6 +395,24 @@ export function DashboardPage() {
     });
   }, [logs, filterProjectId, tasks]);
 
+  // Filter submissions by range and project
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter((sub) => {
+      // Filter by project
+      if (filterProjectId && sub.projectId !== filterProjectId) {
+        return false;
+      }
+      // Filter by period
+      const subStart = new Date(sub.periodStart);
+      const fromDate = new Date(startDate + "T00:00:00");
+      const toDate = new Date(endDate + "T23:59:59.999");
+      if (subStart < fromDate || subStart > toDate) {
+        return false;
+      }
+      return true;
+    });
+  }, [submissions, filterProjectId, startDate, endDate]);
+
   // Aggregates for Stats Cards
   const periodStats = useMemo(() => {
     let totalSec = 0;
@@ -675,6 +693,7 @@ export function DashboardPage() {
                               onSelect={handleQuickSelect}
                               currentProjectId={projectId}
                               currentTaskId={taskChoice}
+                              filterProjectId={filterProjectId}
                               mode="favorites"
                             />
                           );
@@ -684,6 +703,7 @@ export function DashboardPage() {
                               onSelect={handleQuickSelect}
                               currentProjectId={projectId}
                               currentTaskId={taskChoice}
+                              filterProjectId={filterProjectId}
                               mode="recents"
                             />
                           );
@@ -700,7 +720,7 @@ export function DashboardPage() {
                         case "timesheet_submissions":
                           return (
                             <TimesheetSubmissionsWidget
-                              submissions={submissions}
+                              submissions={filteredSubmissions}
                               projects={projects}
                             />
                           );

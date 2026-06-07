@@ -416,6 +416,8 @@ export function DashboardPage() {
           <TeamUtilizationWidget
             from={report!.period.from}
             to={report!.period.to}
+            userId={userId || undefined}
+            projectMemberIds={projectId ? teamMembers.map((m) => m.userId) : undefined}
             cardless
             onHeaderActions={handleTeamUtilizationActions}
           />
@@ -463,11 +465,21 @@ export function DashboardPage() {
       case "billable_split_donut":
         return <BillableSplitDonutWidget report={report!} />;
       case "hourly_rates":
-        return <HourlyRatesWidget />;
+        return (
+          <HourlyRatesWidget projectId={projectId || undefined} userId={userId || undefined} />
+        );
       case "live_presence":
-        return <LivePresenceWidget />;
+        return (
+          <LivePresenceWidget projectId={projectId || undefined} userId={userId || undefined} />
+        );
       case "pending_timesheets":
-        return <PendingTimesheetsWidget onHeaderActions={handlePendingTimesheetsActions} />;
+        return (
+          <PendingTimesheetsWidget
+            projectId={projectId || undefined}
+            userId={userId || undefined}
+            onHeaderActions={handlePendingTimesheetsActions}
+          />
+        );
       case "time_of_day_heatmap":
         return (
           <HeatmapWidget
@@ -489,7 +501,14 @@ export function DashboardPage() {
       case "rate_efficiency":
         return <RateEfficiencyWidget report={report!} />;
       case "active_timers":
-        return <ActiveTimersWidget />;
+        return (
+          <ActiveTimersWidget
+            projectFilterName={
+              projectId ? projects.find((p) => p.id === projectId)?.name : undefined
+            }
+            userId={userId || undefined}
+          />
+        );
 
       default:
         return (

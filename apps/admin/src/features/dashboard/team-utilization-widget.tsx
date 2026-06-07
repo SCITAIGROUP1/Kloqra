@@ -38,11 +38,15 @@ interface UtilizationData {
 export function TeamUtilizationWidget({
   from,
   to,
+  userId,
+  projectMemberIds,
   cardless = false,
   onHeaderActions
 }: {
   from: string;
   to: string;
+  userId?: string;
+  projectMemberIds?: string[];
   cardless?: boolean;
   onHeaderActions?: (actions: React.ReactNode) => void;
 }) {
@@ -50,6 +54,17 @@ export function TeamUtilizationWidget({
   const [data, setData] = useState<UtilizationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredMembers = useMemo(() => {
+    if (!data) return [];
+    let list = data.members;
+    if (userId) {
+      list = list.filter((m) => m.userId === userId);
+    } else if (projectMemberIds) {
+      list = list.filter((m) => projectMemberIds.includes(m.userId));
+    }
+    return list;
+  }, [data, userId, projectMemberIds]);
 
   const fetchUtilization = useCallback(async () => {
     if (!ws || !from || !to) return;
@@ -136,7 +151,7 @@ export function TeamUtilizationWidget({
   };
 
   const widgetContent =
-    data.members.length === 0 ? (
+    filteredMembers.length === 0 ? (
       <p className="text-xs text-muted-foreground py-4 text-center">No team members found.</p>
     ) : (
       <div className="overflow-x-auto">
@@ -151,7 +166,7 @@ export function TeamUtilizationWidget({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.members.map((m) => {
+            {filteredMembers.map((m) => {
               const config = statusConfigs[m.status];
               const StatusIcon = config.icon;
 

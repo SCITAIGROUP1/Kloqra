@@ -4,7 +4,7 @@ import { ROUTES } from "@chronomint/contracts";
 import type { TimeLogDto, ListTimeLogsResponseDto } from "@chronomint/contracts";
 import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@chronomint/ui";
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -13,6 +13,7 @@ interface QuickActionsProps {
   onSelect: (projectId: string, taskId: string) => void;
   currentProjectId?: string;
   currentTaskId?: string;
+  filterProjectId?: string;
   mode?: "favorites" | "recents" | "all";
 }
 
@@ -36,6 +37,7 @@ export function QuickActions({
   onSelect,
   currentProjectId,
   currentTaskId,
+  filterProjectId,
   mode = "all"
 }: QuickActionsProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
@@ -49,6 +51,16 @@ export function QuickActions({
     topTask: string | null;
     logCount: number;
   } | null>(null);
+
+  const filteredFavorites = useMemo(() => {
+    if (!filterProjectId) return favorites;
+    return favorites.filter((f) => f.projectId === filterProjectId);
+  }, [favorites, filterProjectId]);
+
+  const filteredRecents = useMemo(() => {
+    if (!filterProjectId) return recents;
+    return recents.filter((r) => r.projectId === filterProjectId);
+  }, [recents, filterProjectId]);
 
   // Load favorites from localStorage
   useEffect(() => {
@@ -188,13 +200,13 @@ export function QuickActions({
   if (mode === "favorites") {
     return (
       <div className="w-full h-full select-none">
-        {favorites.length === 0 ? (
+        {filteredFavorites.length === 0 ? (
           <p className="text-xs text-muted-foreground py-2">
             No pinned tasks yet. Select a project and task in the Timer page first, then pin it.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {favorites.map((f) => (
+            {filteredFavorites.map((f) => (
               <Button
                 key={f.taskId}
                 variant="outline"
@@ -220,13 +232,13 @@ export function QuickActions({
   if (mode === "recents") {
     return (
       <div className="w-full h-full select-none">
-        {recents.length === 0 ? (
+        {filteredRecents.length === 0 ? (
           <p className="text-xs text-muted-foreground py-2">
             No recent activity found in the last 7 days.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {recents.map((r) => (
+            {filteredRecents.map((r) => (
               <Button
                 key={r.taskId}
                 variant="outline"
@@ -303,13 +315,13 @@ export function QuickActions({
             )}
           </CardHeader>
           <CardContent className="py-2">
-            {favorites.length === 0 ? (
+            {filteredFavorites.length === 0 ? (
               <p className="text-xs text-muted-foreground py-2">
                 No pinned tasks yet. Select a project and task above, then click the pin button.
               </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {favorites.map((f) => (
+                {filteredFavorites.map((f) => (
                   <Button
                     key={f.taskId}
                     variant="outline"
@@ -342,13 +354,13 @@ export function QuickActions({
             </CardTitle>
           </CardHeader>
           <CardContent className="py-2">
-            {recents.length === 0 ? (
+            {filteredRecents.length === 0 ? (
               <p className="text-xs text-muted-foreground py-2">
                 No recent activity found in the last 7 days.
               </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {recents.map((r) => (
+                {filteredRecents.map((r) => (
                   <Button
                     key={r.taskId}
                     variant="outline"

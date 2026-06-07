@@ -4,16 +4,36 @@ import { ROUTES } from "@chronomint/contracts";
 import type { PresenceSnapshotDto, ProjectDto } from "@chronomint/contracts";
 import { ProjectColorDot } from "@chronomint/ui";
 import { Play } from "lucide-react";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-export function LivePresenceWidget() {
+interface LivePresenceWidgetProps {
+  projectId?: string;
+  userId?: string;
+}
+
+export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [members, setMembers] = useState<PresenceSnapshotDto["members"]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredMembers = useMemo(() => {
+    return members.filter((m) => {
+      if (projectId) {
+        const project = projects.find((p) => p.id === projectId);
+        if (!project || m.projectName !== project.name) {
+          return false;
+        }
+      }
+      if (userId && m.userId !== userId) {
+        return false;
+      }
+      return true;
+    });
+  }, [members, projects, projectId, userId]);
   const [time, setTime] = useState(new Date());
 
   const fetchPresence = useCallback(async () => {
@@ -80,7 +100,7 @@ export function LivePresenceWidget() {
 
   return (
     <div className="space-y-3 pr-1 h-full overflow-auto max-h-[300px]">
-      {members.length === 0 ? (
+      {filteredMembers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
           <p className="text-xs font-semibold">No active sessions</p>
           <p className="text-[10px] text-muted-foreground/60 mt-1">
@@ -89,7 +109,7 @@ export function LivePresenceWidget() {
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {members.map((m) => {
+          {filteredMembers.map((m) => {
             const project = projects.find((p) => p.name === m.projectName);
             const color = project?.color ?? "#94a3b8";
 

@@ -4,20 +4,38 @@ import type { PendingTimesheetDto } from "@chronomint/contracts";
 import { ROUTES } from "@chronomint/contracts";
 import { Button } from "@chronomint/ui";
 import { Check, X, Calendar, User } from "lucide-react";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 interface PendingTimesheetsWidgetProps {
   onHeaderActions?: (actions: React.ReactNode) => void;
+  projectId?: string;
+  userId?: string;
 }
 
-export function PendingTimesheetsWidget({ onHeaderActions }: PendingTimesheetsWidgetProps) {
+export function PendingTimesheetsWidget({
+  onHeaderActions,
+  projectId,
+  userId
+}: PendingTimesheetsWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [timesheets, setTimesheets] = useState<PendingTimesheetDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredTimesheets = useMemo(() => {
+    return timesheets.filter((sheet) => {
+      if (projectId && sheet.projectId !== projectId) {
+        return false;
+      }
+      if (userId && sheet.userId !== userId) {
+        return false;
+      }
+      return true;
+    });
+  }, [timesheets, projectId, userId]);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
   const fetchPending = useCallback(async () => {
@@ -47,7 +65,7 @@ export function PendingTimesheetsWidget({ onHeaderActions }: PendingTimesheetsWi
   // Report pending count up to dashboard header actions
   useEffect(() => {
     if (onHeaderActions) {
-      const count = timesheets.length;
+      const count = filteredTimesheets.length;
       if (count > 0) {
         onHeaderActions(
           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500 text-amber-950 border border-amber-400">
@@ -58,7 +76,7 @@ export function PendingTimesheetsWidget({ onHeaderActions }: PendingTimesheetsWi
         onHeaderActions(null);
       }
     }
-  }, [timesheets.length, onHeaderActions]);
+  }, [filteredTimesheets.length, onHeaderActions]);
 
   const handleApprove = async (id: string, name: string) => {
     setActioningId(id);
@@ -119,7 +137,7 @@ export function PendingTimesheetsWidget({ onHeaderActions }: PendingTimesheetsWi
 
   return (
     <div className="space-y-2 pr-1 h-full overflow-auto max-h-[300px]">
-      {timesheets.length === 0 ? (
+      {filteredTimesheets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
           <Check className="size-8 text-green-500 mb-2 stroke-[2.5px] p-1.5 bg-green-500/10 rounded-full" />
           <p className="text-xs font-semibold">Queue is clear!</p>
@@ -129,7 +147,7 @@ export function PendingTimesheetsWidget({ onHeaderActions }: PendingTimesheetsWi
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {timesheets.map((sheet) => (
+          {filteredTimesheets.map((sheet) => (
             <div
               key={sheet.id}
               className="flex flex-col gap-2 p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-background/80 transition-colors"

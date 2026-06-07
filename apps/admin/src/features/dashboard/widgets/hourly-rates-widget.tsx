@@ -3,15 +3,32 @@
 import { ROUTES } from "@chronomint/contracts";
 import type { HourlyRateDto, ProjectDto, WorkspaceMemberDto } from "@chronomint/contracts";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@chronomint/ui";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-export function HourlyRatesWidget() {
+interface HourlyRatesWidgetProps {
+  projectId?: string;
+  userId?: string;
+}
+
+export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [rates, setRates] = useState<HourlyRateDto[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
+
+  const filteredRates = useMemo(() => {
+    return rates.filter((r) => {
+      if (projectId && r.projectId && r.projectId !== projectId) {
+        return false;
+      }
+      if (userId && r.userId && r.userId !== userId) {
+        return false;
+      }
+      return true;
+    });
+  }, [rates, projectId, userId]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +104,7 @@ export function HourlyRatesWidget() {
 
   return (
     <div className="space-y-2 pr-1 h-full overflow-auto max-h-[220px]">
-      {rates.length === 0 ? (
+      {filteredRates.length === 0 ? (
         <p className="text-xs text-muted-foreground py-4 text-center">
           No hourly rates configured.
         </p>
@@ -101,7 +118,7 @@ export function HourlyRatesWidget() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rates.map((r) => (
+            {filteredRates.map((r) => (
               <TableRow key={r.id} className="hover:bg-muted/30">
                 <TableCell className="text-xs py-1.5 font-medium">{getScopeLabel(r)}</TableCell>
                 <TableCell className="text-right text-xs py-1.5 font-bold font-mono">
