@@ -29,7 +29,8 @@ export const timeByUserSchema = hoursBreakdownSchema.extend({
 });
 
 export const weeklyHoursSchema = hoursBreakdownSchema.extend({
-  weekStart: z.string()
+  weekStart: z.string(),
+  billableAmount: z.number()
 });
 
 export const dailyHoursSchema = hoursBreakdownSchema.extend({
@@ -90,3 +91,30 @@ export const myWeekSummarySchema = z.object({
 
 export type MyWeekProjectHoursDto = z.infer<typeof myWeekProjectHoursSchema>;
 export type MyWeekSummaryDto = z.infer<typeof myWeekSummarySchema>;
+
+// Heatmap schemas
+export const heatmapSlotSchema = z.object({
+  hour: z.number().int().min(0).max(23),
+  dayOfWeek: z.number().int().min(0).max(6),
+  hours: z.number().nonnegative()
+});
+
+export const heatmapResponseSchema = z.object({
+  slots: z.array(heatmapSlotSchema)
+});
+
+export type HeatmapResponseDto = z.infer<typeof heatmapResponseSchema>;
+
+// Task breakdown schemas
+export const taskBreakdownItemSchema = z.object({
+  taskId: uuidSchema.nullable(),
+  taskName: z.string(),
+  totalHours: z.number().nonnegative(),
+  billableHours: z.number().nonnegative()
+});
+
+export const taskBreakdownResponseSchema = z.object({
+  tasks: z.array(taskBreakdownItemSchema)
+});
+
+export type TaskBreakdownResponseDto = z.infer<typeof taskBreakdownResponseSchema>;

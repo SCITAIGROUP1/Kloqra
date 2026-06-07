@@ -9,10 +9,14 @@ import {
   blockStyle,
   formatDayHeader,
   formatTimeLabel,
-  isSameDay,
   pointerYToTime,
   SLOT_MINUTES,
-  toDateKey
+  toDateKey,
+  isSameDayInZone,
+  getZoneHourAndMinute,
+  CALENDAR_START_HOUR,
+  CALENDAR_END_HOUR,
+  todayInZone
 } from "./calendar-utils";
 import { entryColorsFromProject } from "@/lib/project-color-styles";
 
@@ -48,6 +52,9 @@ type TimesheetCalendarProps = {
   onEntryResize: (log: TimeLogDto, start: Date, end: Date) => void;
   onEntryMove: (log: TimeLogDto, start: Date, end: Date) => void;
   onEntryDuplicate: (log: TimeLogDto, start: Date, end: Date) => void;
+  readOnly?: boolean;
+  timezone?: string;
+  showSummary?: boolean;
 };
 
 function findDayColumnAt(clientX: number, clientY: number, days: Date[]): Date | null {
@@ -74,10 +81,13 @@ export function TimesheetCalendar({
   onEntryClick,
   onEntryResize,
   onEntryMove,
-  onEntryDuplicate
+  onEntryDuplicate,
+  readOnly = false,
+  timezone = "UTC",
+  showSummary = true
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
-  const today = new Date();
+  const today = todayInZone(timezone);
   const [drag, setDrag] = useState<SlotSelect | null>(null);
   const dragMoved = useRef(false);
   const suppressClick = useRef(false);
@@ -144,7 +154,7 @@ export function TimesheetCalendar({
     const onMove = (e: PointerEvent) => {
       const rect = columnRect(resize.day);
       if (!rect) return;
-      const t = pointerYToTime(resize.day, e.clientY, rect.top, rect.height);
+      const t = pointerYToTime(resize.day, e.clientY, rect.top, rect.height, timezone);
       setResize((r) => {
         if (!r) return r;
         if (r.edge === "start") {
@@ -172,7 +182,7 @@ export function TimesheetCalendar({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [resize, onEntryResize]);
+  }, [resize, onEntryResize, timezone]);
 
   useEffect(() => {
     const onPointerMove = (e: PointerEvent) => {
@@ -206,7 +216,7 @@ export function TimesheetCalendar({
       const rect = columnRect(day);
       if (!rect) return;
       const blockTop = e.clientY - move.grabOffsetY;
-      const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height);
+      const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
       const end = new Date(start.getTime() + move.durationMs);
       setMove((m) => (m ? { ...m, preview: { log: m.log, day, start, end } } : m));
     };
@@ -238,7 +248,7 @@ export function TimesheetCalendar({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [move, days, onEntryClick, onEntryMove]);
+  }, [move, days, onEntryClick, onEntryMove, timezone]);
 
   useEffect(() => {
     if (!duplicate) return;
@@ -248,7 +258,7 @@ export function TimesheetCalendar({
       const rect = columnRect(day);
       if (!rect) return;
       const blockTop = e.clientY - duplicate.grabOffsetY;
-      const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height);
+      const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
       const end = new Date(start.getTime() + duplicate.durationMs);
       setDuplicate((d) => (d ? { ...d, preview: { log: d.log, day, start, end } } : d));
     };
@@ -268,7 +278,7 @@ export function TimesheetCalendar({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [duplicate, days, onEntryDuplicate]);
+  }, [duplicate, days, onEntryDuplicate, timezone]);
 
   function startDuplicateDrag(
     log: TimeLogDto,
@@ -319,6 +329,30 @@ export function TimesheetCalendar({
     };
   }
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const performScroll = () => {
+      const hasToday = days.some((d) => isSameDayInZone(d, new Date(), timezone));
+      if (hasToday) {
+        const { hour, minute } = getZoneHourAndMinute(new Date(), timezone);
+        // Center the current hour/minute in the container (each hour is 80px high, 2 slots of 40px)
+        const currentPos = hour * 80 + (minute / 60) * 80;
+        const containerHeight = container.clientHeight || 500;
+        container.scrollTop = Math.max(0, currentPos - containerHeight / 2);
+      } else {
+        // Default scroll position: 7:30 AM (7.5 * 80px = 600px) so 8 AM to 8 PM is centered/visible
+        container.scrollTop = 7.5 * 80;
+      }
+    };
+
+    const handle = setTimeout(performScroll, 50);
+    return () => clearTimeout(handle);
+  }, [view, days, timezone]);
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <p className="border-b border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
@@ -327,23 +361,36 @@ export function TimesheetCalendar({
         +drag to duplicate
       </p>
       <div
-        className="grid border-b border-border bg-muted/40"
-        style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` }}
+        ref={scrollContainerRef}
+        className={cn(
+          "overflow-y-auto select-none transition-all duration-300",
+          showSummary
+            ? "max-h-[calc(100vh-32rem)] md:max-h-[calc(100vh-33rem)]"
+            : "max-h-[calc(100vh-16rem)] md:max-h-[calc(100vh-17rem)]"
+        )}
       >
-        <div className="p-2" />
-        {days.map((day) => (
+        <div
+          className="sticky top-0 z-40 grid border-b border-border bg-card"
+          style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` }}
+        >
           <div
-            key={day.toISOString()}
-            className={cn(
-              "border-l border-border p-2 text-center text-sm font-medium",
-              isSameDay(day, today) && "bg-primary/10 text-primary"
-            )}
+            className="flex items-center justify-center p-2 text-[9px] font-semibold text-muted-foreground select-none truncate"
+            title={`Timezone: ${timezone}`}
           >
-            {formatDayHeader(day)}
+            {timezone.split("/").pop()?.replace("_", " ")}
           </div>
-        ))}
-      </div>
-      <div className="max-h-[calc(100vh-16rem)] overflow-y-auto select-none">
+          {days.map((day) => (
+            <div
+              key={day.toISOString()}
+              className={cn(
+                "border-l border-border p-2 text-center text-sm font-medium",
+                isSameDayInZone(day, today, timezone) && "bg-primary/10 text-primary"
+              )}
+            >
+              {formatDayHeader(day)}
+            </div>
+          ))}
+        </div>
         <div
           className="grid"
           style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` }}
@@ -367,16 +414,20 @@ export function TimesheetCalendar({
               taskName={taskName}
               entryColor={entryColor}
               compact={view === "week"}
+              readOnly={readOnly}
+              timezone={timezone}
               isSlotSelected={(idx) => isSlotSelected(toDateKey(day), idx)}
               resizePreview={resize && toDateKey(resize.day) === toDateKey(day) ? resize : null}
               movePreview={previewOnDay(move?.preview, day)}
               duplicatePreview={previewOnDay(duplicate?.preview, day)}
               movingLogId={move?.log.id ?? null}
               onSlotPointerDown={(index) => {
+                if (readOnly) return;
                 dragMoved.current = false;
                 setDrag({ dayKey: toDateKey(day), startIndex: index, endIndex: index });
               }}
               onSlotPointerEnter={(index) => {
+                if (readOnly) return;
                 startTransition(() => {
                   setDrag((d) => {
                     if (!d || d.dayKey !== toDateKey(day)) return d;
@@ -386,6 +437,7 @@ export function TimesheetCalendar({
                 });
               }}
               onSlotClick={(hour, minute) => {
+                if (readOnly) return;
                 if (suppressClick.current) {
                   suppressClick.current = false;
                   return;
@@ -400,6 +452,7 @@ export function TimesheetCalendar({
                 deferToParent(() => onEntryClick(log));
               }}
               onResizeStart={(log, clip, edge) => {
+                if (readOnly) return;
                 setResize({
                   log,
                   day,
@@ -430,6 +483,8 @@ function DayColumn({
   movePreview,
   duplicatePreview,
   movingLogId,
+  readOnly,
+  timezone,
   onSlotPointerDown,
   onSlotPointerEnter,
   onSlotClick,
@@ -453,6 +508,8 @@ function DayColumn({
   movePreview: EntryPreview | null;
   duplicatePreview: EntryPreview | null;
   movingLogId: string | null;
+  readOnly: boolean;
+  timezone: string;
   onSlotPointerDown: (index: number) => void;
   onSlotPointerEnter: (index: number) => void;
   onSlotClick: (hour: number, minute: number) => void;
@@ -479,7 +536,7 @@ function DayColumn({
   const dayKey = toDateKey(day);
   const columnRef = useRef<HTMLDivElement>(null);
   const dayLogs = logs
-    .map((log) => ({ log, clip: clipLogToDay(log, day) }))
+    .map((log) => ({ log, clip: clipLogToDay(log, day, timezone) }))
     .filter((x): x is { log: TimeLogDto; clip: { start: Date; end: Date } } => x.clip !== null);
 
   const isDuplicatingThis = duplicatePreview?.log.id;
@@ -492,17 +549,23 @@ function DayColumn({
           key={`${hour}-${minute}`}
           type="button"
           className={cn(
-            "h-10 w-full touch-none border-b border-border/40 transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            "block h-10 w-full touch-none border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            !readOnly && "hover:bg-primary/10",
             isSlotSelected(index) && "bg-primary/25"
           )}
           aria-label={`${formatTimeLabel(hour, minute)}`}
           onPointerDown={(e) => {
+            if (readOnly) return;
             if (e.ctrlKey || e.metaKey) return;
             e.currentTarget.setPointerCapture(e.pointerId);
             onSlotPointerDown(index);
           }}
-          onPointerEnter={() => onSlotPointerEnter(index)}
-          onClick={() => onSlotClick(hour, minute)}
+          onPointerEnter={() => {
+            if (!readOnly) onSlotPointerEnter(index);
+          }}
+          onClick={() => {
+            if (!readOnly) onSlotClick(hour, minute);
+          }}
         />
       ))}
       <div className="pointer-events-none absolute inset-0">
@@ -513,6 +576,7 @@ function DayColumn({
             entryColor={entryColor}
             compact={compact}
             variant="move"
+            timezone={timezone}
           />
         )}
         {duplicatePreview && (
@@ -522,6 +586,7 @@ function DayColumn({
             entryColor={entryColor}
             compact={compact}
             variant="duplicate"
+            timezone={timezone}
           />
         )}
         {dayLogs.map(({ log, clip }) => {
@@ -531,7 +596,7 @@ function DayColumn({
           const display = isResizing
             ? { start: resizePreview.previewStart, end: resizePreview.previewEnd }
             : clip;
-          const style = blockStyle(display.start, display.end);
+          const style = blockStyle(display.start, display.end, timezone);
           const colors = entryColorsFromProject(entryColor(log.taskId));
 
           return (
@@ -544,27 +609,32 @@ function DayColumn({
               style={{
                 top: style.top,
                 height: style.height,
-                minHeight: "1.25rem",
+                minHeight: style.height === "0%" ? "0px" : "1.25rem",
+                display: style.display,
                 ...colors
               }}
             >
-              <div
-                className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  onResizeStart(log, clip, "start");
-                }}
-              />
+              {!readOnly && (
+                <div
+                  className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onResizeStart(log, clip, "start");
+                  }}
+                />
+              )}
               <button
                 type="button"
                 className={cn(
                   "h-full w-full px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   !isDraggingCopy &&
                     !isDraggingMove &&
+                    !readOnly &&
                     "cursor-grab hover:brightness-95 active:cursor-grabbing"
                 )}
                 onPointerDown={(e) => {
                   e.stopPropagation();
+                  if (readOnly) return;
                   const col = columnRef.current;
                   if (!col) return;
                   const rect = col.getBoundingClientRect();
@@ -591,7 +661,11 @@ function DayColumn({
                   if (e.ctrlKey || e.metaKey) return;
                   onEntryClick(log);
                 }}
-                title={`${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`}
+                title={
+                  readOnly
+                    ? taskName(log.taskId)
+                    : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`
+                }
               >
                 <span
                   className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}
@@ -602,17 +676,73 @@ function DayColumn({
                   <span className="block truncate text-[10px] opacity-80">{log.description}</span>
                 )}
               </button>
-              <div
-                className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  onResizeStart(log, clip, "end");
-                }}
-              />
+              {!readOnly && (
+                <div
+                  className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onResizeStart(log, clip, "end");
+                  }}
+                />
+              )}
             </div>
           );
         })}
+
+        {/* Live Red Indicator Line for Current Time and Task */}
+        <LiveIndicatorLine day={day} dayLogs={dayLogs} taskName={taskName} timezone={timezone} />
       </div>
+    </div>
+  );
+}
+
+function LiveIndicatorLine({
+  day,
+  dayLogs,
+  taskName,
+  timezone = "UTC"
+}: {
+  day: Date;
+  dayLogs: { log: TimeLogDto; clip: { start: Date; end: Date } }[];
+  taskName: (taskId: string) => string;
+  timezone?: string;
+}) {
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!now || !isSameDayInZone(day, now, timezone)) return null;
+
+  const { hour: currentHour, minute: currentMinute } = getZoneHourAndMinute(now, timezone);
+  if (currentHour < CALENDAR_START_HOUR || currentHour >= CALENDAR_END_HOUR) return null;
+
+  const totalMin = (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * 60;
+  const topMin = currentHour * 60 + currentMinute - CALENDAR_START_HOUR * 60;
+  const topPct = (topMin / totalMin) * 100;
+
+  // Find if there is an active running timer log or entry at this specific minute
+  const currentDayLogs = dayLogs.filter(({ clip }) => now >= clip.start && now <= clip.end);
+  const activeLog = currentDayLogs[0]?.log;
+  const activeTaskName = activeLog ? taskName(activeLog.taskId) : null;
+
+  return (
+    <div
+      className="absolute left-0 right-0 z-30 flex items-center"
+      style={{ top: `${topPct}%`, transform: "translateY(-50%)" }}
+    >
+      <div className="size-2 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+      <div className="h-0.5 flex-1 bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]" />
+      {activeTaskName && (
+        <div className="absolute left-3 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-md shadow-md max-w-[120px] truncate font-medium">
+          ⚡ {activeTaskName}
+        </div>
+      )}
     </div>
   );
 }
@@ -622,15 +752,17 @@ function EntryGhost({
   taskName,
   entryColor,
   compact,
-  variant
+  variant,
+  timezone = "UTC"
 }: {
   preview: EntryPreview;
   taskName: (taskId: string) => string;
   entryColor: (taskId: string) => string;
   compact: boolean;
   variant: "move" | "duplicate";
+  timezone?: string;
 }) {
-  const style = blockStyle(preview.start, preview.end);
+  const style = blockStyle(preview.start, preview.end, timezone);
   const colors = entryColorsFromProject(entryColor(preview.log.taskId));
   return (
     <div
@@ -641,7 +773,8 @@ function EntryGhost({
       style={{
         top: style.top,
         height: style.height,
-        minHeight: "1.25rem",
+        minHeight: style.height === "0%" ? "0px" : "1.25rem",
+        display: style.display,
         ...colors,
         ...(variant === "move" ? { opacity: 0.85 } : {})
       }}

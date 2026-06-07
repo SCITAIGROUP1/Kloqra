@@ -3,6 +3,7 @@ import {
   createTimeLogSchema,
   loginSchema,
   reportQuerySchema,
+  ROUTES,
   startTimerSchema,
   dashboardReportSchema
 } from "./index";
@@ -11,6 +12,14 @@ describe("contracts", () => {
   it("validates login", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "secret" });
     expect(r.success).toBe(true);
+  });
+
+  it("exposes timelog audit route", () => {
+    expect(ROUTES.TIMELOGS.AUDIT_EVENTS("abc")).toBe("/timelogs/abc/audit-events");
+  });
+
+  it("exposes timesheet submissions route", () => {
+    expect(ROUTES.TIMESHEETS.MY_SUBMISSIONS).toBe("/timesheets/submissions");
   });
 
   it("rejects timelog when end before start", () => {

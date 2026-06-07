@@ -4,6 +4,7 @@ export interface RequestUser {
   userId: string;
   workspaceId: string;
   role: "ADMIN" | "MEMBER";
+  impersonatorId?: string;
 }
 
 export const CurrentUser = createParamDecorator(

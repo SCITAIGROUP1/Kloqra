@@ -32,6 +32,7 @@ import {
 } from "@chronomint/ui";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { InvoiceWizard } from "./invoice-wizard";
 import {
   PageHeader,
   PreviewBanner,
@@ -122,6 +123,7 @@ function formatPeriodLabel(from: string, to: string) {
 
 export function ExportsPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [exportMode, setExportMode] = useState<"standard" | "invoice">("standard");
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -428,480 +430,509 @@ export function ExportsPage() {
         }
       />
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-8">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Period & filters</CardTitle>
-              <CardDescription>
-                Quick ranges or custom dates. Scope narrows all selected reports.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <Section title="Quick range">
-                <div className="flex flex-wrap gap-2">
-                  {PERIOD_PRESETS.map(({ id, label }) => (
-                    <Button
-                      key={id}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => {
-                        const range = applyDatePreset(id);
-                        setFrom(range.from);
-                        setTo(range.to);
-                      }}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </Section>
+      <div className="flex justify-start">
+        <SegmentedControl
+          value={exportMode}
+          onChange={setExportMode}
+          options={[
+            { value: "standard", label: "Workbook Export" },
+            { value: "invoice", label: "Invoice Wizard" }
+          ]}
+        />
+      </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="from">From</Label>
-                  <Input
-                    id="from"
-                    type="date"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="to">To</Label>
-                  <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Billable</Label>
-                  <Select
-                    value={billable}
-                    onValueChange={(v) => setBillable(v as ExportBodyDto["billable"])}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All entries</SelectItem>
-                      <SelectItem value="billable">Billable only</SelectItem>
-                      <SelectItem value="non_billable">Non-billable only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Project</Label>
-                  <Select
-                    value={projectId || "__all__"}
-                    onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All projects" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All projects</SelectItem>
-                      {projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          <span className="flex items-center gap-2">
-                            <ProjectColorDot color={p.color} />
-                            {p.name}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Member</Label>
-                  <Select
-                    value={userId || "__all__"}
-                    onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All members" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All members</SelectItem>
-                      {members.map((m) => (
-                        <SelectItem key={m.userId} value={m.userId}>
-                          {m.userName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {projectId ? (
-                <label className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={teamOnly}
-                    onChange={(e) => setTeamOnly(e.target.checked)}
-                    className="h-4 w-4 rounded border-border"
-                  />
-                  Only include project team members
-                </label>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Workbook layout</CardTitle>
-              <CardDescription>
-                How tabs are organized in Excel (or files in a ZIP for CSV). Best for monthly
-                timesheets: one tab per person.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 sm:grid-cols-2">
-              {SHEET_LAYOUT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => onSheetLayoutChange(opt.id)}
-                  className={`rounded-lg border p-3 text-left transition-colors ${
-                    sheetLayout === opt.id
-                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                      : "border-border bg-muted/20 hover:bg-muted/40"
-                  }`}
-                >
-                  <p className="text-sm font-medium">{opt.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                    {opt.description}
-                  </p>
-                  <p className="mt-2 text-[11px] text-muted-foreground">{opt.bestFor}</p>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Row order inside each tab</CardTitle>
-              <CardDescription>
-                {primaryGroupByForSheetLayout(sheetLayout)
-                  ? `Matches your workbook layout (${SHEET_LAYOUT_OPTIONS.find((o) => o.id === sheetLayout)?.label}). Add Day or Week to sort days in order inside each tab.`
-                  : "Optional. Controls how rows are sorted (e.g. member first, then day). Each option can add a matching totals tab."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {GROUP_BY_DIMENSION_OPTIONS.map((opt) => (
-                  <ToggleChip
-                    key={opt.id}
-                    selected={safeGroupBy.includes(opt.id)}
-                    onClick={() => toggleGroupByDimension(opt.id)}
-                  >
-                    {opt.label}
-                  </ToggleChip>
-                ))}
-              </div>
-              {safeGroupBy.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Sort order</p>
-                  <ol className="space-y-1.5">
-                    {safeGroupBy.map((dim, index) => {
-                      const label =
-                        GROUP_BY_DIMENSION_OPTIONS.find((o) => o.id === dim)?.label ?? dim;
-                      return (
-                        <li
-                          key={dim}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm"
+      {exportMode === "standard" ? (
+        <>
+          <div className="grid gap-8 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-8">
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base">Period & filters</CardTitle>
+                  <CardDescription>
+                    Quick ranges or custom dates. Scope narrows all selected reports.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <Section title="Quick range">
+                    <div className="flex flex-wrap gap-2">
+                      {PERIOD_PRESETS.map(({ id, label }) => (
+                        <Button
+                          key={id}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() => {
+                            const range = applyDatePreset(id);
+                            setFrom(range.from);
+                            setTo(range.to);
+                          }}
                         >
-                          <span>
-                            <span className="text-muted-foreground tabular-nums">{index + 1}.</span>{" "}
-                            {label}
-                          </span>
-                          <span className="flex shrink-0 gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2"
-                              disabled={index === 0}
-                              onClick={() =>
-                                setGroupBy(
-                                  groupByForSheetLayout(
-                                    sheetLayout,
-                                    moveGroupByDimension(safeGroupBy, index, -1)
-                                  )
-                                )
-                              }
-                            >
-                              ↑
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2"
-                              disabled={index === safeGroupBy.length - 1}
-                              onClick={() =>
-                                setGroupBy(
-                                  groupByForSheetLayout(
-                                    sheetLayout,
-                                    moveGroupByDimension(safeGroupBy, index, 1)
-                                  )
-                                )
-                              }
-                            >
-                              ↓
-                            </Button>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              ) : null}
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {groupByCombinationHint(safeGroupBy)}
-              </p>
-            </CardContent>
-          </Card>
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </Section>
 
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Reports</CardTitle>
-              <CardDescription>
-                {safeGroupBy.length === 0
-                  ? "Select one or more. Configure columns for each report below."
-                  : `Sheets for ${groupBySummaryLabel(safeGroupBy)} — add or remove types as needed.`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {REPORT_GROUPS.map((group) => (
-                <Section key={group.title} title={group.title}>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="from">From</Label>
+                      <Input
+                        id="from"
+                        type="date"
+                        value={from}
+                        onChange={(e) => setFrom(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="to">To</Label>
+                      <Input
+                        id="to"
+                        type="date"
+                        value={to}
+                        onChange={(e) => setTo(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Billable</Label>
+                      <Select
+                        value={billable}
+                        onValueChange={(v) => setBillable(v as ExportBodyDto["billable"])}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All entries</SelectItem>
+                          <SelectItem value="billable">Billable only</SelectItem>
+                          <SelectItem value="non_billable">Non-billable only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Project</Label>
+                      <Select
+                        value={projectId || "__all__"}
+                        onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All projects" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">All projects</SelectItem>
+                          {projects.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              <span className="flex items-center gap-2">
+                                <ProjectColorDot color={p.color} />
+                                {p.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Member</Label>
+                      <Select
+                        value={userId || "__all__"}
+                        onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All members" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">All members</SelectItem>
+                          {members.map((m) => (
+                            <SelectItem key={m.userId} value={m.userId}>
+                              {m.userName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {projectId ? (
+                    <label className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={teamOnly}
+                        onChange={(e) => setTeamOnly(e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      Only include project team members
+                    </label>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base">Workbook layout</CardTitle>
+                  <CardDescription>
+                    How tabs are organized in Excel (or files in a ZIP for CSV). Best for monthly
+                    timesheets: one tab per person.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-2 sm:grid-cols-2">
+                  {SHEET_LAYOUT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => onSheetLayoutChange(opt.id)}
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        sheetLayout === opt.id
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border bg-muted/20 hover:bg-muted/40"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                        {opt.description}
+                      </p>
+                      <p className="mt-2 text-[11px] text-muted-foreground">{opt.bestFor}</p>
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base">Row order inside each tab</CardTitle>
+                  <CardDescription>
+                    {primaryGroupByForSheetLayout(sheetLayout)
+                      ? `Matches your workbook layout (${SHEET_LAYOUT_OPTIONS.find((o) => o.id === sheetLayout)?.label}). Add Day or Week to sort days in order inside each tab.`
+                      : "Optional. Controls how rows are sorted (e.g. member first, then day). Each option can add a matching totals tab."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    {group.reports.map((opt) => (
+                    {GROUP_BY_DIMENSION_OPTIONS.map((opt) => (
                       <ToggleChip
                         key={opt.id}
-                        selected={safeReportTypes.includes(opt.id)}
-                        onClick={() => toggleReport(opt.id)}
+                        selected={safeGroupBy.includes(opt.id)}
+                        onClick={() => toggleGroupByDimension(opt.id)}
                       >
                         {opt.label}
                       </ToggleChip>
                     ))}
                   </div>
-                </Section>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Columns</CardTitle>
-              <CardDescription>
-                Choose and reorder columns per report. At least one column required.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {safeReportTypes.map((rt) => {
-                const label =
-                  REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
-                const open = expandedReport === rt;
-                return (
-                  <div key={rt} className="rounded-lg border border-border overflow-hidden">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between gap-2 bg-muted/30 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50"
-                      onClick={() => setExpandedReport(open ? null : rt)}
-                    >
-                      <span>
-                        {label}
-                        <Badge variant="secondary" className="ml-2 font-normal">
-                          {columnsByReport[rt]?.length ?? 0} cols
-                        </Badge>
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {open ? "Hide" : "Edit"}
-                      </span>
-                    </button>
-                    {open ? (
-                      <div className="border-t border-border p-3">
-                        <ExportColumnPicker
-                          report={rt}
-                          selected={columnsByReport[rt] ?? []}
-                          onChange={(cols) =>
-                            setColumnsByReport((prev) => ({ ...prev, [rt]: cols }))
-                          }
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-4">
-          <div className="sticky top-6 space-y-4">
-            <Card className="shadow-md border-primary/10">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Export summary</CardTitle>
-                <CardDescription>{formatPeriodLabel(from, to)}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <PreviewBanner
-                  loading={previewLoading}
-                  error={!!previewError && !previewLoading}
-                  empty={!!preview?.isEmpty && !previewLoading && !previewError}
-                >
-                  <ExportLayoutPreview
-                    preview={preview}
-                    loading={previewLoading}
-                    error={previewError}
-                    format={format}
-                  />
-                </PreviewBanner>
-
-                {layoutNeedsTimeEntries ? (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Turn on <strong>Time entries</strong> in Reports for this workbook layout.
+                  {safeGroupBy.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Sort order</p>
+                      <ol className="space-y-1.5">
+                        {safeGroupBy.map((dim, index) => {
+                          const label =
+                            GROUP_BY_DIMENSION_OPTIONS.find((o) => o.id === dim)?.label ?? dim;
+                          return (
+                            <li
+                              key={dim}
+                              className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm"
+                            >
+                              <span>
+                                <span className="text-muted-foreground tabular-nums">
+                                  {index + 1}.
+                                </span>{" "}
+                                {label}
+                              </span>
+                              <span className="flex shrink-0 gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  disabled={index === 0}
+                                  onClick={() =>
+                                    setGroupBy(
+                                      groupByForSheetLayout(
+                                        sheetLayout,
+                                        moveGroupByDimension(safeGroupBy, index, -1)
+                                      )
+                                    )
+                                  }
+                                >
+                                  ↑
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  disabled={index === safeGroupBy.length - 1}
+                                  onClick={() =>
+                                    setGroupBy(
+                                      groupByForSheetLayout(
+                                        sheetLayout,
+                                        moveGroupByDimension(safeGroupBy, index, 1)
+                                      )
+                                    )
+                                  }
+                                >
+                                  ↓
+                                </Button>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {groupByCombinationHint(safeGroupBy)}
                   </p>
-                ) : null}
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">File format</Label>
-                  <SegmentedControl
-                    value={format}
-                    onChange={setFormat}
-                    size="md"
-                    fullWidth
-                    options={[
-                      { value: "csv", label: "CSV" },
-                      { value: "xlsx", label: "Excel" },
-                      { value: "pdf", label: "PDF" }
-                    ]}
-                  />
-                </div>
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base">Reports</CardTitle>
+                  <CardDescription>
+                    {safeGroupBy.length === 0
+                      ? "Select one or more. Configure columns for each report below."
+                      : `Sheets for ${groupBySummaryLabel(safeGroupBy)} — add or remove types as needed.`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {REPORT_GROUPS.map((group) => (
+                    <Section key={group.title} title={group.title}>
+                      <div className="flex flex-wrap gap-2">
+                        {group.reports.map((opt) => (
+                          <ToggleChip
+                            key={opt.id}
+                            selected={safeReportTypes.includes(opt.id)}
+                            onClick={() => toggleReport(opt.id)}
+                          >
+                            {opt.label}
+                          </ToggleChip>
+                        ))}
+                      </div>
+                    </Section>
+                  ))}
+                </CardContent>
+              </Card>
 
-                <div className="flex flex-col gap-2 pt-1">
-                  <Button
-                    size="lg"
-                    className="w-full"
-                    onClick={runExport}
-                    disabled={!canExport || exporting}
-                  >
-                    {exporting ? "Preparing download…" : `Download ${format.toUpperCase()}`}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={createShareLink}
-                    disabled={sharing}
-                  >
-                    {sharing ? "Creating link…" : "Create read-only share link"}
-                  </Button>
-                </div>
-
-                {shareUrl ? (
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs break-all">
-                    <p className="font-medium text-foreground mb-1">Share link (30 days)</p>
-                    <a
-                      href={shareUrl}
-                      className="text-primary underline"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {shareUrl}
-                    </a>
-                  </div>
-                ) : null}
-
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Saved presets</CardTitle>
-                <CardDescription>Reload a configuration or save the current setup.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Preset name"
-                    value={presetName}
-                    onChange={(e) => setPresetName(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!presetName.trim()}
-                    onClick={saveLocalPreset}
-                  >
-                    Save locally
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={!presetName.trim()}
-                    onClick={saveServerPreset}
-                  >
-                    Save to workspace
-                  </Button>
-                </div>
-                {allPresets.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No presets yet.</p>
-                ) : (
-                  <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {allPresets.map((p) => (
-                      <li
-                        key={`${p.source}-${p.id}`}
-                        className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5"
-                      >
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base">Columns</CardTitle>
+                  <CardDescription>
+                    Choose and reorder columns per report. At least one column required.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {safeReportTypes.map((rt) => {
+                    const label =
+                      REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
+                    const open = expandedReport === rt;
+                    return (
+                      <div key={rt} className="rounded-lg border border-border overflow-hidden">
                         <button
                           type="button"
-                          className="text-left text-sm font-medium truncate hover:underline"
-                          onClick={() => applyPresetBody(p.body)}
+                          className="flex w-full items-center justify-between gap-2 bg-muted/30 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50"
+                          onClick={() => setExpandedReport(open ? null : rt)}
                         >
-                          {p.name}
+                          <span>
+                            {label}
+                            <Badge variant="secondary" className="ml-2 font-normal">
+                              {columnsByReport[rt]?.length ?? 0} cols
+                            </Badge>
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {open ? "Hide" : "Edit"}
+                          </span>
                         </button>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Badge variant="outline" className="text-[10px] px-1.5">
-                            {p.source === "local" ? "Local" : "Team"}
-                          </Badge>
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-destructive text-xs px-1"
-                            aria-label={`Delete ${p.name}`}
-                            onClick={async () => {
-                              if (p.source === "local") {
-                                if (ws) setLocalPresets(deleteLocalExportPreset(ws, p.id));
-                              } else {
-                                await api(ROUTES.EXPORT.PRESET(p.id), {
-                                  method: "DELETE",
-                                  workspaceId: ws
-                                });
-                                const list = await api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, {
-                                  workspaceId: ws
-                                });
-                                setServerPresets(list);
+                        {open ? (
+                          <div className="border-t border-border p-3">
+                            <ExportColumnPicker
+                              report={rt}
+                              selected={columnsByReport[rt] ?? []}
+                              onChange={(cols) =>
+                                setColumnsByReport((prev) => ({ ...prev, [rt]: cols }))
                               }
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </div>
 
-      <ExportSchedulesPanel workspaceId={ws} currentBody={exportBody} />
+            <div className="lg:col-span-4">
+              <div className="sticky top-6 space-y-4">
+                <Card className="shadow-md border-primary/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Export summary</CardTitle>
+                    <CardDescription>{formatPeriodLabel(from, to)}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <PreviewBanner
+                      loading={previewLoading}
+                      error={!!previewError && !previewLoading}
+                      empty={!!preview?.isEmpty && !previewLoading && !previewError}
+                    >
+                      <ExportLayoutPreview
+                        preview={preview}
+                        loading={previewLoading}
+                        error={previewError}
+                        format={format}
+                      />
+                    </PreviewBanner>
+
+                    {layoutNeedsTimeEntries ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Turn on <strong>Time entries</strong> in Reports for this workbook layout.
+                      </p>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">File format</Label>
+                      <SegmentedControl
+                        value={format}
+                        onChange={setFormat}
+                        size="md"
+                        fullWidth
+                        options={[
+                          { value: "csv", label: "CSV" },
+                          { value: "xlsx", label: "Excel" },
+                          { value: "pdf", label: "PDF" }
+                        ]}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-1">
+                      <Button
+                        size="lg"
+                        className="w-full"
+                        onClick={runExport}
+                        disabled={!canExport || exporting}
+                      >
+                        {exporting ? "Preparing download…" : `Download ${format.toUpperCase()}`}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={createShareLink}
+                        disabled={sharing}
+                      >
+                        {sharing ? "Creating link…" : "Create read-only share link"}
+                      </Button>
+                    </div>
+
+                    {shareUrl ? (
+                      <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs break-all">
+                        <p className="font-medium text-foreground mb-1">Share link (30 days)</p>
+                        <a
+                          href={shareUrl}
+                          className="text-primary underline"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {shareUrl}
+                        </a>
+                      </div>
+                    ) : null}
+
+                    {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Saved presets</CardTitle>
+                    <CardDescription>
+                      Reload a configuration or save the current setup.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Preset name"
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!presetName.trim()}
+                        onClick={saveLocalPreset}
+                      >
+                        Save locally
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={!presetName.trim()}
+                        onClick={saveServerPreset}
+                      >
+                        Save to workspace
+                      </Button>
+                    </div>
+                    {allPresets.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No presets yet.</p>
+                    ) : (
+                      <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                        {allPresets.map((p) => (
+                          <li
+                            key={`${p.source}-${p.id}`}
+                            className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5"
+                          >
+                            <button
+                              type="button"
+                              className="text-left text-sm font-medium truncate hover:underline"
+                              onClick={() => applyPresetBody(p.body)}
+                            >
+                              {p.name}
+                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Badge variant="outline" className="text-[10px] px-1.5">
+                                {p.source === "local" ? "Local" : "Team"}
+                              </Badge>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-destructive text-xs px-1"
+                                aria-label={`Delete ${p.name}`}
+                                onClick={async () => {
+                                  if (p.source === "local") {
+                                    if (ws) setLocalPresets(deleteLocalExportPreset(ws, p.id));
+                                  } else {
+                                    await api(ROUTES.EXPORT.PRESET(p.id), {
+                                      method: "DELETE",
+                                      workspaceId: ws
+                                    });
+                                    const list = await api<ExportPresetDto[]>(
+                                      ROUTES.EXPORT.PRESETS,
+                                      {
+                                        workspaceId: ws
+                                      }
+                                    );
+                                    setServerPresets(list);
+                                  }
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+
+          <ExportSchedulesPanel workspaceId={ws} currentBody={exportBody} />
+        </>
+      ) : (
+        <InvoiceWizard />
+      )}
     </div>
   );
 }

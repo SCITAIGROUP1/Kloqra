@@ -104,12 +104,14 @@ export function StatCard({
   label,
   value,
   hint,
-  accent = "default"
+  accent = "default",
+  cardless = false
 }: {
   label: string;
   value: string;
   hint?: string;
   accent?: "default" | "billable" | "revenue" | "muted";
+  cardless?: boolean;
 }) {
   const accentBar = {
     default: "bg-primary",
@@ -117,6 +119,15 @@ export function StatCard({
     revenue: "bg-blue-500",
     muted: "bg-muted-foreground/40"
   }[accent];
+
+  if (cardless) {
+    return (
+      <div className="flex flex-col justify-center h-full">
+        <p className="text-2xl font-bold tabular-nums tracking-tight leading-none">{value}</p>
+        {hint ? <p className="mt-2 text-xs text-muted-foreground leading-none">{hint}</p> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm">

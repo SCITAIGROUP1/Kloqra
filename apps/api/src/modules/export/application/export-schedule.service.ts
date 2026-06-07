@@ -15,6 +15,7 @@ import {
   type OnModuleInit
 } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ExportService } from "./export.service";
 
@@ -25,7 +26,8 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private prisma: PrismaService,
-    private exportService: ExportService
+    private exportService: ExportService,
+    private mailer: MailerService
   ) {}
 
   onModuleInit() {
@@ -138,10 +140,36 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
       const body = exportBodySchema.parse(schedule.body);
       const result = await this.exportService.generate(schedule.workspaceId, body);
 
-      const recipients = schedule.recipientEmails.join(", ");
-      console.info(
-        `[export-schedule] ${schedule.name}: generated ${result.filename} (${result.buffer.length} bytes) for ${recipients}`
+      const recipients = schedule.recipientEmails;
+      this.logger.log(
+        `Schedule "${schedule.name}": generated ${result.filename} (${result.buffer.length} bytes) — sending to ${recipients.join(", ")}`
       );
+
+      // Determine MIME type from filename extension
+      const ext = result.filename.split(".").pop()?.toLowerCase();
+      const contentType =
+        ext === "pdf"
+          ? "application/pdf"
+          : ext === "xlsx"
+            ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            : "text/csv";
+
+      await this.mailer.send({
+        to: recipients,
+        subject: `[ChronoMint] Scheduled export: ${schedule.name}`,
+        html: `
+          <p>Hi,</p>
+          <p>Your scheduled export <strong>${schedule.name}</strong> is ready. Please find the file attached.</p>
+          <p>This report was generated automatically by ChronoMint.</p>
+        `.trim(),
+        attachments: [
+          {
+            filename: result.filename,
+            content: result.buffer,
+            contentType
+          }
+        ]
+      });
 
       await this.prisma.exportSchedule.update({
         where: { id: scheduleId },

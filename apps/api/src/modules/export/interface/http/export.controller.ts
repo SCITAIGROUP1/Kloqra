@@ -5,6 +5,8 @@ import {
   exportBodySchema,
   exportPreviewBodySchema,
   exportQuerySchema,
+  generateInvoiceSchema,
+  type GenerateInvoiceDto,
   memberExportBodySchema,
   ROUTES,
   updateExportScheduleSchema
@@ -37,6 +39,7 @@ import { ExportPresetService } from "../../application/export-preset.service";
 import { ExportScheduleService } from "../../application/export-schedule.service";
 import { ExportShareService } from "../../application/export-share.service";
 import { ExportService } from "../../application/export.service";
+import { InvoiceService } from "../../application/invoice.service";
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -46,7 +49,8 @@ export class ExportController {
     private exportPresets: ExportPresetService,
     private exportSchedules: ExportScheduleService,
     private exportShares: ExportShareService,
-    private projectAccess: ProjectAccessService
+    private projectAccess: ProjectAccessService,
+    private invoiceService: InvoiceService
   ) {}
 
   @Roles("ADMIN")
@@ -61,6 +65,21 @@ export class ExportController {
       body as Parameters<ExportService["generate"]>[1]
     );
     sendAttachment(res, result);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.EXPORT.INVOICE)
+  async generateInvoice(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(generateInvoiceSchema)) body: GenerateInvoiceDto,
+    @Res() res: Response
+  ) {
+    const result = await this.invoiceService.generate(user.workspaceId, body);
+    sendAttachment(res, {
+      buffer: result.buffer,
+      contentType: "application/pdf",
+      filename: result.filename
+    });
   }
 
   @Roles("ADMIN")

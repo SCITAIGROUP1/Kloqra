@@ -29,11 +29,17 @@ export const authSessionSchema = z.object({
   user: authUserSchema,
   workspaceId: uuidSchema,
   workspaceName: z.string().min(1).max(120).optional(),
-  workspaceRole: workspaceRoleSchema
+  workspaceRole: workspaceRoleSchema,
+  impersonatorId: uuidSchema.optional(),
+  impersonatorName: z.string().optional()
 });
 
 export const authSessionWithTokenSchema = authSessionSchema.extend({
   accessToken: z.string()
+});
+
+export const impersonateSchema = z.object({
+  userId: uuidSchema
 });
 
 export type RegisterDto = z.infer<typeof registerSchema>;
@@ -41,3 +47,4 @@ export type LoginDto = z.infer<typeof loginSchema>;
 export type AuthUserDto = z.infer<typeof authUserSchema>;
 export type AuthSessionDto = z.infer<typeof authSessionSchema>;
 export type AuthSessionWithTokenDto = z.infer<typeof authSessionWithTokenSchema>;
+export type ImpersonateDto = z.infer<typeof impersonateSchema>;

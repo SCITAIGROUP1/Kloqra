@@ -27,6 +27,12 @@
     { "id": "P2-08", "title": "Admin billing", "status": "done", "owner": "FE" },
     { "id": "P2-09", "title": "Admin exports", "status": "done", "owner": "FE" },
     { "id": "P2-10", "title": "QA phase 2 fixtures", "status": "done", "owner": "QA" },
-    { "id": "P2-11", "title": "Deploy runbook", "status": "done", "owner": "LSA" }
+    { "id": "P2-11", "title": "Deploy runbook", "status": "done", "owner": "LSA" },
+    {
+      "id": "P2-12",
+      "title": "Time entry audit trail + per-project approval",
+      "status": "done",
+      "owner": "BE"
+    }
   ]
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PROJECT_COLORS } from "../project-colors";
+import { timesheetApprovalPeriodSchema } from "../workspace-settings";
 import { uuidSchema } from "./common.dto";
 
 export const projectColorSchema = z
@@ -18,7 +19,9 @@ export const projectSchema = z.object({
   color: projectColorSchema,
   clientName: z.string().max(200).nullable(),
   budgetHours: z.number().positive().nullable(),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  timesheetApprovalEnabled: z.boolean(),
+  timesheetApprovalPeriod: timesheetApprovalPeriodSchema.nullable()
 });
 
 export const createProjectSchema = z.object({
@@ -26,7 +29,9 @@ export const createProjectSchema = z.object({
   color: projectColorSchema.optional(),
   clientName: z.string().max(200).optional(),
   budgetHours: z.number().positive().optional(),
-  isActive: z.boolean().default(true)
+  isActive: z.boolean().default(true),
+  timesheetApprovalEnabled: z.boolean().optional(),
+  timesheetApprovalPeriod: timesheetApprovalPeriodSchema.optional()
 });
 
 export const updateProjectSchema = createProjectSchema.partial();

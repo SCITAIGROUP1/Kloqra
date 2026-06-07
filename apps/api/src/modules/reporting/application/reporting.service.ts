@@ -263,4 +263,229 @@ export class ReportingService {
       billableAmount: roundExport(v.billableAmount)
     };
   }
+
+  // ── Budget Burn-Down ──────────────────────────────────────────────────────
+
+  async budgetBurnDown(workspaceId: string, projectId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true, name: true, color: true, budgetHours: true }
+    });
+    if (!project) return null;
+
+    const budgetHours = project.budgetHours?.toNumber() ?? null;
+
+    // Fetch all time logs for this project (no date cap — burn-down is cumulative)
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      projectId,
+      from: new Date(0),
+      to: new Date("2100-01-01")
+    });
+
+    // Build daily cumulative totals
+    const dailyMap = new Map<string, number>();
+    for (const log of logs) {
+      const day = log.startTime.toISOString().slice(0, 10);
+      dailyMap.set(day, (dailyMap.get(day) ?? 0) + log.durationSec / 3600);
+    }
+
+    const sortedDays = [...dailyMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    let cumulative = 0;
+    const burnDown = sortedDays.map(([date, hours]) => {
+      cumulative += hours;
+      return {
+        date,
+        hoursLogged: roundExport(hours),
+        cumulativeHours: roundExport(cumulative),
+        budgetRemaining: budgetHours !== null ? roundExport(budgetHours - cumulative) : null
+      };
+    });
+
+    const totalLogged = roundExport(cumulative);
+    const percentUsed = budgetHours ? roundExport((totalLogged / budgetHours) * 100) : null;
+
+    return {
+      projectId: project.id,
+      projectName: project.name,
+      projectColor: project.color,
+      budgetHours,
+      totalLoggedHours: totalLogged,
+      percentUsed,
+      status:
+        budgetHours === null
+          ? "no_budget"
+          : totalLogged >= budgetHours
+            ? "over_budget"
+            : totalLogged >= budgetHours * 0.9
+              ? "near_budget"
+              : "on_track",
+      burnDown
+    };
+  }
+
+  // ── Team Utilization ──────────────────────────────────────────────────────
+
+  async utilization(workspaceId: string, query: { from: string; to: string }) {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId }
+    });
+
+    const settings = (workspace.settings as Record<string, unknown>) ?? {};
+    const expectedWeeklyHours = (settings.expectedWeeklyHours as number | undefined) ?? 40;
+
+    const logs = await this.aggregation.fetchLogs(workspaceId, { from, to });
+
+    // Days in range for target calculation
+    const dayMs = 86_400_000;
+    const calendarDays = Math.ceil((to.getTime() - from.getTime()) / dayMs) || 1;
+    const targetHours = roundExport((expectedWeeklyHours / 5) * calendarDays);
+
+    const byUser = new Map<string, { name: string; hours: number; billableHours: number }>();
+    for (const log of logs) {
+      const e = byUser.get(log.userId) ?? {
+        name: log.user.name,
+        hours: 0,
+        billableHours: 0
+      };
+      e.hours += log.durationSec / 3600;
+      if (log.isBillable) e.billableHours += log.durationSec / 3600;
+      byUser.set(log.userId, e);
+    }
+
+    // Also include members who logged nothing (target still applies)
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      include: { user: { select: { id: true, name: true } } }
+    });
+
+    for (const m of members) {
+      if (!byUser.has(m.userId)) {
+        byUser.set(m.userId, { name: m.user.name, hours: 0, billableHours: 0 });
+      }
+    }
+
+    const rows = [...byUser.entries()]
+      .map(([userId, v]) => {
+        const loggedHours = roundExport(v.hours);
+        const billableHours = roundExport(v.billableHours);
+        const utilizationPct = roundExport((loggedHours / targetHours) * 100);
+        return {
+          userId,
+          userName: v.name,
+          loggedHours,
+          billableHours,
+          targetHours,
+          utilizationPct,
+          status: utilizationPct >= 90 ? "on_track" : utilizationPct >= 60 ? "low" : "critical"
+        };
+      })
+      .sort((a, b) => b.utilizationPct - a.utilizationPct);
+
+    return {
+      period: { from: query.from, to: query.to },
+      expectedWeeklyHours,
+      targetHours,
+      members: rows
+    };
+  }
+
+  async heatmap(workspaceId: string, query: ReportQueryDto) {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId
+    });
+
+    const slotsMap = new Map<string, number>();
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      for (let hour = 0; hour < 24; hour++) {
+        slotsMap.set(`${dayOfWeek}:${hour}`, 0);
+      }
+    }
+
+    for (const log of logs) {
+      const dayOfWeek = log.startTime.getUTCDay();
+      const hour = log.startTime.getUTCHours();
+      const hours = log.durationSec / 3600;
+      const key = `${dayOfWeek}:${hour}`;
+      slotsMap.set(key, (slotsMap.get(key) ?? 0) + hours);
+    }
+
+    const slots = [];
+    for (const [key, value] of slotsMap.entries()) {
+      const [dayOfWeek, hour] = key.split(":").map(Number);
+      slots.push({
+        dayOfWeek,
+        hour,
+        hours: roundExport(value)
+      });
+    }
+
+    return { slots };
+  }
+
+  async tasks(workspaceId: string, query: ReportQueryDto) {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId
+    });
+
+    const tasksMap = new Map<
+      string,
+      { taskId: string | null; taskName: string; totalHours: number; billableHours: number }
+    >();
+
+    for (const log of logs) {
+      const name = log.task.taskName || "General Work";
+      const key = name.toLowerCase().trim();
+      const entry = tasksMap.get(key) ?? {
+        taskId: log.taskId,
+        taskName: name,
+        totalHours: 0,
+        billableHours: 0
+      };
+
+      const hours = log.durationSec / 3600;
+      entry.totalHours += hours;
+      if (log.isBillable) {
+        entry.billableHours += hours;
+      }
+      tasksMap.set(key, entry);
+    }
+
+    const sortedTasks = [...tasksMap.values()]
+      .map((t) => ({
+        taskId: t.taskId,
+        taskName: t.taskName,
+        totalHours: roundExport(t.totalHours),
+        billableHours: roundExport(t.billableHours)
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+
+    const top = sortedTasks.slice(0, 8);
+    const rest = sortedTasks.slice(8);
+
+    if (rest.length > 0) {
+      const restTotal = rest.reduce((s, r) => s + r.totalHours, 0);
+      const restBillable = rest.reduce((s, r) => s + r.billableHours, 0);
+      top.push({
+        taskId: null,
+        taskName: "Other Tasks",
+        totalHours: roundExport(restTotal),
+        billableHours: roundExport(restBillable)
+      });
+    }
+
+    return { tasks: top };
+  }
 }

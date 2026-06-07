@@ -25,22 +25,29 @@ export class PresenceService {
       taskName: string;
       projectName: string;
       startedAt: string;
+      isPaused: boolean;
     }[] = [];
 
     const taskIds = new Set<string>();
-    const timerStates: { userId: string; userName: string; taskId: string; startedAt: string }[] =
-      [];
+    const timerStates: {
+      userId: string;
+      userName: string;
+      taskId: string;
+      startedAt: string;
+      isPaused: boolean;
+    }[] = [];
 
     for (const m of members) {
       const raw = await this.redis.getClient().get(`timer:${workspaceId}:${m.userId}`);
       if (!raw) continue;
-      const state = JSON.parse(raw) as { taskId: string; startedAt: string };
+      const state = JSON.parse(raw) as { taskId: string; startedAt: string; isPaused?: boolean };
       taskIds.add(state.taskId);
       timerStates.push({
         userId: m.userId,
         userName: m.user.name,
         taskId: state.taskId,
-        startedAt: state.startedAt
+        startedAt: state.startedAt,
+        isPaused: state.isPaused ?? false
       });
     }
 
@@ -62,7 +69,8 @@ export class PresenceService {
         taskId: task.id,
         taskName: task.taskName,
         projectName: task.project.name,
-        startedAt: state.startedAt
+        startedAt: state.startedAt,
+        isPaused: state.isPaused
       });
     }
 

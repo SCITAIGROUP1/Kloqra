@@ -1,6 +1,6 @@
 export const SLOT_MINUTES = 30;
-export const CALENDAR_START_HOUR = 6;
-export const CALENDAR_END_HOUR = 22;
+export const CALENDAR_START_HOUR = 0;
+export const CALENDAR_END_HOUR = 24;
 
 export function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -79,16 +79,175 @@ export function getVisibleMinutes(): number {
   return (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * 60;
 }
 
-function minutesFromCalendarStart(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes() - CALENDAR_START_HOUR * 60;
+export function getTimezoneOffsetMs(date: Date, timeZone: string): number {
+  if (timeZone === "UTC") return 0;
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+
+    let hour = getVal("hour");
+    if (hour === 24) hour = 0;
+
+    const tzDateUtc = Date.UTC(
+      getVal("year"),
+      getVal("month") - 1,
+      getVal("day"),
+      hour,
+      getVal("minute"),
+      getVal("second")
+    );
+
+    return tzDateUtc - date.getTime();
+  } catch {
+    return 0;
+  }
+}
+
+export function localMidnightUtcInZone(y: number, m: number, d: number, timezone: string): Date {
+  if (timezone === "UTC") {
+    return new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+  }
+  const guess = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+  const offsetMs = getTimezoneOffsetMs(guess, timezone);
+  return new Date(guess.getTime() - offsetMs);
+}
+
+export function todayInZone(timezone: string): Date {
+  const now = new Date();
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric"
+    });
+    const parts = formatter.formatToParts(now);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+    const y = getVal("year");
+    const m = getVal("month");
+    const d = getVal("day");
+    return new Date(y, m - 1, d, 0, 0, 0);
+  } catch {
+    const x = new Date();
+    x.setHours(0, 0, 0, 0);
+    return x;
+  }
+}
+
+export function isSameDayInZone(day: Date, now: Date, timezone: string): boolean {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric"
+    });
+    const parts = formatter.formatToParts(now);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+
+    return (
+      day.getFullYear() === getVal("year") &&
+      day.getMonth() + 1 === getVal("month") &&
+      day.getDate() === getVal("day")
+    );
+  } catch {
+    return isSameDay(day, now);
+  }
+}
+
+export function getZoneHourAndMinute(
+  date: Date,
+  timezone: string
+): { hour: number; minute: number } {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+    let hour = getVal("hour");
+    if (hour === 24) hour = 0;
+    return { hour, minute: getVal("minute") };
+  } catch {
+    return { hour: date.getHours(), minute: date.getMinutes() };
+  }
+}
+
+export function toDateKeyInZone(d: Date, timezone: string): string {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric"
+    });
+    const parts = formatter.formatToParts(d);
+    const getVal = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    const y = getVal("year");
+    const m = getVal("month").padStart(2, "0");
+    const dStr = getVal("day").padStart(2, "0");
+    return `${y}-${m}-${dStr}`;
+  } catch {
+    return toDateKey(d);
+  }
+}
+
+export function toTimeValueInZone(d: Date, timezone: string): string {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(d);
+    const getVal = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    let hour = getVal("hour");
+    if (hour === "24") hour = "00";
+    const h = hour.padStart(2, "0");
+    const m = getVal("minute").padStart(2, "0");
+    return `${h}:${m}`;
+  } catch {
+    return toTimeValue(d);
+  }
+}
+
+export function combineDayAndTimeInZone(dateKey: string, time: string, timezone: string): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  const guess = new Date(Date.UTC(y, m - 1, d, h || 0, min || 0, 0));
+  const offsetMs = getTimezoneOffsetMs(guess, timezone);
+  return new Date(guess.getTime() - offsetMs);
+}
+
+export function minutesFromCalendarStart(d: Date, timezone: string = "UTC"): number {
+  const { hour, minute } = getZoneHourAndMinute(d, timezone);
+  return hour * 60 + minute - CALENDAR_START_HOUR * 60;
 }
 
 export function clipLogToDay(
   log: { startTime: string; endTime: string },
-  day: Date
+  day: Date,
+  timezone: string = "UTC"
 ): { start: Date; end: Date } | null {
-  const dayStart = startOfDay(day);
-  const dayEnd = addDays(dayStart, 1);
+  const y = day.getFullYear();
+  const m = day.getMonth() + 1;
+  const d = day.getDate();
+  const dayStart = localMidnightUtcInZone(y, m, d, timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const logStart = new Date(log.startTime);
   const logEnd = new Date(log.endTime);
   const start = new Date(Math.max(logStart.getTime(), dayStart.getTime()));
@@ -97,10 +256,17 @@ export function clipLogToDay(
   return { start, end };
 }
 
-export function blockStyle(start: Date, end: Date): { top: string; height: string } {
+export function blockStyle(
+  start: Date,
+  end: Date,
+  timezone: string = "UTC"
+): { top: string; height: string; display?: string } {
   const total = getVisibleMinutes();
-  const topMin = Math.max(0, minutesFromCalendarStart(start));
-  const endMin = Math.min(total, minutesFromCalendarStart(end));
+  const topMin = Math.max(0, minutesFromCalendarStart(start, timezone));
+  const endMin = Math.min(total, minutesFromCalendarStart(end, timezone));
+  if (endMin <= topMin) {
+    return { top: "0%", height: "0%", display: "none" };
+  }
   const heightMin = Math.max(20, endMin - topMin);
   return {
     top: `${(topMin / total) * 100}%`,
@@ -221,24 +387,30 @@ export function pointerYToTime(
   day: Date,
   clientY: number,
   columnTop: number,
-  columnHeight: number
+  columnHeight: number,
+  timezone: string = "UTC"
 ): Date {
   const ratio = Math.max(0, Math.min(1, (clientY - columnTop) / columnHeight));
   const total = getVisibleMinutes();
   const slotCount = Math.floor(total / SLOT_MINUTES);
   const slotIndex = Math.min(slotCount - 1, Math.round(ratio * slotCount));
   const { hour, minute } = timeFromSlotIndex(slotIndex);
-  const result = new Date(day);
-  result.setHours(hour, minute, 0, 0);
-  return result;
+
+  const y = day.getFullYear();
+  const m = day.getMonth() + 1;
+  const d = day.getDate();
+  const guess = new Date(Date.UTC(y, m - 1, d, hour, minute, 0));
+  const offsetMs = getTimezoneOffsetMs(guess, timezone);
+  return new Date(guess.getTime() - offsetMs);
 }
 
 export function totalSecondsOnDay(
   logs: { startTime: string; endTime: string }[],
-  day: Date
+  day: Date,
+  timezone: string = "UTC"
 ): number {
   return logs.reduce((sum, log) => {
-    const clip = clipLogToDay(log, day);
+    const clip = clipLogToDay(log, day, timezone);
     if (!clip) return sum;
     return sum + (clip.end.getTime() - clip.start.getTime()) / 1000;
   }, 0);

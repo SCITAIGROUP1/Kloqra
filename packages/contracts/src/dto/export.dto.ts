@@ -615,3 +615,15 @@ export function resolveMemberExportColumns(
   if (selected?.length) return selected;
   return [...DEFAULT_MEMBER_EXPORT_COLUMNS[report]];
 }
+
+export const generateInvoiceSchema = z.object({
+  projectId: uuidSchema,
+  from: isoDatetimeSchema,
+  to: isoDatetimeSchema,
+  invoiceNumber: z.string().min(1).max(50),
+  dueDate: isoDatetimeSchema,
+  companyName: z.string().min(1).max(120),
+  clientName: z.string().min(1).max(120)
+});
+
+export type GenerateInvoiceDto = z.infer<typeof generateInvoiceSchema>;

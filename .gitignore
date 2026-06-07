@@ -8,3 +8,6 @@ coverage
 *.log
 .DS_Store
 apps/api/prisma/*.db
+test-results/
+apps/client/test-results/
+.tsbuildinfo

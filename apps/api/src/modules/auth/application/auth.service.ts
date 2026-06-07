@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { ErrorCodes } from "@chronomint/contracts";
 import type { LoginDto, RegisterDto, AuthSessionDto } from "@chronomint/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
@@ -12,6 +13,10 @@ function slugify(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 64);
+}
+
+function hashToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
 }
 
 @Injectable()
@@ -109,37 +114,188 @@ export class AuthService {
     );
   }
 
-  signAccessToken(userId: string, workspaceId: string, role: "ADMIN" | "MEMBER"): string {
+  signAccessToken(
+    userId: string,
+    workspaceId: string,
+    role: "ADMIN" | "MEMBER",
+    impersonatorId?: string
+  ): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) {
       throw new Error("JWT_ACCESS_SECRET is not set on the API service");
     }
     return this.jwt.sign(
-      { sub: userId, userId, workspaceId, role },
+      { sub: userId, userId, workspaceId, role, ...(impersonatorId ? { impersonatorId } : {}) },
       { secret, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" }
     );
   }
 
+  /**
+   * Signs a refresh token and stores its hash in the DB for revocation tracking.
+   * Returns the raw JWT (stored in cookie) + the DB record ID for the family.
+   */
+  async signAndStoreRefreshToken(
+    userId: string,
+    workspaceId: string,
+    family?: string,
+    impersonatorId?: string
+  ): Promise<string> {
+    const secret = process.env.JWT_REFRESH_SECRET?.trim();
+    if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
+
+    const tokenFamily = family ?? randomUUID();
+    const raw = this.jwt.sign(
+      {
+        sub: userId,
+        workspaceId,
+        family: tokenFamily,
+        ...(impersonatorId ? { impersonatorId } : {})
+      },
+      { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
+    );
+
+    const expiresInMs = 7 * 24 * 60 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + expiresInMs);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId,
+        workspaceId,
+        tokenHash: hashToken(raw),
+        family: tokenFamily,
+        expiresAt
+      }
+    });
+
+    // Clean up expired tokens for this user (housekeeping)
+    await this.prisma.refreshToken
+      .deleteMany({ where: { userId, expiresAt: { lt: new Date() } } })
+      .catch(() => undefined);
+
+    return raw;
+  }
+
+  /** Legacy signing for code paths that don't yet use DB rotation */
   signRefreshToken(userId: string, workspaceId: string): string {
     const secret = process.env.JWT_REFRESH_SECRET?.trim();
-    if (!secret) {
-      throw new Error("JWT_REFRESH_SECRET is not set on the API service");
-    }
+    if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
     return this.jwt.sign(
       { sub: userId, workspaceId },
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
     );
   }
 
-  verifyRefresh(token: string): { userId: string; workspaceId?: string } {
+  verifyRefresh(token: string): {
+    userId: string;
+    workspaceId?: string;
+    family?: string;
+    impersonatorId?: string;
+  } {
     const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
       sub: string;
       workspaceId?: string;
+      family?: string;
+      impersonatorId?: string;
     };
-    return { userId: payload.sub, workspaceId: payload.workspaceId };
+    return {
+      userId: payload.sub,
+      workspaceId: payload.workspaceId,
+      family: payload.family,
+      impersonatorId: payload.impersonatorId
+    };
   }
 
-  async refreshSession(userId: string, workspaceId?: string): Promise<AuthSessionDto | null> {
+  /**
+   * DB-backed refresh with rotation.
+   * - Validates the token hash exists in DB and is not revoked.
+   * - On replay (hash exists but already revoked): revokes entire family → forces re-login.
+   * - On success: revokes old token, issues new token in same family.
+   */
+  async rotateRefreshToken(
+    rawToken: string
+  ): Promise<{ session: AuthSessionDto | null; newRefreshToken: string | null }> {
+    const { userId, workspaceId, family, impersonatorId } = this.verifyRefresh(rawToken);
+    const hash = hashToken(rawToken);
+
+    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: hash } });
+
+    if (!stored) {
+      // Unknown token — possibly DB was cleared or token from before this feature
+      // Fall back gracefully
+      const session = await this.refreshSession(userId, workspaceId, impersonatorId);
+      return { session, newRefreshToken: null };
+    }
+
+    if (stored.revokedAt !== null) {
+      // Token reuse detected! Revoke entire family (prevents replay attacks)
+      if (family) {
+        await this.prisma.refreshToken.updateMany({
+          where: { userId: stored.userId, family },
+          data: { revokedAt: new Date() }
+        });
+      }
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Refresh token reuse detected — please log in again",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    if (stored.expiresAt < new Date()) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Refresh token expired",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    // Revoke the consumed token
+    await this.prisma.refreshToken.update({
+      where: { tokenHash: hash },
+      data: { revokedAt: new Date() }
+    });
+
+    // Build session
+    const session = await this.refreshSession(stored.userId, stored.workspaceId, impersonatorId);
+    if (!session) return { session: null, newRefreshToken: null };
+
+    // Issue rotated token in same family
+    const newToken = await this.signAndStoreRefreshToken(
+      stored.userId,
+      stored.workspaceId,
+      family,
+      impersonatorId
+    );
+
+    return { session, newRefreshToken: newToken };
+  }
+
+  /** Revoke all refresh tokens for a user (logout all devices) */
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
+  }
+
+  /** Revoke a single refresh token by its raw value */
+  async revokeRefreshToken(rawToken: string): Promise<void> {
+    try {
+      const hash = hashToken(rawToken);
+      await this.prisma.refreshToken.update({
+        where: { tokenHash: hash },
+        data: { revokedAt: new Date() }
+      });
+    } catch {
+      // Ignore if not found or already revoked
+    }
+  }
+
+  async refreshSession(
+    userId: string,
+    workspaceId?: string,
+    impersonatorId?: string
+  ): Promise<AuthSessionDto | null> {
     const membership = workspaceId
       ? await this.prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId, userId } },
@@ -150,19 +306,39 @@ export class AuthService {
           include: { user: true, workspace: true }
         });
     if (!membership) return null;
+
+    let impersonatorName: string | undefined;
+    if (impersonatorId) {
+      const impUser = await this.prisma.user.findUnique({ where: { id: impersonatorId } });
+      impersonatorName = impUser?.name;
+    }
+
     return this.buildSession(
       membership.user,
       membership.workspaceId,
       membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name
+      membership.workspace.name,
+      impersonatorId,
+      impersonatorName
     );
   }
 
-  async getMe(userId: string, workspaceId: string): Promise<AuthSessionDto> {
+  async getMe(
+    userId: string,
+    workspaceId: string,
+    impersonatorId?: string
+  ): Promise<AuthSessionDto> {
     const dbUser = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId }
     });
+
+    let impersonatorName: string | undefined;
+    if (impersonatorId) {
+      const impUser = await this.prisma.user.findUnique({ where: { id: impersonatorId } });
+      impersonatorName = impUser?.name;
+    }
+
     return this.buildSession(
       dbUser,
       workspaceId,
@@ -171,11 +347,13 @@ export class AuthService {
           where: { workspaceId_userId: { workspaceId, userId } }
         })
       ).role as "ADMIN" | "MEMBER",
-      workspace.name
+      workspace.name,
+      impersonatorId,
+      impersonatorName
     );
   }
 
-  private buildSession(
+  buildSession(
     user: {
       id: string;
       email: string;
@@ -184,7 +362,9 @@ export class AuthService {
     },
     workspaceId: string,
     role: "ADMIN" | "MEMBER",
-    workspaceName: string
+    workspaceName: string,
+    impersonatorId?: string,
+    impersonatorName?: string
   ): AuthSessionDto {
     return {
       user: {
@@ -195,7 +375,53 @@ export class AuthService {
       },
       workspaceId,
       workspaceName,
-      workspaceRole: role
+      workspaceRole: role,
+      impersonatorId,
+      impersonatorName
     };
+  }
+
+  async impersonate(
+    adminUserId: string,
+    workspaceId: string,
+    targetUserId: string
+  ): Promise<{ session: AuthSessionDto; accessToken: string; refreshToken: string }> {
+    const adminUser = await this.prisma.user.findUniqueOrThrow({ where: { id: adminUserId } });
+    const targetMembership = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      include: { user: true, workspace: true }
+    });
+    if (!targetMembership) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Target user is not a member of this workspace",
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    const session = this.buildSession(
+      targetMembership.user,
+      targetMembership.workspaceId,
+      targetMembership.role as "ADMIN" | "MEMBER",
+      targetMembership.workspace.name,
+      adminUser.id,
+      adminUser.name
+    );
+
+    const accessToken = this.signAccessToken(
+      targetMembership.userId,
+      targetMembership.workspaceId,
+      targetMembership.role as "ADMIN" | "MEMBER",
+      adminUser.id
+    );
+
+    const refreshToken = await this.signAndStoreRefreshToken(
+      targetMembership.userId,
+      targetMembership.workspaceId,
+      undefined,
+      adminUser.id
+    );
+
+    return { session, accessToken, refreshToken };
   }
 }

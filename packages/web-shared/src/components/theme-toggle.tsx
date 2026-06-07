@@ -13,7 +13,7 @@ const OPTIONS: { value: ThemeChoice; label: string; Icon: typeof Sun }[] = [
   { value: "system", label: "System", Icon: Monitor }
 ];
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({ className, collapsed }: { className?: string; collapsed?: boolean }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -24,6 +24,30 @@ export function ThemeToggle({ className }: { className?: string }) {
   }
 
   const active = (theme ?? "system") as ThemeChoice;
+
+  if (collapsed) {
+    const activeOption = OPTIONS.find((opt) => opt.value === active) ?? OPTIONS[2];
+    const ActiveIcon = activeOption.Icon;
+
+    const cycleTheme = () => {
+      const nextTheme = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+      setTheme(nextTheme);
+    };
+
+    return (
+      <button
+        type="button"
+        onClick={cycleTheme}
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground hover:bg-background/60 hover:text-foreground transition-colors mx-auto shadow-sm",
+          className
+        )}
+        title={`Theme: ${activeOption.label} (click to cycle)`}
+      >
+        <ActiveIcon className="h-4 w-4" aria-hidden />
+      </button>
+    );
+  }
 
   return (
     <div

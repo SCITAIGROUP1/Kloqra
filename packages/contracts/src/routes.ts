@@ -6,10 +6,14 @@ export const ROUTES = {
     REFRESH: "/auth/refresh",
     LOGOUT: "/auth/logout",
     ME: "/auth/me",
-    SWITCH_WORKSPACE: "/auth/switch-workspace"
+    SWITCH_WORKSPACE: "/auth/switch-workspace",
+    IMPERSONATE: "/auth/impersonate",
+    STOP_IMPERSONATION: "/auth/stop-impersonation"
   },
   WORKSPACES: {
     LIST: "/workspaces",
+    CREATE: "/workspaces",
+    BY_ID: (id: string) => `/workspaces/${id}`,
     MEMBERS: (id: string) => `/workspaces/${id}/members`,
     INVITE: (id: string) => `/workspaces/${id}/members/invite`
   },
@@ -43,12 +47,18 @@ export const ROUTES = {
   TIMELOGS: {
     LIST: "/timelogs",
     CREATE: "/timelogs",
-    BY_ID: (id: string) => `/timelogs/${id}`
+    BY_ID: (id: string) => `/timelogs/${id}`,
+    AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,
+    YESTERDAY_SUMMARY: "/timelogs/yesterday-summary"
   },
   TIMER: {
     START: "/timer/start",
     STOP: "/timer/stop",
-    ACTIVE: "/timer/active"
+    ACTIVE: "/timer/active",
+    ACTIVE_COUNT: "/timer/active-count",
+    PAUSE: "/timer/pause",
+    RESUME: "/timer/resume",
+    DISCARD: "/timer/discard"
   },
   BILLING: {
     RATES: "/billing/rates",
@@ -56,7 +66,11 @@ export const ROUTES = {
   },
   REPORTING: {
     DASHBOARD: "/reporting/dashboard",
-    ME: "/reporting/me"
+    ME: "/reporting/me",
+    BUDGET: (id: string) => `/reporting/projects/${id}/budget`,
+    UTILIZATION: "/reporting/utilization",
+    HEATMAP: "/reporting/heatmap",
+    TASKS: "/reporting/tasks"
   },
   PRESENCE: {
     STREAM: "/presence/stream",
@@ -71,6 +85,15 @@ export const ROUTES = {
     SCHEDULES: "/export/schedules",
     SCHEDULE: (id: string) => `/export/schedules/${id}`,
     SHARE: (token: string) => `/export/share/${token}`,
-    SHARES: "/export/shares"
+    SHARES: "/export/shares",
+    INVOICE: "/export/invoice"
+  },
+  TIMESHEETS: {
+    MY_STATUS: "/timesheets/status",
+    MY_SUBMISSIONS: "/timesheets/submissions",
+    SUBMIT: "/timesheets/submit",
+    LIST_PENDING: "/timesheets/pending",
+    APPROVE: (id: string) => `/timesheets/${id}/approve`,
+    REJECT: (id: string) => `/timesheets/${id}/reject`
   }
 } as const;

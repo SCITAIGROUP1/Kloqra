@@ -1,5 +1,10 @@
-import { inviteMemberSchema, ROUTES } from "@chronomint/contracts";
-import { Controller, Get, Param, Post, Body, UseGuards } from "@nestjs/common";
+import {
+  inviteMemberSchema,
+  updateWorkspaceSchema,
+  createWorkspaceSchema,
+  ROUTES
+} from "@chronomint/contracts";
+import { Controller, Get, Param, Post, Patch, Body, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,
   type RequestUser
@@ -14,6 +19,14 @@ import { WorkspaceService } from "../../application/workspace.service";
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class WorkspaceController {
   constructor(private workspace: WorkspaceService) {}
+
+  @Post(ROUTES.WORKSPACES.CREATE)
+  create(
+    @Body(new ZodValidationPipe(createWorkspaceSchema)) body: unknown,
+    @CurrentUser() user: RequestUser
+  ) {
+    return this.workspace.create(user.userId, body as Parameters<WorkspaceService["create"]>[1]);
+  }
 
   @Get(ROUTES.WORKSPACES.LIST)
   list(@CurrentUser() user: RequestUser) {
@@ -35,5 +48,16 @@ export class WorkspaceController {
   ) {
     if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.invite(id, body as Parameters<WorkspaceService["invite"]>[1]);
+  }
+
+  @Roles("ADMIN")
+  @Patch(ROUTES.WORKSPACES.BY_ID(":id"))
+  update(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateWorkspaceSchema)) body: any,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.update(id, body);
   }
 }

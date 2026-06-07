@@ -35,8 +35,15 @@ export const inviteMemberSchema = z.object({
   role: workspaceRoleSchema.default("MEMBER")
 });
 
+export const updateWorkspaceSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  settings: z.record(z.unknown()).optional()
+});
+
 export type WorkspaceDto = z.infer<typeof workspaceSchema>;
 export type WorkspaceWithRoleDto = z.infer<typeof workspaceWithRoleSchema>;
 export type WorkspaceMemberDto = z.infer<typeof workspaceMemberSchema>;
 export type InviteMemberDto = z.infer<typeof inviteMemberSchema>;
 export type SwitchWorkspaceDto = z.infer<typeof switchWorkspaceSchema>;
+export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;
+export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;

@@ -5,6 +5,8 @@ export * from "./dto/project.dto";
 export * from "./dto/team.dto";
 export * from "./dto/task.dto";
 export * from "./dto/timelog.dto";
+export * from "./dto/timesheet.dto";
+export * from "./dto/timelog-audit.dto";
 export * from "./dto/timer.dto";
 export * from "./dto/billing.dto";
 export * from "./dto/reporting.dto";

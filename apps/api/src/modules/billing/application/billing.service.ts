@@ -53,6 +53,16 @@ export class BillingService {
   }
 
   async summary(workspaceId: string, query: ReportQueryDto) {
+    const cacheKey = this.reportCache.billingKey(
+      workspaceId,
+      query.from,
+      query.to,
+      query.userId,
+      query.projectId
+    );
+    const cached = await this.reportCache.getBilling(cacheKey);
+    if (cached) return cached;
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from: new Date(query.from),
       to: new Date(query.to),
@@ -62,11 +72,14 @@ export class BillingService {
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const { workspaceAgg } = this.aggregation.buildAggregates(logs, resolveRate);
 
-    return {
+    const result = {
       totalHours: roundExport(workspaceAgg.totalHours),
       billableHours: roundExport(workspaceAgg.billableHours),
       totalAmount: roundExport(workspaceAgg.billableAmount),
       currency: "USD" as const
     };
+
+    await this.reportCache.setBilling(cacheKey, workspaceId, result);
+    return result;
   }
 }

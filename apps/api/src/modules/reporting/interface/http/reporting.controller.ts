@@ -1,5 +1,5 @@
 import { reportQuerySchema, ROUTES } from "@chronomint/contracts";
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, Param, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,
   type RequestUser
@@ -24,6 +24,48 @@ export class ReportingController {
     return this.reporting.dashboard(
       user.workspaceId,
       query as Parameters<ReportingService["dashboard"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.UTILIZATION)
+  utilization(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+  ) {
+    return this.reporting.utilization(
+      user.workspaceId,
+      query as Parameters<ReportingService["utilization"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.BUDGET(":id"))
+  budgetBurnDown(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.reporting.budgetBurnDown(user.workspaceId, id);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.HEATMAP)
+  heatmap(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+  ) {
+    return this.reporting.heatmap(
+      user.workspaceId,
+      query as Parameters<ReportingService["heatmap"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.TASKS)
+  tasks(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+  ) {
+    return this.reporting.tasks(
+      user.workspaceId,
+      query as Parameters<ReportingService["tasks"]>[1]
     );
   }
 

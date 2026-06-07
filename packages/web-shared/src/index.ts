@@ -3,7 +3,13 @@ export { tryRefreshSession } from "./auth/refresh-session";
 export { getEffectiveWorkspaceId, isWorkspaceMismatchError } from "./auth/workspace-context";
 export { api, getApiBase, publicFetch } from "./api/client";
 export { apiDownloadPost, saveDownloadResponse } from "./api/download";
-export { Providers, ThemeToggle, WorkspaceSwitcher, type WorkspaceSwitcherProps } from "./client";
+export {
+  Providers,
+  ThemeToggle,
+  WorkspaceSwitcher,
+  type WorkspaceSwitcherProps,
+  SentryInitializer
+} from "./client";
 export {
   getAccessToken,
   getWorkspaceId,

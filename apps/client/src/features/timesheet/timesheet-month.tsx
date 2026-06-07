@@ -5,10 +5,11 @@ import { cn } from "@chronomint/ui";
 import {
   formatDuration,
   getMonthGrid,
-  isSameDay,
   startOfMonth,
   totalSecondsOnDay,
-  toDateKey
+  toDateKey,
+  isSameDayInZone,
+  todayInZone
 } from "./calendar-utils";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -18,11 +19,18 @@ type TimesheetMonthProps = {
   logs: TimeLogDto[];
   entryColor: (taskId: string) => string;
   onDayClick: (day: Date) => void;
+  timezone?: string;
 };
 
-export function TimesheetMonth({ month, logs, entryColor, onDayClick }: TimesheetMonthProps) {
+export function TimesheetMonth({
+  month,
+  logs,
+  entryColor,
+  onDayClick,
+  timezone = "UTC"
+}: TimesheetMonthProps) {
   const weeks = getMonthGrid(month);
-  const today = new Date();
+  const today = todayInZone(timezone);
   const monthStart = startOfMonth(month);
 
   return (
@@ -43,9 +51,9 @@ export function TimesheetMonth({ month, logs, entryColor, onDayClick }: Timeshee
               );
             }
             const inMonth = day.getMonth() === monthStart.getMonth();
-            const totalSec = totalSecondsOnDay(logs, day);
+            const totalSec = totalSecondsOnDay(logs, day, timezone);
             const dayLogs = logs.filter((l) => {
-              const clip = totalSecondsOnDay([l], day);
+              const clip = totalSecondsOnDay([l], day, timezone);
               return clip > 0;
             });
 
@@ -56,14 +64,15 @@ export function TimesheetMonth({ month, logs, entryColor, onDayClick }: Timeshee
                 className={cn(
                   "min-h-[5rem] border-l border-border p-2 text-left transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                   !inMonth && "text-muted-foreground opacity-50",
-                  isSameDay(day, today) && "bg-primary/10"
+                  isSameDayInZone(day, today, timezone) && "bg-primary/10"
                 )}
                 onClick={() => onDayClick(day)}
               >
                 <span
                   className={cn(
                     "inline-flex h-7 w-7 items-center justify-center rounded-full text-sm",
-                    isSameDay(day, today) && "bg-primary font-semibold text-primary-foreground"
+                    isSameDayInZone(day, today, timezone) &&
+                      "bg-primary font-semibold text-primary-foreground"
                   )}
                 >
                   {day.getDate()}

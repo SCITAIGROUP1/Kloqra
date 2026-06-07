@@ -19,6 +19,11 @@ import {
   ProjectColorEditor,
   ProjectColorPicker,
   ProjectNameWithColor,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -47,6 +52,10 @@ export function AdminProjectsPage() {
   const [editName, setEditName] = useState("");
   const [editClient, setEditClient] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editApprovalEnabled, setEditApprovalEnabled] = useState(false);
+  const [editApprovalPeriod, setEditApprovalPeriod] = useState<"daily" | "weekly" | "monthly" | "">(
+    ""
+  );
   const [error, setError] = useState<string | null>(null);
   const [savingColor, setSavingColor] = useState(false);
   const [savingProject, setSavingProject] = useState(false);
@@ -73,7 +82,16 @@ export function AdminProjectsPage() {
     setEditName(selected.name);
     setEditClient(selected.clientName ?? "");
     setEditIsActive(selected.isActive);
-  }, [selected?.id, selected?.name, selected?.clientName, selected?.isActive]);
+    setEditApprovalEnabled(selected.timesheetApprovalEnabled);
+    setEditApprovalPeriod(selected.timesheetApprovalPeriod ?? "");
+  }, [
+    selected?.id,
+    selected?.name,
+    selected?.clientName,
+    selected?.isActive,
+    selected?.timesheetApprovalEnabled,
+    selected?.timesheetApprovalPeriod
+  ]);
 
   async function refreshProjects(keepSelection = true) {
     const list = await api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws });
@@ -111,7 +129,9 @@ export function AdminProjectsPage() {
         body: JSON.stringify({
           name: editName.trim(),
           clientName: editClient.trim() || undefined,
-          isActive: editIsActive
+          isActive: editIsActive,
+          timesheetApprovalEnabled: editApprovalEnabled,
+          timesheetApprovalPeriod: editApprovalPeriod || undefined
         })
       });
       setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -332,6 +352,46 @@ export function AdminProjectsPage() {
                     />
                     <span>Project is active (inactive projects are hidden from members)</span>
                   </label>
+
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-4 rounded border border-input accent-primary"
+                        checked={editApprovalEnabled}
+                        onChange={(e) => setEditApprovalEnabled(e.target.checked)}
+                      />
+                      <span>Require timesheet approval</span>
+                    </label>
+                    {editApprovalEnabled && (
+                      <div className="space-y-2">
+                        <Label htmlFor="approval-period">Approval period</Label>
+                        <Select
+                          value={editApprovalPeriod || "default"}
+                          onValueChange={(v) =>
+                            setEditApprovalPeriod(
+                              v === "default" ? "" : (v as "daily" | "weekly" | "monthly")
+                            )
+                          }
+                        >
+                          <SelectTrigger id="approval-period">
+                            <SelectValue placeholder="Use workspace default (weekly)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="default">Workspace default (weekly)</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Members must submit and get approval before entries on this project are
+                          locked.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <Button type="submit" size="sm" disabled={savingProject}>
                     {savingProject ? "Saving…" : "Save project"}
                   </Button>

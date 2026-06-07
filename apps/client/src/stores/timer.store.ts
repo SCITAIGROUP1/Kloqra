@@ -4,6 +4,7 @@ import { create } from "zustand";
 interface TimerState {
   active: ActiveTimerDto | null;
   elapsedSec: number;
+  isPaused: boolean;
   setActive: (t: ActiveTimerDto | null) => void;
   tick: () => void;
 }
@@ -21,27 +22,33 @@ export function isActiveTimer(t: ActiveTimerDto | null | undefined): t is Active
 
 function elapsedFromActive(active: ActiveTimerDto | null): number {
   if (!active) return 0;
+  if (active.isPaused) {
+    return active.elapsedSec;
+  }
+  const accumulated = active.accumulatedSec ?? 0;
   const startedMs = new Date(active.startedAt).getTime();
   if (Number.isFinite(startedMs)) {
-    return Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+    const currentSegmentSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+    return accumulated + currentSegmentSec;
   }
-  const fromApi = active.elapsedSec;
-  return Number.isFinite(fromApi) && fromApi >= 0 ? fromApi : 0;
+  return active.elapsedSec;
 }
 
 export const useTimerStore = create<TimerState>((set, get) => ({
   active: null,
   elapsedSec: 0,
+  isPaused: false,
   setActive: (active) => {
     const normalized = normalizeActiveTimer(active);
     set({
       active: normalized,
-      elapsedSec: elapsedFromActive(normalized)
+      elapsedSec: elapsedFromActive(normalized),
+      isPaused: normalized?.isPaused ?? false
     });
   },
   tick: () => {
     const { active } = get();
-    if (!isActiveTimer(active)) return;
+    if (!isActiveTimer(active) || active.isPaused) return;
     set({ elapsedSec: elapsedFromActive(active) });
   }
 }));

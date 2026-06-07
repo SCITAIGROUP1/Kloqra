@@ -1,5 +1,10 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { CacheModule } from "./common/cache/cache.module";
+import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
+import { RequestLoggerMiddleware } from "./common/logger/request-logger.middleware";
+import { MailerModule } from "./common/mailer/mailer.module";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -16,9 +21,22 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: "default",
+        ttl: 60_000, // 60 seconds
+        limit: 300 // 300 requests per 60s globally
+      },
+      {
+        name: "auth",
+        ttl: 60_000,
+        limit: 5 // 5 attempts per 60s for auth endpoints
+      }
+    ]),
     PrismaModule,
     RedisModule,
     CacheModule,
+    MailerModule,
     HealthModule,
     AuthModule,
     WorkspaceModule,
@@ -30,6 +48,17 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     ReportingModule,
     PresenceModule,
     ExportModule
+  ],
+  providers: [
+    {
+      // Apply CustomThrottlerGuard globally via DI so it has access to ThrottlerStorage
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard
+    }
   ]
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestLoggerMiddleware).forRoutes("*");
+  }
+}

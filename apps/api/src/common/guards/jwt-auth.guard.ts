@@ -42,7 +42,8 @@ export class JwtAuthGuard implements CanActivate {
       req.user = {
         userId: payload.sub ?? payload.userId,
         workspaceId,
-        role: payload.role
+        role: payload.role,
+        impersonatorId: (payload as any).impersonatorId
       };
       return true;
     } catch (err: unknown) {

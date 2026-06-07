@@ -8,6 +8,7 @@ import { ExportRowsBuilder } from "./application/export-rows.builder";
 import { ExportScheduleService } from "./application/export-schedule.service";
 import { ExportShareService } from "./application/export-share.service";
 import { ExportService } from "./application/export.service";
+import { InvoiceService } from "./application/invoice.service";
 import { ExportShareController } from "./interface/http/export-share.controller";
 import { ExportController } from "./interface/http/export.controller";
 
@@ -19,8 +20,9 @@ import { ExportController } from "./interface/http/export.controller";
     ExportRowsBuilder,
     ExportPresetService,
     ExportScheduleService,
-    ExportShareService
+    ExportShareService,
+    InvoiceService
   ],
-  exports: [ExportService]
+  exports: [ExportService, InvoiceService]
 })
 export class ExportModule {}

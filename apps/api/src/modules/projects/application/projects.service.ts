@@ -39,6 +39,8 @@ export class ProjectsService {
       clientName: string | null;
       budgetHours: { toNumber(): number } | null;
       isActive: boolean;
+      timesheetApprovalEnabled: boolean;
+      timesheetApprovalPeriod: string | null;
     },
     workspaceName?: string
   ) {
@@ -50,7 +52,14 @@ export class ProjectsService {
       color: p.color,
       clientName: p.clientName,
       budgetHours: p.budgetHours?.toNumber() ?? null,
-      isActive: p.isActive
+      isActive: p.isActive,
+      timesheetApprovalEnabled: p.timesheetApprovalEnabled,
+      timesheetApprovalPeriod:
+        p.timesheetApprovalPeriod === "daily" ||
+        p.timesheetApprovalPeriod === "weekly" ||
+        p.timesheetApprovalPeriod === "monthly"
+          ? p.timesheetApprovalPeriod
+          : null
     };
   }
 
@@ -81,6 +90,8 @@ export class ProjectsService {
         clientName: dto.clientName,
         budgetHours: dto.budgetHours,
         isActive: dto.isActive ?? true,
+        timesheetApprovalEnabled: dto.timesheetApprovalEnabled ?? false,
+        timesheetApprovalPeriod: dto.timesheetApprovalPeriod ?? null,
         team: { create: {} }
       },
       include: { workspace: { select: { name: true } } }
@@ -108,7 +119,13 @@ export class ProjectsService {
         color: dto.color,
         clientName: dto.clientName,
         budgetHours: dto.budgetHours,
-        isActive: dto.isActive
+        isActive: dto.isActive,
+        ...(dto.timesheetApprovalEnabled !== undefined
+          ? { timesheetApprovalEnabled: dto.timesheetApprovalEnabled }
+          : {}),
+        ...(dto.timesheetApprovalPeriod !== undefined
+          ? { timesheetApprovalPeriod: dto.timesheetApprovalPeriod }
+          : {})
       },
       include: { workspace: { select: { name: true } } }
     });

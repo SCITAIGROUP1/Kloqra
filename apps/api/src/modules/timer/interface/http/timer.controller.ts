@@ -42,4 +42,24 @@ export class TimerController {
   active(@CurrentUser() user: RequestUser) {
     return this.timer.active(user.workspaceId, user.userId);
   }
+
+  @Post(ROUTES.TIMER.PAUSE)
+  pause(@CurrentUser() user: RequestUser) {
+    return this.timer.pause(user.workspaceId, user.userId);
+  }
+
+  @Post(ROUTES.TIMER.RESUME)
+  resume(@CurrentUser() user: RequestUser) {
+    return this.timer.resume(user.workspaceId, user.userId);
+  }
+
+  @Post(ROUTES.TIMER.DISCARD)
+  discard(@CurrentUser() user: RequestUser) {
+    return this.timer.discard(user.workspaceId, user.userId);
+  }
+
+  @Get(ROUTES.TIMER.ACTIVE_COUNT)
+  activeCount(@CurrentUser() user: RequestUser) {
+    return this.timer.activeCount(user.workspaceId);
+  }
 }

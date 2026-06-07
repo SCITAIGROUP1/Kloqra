@@ -7,7 +7,8 @@ export const presenceMemberSchema = z.object({
   taskId: uuidSchema,
   taskName: z.string(),
   projectName: z.string(),
-  startedAt: isoDatetimeSchema
+  startedAt: isoDatetimeSchema,
+  isPaused: z.boolean().optional()
 });
 
 export const presenceSnapshotSchema = z.object({

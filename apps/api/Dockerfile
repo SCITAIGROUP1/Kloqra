@@ -32,12 +32,15 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production
 
-COPY --from=builder /prod/dist ./dist
-COPY --from=builder /prod/node_modules ./node_modules
-COPY --from=builder /prod/package.json ./package.json
-COPY --from=builder /prod/prisma ./prisma
-COPY apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --chown=node:node --from=builder /prod/dist ./dist
+COPY --chown=node:node --from=builder /prod/node_modules ./node_modules
+COPY --chown=node:node --from=builder /prod/package.json ./package.json
+COPY --chown=node:node --from=builder /prod/prisma ./prisma
+COPY --chown=node:node apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
+USER node
 EXPOSE 3001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD node -e "require('http').get('http://localhost:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
 CMD ["./docker-entrypoint.sh"]

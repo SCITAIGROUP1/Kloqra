@@ -23,10 +23,20 @@ export class MemoryRedis {
     return this.store.delete(key) ? 1 : 0;
   }
 
+  async keys(pattern: string) {
+    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+    return Array.from(this.store.keys()).filter((k) => regex.test(k));
+  }
+
   async publish(channel: string, message: string) {
     const handlers = this.channels.get(channel);
     handlers?.forEach((h) => h(channel, message));
     return handlers?.size ?? 0;
+  }
+
+  /** Health-check compatibility — always returns "PONG". */
+  async ping(): Promise<string> {
+    return "PONG";
   }
 
   duplicate() {
