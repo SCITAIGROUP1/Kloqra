@@ -1,5 +1,21 @@
 /** Rich analytics seed — 13 users, 3 workspaces, 4 projects each */
 
+/** Canonical workspace categories (matches admin onboarding + migration backfill naming). */
+export const SEED_CATEGORIES = [
+  { name: "Software Development", description: "Engineering, coding, and code review work" },
+  { name: "UI/UX Design", description: "Design, branding, and design-system work" },
+  { name: "Meetings", description: "Planning, kickoffs, syncs, and stakeholder calls" },
+  { name: "QA & Testing", description: "Test design, regression, and quality assurance" },
+  { name: "DevOps", description: "Infrastructure, CI/CD, and platform engineering" },
+  { name: "Documentation", description: "User guides, API references, and runbooks" },
+  {
+    name: "Uncategorized",
+    description: "Default bucket for unclassified tasks (migration backfill name)"
+  }
+] as const;
+
+export type SeedCategoryName = (typeof SEED_CATEGORIES)[number]["name"];
+
 export type SeedUserSpec = {
   email: string;
   name: string;
@@ -14,6 +30,7 @@ export type SeedUserSpec = {
 
 export type SeedTaskSpec = {
   name: string;
+  category: SeedCategoryName;
   billableDefault: boolean;
 };
 
@@ -190,11 +207,11 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "jordan@chronomint.dev"
         ),
         tasks: [
-          { name: "UX research", billableDefault: true },
-          { name: "Component build", billableDefault: true },
-          { name: "API integration", billableDefault: true },
-          { name: "QA pass", billableDefault: true },
-          { name: "Stakeholder review", billableDefault: true }
+          { name: "UX research", category: "UI/UX Design", billableDefault: true },
+          { name: "Component build", category: "Software Development", billableDefault: true },
+          { name: "API integration", category: "Software Development", billableDefault: true },
+          { name: "QA pass", category: "QA & Testing", billableDefault: true },
+          { name: "Stakeholder review", category: "Meetings", billableDefault: true }
         ]
       },
       {
@@ -209,10 +226,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "casey@chronomint.dev"
         ),
         tasks: [
-          { name: "Creative direction", billableDefault: true },
-          { name: "Asset production", billableDefault: true },
-          { name: "Media buying analysis", billableDefault: true },
-          { name: "Performance report", billableDefault: true }
+          { name: "Creative direction", category: "UI/UX Design", billableDefault: true },
+          { name: "Asset production", category: "UI/UX Design", billableDefault: true },
+          { name: "Media buying analysis", category: "Meetings", billableDefault: true },
+          { name: "Performance report", category: "Documentation", billableDefault: true }
         ]
       },
       {
@@ -227,9 +244,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "blake@chronomint.dev"
         ),
         tasks: [
-          { name: "Ticket triage", billableDefault: true },
-          { name: "Hotfix deployment", billableDefault: true },
-          { name: "SLA reporting", billableDefault: true }
+          { name: "Ticket triage", category: "Software Development", billableDefault: true },
+          { name: "Hotfix deployment", category: "DevOps", billableDefault: true },
+          { name: "SLA reporting", category: "Documentation", billableDefault: true }
         ],
         timesheetApproval: true
       },
@@ -245,9 +262,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "quinn@chronomint.dev"
         ),
         tasks: [
-          { name: "Evidence collection", billableDefault: true },
-          { name: "Reconciliation", billableDefault: true },
-          { name: "Executive summary", billableDefault: true }
+          { name: "Evidence collection", category: "QA & Testing", billableDefault: true },
+          { name: "Reconciliation", category: "Software Development", billableDefault: true },
+          { name: "Executive summary", category: "Documentation", billableDefault: true }
         ]
       }
     ]
@@ -285,10 +302,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "riley@chronomint.dev"
         ),
         tasks: [
-          { name: "iOS features", billableDefault: false },
-          { name: "Android parity", billableDefault: false },
-          { name: "Push notifications", billableDefault: false },
-          { name: "Release candidate", billableDefault: false }
+          { name: "iOS features", category: "Software Development", billableDefault: false },
+          { name: "Android parity", category: "Software Development", billableDefault: false },
+          { name: "Push notifications", category: "Software Development", billableDefault: false },
+          { name: "Release candidate", category: "QA & Testing", billableDefault: false }
         ]
       },
       {
@@ -303,10 +320,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "drew@chronomint.dev"
         ),
         tasks: [
-          { name: "Endpoint design", billableDefault: false },
-          { name: "Auth hardening", billableDefault: false },
-          { name: "Rate limiting", billableDefault: false },
-          { name: "OpenAPI docs", billableDefault: false }
+          { name: "Endpoint design", category: "Software Development", billableDefault: false },
+          { name: "Auth hardening", category: "Software Development", billableDefault: false },
+          { name: "Rate limiting", category: "Software Development", billableDefault: false },
+          { name: "OpenAPI docs", category: "Documentation", billableDefault: false }
         ]
       },
       {
@@ -321,9 +338,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "blake@chronomint.dev"
         ),
         tasks: [
-          { name: "Admin dashboard", billableDefault: false },
-          { name: "Data export jobs", billableDefault: false },
-          { name: "On-call runbooks", billableDefault: false }
+          { name: "Admin dashboard", category: "Software Development", billableDefault: false },
+          { name: "Data export jobs", category: "Software Development", billableDefault: false },
+          { name: "On-call runbooks", category: "Documentation", billableDefault: false }
         ]
       },
       {
@@ -338,9 +355,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "riley@chronomint.dev"
         ),
         tasks: [
-          { name: "Pen test remediation", billableDefault: false },
-          { name: "Secrets rotation", billableDefault: false },
-          { name: "SOC2 evidence", billableDefault: false }
+          { name: "Pen test remediation", category: "QA & Testing", billableDefault: false },
+          { name: "Secrets rotation", category: "DevOps", billableDefault: false },
+          { name: "SOC2 evidence", category: "Documentation", billableDefault: false }
         ],
         timesheetApproval: true
       }
@@ -357,14 +374,14 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       exportFooterNote: "Apex Consulting — billable hours summary"
     },
     memberEmails: wsMembers(
+      "member@chronomint.dev",
       "alex@chronomint.dev",
       "taylor@chronomint.dev",
       "riley@chronomint.dev",
       "casey@chronomint.dev",
       "sage@chronomint.dev",
       "blake@chronomint.dev",
-      "rowan@chronomint.dev",
-      "quinn@chronomint.dev"
+      "rowan@chronomint.dev"
     ),
     projects: [
       {
@@ -379,11 +396,11 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "casey@chronomint.dev"
         ),
         tasks: [
-          { name: "Discovery workshops", billableDefault: true },
-          { name: "Data mapping", billableDefault: true },
-          { name: "Cutover planning", billableDefault: true },
-          { name: "Hypercare support", billableDefault: true },
-          { name: "Training sessions", billableDefault: true }
+          { name: "Discovery workshops", category: "Meetings", billableDefault: true },
+          { name: "Data mapping", category: "Software Development", billableDefault: true },
+          { name: "Cutover planning", category: "DevOps", billableDefault: true },
+          { name: "Hypercare support", category: "Software Development", billableDefault: true },
+          { name: "Training sessions", category: "Meetings", billableDefault: true }
         ]
       },
       {
@@ -398,10 +415,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "sage@chronomint.dev"
         ),
         tasks: [
-          { name: "Source ingestion", billableDefault: true },
-          { name: "Dimensional model", billableDefault: true },
-          { name: "BI dashboards", billableDefault: true },
-          { name: "Data quality rules", billableDefault: true }
+          { name: "Source ingestion", category: "Software Development", billableDefault: true },
+          { name: "Dimensional model", category: "Software Development", billableDefault: true },
+          { name: "BI dashboards", category: "UI/UX Design", billableDefault: true },
+          { name: "Data quality rules", category: "QA & Testing", billableDefault: true }
         ]
       },
       {
@@ -416,9 +433,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "rowan@chronomint.dev"
         ),
         tasks: [
-          { name: "Stakeholder interviews", billableDefault: true },
-          { name: "Comms plan", billableDefault: true },
-          { name: "Training rollout", billableDefault: false }
+          { name: "Stakeholder interviews", category: "Meetings", billableDefault: true },
+          { name: "Comms plan", category: "Documentation", billableDefault: true },
+          { name: "Training rollout", category: "Meetings", billableDefault: false }
         ]
       },
       {
@@ -429,9 +446,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetBurnPct: 0.88,
         memberEmails: wsMembers("quinn@chronomint.dev", "casey@chronomint.dev"),
         tasks: [
-          { name: "Policy gap analysis", billableDefault: true },
-          { name: "Control testing", billableDefault: true },
-          { name: "Audit response", billableDefault: true }
+          { name: "Policy gap analysis", category: "QA & Testing", billableDefault: true },
+          { name: "Control testing", category: "QA & Testing", billableDefault: true },
+          { name: "Audit response", category: "Documentation", billableDefault: true }
         ],
         timesheetApproval: true
       }

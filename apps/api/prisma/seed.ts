@@ -1,6 +1,6 @@
 import {
+  Prisma,
   PrismaClient,
-  type Category,
   type Project,
   type Task,
   type User,
@@ -9,6 +9,7 @@ import {
 import * as bcrypt from "bcrypt";
 import {
   LOG_DESCRIPTIONS,
+  SEED_CATEGORIES,
   SEED_PASSWORD,
   SEED_USERS,
   SEED_WORKSPACES,
@@ -16,48 +17,44 @@ import {
   type SeedWorkspaceSpec
 } from "./seed-data";
 
-const CATEGORY_SEEDS: { name: string; description: string }[] = [
-  { name: "Software Development", description: "Engineering, coding, and code review work" },
-  { name: "UI/UX Design", description: "Design, branding, and design-system work" },
-  { name: "Meetings", description: "Planning, kickoffs, syncs, and stakeholder calls" },
-  { name: "QA & Testing", description: "Test design, regression, and quality assurance" },
-  { name: "DevOps", description: "Infrastructure, CI/CD, and platform engineering" },
-  { name: "Documentation", description: "User guides, API references, and runbooks" },
-  { name: "Uncategorized", description: "Default bucket for unclassified tasks" }
-];
+type SeedCategory = {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-function categoryNameForTask(taskName: string): string {
-  const n = taskName.toLowerCase();
-  if (/design|brand|figma|token|storybook|component library|asset|creative|template/.test(n)) {
-    return "UI/UX Design";
-  }
-  if (
-    /sprint planning|planning|kickoff|workshop|sync|stakeholder|readout|training|standup|grooming/.test(
-      n
-    )
-  ) {
-    return "Meetings";
-  }
-  if (/qa|testing|regression|audit|pen test|crash analytics|uat/.test(n)) {
-    return "QA & Testing";
-  }
-  if (
-    /ci\/cd|k8s|infra|infrastructure|cost optimization|dr drill|pipeline|cutover|deployment|hypercare/.test(
-      n
-    )
-  ) {
-    return "DevOps";
-  }
-  if (/docs|documentation|reference|release notes|knowledge base|runbook|tutorial/.test(n)) {
-    return "Documentation";
-  }
-  return "Software Development";
+type CategoryWithCount = SeedCategory & { _count: { tasks: number } };
+
+const prisma = new PrismaClient();
+
+/** Category delegate — typed at boundary for stale IDE Prisma clients (run `prisma generate`). */
+function categoryRepo() {
+  return (
+    prisma as unknown as {
+      category: {
+        upsert: (args: {
+          where: { workspaceId_name: { workspaceId: string; name: string } };
+          update: { description: string };
+          create: { workspaceId: string; name: string; description: string };
+        }) => Promise<SeedCategory>;
+        findMany: (args: {
+          where?: { workspaceId: string };
+          include?: { _count: { select: { tasks: true } } };
+          orderBy?: { name: "asc" };
+        }) => Promise<CategoryWithCount[]>;
+        deleteMany: () => Promise<{ count: number }>;
+      };
+    }
+  ).category;
 }
 
-async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<string, Category>> {
-  const out = new Map<string, Category>();
-  for (const spec of CATEGORY_SEEDS) {
-    const category = await prisma.category.upsert({
+async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<string, SeedCategory>> {
+  const out = new Map<string, SeedCategory>();
+  for (const spec of SEED_CATEGORIES) {
+    const category = await categoryRepo().upsert({
       where: { workspaceId_name: { workspaceId, name: spec.name } },
       update: { description: spec.description },
       create: { workspaceId, name: spec.name, description: spec.description }
@@ -66,8 +63,6 @@ async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<strin
   }
   return out;
 }
-
-const prisma = new PrismaClient();
 const BATCH_SIZE = 1000;
 
 type ProjectCtx = {
@@ -92,8 +87,12 @@ async function main() {
     allProjectCtx.push(...projectCtx);
     await seedHourlyRates(workspace.id, users, projectCtx);
     await seedExportPresets(workspace.id);
+    await seedSampleInvite(projectCtx, users.get("admin@chronomint.dev")!);
     const timesheetCount = await seedTimesheetPeriods(projectCtx, users, workspace.id);
-    console.log(`  ${workspace.slug}: ${projectCtx.length} projects, ${timesheetCount} timesheets`);
+    const categorySummary = await categoryTaskCounts(workspace.id);
+    console.log(
+      `  ${workspace.slug}: ${projectCtx.length} projects, ${timesheetCount} timesheets, categories: ${categorySummary}`
+    );
   }
 
   const logCount = await seedTimeLogs(allProjectCtx, users);
@@ -117,7 +116,7 @@ async function resetDatabase() {
   await prisma.exportPreset.deleteMany();
   await prisma.reportShare.deleteMany();
   await prisma.project.deleteMany();
-  await prisma.category.deleteMany();
+  await categoryRepo().deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
@@ -133,8 +132,8 @@ async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
         passwordHash,
         name: spec.name,
         defaultHourlyRate: spec.defaultHourlyRate,
-        preferences: spec.preferences ?? {}
-      }
+        preferences: (spec.preferences ?? {}) as Prisma.InputJsonValue
+      } as Prisma.UserUncheckedCreateInput
     });
     users.set(spec.email, user);
   }
@@ -146,7 +145,11 @@ async function seedWorkspace(
   users: Map<string, User>
 ): Promise<Workspace> {
   const workspace = await prisma.workspace.create({
-    data: { name: spec.name, slug: spec.slug, settings: spec.settings }
+    data: {
+      name: spec.name,
+      slug: spec.slug,
+      settings: spec.settings as Prisma.InputJsonValue
+    }
   });
 
   for (const email of spec.memberEmails) {
@@ -200,15 +203,14 @@ async function seedProjects(
 
     const tasks: Task[] = [];
     for (const taskSpec of projectSpec.tasks) {
-      const categoryName = categoryNameForTask(taskSpec.name);
-      const category = categories.get(categoryName) ?? fallbackCategory;
+      const category = categories.get(taskSpec.category) ?? fallbackCategory;
       const task = await prisma.task.create({
         data: {
           projectId: project.id,
           categoryId: category.id,
           taskName: taskSpec.name,
           billableDefault: taskSpec.billableDefault
-        }
+        } as Prisma.TaskUncheckedCreateInput
       });
       tasks.push(task);
     }
@@ -251,6 +253,33 @@ async function seedHourlyRates(
       }
     });
   }
+}
+
+async function categoryTaskCounts(workspaceId: string): Promise<string> {
+  const rows = await categoryRepo().findMany({
+    where: { workspaceId },
+    include: { _count: { select: { tasks: true } } },
+    orderBy: { name: "asc" }
+  });
+  return rows.map((r: CategoryWithCount) => `${r.name}=${r._count.tasks}`).join(", ");
+}
+
+async function seedSampleInvite(projectCtx: ProjectCtx[], admin: User) {
+  const portal = projectCtx.find((c) => c.project.name === "Client Portal Redesign");
+  if (!portal) return;
+
+  const expires = new Date();
+  expires.setUTCDate(expires.getUTCDate() + 14);
+
+  await prisma.projectInvite.create({
+    data: {
+      projectId: portal.project.id,
+      token: "seed-invite-northwind-freelancer",
+      email: "freelance@example.com",
+      expiresAt: expires,
+      createdById: admin.id
+    }
+  });
 }
 
 async function seedExportPresets(workspaceId: string) {
@@ -508,10 +537,25 @@ async function printSummary(workspaces: Workspace[], users: Map<string, User>) {
     _sum: { durationSec: true }
   });
 
+  const categoryRows = await categoryRepo().findMany({
+    include: { _count: { select: { tasks: true } } }
+  });
+  const tasksByCategoryName = new Map<string, number>();
+  for (const row of categoryRows) {
+    tasksByCategoryName.set(row.name, (tasksByCategoryName.get(row.name) ?? 0) + row._count.tasks);
+  }
+  const byCategory = Object.fromEntries(
+    [...tasksByCategoryName.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, total]) => [name, total / workspaces.length])
+  );
+
   console.log("Seed complete:", {
     users: users.size,
     workspaces: workspaces.length,
     projects: SEED_WORKSPACES.length * 4,
+    categoriesPerWorkspace: SEED_CATEGORIES.length,
+    tasksPerCategoryAvg: byCategory,
     timeLogs: totals._count,
     totalHours: Math.round(((totals._sum.durationSec ?? 0) / 3600) * 100) / 100,
     perUser: byUser

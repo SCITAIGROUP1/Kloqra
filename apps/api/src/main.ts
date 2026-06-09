@@ -19,7 +19,7 @@ logMissingProductionEnv();
 
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
-  const allowed = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
+  const allowed = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000,http://localhost:3002")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
