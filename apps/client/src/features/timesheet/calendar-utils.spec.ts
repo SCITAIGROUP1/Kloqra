@@ -4,9 +4,11 @@ import {
   buildDayOccupancySegments,
   combineDayAndTimeInZone,
   computeLogMoveRange,
+  fromDateKey,
   isSlotOccupiedElsewhere,
   rangeOccupiedElsewhere,
-  slotIntervalForIndex
+  slotIntervalForIndex,
+  toDateKey
 } from "./calendar-utils";
 
 describe("computeLogMoveRange", () => {
@@ -106,5 +108,20 @@ describe("occupancy segments", () => {
     const topPct = parseFloat(style.top);
     expect(topPct).toBeGreaterThan(40);
     expect(topPct).toBeLessThan(55);
+  });
+});
+
+describe("toDateKey / fromDateKey", () => {
+  it("formats local calendar dates as YYYY-MM-DD", () => {
+    expect(toDateKey(new Date(2025, 5, 9))).toBe("2025-06-09");
+    expect(toDateKey(new Date(2025, 0, 5))).toBe("2025-01-05");
+  });
+
+  it("round-trips through fromDateKey at local midnight", () => {
+    const key = "2025-06-09";
+    const day = fromDateKey(key);
+    expect(toDateKey(day)).toBe(key);
+    expect(day.getHours()).toBe(0);
+    expect(day.getMinutes()).toBe(0);
   });
 });

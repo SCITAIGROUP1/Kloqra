@@ -98,6 +98,19 @@ describe("contracts", () => {
     expect(ROUTES.CATEGORIES.BY_ID("abc")).toBe("/categories/abc");
   });
 
+  it("exposes categories heatmap route", () => {
+    expect(ROUTES.REPORTING.CATEGORIES_HEATMAP).toBe("/reporting/categories-heatmap");
+  });
+
+  it("accepts categoryId on report query", () => {
+    const r = reportQuerySchema.safeParse({
+      from: "2025-01-01T00:00:00.000Z",
+      to: "2025-01-31T23:59:59.000Z",
+      categoryId: UUID_2
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("validates create category payload", () => {
     const r = createCategorySchema.safeParse({
       name: "Software Development",
@@ -148,6 +161,7 @@ describe("contracts", () => {
       },
       timeByProject: [],
       timeByUser: [],
+      timeByCategory: [],
       weeklyHours: [],
       dailyHours: [],
       dailyByProject: []

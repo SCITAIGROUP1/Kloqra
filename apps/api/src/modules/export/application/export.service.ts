@@ -69,6 +69,7 @@ export class ExportService {
         from: body.from,
         to: body.to,
         projectId: body.projectId,
+        categoryId: body.categoryId,
         userId,
         billable: body.billable,
         groupBy: [],
@@ -165,6 +166,7 @@ export class ExportService {
       projectId: filters.projectId,
       userId: filters.userId,
       userIds,
+      categoryId: filters.categoryId,
       billable: filters.billable
     });
 
@@ -291,8 +293,10 @@ export class ExportService {
           l.user.defaultHourlyRate?.toNumber() ?? null
         );
         const amount = l.isBillable ? hours * rate : 0;
+        const categoryName = l.task.category?.name ?? "Uncategorized";
         return {
           project: l.task.project.name,
+          category: categoryName,
           task: l.task.taskName,
           date: l.startTime.toISOString().slice(0, 10),
           start_time: l.startTime.toISOString(),
@@ -323,6 +327,17 @@ export class ExportService {
       return rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
     }
 
+    if (report === "by_category") {
+      return [...aggregates.byCategory.entries()]
+        .map(([, v]) => ({
+          category: v.categoryName,
+          total_hours: roundExport(v.totalHours),
+          billable_hours: roundExport(v.billableHours),
+          non_billable_hours: roundExport(v.totalHours - v.billableHours)
+        }))
+        .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
+    }
+
     return [...aggregates.byProject.entries()]
       .map(([, v]) => ({
         project: v.projectName,
@@ -343,6 +358,7 @@ export class ExportService {
       by_member: "By member",
       by_client: "By client",
       by_task: "By task",
+      by_category: "By category",
       users_without_time: "Users without time",
       budget_vs_actual: "Budget vs actual",
       utilization: "Utilization"
@@ -360,6 +376,7 @@ export class ExportService {
       by_member: "by-member",
       by_client: "by-client",
       by_task: "by-task",
+      by_category: "by-category",
       users_without_time: "users-without-time",
       budget_vs_actual: "budget-vs-actual",
       utilization: "utilization"

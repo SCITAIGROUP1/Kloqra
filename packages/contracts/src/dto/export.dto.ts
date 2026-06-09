@@ -9,6 +9,7 @@ export const exportReportTypeSchema = z.enum([
   "by_client",
   "invoice",
   "by_task",
+  "by_category",
   "weekly_summary",
   "users_without_time",
   "budget_vs_actual",
@@ -20,6 +21,7 @@ export const exportGroupByDimensionSchema = z.enum([
   "project",
   "member",
   "task",
+  "category",
   "client",
   "day",
   "week"
@@ -63,7 +65,8 @@ export const exportSheetLayoutSchema = z.enum([
   "standard",
   "tabs_per_member",
   "tabs_per_project",
-  "tabs_per_client"
+  "tabs_per_client",
+  "tabs_per_category"
 ]);
 
 export type ExportSheetLayout = z.infer<typeof exportSheetLayoutSchema>;
@@ -80,6 +83,7 @@ export const TIME_ENTRIES_COLUMNS = [
   "workspace",
   "client",
   "project",
+  "category",
   "task",
   "member",
   "email",
@@ -97,6 +101,7 @@ export const TIME_ENTRIES_COLUMNS = [
 export const INVOICE_COLUMNS = [
   "client",
   "project",
+  "category",
   "task",
   "date",
   "hours",
@@ -160,12 +165,24 @@ export const BY_CLIENT_COLUMNS = [
 
 export const BY_TASK_COLUMNS = [
   "task",
+  "category",
   "project",
   "client",
   "total_hours",
   "billable_hours",
   "non_billable_hours",
   "billable_amount"
+] as const;
+
+export const BY_CATEGORY_COLUMNS = [
+  "category",
+  "project",
+  "client",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours",
+  "billable_amount",
+  "active_tasks"
 ] as const;
 
 export const USERS_WITHOUT_TIME_COLUMNS = [
@@ -200,6 +217,7 @@ export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, strin
     workspace: "Workspace",
     client: "Client",
     project: "Project",
+    category: "Category",
     task: "Task",
     member: "Member",
     email: "Email",
@@ -216,6 +234,7 @@ export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, strin
   invoice: {
     client: "Client",
     project: "Project",
+    category: "Category",
     task: "Task",
     date: "Date",
     hours: "Hours",
@@ -273,12 +292,23 @@ export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, strin
   },
   by_task: {
     task: "Task",
+    category: "Category",
     project: "Project",
     client: "Client",
     total_hours: "Total hours",
     billable_hours: "Billable hours",
     non_billable_hours: "Non-billable hours",
     billable_amount: "Billable amount"
+  },
+  by_category: {
+    category: "Category",
+    project: "Project",
+    client: "Client",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours",
+    billable_amount: "Billable amount",
+    active_tasks: "Active tasks"
   },
   users_without_time: {
     member: "Member",
@@ -315,6 +345,7 @@ export const DEFAULT_EXPORT_COLUMNS: Record<ExportReportType, readonly string[]>
   by_member: BY_MEMBER_COLUMNS,
   by_client: BY_CLIENT_COLUMNS,
   by_task: BY_TASK_COLUMNS,
+  by_category: BY_CATEGORY_COLUMNS,
   users_without_time: USERS_WITHOUT_TIME_COLUMNS,
   budget_vs_actual: BUDGET_VS_ACTUAL_COLUMNS,
   utilization: UTILIZATION_COLUMNS
@@ -340,6 +371,7 @@ export const exportColumnsSchema = z
     by_member: columnsForReport("by_member").optional(),
     by_client: columnsForReport("by_client").optional(),
     by_task: columnsForReport("by_task").optional(),
+    by_category: columnsForReport("by_category").optional(),
     users_without_time: columnsForReport("users_without_time").optional(),
     budget_vs_actual: columnsForReport("budget_vs_actual").optional(),
     utilization: columnsForReport("utilization").optional()
@@ -351,6 +383,7 @@ const exportFiltersBaseSchema = z.object({
   to: isoDatetimeSchema,
   projectId: uuidSchema.optional(),
   userId: uuidSchema.optional(),
+  categoryId: uuidSchema.optional(),
   teamOnly: z.boolean().optional(),
   billable: exportBillableFilterSchema.default("all"),
   groupBy: exportGroupByListSchema.default([]),
@@ -384,7 +417,7 @@ export type ExportPreviewBodyDto = z.infer<typeof exportPreviewBodySchema>;
 export const exportPreviewSheetSchema = z.object({
   name: z.string(),
   rowCount: z.number(),
-  kind: z.enum(["person", "project", "client", "report"])
+  kind: z.enum(["person", "project", "client", "category", "report"])
 });
 
 export type ExportPreviewSheetDto = z.infer<typeof exportPreviewSheetSchema>;
@@ -413,12 +446,18 @@ export const exportQuerySchema = z
 
 export type ExportQueryDto = z.infer<typeof exportQuerySchema>;
 
-export const memberExportReportTypeSchema = z.enum(["time_entries", "daily_summary", "by_project"]);
+export const memberExportReportTypeSchema = z.enum([
+  "time_entries",
+  "daily_summary",
+  "by_project",
+  "by_category"
+]);
 
 export type MemberExportReportType = z.infer<typeof memberExportReportTypeSchema>;
 
 export const MEMBER_TIME_ENTRIES_COLUMNS = [
   "project",
+  "category",
   "task",
   "date",
   "start_time",
@@ -446,9 +485,17 @@ export const MEMBER_BY_PROJECT_COLUMNS = [
   "non_billable_hours"
 ] as const;
 
+export const MEMBER_BY_CATEGORY_COLUMNS = [
+  "category",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours"
+] as const;
+
 export const MEMBER_EXPORT_COLUMN_LABELS: Record<MemberExportReportType, Record<string, string>> = {
   time_entries: {
     project: "Project",
+    category: "Category",
     task: "Task",
     date: "Date",
     start_time: "Start",
@@ -472,13 +519,20 @@ export const MEMBER_EXPORT_COLUMN_LABELS: Record<MemberExportReportType, Record<
     total_hours: "Total hours",
     billable_hours: "Billable hours",
     non_billable_hours: "Non-billable hours"
+  },
+  by_category: {
+    category: "Category",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours"
   }
 };
 
 export const DEFAULT_MEMBER_EXPORT_COLUMNS: Record<MemberExportReportType, readonly string[]> = {
   time_entries: MEMBER_TIME_ENTRIES_COLUMNS,
   daily_summary: MEMBER_DAILY_SUMMARY_COLUMNS,
-  by_project: MEMBER_BY_PROJECT_COLUMNS
+  by_project: MEMBER_BY_PROJECT_COLUMNS,
+  by_category: MEMBER_BY_CATEGORY_COLUMNS
 };
 
 const memberColumnsForReport = (report: MemberExportReportType) => {
@@ -495,7 +549,8 @@ export const memberExportColumnsSchema = z
   .object({
     time_entries: memberColumnsForReport("time_entries").optional(),
     daily_summary: memberColumnsForReport("daily_summary").optional(),
-    by_project: memberColumnsForReport("by_project").optional()
+    by_project: memberColumnsForReport("by_project").optional(),
+    by_category: memberColumnsForReport("by_category").optional()
   })
   .optional();
 
@@ -504,6 +559,7 @@ export const memberExportBodySchema = z
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
     projectId: uuidSchema.optional(),
+    categoryId: uuidSchema.optional(),
     billable: exportBillableFilterSchema.default("all"),
     reportTypes: z.array(memberExportReportTypeSchema).min(1).default(["time_entries"]),
     format: exportFormatSchema,

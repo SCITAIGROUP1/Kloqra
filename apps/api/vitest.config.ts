@@ -12,6 +12,17 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.spec.ts"]
+    include: ["src/**/*.spec.ts"],
+    reporters: ["default", "junit"],
+    outputFile: {
+      junit: "./test-results/unit-junit.xml"
+    },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "json-summary", "html"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.spec.ts", "src/main.ts"]
+    }
   }
 });

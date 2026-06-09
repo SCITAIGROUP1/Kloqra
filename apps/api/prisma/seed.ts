@@ -8,12 +8,17 @@ import {
 } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import {
+  CATEGORY_LOG_DESCRIPTIONS,
+  DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
   SEED_CATEGORIES,
   SEED_PASSWORD,
   SEED_USERS,
   SEED_WORKSPACES,
+  type SeedCategoryName,
   type SeedProjectSpec,
+  type SeedTaskSpec,
+  type SeedUserSpec,
   type SeedWorkspaceSpec
 } from "./seed-data";
 
@@ -65,9 +70,14 @@ async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<strin
 }
 const BATCH_SIZE = 1000;
 
+type TaskWithMeta = {
+  task: Task;
+  spec: SeedTaskSpec;
+};
+
 type ProjectCtx = {
   project: Project;
-  tasks: Task[];
+  tasks: TaskWithMeta[];
   spec: SeedProjectSpec;
   workspaceId: string;
 };
@@ -201,7 +211,7 @@ async function seedProjects(
       });
     }
 
-    const tasks: Task[] = [];
+    const tasks: TaskWithMeta[] = [];
     for (const taskSpec of projectSpec.tasks) {
       const category = categories.get(taskSpec.category) ?? fallbackCategory;
       const task = await prisma.task.create({
@@ -212,7 +222,7 @@ async function seedProjects(
           billableDefault: taskSpec.billableDefault
         } as Prisma.TaskUncheckedCreateInput
       });
-      tasks.push(task);
+      tasks.push({ task, spec: taskSpec });
     }
 
     ctx.push({ project, tasks, spec: projectSpec, workspaceId: workspace.id });
@@ -323,11 +333,47 @@ async function seedExportPresets(workspaceId: string) {
           "by_project",
           "by_member",
           "by_task",
+          "by_category",
           "budget_vs_actual",
           "utilization",
           "users_without_time"
         ],
-        format: "xlsx"
+        format: "xlsx",
+        columns: {
+          time_entries: [
+            "project",
+            "category",
+            "task",
+            "member",
+            "date",
+            "hours",
+            "billable",
+            "amount"
+          ]
+        }
+      }
+    },
+    {
+      name: "Category breakdown (90d)",
+      body: {
+        from: from90.toISOString(),
+        to: to.toISOString(),
+        billable: "all",
+        reportTypes: ["time_entries", "by_category", "by_task"],
+        format: "xlsx",
+        groupBy: ["category"],
+        sheetLayout: "tabs_per_category",
+        columns: {
+          time_entries: ["category", "project", "task", "member", "date", "hours", "billable"],
+          by_category: [
+            "category",
+            "project",
+            "total_hours",
+            "billable_hours",
+            "billable_amount",
+            "active_tasks"
+          ]
+        }
       }
     }
   ];
@@ -376,6 +422,63 @@ async function flushBatch(batch: LogRow[]) {
   await prisma.timeLog.createMany({ data: batch });
 }
 
+function dayOfWeek(daysAgo: number): number {
+  return utcDay(daysAgo, 12).getUTCDay();
+}
+
+function categoryDayBoost(category: SeedCategoryName, daysAgo: number): number {
+  const dow = dayOfWeek(daysAgo);
+  return DAY_CATEGORY_BOOST[category]?.[dow] ?? 1;
+}
+
+function taskPickWeight(taskMeta: TaskWithMeta, userSpec: SeedUserSpec, daysAgo: number): number {
+  const base = taskMeta.spec.weight ?? 1;
+  const bias = userSpec.categoryBias?.[taskMeta.spec.category] ?? 1;
+  const dayBoost = categoryDayBoost(taskMeta.spec.category, daysAgo);
+  return base * bias * dayBoost;
+}
+
+function pickWeightedTask(
+  ctx: ProjectCtx,
+  userSpec: SeedUserSpec,
+  daysAgo: number,
+  salt: number
+): TaskWithMeta {
+  const weights = ctx.tasks.map((t) => taskPickWeight(t, userSpec, daysAgo));
+  const total = weights.reduce((s, w) => s + w, 0);
+  let r = hash01(daysAgo, salt, userSpec.email.length) * total;
+  for (let i = 0; i < ctx.tasks.length; i++) {
+    r -= weights[i]!;
+    if (r <= 0) return ctx.tasks[i]!;
+  }
+  return ctx.tasks[ctx.tasks.length - 1]!;
+}
+
+function pickProject(
+  userProjects: ProjectCtx[],
+  userSpec: SeedUserSpec,
+  daysAgo: number,
+  salt: number
+): ProjectCtx {
+  if (userProjects.length === 1) return userProjects[0]!;
+  const weights = userProjects.map((ctx) => {
+    const burn = ctx.spec.budgetBurnPct ?? 0.7;
+    return 0.85 + burn * 0.35 + hash01(daysAgo, salt, ctx.project.id.length) * 0.15;
+  });
+  const total = weights.reduce((s, w) => s + w, 0);
+  let r = hash01(daysAgo, salt + 1, userSpec.email.length) * total;
+  for (let i = 0; i < userProjects.length; i++) {
+    r -= weights[i]!;
+    if (r <= 0) return userProjects[i]!;
+  }
+  return userProjects[userProjects.length - 1]!;
+}
+
+function logDescriptionFor(category: SeedCategoryName, daysAgo: number, salt: number): string {
+  const pool = CATEGORY_LOG_DESCRIPTIONS[category] ?? LOG_DESCRIPTIONS;
+  return pool[Math.floor(hash01(daysAgo, salt, category.length) * pool.length)]!;
+}
+
 async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>): Promise<number> {
   let batch: LogRow[] = [];
   let created = 0;
@@ -402,15 +505,20 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
         7 * 60 + Math.floor(hash01(daysAgo, 2, userSpec.email.length) * 90);
 
       for (let e = 0; e < entriesToday; e++) {
-        const ctx = userProjects[Math.floor(hash01(daysAgo, e, 3) * userProjects.length)]!;
-        const task = ctx.tasks[Math.floor(hash01(daysAgo, e, 4) * ctx.tasks.length)]!;
+        const ctx = pickProject(userProjects, userSpec, daysAgo, e);
+        const taskMeta = pickWeightedTask(ctx, userSpec, daysAgo, e);
+        const { task, spec: taskSpec } = taskMeta;
 
         const billableDefault = task.billableDefault;
         const isBillable = billableDefault
           ? hash01(daysAgo, e, 5) > 0.08
           : hash01(daysAgo, e, 5) > 0.75;
 
-        const hours = roundQuarter(0.75 + hash01(daysAgo, e, 6) * (weekend ? 2 : 3.25));
+        const meetingStretch =
+          taskSpec.category === "Meetings" ? 0.5 + hash01(daysAgo, e, 6) * 1.25 : 0;
+        const hours = roundQuarter(
+          0.75 + hash01(daysAgo, e, 6) * (weekend ? 2 : 3.25) + meetingStretch
+        );
         const start = utcDay(daysAgo, Math.floor(cursorMinutes / 60), cursorMinutes % 60);
         const end = new Date(start.getTime() + hours * 3600 * 1000);
         cursorMinutes += Math.round(hours * 60) + 30;
@@ -418,13 +526,14 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
         const burnBoost = ctx.spec.budgetBurnPct && ctx.spec.budgetBurnPct > 0.85 ? 1.12 : 1;
         if (hash01(daysAgo, e, 8) > userSpec.intensity * burnBoost) continue;
 
+        const desc = logDescriptionFor(taskSpec.category, daysAgo, e);
         batch.push({
           userId: user.id,
           taskId: task.id,
           startTime: start,
           endTime: end,
           durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
-          description: `${LOG_DESCRIPTIONS[Math.floor(hash01(daysAgo, e, 9) * LOG_DESCRIPTIONS.length)]!} — ${ctx.project.name}`,
+          description: `${desc} — ${ctx.project.name}`,
           isBillable,
           source: daysAgo <= 2 && hash01(daysAgo, e, 10) > 0.5 ? "timer" : "manual"
         });
@@ -544,18 +653,37 @@ async function printSummary(workspaces: Workspace[], users: Map<string, User>) {
   for (const row of categoryRows) {
     tasksByCategoryName.set(row.name, (tasksByCategoryName.get(row.name) ?? 0) + row._count.tasks);
   }
-  const byCategory = Object.fromEntries(
+  const tasksPerCategoryAvg = Object.fromEntries(
     [...tasksByCategoryName.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, total]) => [name, total / workspaces.length])
+      .map(([name, total]) => [name, Math.round((total / workspaces.length) * 10) / 10])
   );
+
+  const hoursByCategory = await prisma.$queryRaw<{ category_name: string; hours: number }[]>`
+    SELECT c.name AS category_name,
+           ROUND(SUM(tl.duration_sec) / 3600.0, 1) AS hours
+    FROM time_logs tl
+    JOIN tasks t ON t.id = tl.task_id
+    JOIN categories c ON c.id = t.category_id
+    GROUP BY c.name
+    ORDER BY hours DESC
+  `;
+  const categoryHoursPct = hoursByCategory.map((row) => {
+    const totalH = (totals._sum.durationSec ?? 0) / 3600;
+    return {
+      category: row.category_name,
+      hours: Number(row.hours),
+      pct: totalH > 0 ? Math.round((Number(row.hours) / totalH) * 1000) / 10 : 0
+    };
+  });
 
   console.log("Seed complete:", {
     users: users.size,
     workspaces: workspaces.length,
     projects: SEED_WORKSPACES.length * 4,
     categoriesPerWorkspace: SEED_CATEGORIES.length,
-    tasksPerCategoryAvg: byCategory,
+    tasksPerCategoryAvg,
+    hoursByCategory: categoryHoursPct,
     timeLogs: totals._count,
     totalHours: Math.round(((totals._sum.durationSec ?? 0) / 3600) * 100) / 100,
     perUser: byUser

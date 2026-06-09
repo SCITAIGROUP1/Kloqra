@@ -10,6 +10,7 @@ alwaysApply: true
 ## Policies
 
 - Contract-first: `packages/contracts` changes before implementation
+- Test-with-feature: every module/UI/feature change includes tests (pre-commit gate + `chronomint-test-delivery` skill)
 - Parallel agents respect directory bounds (see role `*.mdc` files)
 - Manual ledger before automation overlays
 

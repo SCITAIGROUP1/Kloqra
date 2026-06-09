@@ -22,6 +22,11 @@ export const GROUP_BY_DIMENSION_OPTIONS: {
     shortHint: "Adds a by-task totals sheet."
   },
   {
+    id: "category",
+    label: "Category",
+    shortHint: "Adds a by-category totals sheet."
+  },
+  {
     id: "client",
     label: "Client",
     shortHint: "Adds a by-client totals sheet."
@@ -42,6 +47,7 @@ const ROLLUP_BY_DIMENSION: Partial<Record<ExportGroupByDimension, ExportReportTy
   project: "by_project",
   member: "by_member",
   task: "by_task",
+  category: "by_category",
   client: "by_client",
   day: "daily_summary",
   week: "weekly_summary"

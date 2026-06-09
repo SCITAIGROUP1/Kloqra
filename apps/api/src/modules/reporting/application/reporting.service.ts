@@ -1,4 +1,10 @@
-import type { DashboardReportDto, MyWeekSummaryDto, ReportQueryDto } from "@chronomint/contracts";
+import type {
+  CategoryProjectHeatmapResponseDto,
+  DashboardReportDto,
+  MyWeekQueryDto,
+  MyWeekSummaryDto,
+  ReportQueryDto
+} from "@chronomint/contracts";
 import { Injectable } from "@nestjs/common";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -12,6 +18,8 @@ type HoursAgg = {
   billableAmount: number;
 };
 
+const HEATMAP_OTHER_ID = "00000000-0000-0000-0000-000000000000";
+
 @Injectable()
 export class ReportingService {
   constructor(
@@ -20,7 +28,11 @@ export class ReportingService {
     private reportCache: ReportCacheService
   ) {}
 
-  async myWeekSummary(workspaceId: string, userId: string): Promise<MyWeekSummaryDto> {
+  async myWeekSummary(
+    workspaceId: string,
+    userId: string,
+    query?: MyWeekQueryDto
+  ): Promise<MyWeekSummaryDto> {
     const now = new Date();
     const weekStart = getWeekStartDate(now, "sunday");
     const weekEnd = new Date(weekStart);
@@ -35,7 +47,8 @@ export class ReportingService {
     const weekLogs = await this.aggregation.fetchLogs(workspaceId, {
       from: weekStart,
       to: weekEnd,
-      userId
+      userId,
+      categoryId: query?.categoryId
     });
 
     const todayHours = roundExport(
@@ -73,13 +86,23 @@ export class ReportingService {
       })
       .sort((a, b) => b.totalHours - a.totalHours);
 
+    const byCategory = [...weekAgg.byCategory.entries()]
+      .map(([categoryId, v]) => ({
+        categoryId,
+        categoryName: v.categoryName,
+        totalHours: roundExport(v.totalHours),
+        billableHours: roundExport(v.billableHours)
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+
     return {
       weekStart: weekStart.toISOString().slice(0, 10),
       weekEnd: weekEnd.toISOString().slice(0, 10),
       todayHours,
       weekTotalHours: roundExport(weekTotalHours),
       weekBillableHours: roundExport(weekBillableHours),
-      byProject
+      byProject,
+      byCategory
     };
   }
 
@@ -89,7 +112,8 @@ export class ReportingService {
       query.from,
       query.to,
       query.userId,
-      query.projectId
+      query.projectId,
+      query.categoryId
     );
     const cached = await this.reportCache.getDashboard(cacheKey);
     if (cached) return cached;
@@ -110,10 +134,14 @@ export class ReportingService {
       from,
       to,
       userId: query.userId,
-      projectId: query.projectId
+      projectId: query.projectId,
+      categoryId: query.categoryId
     });
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
-    const { workspaceAgg, byProject, byUser } = this.aggregation.buildAggregates(logs, resolveRate);
+    const { workspaceAgg, byProject, byUser, byCategory } = this.aggregation.buildAggregates(
+      logs,
+      resolveRate
+    );
 
     const activeProjects = new Set(logs.map((l) => l.task.projectId));
     const activeMembers = new Set(logs.map((l) => l.userId));
@@ -218,6 +246,16 @@ export class ReportingService {
           userId,
           userName: v.userName,
           ...this.stripName(v)
+        }))
+        .sort((a, b) => b.totalHours - a.totalHours),
+      timeByCategory: [...byCategory.entries()]
+        .map(([categoryId, v]) => ({
+          categoryId,
+          categoryName: v.categoryName,
+          totalHours: roundExport(v.totalHours),
+          billableHours: roundExport(v.billableHours),
+          nonBillableHours: roundExport(v.totalHours - v.billableHours),
+          billableAmount: roundExport(v.billableAmount)
         }))
         .sort((a, b) => b.totalHours - a.totalHours),
       weeklyHours: [...weekly.entries()]
@@ -399,7 +437,8 @@ export class ReportingService {
       from,
       to,
       userId: query.userId,
-      projectId: query.projectId
+      projectId: query.projectId,
+      categoryId: query.categoryId
     });
 
     const slotsMap = new Map<string, number>();
@@ -437,20 +476,32 @@ export class ReportingService {
       from,
       to,
       userId: query.userId,
-      projectId: query.projectId
+      projectId: query.projectId,
+      categoryId: query.categoryId
     });
 
     const tasksMap = new Map<
       string,
-      { taskId: string | null; taskName: string; totalHours: number; billableHours: number }
+      {
+        taskId: string | null;
+        taskName: string;
+        categoryId?: string;
+        categoryName?: string;
+        totalHours: number;
+        billableHours: number;
+      }
     >();
 
     for (const log of logs) {
       const name = log.task.taskName || "General Work";
       const key = name.toLowerCase().trim();
+      const categoryId = log.task.category?.id ?? log.task.categoryId;
+      const categoryName = log.task.category?.name ?? "Uncategorized";
       const entry = tasksMap.get(key) ?? {
         taskId: log.taskId,
         taskName: name,
+        categoryId,
+        categoryName,
         totalHours: 0,
         billableHours: 0
       };
@@ -467,6 +518,8 @@ export class ReportingService {
       .map((t) => ({
         taskId: t.taskId,
         taskName: t.taskName,
+        categoryId: t.categoryId,
+        categoryName: t.categoryName,
         totalHours: roundExport(t.totalHours),
         billableHours: roundExport(t.billableHours)
       }))
@@ -481,11 +534,131 @@ export class ReportingService {
       top.push({
         taskId: null,
         taskName: "Other Tasks",
+        categoryId: undefined,
+        categoryName: undefined,
         totalHours: roundExport(restTotal),
         billableHours: roundExport(restBillable)
       });
     }
 
     return { tasks: top };
+  }
+
+  async categoryProjectHeatmap(
+    workspaceId: string,
+    query: ReportQueryDto
+  ): Promise<CategoryProjectHeatmapResponseDto> {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId,
+      categoryId: query.categoryId
+    });
+
+    const TOP_N = 8;
+    const cellMap = new Map<
+      string,
+      {
+        categoryId: string;
+        categoryName: string;
+        projectId: string;
+        projectName: string;
+        hours: number;
+      }
+    >();
+    const categoryTotals = new Map<
+      string,
+      { categoryId: string; categoryName: string; hours: number }
+    >();
+    const projectTotals = new Map<
+      string,
+      { projectId: string; projectName: string; hours: number }
+    >();
+
+    for (const log of logs) {
+      const hours = log.durationSec / 3600;
+      const categoryId = log.task.category?.id ?? log.task.categoryId;
+      const categoryName = log.task.category?.name ?? "Uncategorized";
+      const projectId = log.task.projectId;
+      const projectName = log.task.project.name;
+
+      const cat = categoryTotals.get(categoryId) ?? { categoryId, categoryName, hours: 0 };
+      cat.hours += hours;
+      categoryTotals.set(categoryId, cat);
+
+      const proj = projectTotals.get(projectId) ?? { projectId, projectName, hours: 0 };
+      proj.hours += hours;
+      projectTotals.set(projectId, proj);
+
+      const key = `${categoryId}:${projectId}`;
+      const cell = cellMap.get(key) ?? {
+        categoryId,
+        categoryName,
+        projectId,
+        projectName,
+        hours: 0
+      };
+      cell.hours += hours;
+      cellMap.set(key, cell);
+    }
+
+    const topCategories = [...categoryTotals.values()]
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, TOP_N);
+    const topCategoryIds = new Set(topCategories.map((c) => c.categoryId));
+    const topProjects = [...projectTotals.values()]
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, TOP_N);
+    const topProjectIds = new Set(topProjects.map((p) => p.projectId));
+
+    const categories = topCategories.map((c) => ({
+      categoryId: c.categoryId,
+      categoryName: c.categoryName
+    }));
+    const projects = topProjects.map((p) => ({
+      projectId: p.projectId,
+      projectName: p.projectName
+    }));
+
+    if (categoryTotals.size > TOP_N) {
+      categories.push({ categoryId: HEATMAP_OTHER_ID, categoryName: "Other" });
+    }
+    if (projectTotals.size > TOP_N) {
+      projects.push({ projectId: HEATMAP_OTHER_ID, projectName: "Other" });
+    }
+
+    const cells: CategoryProjectHeatmapResponseDto["cells"] = [];
+    let otherHours = 0;
+
+    for (const cell of cellMap.values()) {
+      const catIsOther = !topCategoryIds.has(cell.categoryId);
+      const projIsOther = !topProjectIds.has(cell.projectId);
+      if (catIsOther || projIsOther) {
+        otherHours += cell.hours;
+        continue;
+      }
+      cells.push({
+        categoryId: cell.categoryId,
+        categoryName: cell.categoryName,
+        projectId: cell.projectId,
+        projectName: cell.projectName,
+        hours: roundExport(cell.hours)
+      });
+    }
+
+    if (otherHours > 0 && categories.some((c) => c.categoryId === HEATMAP_OTHER_ID)) {
+      cells.push({
+        categoryId: HEATMAP_OTHER_ID,
+        categoryName: "Other",
+        projectId: HEATMAP_OTHER_ID,
+        projectName: "Other",
+        hours: roundExport(otherHours)
+      });
+    }
+
+    return { categories, projects, cells };
   }
 }

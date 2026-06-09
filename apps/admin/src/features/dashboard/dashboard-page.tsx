@@ -1,7 +1,7 @@
 "use client";
 
 import { DEFAULT_EXPORT_COLUMNS, ROUTES } from "@chronomint/contracts";
-import type { DashboardReportDto, ProjectDto, TeamDto } from "@chronomint/contracts";
+import type { CategoryDto, DashboardReportDto, ProjectDto, TeamDto } from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -30,6 +30,7 @@ import { WidgetShell } from "./widget-shell";
 import { ActiveTimersWidget } from "./widgets/active-timers-widget";
 import { BillabilityGaugeWidget } from "./widgets/billability-gauge-widget";
 import { BillableSplitDonutWidget } from "./widgets/billable-split-donut-widget";
+import { CategoryProjectHeatmapWidget } from "./widgets/category-project-heatmap-widget";
 import { HeatmapWidget } from "./widgets/heatmap-widget";
 import { HourlyRatesWidget } from "./widgets/hourly-rates-widget";
 import { LivePresenceWidget } from "./widgets/live-presence-widget";
@@ -73,7 +74,11 @@ const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
   { value: 90, label: "90 days" }
 ];
 
-function rangeQuery(start: string, end: string, filters?: { projectId?: string; userId?: string }) {
+function rangeQuery(
+  start: string,
+  end: string,
+  filters?: { projectId?: string; userId?: string; categoryId?: string }
+) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
   const params = new URLSearchParams({
@@ -82,6 +87,7 @@ function rangeQuery(start: string, end: string, filters?: { projectId?: string; 
   });
   if (filters?.projectId) params.set("projectId", filters.projectId);
   if (filters?.userId) params.set("userId", filters.userId);
+  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
   return params;
 }
 
@@ -104,7 +110,9 @@ export function DashboardPage() {
   const [endDate, setEndDate] = useState<string>(() => toDateInputValue(new Date()));
   const [projectId, setProjectId] = useState("");
   const [userId, setUserId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamDto["members"]>([]);
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +185,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (!ws) return;
     api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
   }, [ws]);
 
   useEffect(() => {
@@ -233,14 +242,15 @@ export function DashboardPage() {
     api<DashboardReportDto>(
       `${ROUTES.REPORTING.DASHBOARD}?${rangeQuery(startDate, endDate, {
         projectId: projectId || undefined,
-        userId: userId || undefined
+        userId: userId || undefined,
+        categoryId: categoryId || undefined
       })}`,
       { workspaceId: ws }
     )
       .then(setReport)
       .catch(() => setError("Could not load analytics. Is the API running on port 3001?"))
       .finally(() => setLoading(false));
-  }, [ws, startDate, endDate, projectId, userId]);
+  }, [ws, startDate, endDate, projectId, userId, categoryId]);
 
   useEffect(() => {
     load();
@@ -263,7 +273,8 @@ export function DashboardPage() {
           by_project: [...DEFAULT_EXPORT_COLUMNS.by_project]
         },
         ...(projectId ? { projectId } : {}),
-        ...(userId ? { userId } : {})
+        ...(userId ? { userId } : {}),
+        ...(categoryId ? { categoryId } : {})
       });
       await saveDownloadResponse(res, "chronomint-dashboard-export.xlsx");
     } catch {
@@ -487,6 +498,29 @@ export function DashboardPage() {
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
+            categoryId={categoryId || undefined}
+          />
+        );
+      case "category_distribution":
+        return (
+          <ReportDonutChart report={report!} groupBy="category" projectColors={colorByProjectId} />
+        );
+      case "category_breakdown":
+        return (
+          <ReportBreakdownTable
+            report={report!}
+            groupBy="category"
+            projectColors={colorByProjectId}
+          />
+        );
+      case "category_project_heatmap":
+        return (
+          <CategoryProjectHeatmapWidget
+            from={startDate}
+            to={endDate}
+            projectId={projectId || undefined}
+            userId={userId || undefined}
+            categoryId={categoryId || undefined}
           />
         );
       case "task_breakdown":
@@ -496,6 +530,7 @@ export function DashboardPage() {
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
+            categoryId={categoryId || undefined}
           />
         );
       case "rate_efficiency":
@@ -567,6 +602,9 @@ export function DashboardPage() {
               <SelectItem value="project" className="text-[10px] py-1">
                 Project
               </SelectItem>
+              <SelectItem value="category" className="text-[10px] py-1">
+                Category
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -592,6 +630,9 @@ export function DashboardPage() {
               </SelectItem>
               <SelectItem value="project" className="text-[10px] py-1">
                 Project
+              </SelectItem>
+              <SelectItem value="category" className="text-[10px] py-1">
+                Category
               </SelectItem>
             </SelectContent>
           </Select>
@@ -747,6 +788,25 @@ export function DashboardPage() {
                         <ProjectColorDot color={p.color} />
                         {p.name}
                       </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 min-w-[200px]">
+              <Label className="text-xs font-medium text-muted-foreground">Category</Label>
+              <Select
+                value={categoryId || "__all__"}
+                onValueChange={(v) => setCategoryId(v === "__all__" ? "" : v)}
+              >
+                <SelectTrigger className="h-9 bg-background">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -6,7 +6,8 @@ export const reportQuerySchema = z
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
     projectId: uuidSchema.optional(),
-    userId: uuidSchema.optional()
+    userId: uuidSchema.optional(),
+    categoryId: uuidSchema.optional()
   })
   .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
@@ -25,6 +26,12 @@ export const timeByProjectSchema = hoursBreakdownSchema.extend({
 export const timeByUserSchema = hoursBreakdownSchema.extend({
   userId: uuidSchema,
   userName: z.string(),
+  billableAmount: z.number()
+});
+
+export const timeByCategorySchema = hoursBreakdownSchema.extend({
+  categoryId: uuidSchema,
+  categoryName: z.string(),
   billableAmount: z.number()
 });
 
@@ -62,6 +69,7 @@ export const dashboardReportSchema = z.object({
   }),
   timeByProject: z.array(timeByProjectSchema),
   timeByUser: z.array(timeByUserSchema),
+  timeByCategory: z.array(timeByCategorySchema),
   weeklyHours: z.array(weeklyHoursSchema),
   dailyHours: z.array(dailyHoursSchema),
   /** Top projects per day for stacked “chart by project” bars */
@@ -80,13 +88,21 @@ export const myWeekProjectHoursSchema = z.object({
   billableHours: z.number()
 });
 
+export const myWeekCategoryHoursSchema = z.object({
+  categoryId: uuidSchema,
+  categoryName: z.string(),
+  totalHours: z.number(),
+  billableHours: z.number()
+});
+
 export const myWeekSummarySchema = z.object({
   weekStart: z.string(),
   weekEnd: z.string(),
   todayHours: z.number(),
   weekTotalHours: z.number(),
   weekBillableHours: z.number(),
-  byProject: z.array(myWeekProjectHoursSchema)
+  byProject: z.array(myWeekProjectHoursSchema),
+  byCategory: z.array(myWeekCategoryHoursSchema)
 });
 
 export type MyWeekProjectHoursDto = z.infer<typeof myWeekProjectHoursSchema>;
@@ -109,6 +125,8 @@ export type HeatmapResponseDto = z.infer<typeof heatmapResponseSchema>;
 export const taskBreakdownItemSchema = z.object({
   taskId: uuidSchema.nullable(),
   taskName: z.string(),
+  categoryId: uuidSchema.optional(),
+  categoryName: z.string().optional(),
   totalHours: z.number().nonnegative(),
   billableHours: z.number().nonnegative()
 });
@@ -118,3 +136,27 @@ export const taskBreakdownResponseSchema = z.object({
 });
 
 export type TaskBreakdownResponseDto = z.infer<typeof taskBreakdownResponseSchema>;
+
+export const myWeekQuerySchema = z.object({
+  categoryId: uuidSchema.optional()
+});
+
+export type MyWeekQueryDto = z.infer<typeof myWeekQuerySchema>;
+
+export const categoryProjectHeatmapCellSchema = z.object({
+  categoryId: uuidSchema,
+  categoryName: z.string(),
+  projectId: uuidSchema,
+  projectName: z.string(),
+  hours: z.number().nonnegative()
+});
+
+export const categoryProjectHeatmapResponseSchema = z.object({
+  categories: z.array(z.object({ categoryId: uuidSchema, categoryName: z.string() })),
+  projects: z.array(z.object({ projectId: uuidSchema, projectName: z.string() })),
+  cells: z.array(categoryProjectHeatmapCellSchema)
+});
+
+export type CategoryProjectHeatmapResponseDto = z.infer<
+  typeof categoryProjectHeatmapResponseSchema
+>;

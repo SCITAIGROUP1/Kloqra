@@ -31,6 +31,7 @@ interface RecentItem {
   projectName: string;
   taskName: string;
   projectColor: string;
+  categoryName?: string;
 }
 
 export function QuickActions({
@@ -120,7 +121,8 @@ export function QuickActions({
               taskId: task.id,
               projectName: project.name,
               taskName: task.taskName,
-              projectColor: project.color
+              projectColor: project.color,
+              categoryName: task.categoryName
             });
           }
         }
@@ -250,9 +252,16 @@ export function QuickActions({
                   <ProjectColorDot color={r.projectColor} size="sm" className="shrink-0" />
                   <span className="font-semibold text-foreground truncate">{r.projectName}</span>
                 </div>
-                <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
-                  {r.taskName}
-                </span>
+                <div className="flex items-center gap-1.5 min-w-0 ml-4">
+                  <span className="text-muted-foreground truncate text-xs font-normal">
+                    {r.taskName}
+                  </span>
+                  {r.categoryName ? (
+                    <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                      {r.categoryName}
+                    </span>
+                  ) : null}
+                </div>
               </Button>
             ))}
           </div>

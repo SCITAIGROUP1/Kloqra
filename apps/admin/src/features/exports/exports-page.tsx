@@ -9,6 +9,7 @@ import {
   type ExportPresetDto,
   type ExportPreviewResponseDto,
   type ExportReportType,
+  type CategoryDto,
   type ProjectDto,
   type ReportShareDto,
   type WorkspaceMemberDto
@@ -83,7 +84,8 @@ const REPORT_GROUPS: { title: string; reports: { id: ExportReportType; label: st
       { id: "by_project", label: "By project" },
       { id: "by_member", label: "By member" },
       { id: "by_client", label: "By client" },
-      { id: "by_task", label: "By task" }
+      { id: "by_task", label: "By task" },
+      { id: "by_category", label: "By category" }
     ]
   },
   {
@@ -132,6 +134,7 @@ export function ExportsPage() {
   const [to, setTo] = useState(() => toDateInputValue(new Date()));
   const [projectId, setProjectId] = useState("");
   const [userId, setUserId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [teamOnly, setTeamOnly] = useState(false);
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
@@ -141,6 +144,7 @@ export function ExportsPage() {
   const [columnsByReport, setColumnsByReport] = useState(defaultColumnsMap);
   const [expandedReport, setExpandedReport] = useState<ExportReportType | null>("time_entries");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -165,6 +169,7 @@ export function ExportsPage() {
   useEffect(() => {
     if (!ws) return;
     api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
     api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(setMembers);
     setLocalPresets(listLocalExportPresets(ws));
     api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, { workspaceId: ws })
@@ -198,6 +203,7 @@ export function ExportsPage() {
       columns: columnsPayload,
       ...(projectId ? { projectId } : {}),
       ...(userId ? { userId } : {}),
+      ...(categoryId ? { categoryId } : {}),
       ...(teamOnly && projectId ? { teamOnly: true } : {})
     };
   }, [
@@ -210,6 +216,7 @@ export function ExportsPage() {
     sheetLayout,
     projectId,
     userId,
+    categoryId,
     teamOnly,
     columnsPayload
   ]);
@@ -224,6 +231,7 @@ export function ExportsPage() {
       sheetLayout: exportBody.sheetLayout,
       ...(exportBody.projectId ? { projectId: exportBody.projectId } : {}),
       ...(exportBody.userId ? { userId: exportBody.userId } : {}),
+      ...(exportBody.categoryId ? { categoryId: exportBody.categoryId } : {}),
       ...(exportBody.teamOnly ? { teamOnly: true } : {})
     }),
     [exportBody]
@@ -328,6 +336,7 @@ export function ExportsPage() {
     setReportTypes(body.reportTypes);
     setProjectId(body.projectId ?? "");
     setUserId(body.userId ?? "");
+    setCategoryId(body.categoryId ?? "");
     setTeamOnly(body.teamOnly ?? false);
     if (body.columns) {
       setColumnsByReport((prev) => {
@@ -545,6 +554,25 @@ export function ExportsPage() {
                           {members.map((m) => (
                             <SelectItem key={m.userId} value={m.userId}>
                               {m.userName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select
+                        value={categoryId || "__all__"}
+                        onValueChange={(v) => setCategoryId(v === "__all__" ? "" : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">All categories</SelectItem>
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

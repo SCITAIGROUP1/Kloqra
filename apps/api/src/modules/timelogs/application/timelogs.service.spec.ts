@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { TimelogAuditService } from "./timelog-audit.service";
 import { TimelogsService } from "./timelogs.service";
 
 describe("TimelogsService listOccupancy", () => {
@@ -85,28 +86,30 @@ describe("TimelogsService listOccupancy", () => {
   });
 });
 
-describe("TimelogsService", () => {
-  it("duration calculation", () => {
-    const start = new Date("2025-01-01T09:00:00Z");
-    const end = new Date("2025-01-01T11:30:00Z");
-    const durationSec = Math.floor((end.getTime() - start.getTime()) / 1000);
-    expect(durationSec).toBe(9000);
-  });
-});
+describe("TimelogAuditService", () => {
+  const audit = new TimelogAuditService({} as never);
 
-describe("TimelogAuditService snapshots", () => {
-  it("builds comparable before/after payloads", () => {
-    const before = {
+  it("snapshotFromLog serializes log fields for audit diffs", () => {
+    const log = {
       taskId: "550e8400-e29b-41d4-a716-446655440000",
-      startTime: new Date("2025-01-01T09:00:00Z"),
-      endTime: new Date("2025-01-01T10:00:00Z"),
+      startTime: new Date("2025-01-01T09:00:00.000Z"),
+      endTime: new Date("2025-01-01T10:00:00.000Z"),
       durationSec: 3600,
       description: "Work",
       isBillable: true,
       source: "manual"
     };
-    const after = { ...before, isBillable: false };
-    expect(before.isBillable).toBe(true);
-    expect(after.isBillable).toBe(false);
+
+    const snapshot = audit.snapshotFromLog(log);
+
+    expect(snapshot).toEqual({
+      taskId: log.taskId,
+      startTime: "2025-01-01T09:00:00.000Z",
+      endTime: "2025-01-01T10:00:00.000Z",
+      durationSec: 3600,
+      description: "Work",
+      isBillable: true,
+      source: "manual"
+    });
   });
 });

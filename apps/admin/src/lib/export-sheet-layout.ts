@@ -1,7 +1,12 @@
 import type { ExportGroupByDimension, ExportSheetLayout } from "@chronomint/contracts";
 
 /** Dimensions tied to workbook tab splits (mutually exclusive as primary). */
-export const LAYOUT_GROUP_BY_DIMS: ExportGroupByDimension[] = ["member", "project", "client"];
+export const LAYOUT_GROUP_BY_DIMS: ExportGroupByDimension[] = [
+  "member",
+  "project",
+  "client",
+  "category"
+];
 
 export function primaryGroupByForSheetLayout(
   layout: ExportSheetLayout
@@ -13,6 +18,8 @@ export function primaryGroupByForSheetLayout(
       return "project";
     case "tabs_per_client":
       return "client";
+    case "tabs_per_category":
+      return "category";
     default:
       return null;
   }
@@ -60,6 +67,12 @@ export const SHEET_LAYOUT_OPTIONS: {
     label: "One tab per client",
     description: "Each client gets its own tab for time-style reports.",
     bestFor: "Agency billing packs by client."
+  },
+  {
+    id: "tabs_per_category",
+    label: "One tab per category",
+    description: "Each work category gets its own tab for time-style reports.",
+    bestFor: "Work-type breakdowns (meetings, dev, QA, etc.)."
   }
 ];
 

@@ -31,6 +31,7 @@ import { useWidgetLayout } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
 import { WidgetShell } from "./widget-shell";
+import { CategorySplitWidget } from "./widgets/category-split-widget";
 import { ProjectSplitWidget } from "./widgets/project-split-widget";
 import { TimesheetSubmissionsWidget } from "./widgets/timesheet-submissions-widget";
 import { TodayLogsWidget } from "./widgets/today-logs-widget";
@@ -710,6 +711,8 @@ export function DashboardPage() {
                               tasks={tasks}
                             />
                           );
+                        case "category_split":
+                          return <CategorySplitWidget />;
                         case "pinned_favorites":
                           return (
                             <QuickActions

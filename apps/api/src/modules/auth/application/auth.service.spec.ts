@@ -1,5 +1,15 @@
+import * as bcrypt from "bcrypt";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { AuthService } from "./auth.service";
+
+vi.mock("bcrypt", () => ({
+  default: {
+    compare: vi.fn(),
+    hash: vi.fn()
+  },
+  compare: vi.fn(),
+  hash: vi.fn()
+}));
 
 describe("AuthService unit tests", () => {
   let authService: AuthService;
@@ -52,6 +62,48 @@ describe("AuthService unit tests", () => {
 
       expect(payload).toEqual({ userId: "user-1", workspaceId: "ws-1", family: "fam-1" });
       expect(mockJwt.verify).toHaveBeenCalledWith("some-token", { secret: "refresh-secret" });
+    });
+  });
+
+  describe("login", () => {
+    it("throws UNAUTHORIZED for invalid credentials", async () => {
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue(null)
+      };
+
+      await expect(
+        authService.login({ email: "missing@example.com", password: "wrong" })
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    });
+
+    it("returns session for valid credentials", async () => {
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "admin@chronomint.dev",
+          name: "Admin",
+          passwordHash: "hash",
+          defaultHourlyRate: null,
+          memberships: [
+            {
+              workspaceId: "ws-1",
+              role: "ADMIN",
+              workspace: { id: "ws-1", name: "ChronoMint" }
+            }
+          ]
+        })
+      };
+
+      const session = await authService.login({
+        email: "admin@chronomint.dev",
+        password: "password123"
+      });
+
+      expect(session.workspaceId).toBe("ws-1");
+      expect(session.workspaceRole).toBe("ADMIN");
+      expect(session.user.email).toBe("admin@chronomint.dev");
     });
   });
 });

@@ -11,10 +11,11 @@ description: >-
 
 1. Read `docs/specs/<feature>.md`
 2. Update `packages/contracts` (LSA / contract gate)
-3. QA writes failing tests
+3. QA writes failing tests (required — pre-commit blocks code without tests)
 4. BE implements `apps/api/src/modules/<feature>/`
 5. FE implements `apps/client` or `apps/admin`
-6. Update `docs/agent/ROC.md` and `TASK_BOARD.json`
+6. Verify with `pnpm test:coverage` and `pnpm test:dashboard`
+7. Update `docs/agent/ROC.md` and `TASK_BOARD.json`
 
 ## MIP handoff template
 
@@ -39,5 +40,7 @@ pnpm build
 
 ## References
 
+- [chronomint-test-delivery](../chronomint-test-delivery/SKILL.md)
+- [docs/development/TESTING.md](../../../docs/development/TESTING.md)
 - [docs/agent/AGENTS.md](../../docs/agent/AGENTS.md)
 - [CONTRIBUTING.md](../../CONTRIBUTING.md)

@@ -58,7 +58,7 @@ const CHART_PALETTE = [
 ];
 
 export type ChartByMode = "billability" | "project";
-export type GroupByMode = "user" | "project";
+export type GroupByMode = "user" | "project" | "category";
 
 export function formatChartDay(dateIso: string) {
   return new Date(`${dateIso}T12:00:00Z`).toLocaleDateString(undefined, {
@@ -225,12 +225,19 @@ export function ReportDonutChart({ report, groupBy, projectColors }: DonutProps)
             hours: u.totalHours,
             amount: u.billableAmount
           }))
-        : report.timeByProject.map((p) => ({
-            id: p.projectId,
-            name: p.projectName,
-            hours: p.totalHours,
-            amount: p.billableAmount
-          }));
+        : groupBy === "category"
+          ? report.timeByCategory.map((c) => ({
+              id: c.categoryId,
+              name: c.categoryName,
+              hours: c.totalHours,
+              amount: c.billableAmount
+            }))
+          : report.timeByProject.map((p) => ({
+              id: p.projectId,
+              name: p.projectName,
+              hours: p.totalHours,
+              amount: p.billableAmount
+            }));
 
     const top = rows.slice(0, 6);
     const restHours = rows.slice(6).reduce((s, r) => s + r.hours, 0);
@@ -333,13 +340,21 @@ export function ReportBreakdownTable({ report, groupBy, projectColors }: Breakdo
           hours: u.totalHours,
           amount: u.billableAmount
         }))
-      : report.timeByProject.map((p) => ({
-          id: p.projectId,
-          title: p.projectName,
-          color: projectColors[p.projectId],
-          hours: p.totalHours,
-          amount: p.billableAmount
-        }));
+      : groupBy === "category"
+        ? report.timeByCategory.map((c) => ({
+            id: c.categoryId,
+            title: c.categoryName,
+            color: undefined as string | undefined,
+            hours: c.totalHours,
+            amount: c.billableAmount
+          }))
+        : report.timeByProject.map((p) => ({
+            id: p.projectId,
+            title: p.projectName,
+            color: projectColors[p.projectId],
+            hours: p.totalHours,
+            amount: p.billableAmount
+          }));
 
   return (
     <Table>
@@ -426,6 +441,7 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
                   <SelectItem value="project">Project</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
                 </SelectContent>
               </Select>
             </div>
