@@ -49,6 +49,11 @@ export const ROUTES = {
     CREATE: "/tasks",
     BY_ID: (id: string) => `/tasks/${id}`
   },
+  CATEGORIES: {
+    LIST: "/categories",
+    CREATE: "/categories",
+    BY_ID: (id: string) => `/categories/${id}`
+  },
   TIMELOGS: {
     LIST: "/timelogs",
     OCCUPANCY: "/timelogs/occupancy",

@@ -33,12 +33,9 @@ import {
 import { api } from "@/lib/api";
 import { formatProjectLabel } from "@/lib/project-labels";
 
-export const NEW_TASK = "__new__";
-
 export type TimeEntryDraft = {
   projectId: string;
   taskSelection: string;
-  newTaskName: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -47,21 +44,17 @@ export type TimeEntryDraft = {
 };
 
 export function suggestBillableFromTask(tasks: TaskDto[], taskSelection: string): boolean {
-  if (!taskSelection || taskSelection === NEW_TASK) return true;
+  if (!taskSelection) return true;
   return tasks.find((t) => t.id === taskSelection)?.billableDefault ?? true;
 }
 
 export function canSaveTaskDraft(draft: TimeEntryDraft): boolean {
   if (!draft.projectId) return false;
-  if (draft.taskSelection === NEW_TASK) return draft.newTaskName.trim().length > 0;
   return Boolean(draft.taskSelection);
 }
 
 export function taskSaveHint(draft: TimeEntryDraft): string | null {
   if (!draft.projectId) return null;
-  if (draft.taskSelection === NEW_TASK && !draft.newTaskName.trim()) {
-    return "Enter a name for the new task to enable Save.";
-  }
   if (!draft.taskSelection) {
     return "Select a task for this project to enable Save.";
   }
@@ -142,6 +135,17 @@ export function TimeEntryDialog({
     () => (draft ? tasks.filter((t) => t.projectId === draft.projectId) : []),
     [tasks, draft]
   );
+
+  const projectTasksByCategory = useMemo(() => {
+    const groups = new Map<string, TaskDto[]>();
+    for (const t of projectTasks) {
+      const key = t.categoryName ?? "Other";
+      const list = groups.get(key) ?? [];
+      list.push(t);
+      groups.set(key, list);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [projectTasks]);
 
   if (!open || !draft || !mounted) return null;
 
@@ -229,7 +233,6 @@ export function TimeEntryDialog({
                   patch({
                     projectId,
                     taskSelection: "",
-                    newTaskName: "",
                     isBillable: true
                   })
                 }
@@ -254,12 +257,11 @@ export function TimeEntryDialog({
               <Label>Task</Label>
               <Select
                 key={draft.projectId}
-                disabled={!canEdit || !draft.projectId}
+                disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
                 value={draft.taskSelection || undefined}
                 onValueChange={(taskSelection) =>
                   patch({
                     taskSelection,
-                    newTaskName: taskSelection === NEW_TASK ? draft.newTaskName : "",
                     isBillable: suggestBillableFromTask(tasks, taskSelection)
                   })
                 }
@@ -267,19 +269,34 @@ export function TimeEntryDialog({
                 <SelectTrigger aria-invalid={Boolean(draft.projectId && !draft.taskSelection)}>
                   <SelectValue
                     placeholder={
-                      draft.projectId ? "Select or create a task" : "Select a project first"
+                      !draft.projectId
+                        ? "Select a project first"
+                        : projectTasks.length === 0
+                          ? "No tasks for this project"
+                          : "Select a task"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent className="z-[100]">
-                  {projectTasks.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.taskName}
-                    </SelectItem>
+                  {projectTasksByCategory.map(([categoryName, list]) => (
+                    <div key={categoryName}>
+                      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        {categoryName}
+                      </div>
+                      {list.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.taskName}
+                        </SelectItem>
+                      ))}
+                    </div>
                   ))}
-                  <SelectItem value={NEW_TASK}>+ Create new task…</SelectItem>
                 </SelectContent>
               </Select>
+              {draft.projectId && projectTasks.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No tasks yet on this project. Ask your admin to add tasks before logging time.
+                </p>
+              )}
               {saveHint && (
                 <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
                   {saveHint}
@@ -287,20 +304,7 @@ export function TimeEntryDialog({
               )}
             </div>
 
-            {draft.taskSelection === NEW_TASK && (
-              <div className="space-y-2">
-                <Label htmlFor="entry-new-task">New task name</Label>
-                <Input
-                  id="entry-new-task"
-                  value={draft.newTaskName}
-                  onChange={(e) => patch({ newTaskName: e.target.value })}
-                  placeholder="e.g. Frontend development"
-                  required
-                />
-              </div>
-            )}
-
-            {draft.taskSelection && draft.taskSelection !== NEW_TASK && (
+            {draft.taskSelection && (
               <p className="text-xs text-muted-foreground">{taskLabel(draft.taskSelection)}</p>
             )}
 
@@ -401,8 +405,8 @@ export function TimeEntryDialog({
   );
 }
 
-function emptyTaskFields(): Pick<TimeEntryDraft, "projectId" | "taskSelection" | "newTaskName"> {
-  return { projectId: "", taskSelection: "", newTaskName: "" };
+function emptyTaskFields(): Pick<TimeEntryDraft, "projectId" | "taskSelection"> {
+  return { projectId: "", taskSelection: "" };
 }
 
 export function draftFromSlot(
@@ -467,7 +471,6 @@ export function draftFromLog(
   return {
     projectId: task?.projectId ?? "",
     taskSelection: log.taskId,
-    newTaskName: "",
     date: toDateKeyInZone(start, timezone),
     startTime: toTimeValueInZone(start, timezone),
     endTime: toTimeValueInZone(end, timezone),

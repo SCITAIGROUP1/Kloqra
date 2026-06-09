@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   changePasswordSchema,
+  createCategorySchema,
+  createTaskSchema,
   createTimeLogSchema,
   loginSchema,
   reportQuerySchema,
@@ -9,8 +11,12 @@ import {
   ROUTES,
   startTimerSchema,
   dashboardReportSchema,
+  updateCategorySchema,
   updateUserPreferencesSchema
 } from "./index";
+
+const UUID = "550e8400-e29b-41d4-a716-446655440000";
+const UUID_2 = "550e8400-e29b-41d4-a716-446655440001";
 
 describe("contracts", () => {
   it("validates login", () => {
@@ -85,6 +91,46 @@ describe("contracts", () => {
       to: "2025-06-01T00:00:00.000Z"
     });
     expect(r.success).toBe(false);
+  });
+
+  it("exposes categories routes", () => {
+    expect(ROUTES.CATEGORIES.LIST).toBe("/categories");
+    expect(ROUTES.CATEGORIES.BY_ID("abc")).toBe("/categories/abc");
+  });
+
+  it("validates create category payload", () => {
+    const r = createCategorySchema.safeParse({
+      name: "Software Development",
+      description: "Engineering & coding work"
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects empty category name", () => {
+    const r = createCategorySchema.safeParse({ name: "" });
+    expect(r.success).toBe(false);
+  });
+
+  it("allows partial category update", () => {
+    const r = updateCategorySchema.safeParse({ description: null });
+    expect(r.success).toBe(true);
+  });
+
+  it("requires categoryId when creating a task", () => {
+    const r = createTaskSchema.safeParse({
+      projectId: UUID,
+      taskName: "Implement feature"
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("accepts task with categoryId", () => {
+    const r = createTaskSchema.safeParse({
+      projectId: UUID,
+      categoryId: UUID_2,
+      taskName: "Implement feature"
+    });
+    expect(r.success).toBe(true);
   });
 
   it("validates dashboard report shape", () => {

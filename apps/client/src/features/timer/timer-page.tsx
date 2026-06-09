@@ -39,7 +39,6 @@ import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
-const NEW_TASK = "__new__";
 const HARD_AUTO_STOP_HOURS = 14;
 
 function formatElapsed(sec: number) {
@@ -145,7 +144,6 @@ export function TimerPage() {
 
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
-  const [newTaskName, setNewTaskName] = useState("");
   const [stopDescription, setStopDescription] = useState("");
   const [isBillable, setIsBillable] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -244,6 +242,17 @@ export function TimerPage() {
     [tasks, projectId]
   );
 
+  const projectTasksByCategory = useMemo(() => {
+    const groups = new Map<string, typeof projectTasks>();
+    for (const t of projectTasks) {
+      const key = t.categoryName ?? "Other";
+      const list = groups.get(key) ?? [];
+      list.push(t);
+      groups.set(key, list);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [projectTasks]);
+
   const activeTask = active ? tasks.find((t) => t.id === active.taskId) : null;
   const activeProject = activeTask ? projects.find((p) => p.id === activeTask.projectId) : null;
   const tracking = isActiveTimer(active);
@@ -262,14 +271,11 @@ export function TimerPage() {
     void fetchActiveTimer();
   }, [ws, tracking, activeTask, fetchActiveTimer]);
 
-  const canStart =
-    Boolean(projectId) &&
-    (taskChoice === NEW_TASK ? newTaskName.trim().length > 0 : Boolean(taskChoice));
+  const canStart = Boolean(projectId) && Boolean(taskChoice);
 
   function onProjectChange(id: string) {
     setProjectId(id);
     setTaskChoice("");
-    setNewTaskName("");
     setIsBillable(true);
     setError(null);
   }
@@ -280,32 +286,18 @@ export function TimerPage() {
     }
   }, [activeTask]);
 
-  async function resolveTaskId(): Promise<string> {
-    if (taskChoice !== NEW_TASK) return taskChoice;
-    const created = await api<TaskDto>(ROUTES.TASKS.CREATE, {
-      method: "POST",
-      workspaceId: ws,
-      body: JSON.stringify({ projectId, taskName: newTaskName.trim() })
-    });
-    const all = await api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws });
-    setTasks(all);
-    return created.id;
-  }
-
   async function startTimer() {
     if (!canStart) return;
     setStarting(true);
     setError(null);
     try {
-      const taskId = await resolveTaskId();
       const res = await api<ActiveTimerDto>(ROUTES.TIMER.START, {
         method: "POST",
         workspaceId: ws,
-        body: JSON.stringify({ taskId })
+        body: JSON.stringify({ taskId: taskChoice })
       });
       setActive(res);
       setTaskChoice("");
-      setNewTaskName("");
       toast.success("Timer started successfully!");
       void fetchTodayLogs();
     } catch (e) {
@@ -633,41 +625,43 @@ export function TimerPage() {
                             onValueChange={(v) => {
                               setTaskChoice(v);
                               setError(null);
-                              if (v !== NEW_TASK) setNewTaskName("");
                               setIsBillable(suggestBillableFromTask(tasks, v));
                             }}
-                            disabled={!projectId}
+                            disabled={!projectId || projectTasks.length === 0}
                           >
                             <SelectTrigger>
                               <SelectValue
                                 placeholder={
-                                  projectId ? "Select or create a task" : "Select a project first"
+                                  !projectId
+                                    ? "Select a project first"
+                                    : projectTasks.length === 0
+                                      ? "No tasks for this project"
+                                      : "Select a task"
                                 }
                               />
                             </SelectTrigger>
                             <SelectContent>
-                              {projectTasks.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                  {t.taskName}
-                                </SelectItem>
+                              {projectTasksByCategory.map(([categoryName, list]) => (
+                                <div key={categoryName}>
+                                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                    {categoryName}
+                                  </div>
+                                  {list.map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>
+                                      {t.taskName}
+                                    </SelectItem>
+                                  ))}
+                                </div>
                               ))}
-                              <SelectItem value={NEW_TASK}>+ Create new task…</SelectItem>
                             </SelectContent>
                           </Select>
+                          {projectId && projectTasks.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              No tasks yet on this project. Ask your admin to add tasks before you
+                              can log time.
+                            </p>
+                          )}
                         </div>
-
-                        {taskChoice === NEW_TASK && (
-                          <div className="space-y-2">
-                            <Label htmlFor="new-task-name">New task name</Label>
-                            <Input
-                              id="new-task-name"
-                              value={newTaskName}
-                              onChange={(e) => setNewTaskName(e.target.value)}
-                              placeholder="e.g. Frontend development"
-                              required
-                            />
-                          </div>
-                        )}
 
                         <Button
                           className="w-full"

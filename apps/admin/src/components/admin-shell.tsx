@@ -16,6 +16,7 @@ import {
   FolderKanban,
   LayoutDashboard,
   LogOut,
+  Tags,
   Timer,
   User,
   Users
@@ -30,6 +31,7 @@ import { useWorkspacesStore } from "@/stores/workspaces.store";
 const nav = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/workspace", label: "Workspace", Icon: Building2 },
+  { href: "/categories", label: "Categories", Icon: Tags },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/team", label: "Team Live", Icon: Users },
   { href: "/billing", label: "Billing", Icon: CreditCard },

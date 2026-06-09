@@ -32,6 +32,7 @@ import {
   TableRow
 } from "@chronomint/ui";
 import { useEffect, useState } from "react";
+import { ProjectTasksPanel } from "./project-tasks-panel";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -451,6 +452,8 @@ export function AdminProjectsPage() {
                     </ul>
                   )}
                 </div>
+
+                <ProjectTasksPanel workspaceId={ws} projectId={selected.id} />
 
                 <div className="space-y-4 border-t pt-6">
                   <div className="space-y-1">
