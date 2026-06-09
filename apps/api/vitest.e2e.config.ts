@@ -1,7 +1,16 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import swc from "unplugin-swc";
 import { defineConfig } from "vitest/config";
 
+const apiRoot = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@chronomint/contracts": path.resolve(apiRoot, "../../packages/contracts/src/index.ts")
+    }
+  },
   plugins: [
     swc.vite({
       module: { type: "es6" },
