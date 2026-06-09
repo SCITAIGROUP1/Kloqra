@@ -45,7 +45,6 @@ import {
 } from "./calendar-utils";
 import {
   TimeEntryDialog,
-  NEW_TASK,
   canSaveTaskDraft,
   draftFromLog,
   draftFromSlot,
@@ -313,24 +312,10 @@ export function TimesheetPage() {
     setError(null);
   }
 
-  async function resolveTaskId(d: TimeEntryDraft): Promise<string | null> {
-    if (d.taskSelection === NEW_TASK) {
-      const created = await api<TaskDto>(ROUTES.TASKS.CREATE, {
-        method: "POST",
-        workspaceId: ws,
-        body: JSON.stringify({ projectId: d.projectId, taskName: d.newTaskName.trim() })
-      });
-      const all = await api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws });
-      setTasks(all);
-      return created.id;
-    }
-    return d.taskSelection || null;
-  }
-
   async function saveEntry() {
     if (editingLog && isEntryLocked(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
-      setError("Select a project and task (or create a new one).");
+      setError("Select a project and a task.");
       return;
     }
     const { startTime, endTime } = draftToIsoRange(draft, timezone);
@@ -341,7 +326,7 @@ export function TimesheetPage() {
     setSaving(true);
     setError(null);
     try {
-      const taskId = await resolveTaskId(draft);
+      const taskId = draft.taskSelection;
       if (!taskId) {
         setError("Select a task to log time.");
         return;

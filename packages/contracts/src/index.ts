@@ -3,6 +3,7 @@ export * from "./dto/auth.dto";
 export * from "./dto/workspace.dto";
 export * from "./dto/project.dto";
 export * from "./dto/team.dto";
+export * from "./dto/category.dto";
 export * from "./dto/task.dto";
 export * from "./dto/timelog.dto";
 export * from "./dto/timesheet.dto";

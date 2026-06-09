@@ -44,7 +44,6 @@ import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
-const NEW_TASK = "__new__";
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
@@ -120,7 +119,6 @@ export function DashboardPage() {
   // Local active timer controls
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
-  const [newTaskName, setNewTaskName] = useState("");
   const [stopDescription, setStopDescription] = useState("");
   const [isBillable, setIsBillable] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -140,14 +138,23 @@ export function DashboardPage() {
   const activeProject = activeTask ? projects.find((p) => p.id === activeTask.projectId) : null;
   const tracking = isActiveTimer(active);
 
-  const canStart =
-    Boolean(projectId) &&
-    (taskChoice === NEW_TASK ? newTaskName.trim().length > 0 : Boolean(taskChoice));
+  const canStart = Boolean(projectId) && Boolean(taskChoice);
 
   const projectTasks = useMemo(
     () => tasks.filter((t) => t.projectId === projectId),
     [tasks, projectId]
   );
+
+  const projectTasksByCategory = useMemo(() => {
+    const groups = new Map<string, TaskDto[]>();
+    for (const t of projectTasks) {
+      const key = t.categoryName ?? "Other";
+      const list = groups.get(key) ?? [];
+      list.push(t);
+      groups.set(key, list);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [projectTasks]);
 
   // Prevent SSR layout hydration mismatch
   useEffect(() => {
@@ -263,31 +270,17 @@ export function DashboardPage() {
     }
   }, [activeTask]);
 
-  async function resolveTaskId(): Promise<string> {
-    if (taskChoice !== NEW_TASK) return taskChoice;
-    const created = await api<TaskDto>(ROUTES.TASKS.CREATE, {
-      method: "POST",
-      workspaceId: ws,
-      body: JSON.stringify({ projectId, taskName: newTaskName.trim() })
-    });
-    const all = await api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws });
-    setTasks(all);
-    return created.id;
-  }
-
   async function startTimer() {
     if (!canStart) return;
     setStarting(true);
     try {
-      const taskId = await resolveTaskId();
       const res = await api<ActiveTimerDto>(ROUTES.TIMER.START, {
         method: "POST",
         workspaceId: ws,
-        body: JSON.stringify({ taskId })
+        body: JSON.stringify({ taskId: taskChoice })
       });
       setActive(res);
       setTaskChoice("");
-      setNewTaskName("");
       toast.success("Timer started!");
       void fetchLogs();
     } catch (e) {
@@ -834,35 +827,32 @@ export function DashboardPage() {
                                           setTaskChoice(v);
                                           setIsBillable(suggestBillableFromTask(tasks, v));
                                         }}
-                                        disabled={!projectId}
+                                        disabled={!projectId || projectTasks.length === 0}
                                       >
                                         <SelectTrigger className="h-8 bg-background text-xs">
-                                          <SelectValue placeholder="Select" />
+                                          <SelectValue
+                                            placeholder={
+                                              projectTasks.length === 0 ? "No tasks" : "Select"
+                                            }
+                                          />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          {projectTasks.map((t) => (
-                                            <SelectItem key={t.id} value={t.id}>
-                                              <span className="text-xs">{t.taskName}</span>
-                                            </SelectItem>
+                                          {projectTasksByCategory.map(([categoryName, list]) => (
+                                            <div key={categoryName}>
+                                              <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                                {categoryName}
+                                              </div>
+                                              {list.map((t) => (
+                                                <SelectItem key={t.id} value={t.id}>
+                                                  <span className="text-xs">{t.taskName}</span>
+                                                </SelectItem>
+                                              ))}
+                                            </div>
                                           ))}
-                                          <SelectItem value={NEW_TASK} className="text-xs">
-                                            + Create task
-                                          </SelectItem>
                                         </SelectContent>
                                       </Select>
                                     </div>
                                   </div>
-
-                                  {taskChoice === NEW_TASK && (
-                                    <div className="space-y-1">
-                                      <Input
-                                        value={newTaskName}
-                                        onChange={(e) => setNewTaskName(e.target.value)}
-                                        placeholder="New task name"
-                                        className="h-8 text-xs"
-                                      />
-                                    </div>
-                                  )}
 
                                   <Button
                                     onClick={startTimer}

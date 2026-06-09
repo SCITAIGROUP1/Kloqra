@@ -19,53 +19,54 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TasksService } from "../../application/tasks.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TasksController {
   constructor(private tasks: TasksService) {}
 
   @Get(ROUTES.TASKS.LIST)
   list(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(listTasksQuerySchema)) query: { projectId?: string }
+    @Query(new ZodValidationPipe(listTasksQuerySchema))
+    query: { projectId?: string; categoryId?: string }
   ) {
-    return this.tasks.list(user.workspaceId, user.userId, user.role, query.projectId);
+    return this.tasks.list(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      query.projectId,
+      query.categoryId
+    );
   }
 
+  @Roles("ADMIN")
   @Post(ROUTES.TASKS.CREATE)
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createTaskSchema)) body: unknown
   ) {
-    return this.tasks.create(
-      user.workspaceId,
-      user.userId,
-      user.role,
-      body as Parameters<TasksService["create"]>[3]
-    );
+    return this.tasks.create(user.workspaceId, body as Parameters<TasksService["create"]>[1]);
   }
 
-  @Patch("/tasks/:id")
+  @Roles("ADMIN")
+  @Patch(ROUTES.TASKS.BY_ID(":id"))
   update(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateTaskSchema)) body: unknown
   ) {
-    return this.tasks.update(
-      user.workspaceId,
-      user.userId,
-      user.role,
-      id,
-      body as Parameters<TasksService["update"]>[4]
-    );
+    return this.tasks.update(user.workspaceId, id, body as Parameters<TasksService["update"]>[2]);
   }
 
-  @Delete("/tasks/:id")
+  @Roles("ADMIN")
+  @Delete(ROUTES.TASKS.BY_ID(":id"))
   remove(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.tasks.remove(user.workspaceId, user.userId, user.role, id);
+    return this.tasks.remove(user.workspaceId, id);
   }
 }

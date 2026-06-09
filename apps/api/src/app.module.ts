@@ -9,6 +9,7 @@ import { PrismaModule } from "./common/prisma/prisma.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { CategoriesModule } from "./modules/categories/categories.module";
 import { ExportModule } from "./modules/export/export.module";
 import { HealthModule } from "./modules/health/health.module";
 import { PresenceModule } from "./modules/presence/presence.module";
@@ -41,6 +42,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     AuthModule,
     WorkspaceModule,
     ProjectsModule,
+    CategoriesModule,
     TasksModule,
     TimelogsModule,
     TimerModule,

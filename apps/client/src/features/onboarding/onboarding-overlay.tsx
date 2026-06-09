@@ -1,7 +1,7 @@
 "use client";
 
 import { PROJECT_COLORS, ROUTES } from "@chronomint/contracts";
-import type { ProjectDto, TaskDto } from "@chronomint/contracts";
+import type { CategoryDto, ProjectDto, TaskDto } from "@chronomint/contracts";
 import { Button, Input, Label, ProjectColorPicker, cn } from "@chronomint/ui";
 import { Sparkles, Clock, ArrowRight, Check, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -81,17 +81,32 @@ export function OnboardingOverlay({ onComplete }: OnboardingOverlayProps) {
         })
       });
 
-      // 2. Automatically create a default "General" task for this project
+      // 2. Ensure there is at least one category for this workspace.
+      let categories = await api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws });
+      if (categories.length === 0) {
+        const general = await api<CategoryDto>(ROUTES.CATEGORIES.CREATE, {
+          method: "POST",
+          workspaceId: ws,
+          body: JSON.stringify({
+            name: "General",
+            description: "Default category for getting started"
+          })
+        });
+        categories = [general];
+      }
+
+      // 3. Automatically create a default "General Tasks" task for this project
       await api<TaskDto>(ROUTES.TASKS.CREATE, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
           projectId: newProj.id,
+          categoryId: categories[0]!.id,
           taskName: "General Tasks"
         })
       });
 
-      // 3. Refresh project/task stores
+      // 4. Refresh project/task stores
       const [allProjects, allTasks] = await Promise.all([
         api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }),
         api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws })

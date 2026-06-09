@@ -1,5 +1,6 @@
 import {
   PrismaClient,
+  type Category,
   type Project,
   type Task,
   type Team,
@@ -8,6 +9,57 @@ import {
 } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import { ALL_PROJECTS, ALL_USERS, SPARSE_LOG_EMAILS, type SeedProjectSpec } from "./seed-data";
+
+const CATEGORY_SEEDS: { name: string; description: string }[] = [
+  { name: "Software Development", description: "Engineering, coding, and code review work" },
+  { name: "UI/UX Design", description: "Design, branding, and design-system work" },
+  { name: "Meetings", description: "Planning, kickoffs, syncs, and stakeholder calls" },
+  { name: "QA & Testing", description: "Test design, regression, and quality assurance" },
+  { name: "DevOps", description: "Infrastructure, CI/CD, and platform engineering" },
+  { name: "Documentation", description: "User guides, API references, and runbooks" },
+  { name: "Uncategorized", description: "Default bucket for unclassified tasks" }
+];
+
+function categoryNameForTask(taskName: string): string {
+  const n = taskName.toLowerCase();
+  if (/design|brand|figma|token|storybook|component library|asset|creative|template/.test(n)) {
+    return "UI/UX Design";
+  }
+  if (
+    /sprint planning|planning|kickoff|workshop|sync|stakeholder|readout|training|standup|grooming/.test(
+      n
+    )
+  ) {
+    return "Meetings";
+  }
+  if (/qa|testing|regression|audit|pen test|crash analytics|uat/.test(n)) {
+    return "QA & Testing";
+  }
+  if (
+    /ci\/cd|k8s|infra|infrastructure|cost optimization|dr drill|pipeline|cutover|deployment|hypercare/.test(
+      n
+    )
+  ) {
+    return "DevOps";
+  }
+  if (/docs|documentation|reference|release notes|knowledge base|runbook|tutorial/.test(n)) {
+    return "Documentation";
+  }
+  return "Software Development";
+}
+
+async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<string, Category>> {
+  const out = new Map<string, Category>();
+  for (const spec of CATEGORY_SEEDS) {
+    const category = await prisma.category.upsert({
+      where: { workspaceId_name: { workspaceId, name: spec.name } },
+      update: { description: spec.description },
+      create: { workspaceId, name: spec.name, description: spec.description }
+    });
+    out.set(spec.name, category);
+  }
+  return out;
+}
 
 const prisma = new PrismaClient();
 
@@ -121,10 +173,13 @@ async function main() {
     }
   }
 
+  const demoCategories = await ensureWorkspaceCategories(workspace.id);
+  await ensureWorkspaceCategories(workspaceAcme.id);
+
   const projectCtx: { project: Project; tasks: Task[]; team: Team; spec: SeedProject }[] = [];
 
   for (const spec of DEMO_PROJECTS) {
-    const ctx = await ensureProjectWithTeam(workspace, spec, users);
+    const ctx = await ensureProjectWithTeam(workspace, spec, users, demoCategories);
     projectCtx.push({ ...ctx, spec });
   }
 
@@ -346,7 +401,8 @@ async function seedHourlyRates(workspaceId: string, users: Map<string, User>) {
 async function ensureProjectWithTeam(
   workspace: Workspace,
   spec: SeedProject,
-  users: Map<string, User>
+  users: Map<string, User>,
+  categories: Map<string, Category>
 ) {
   const existing = await prisma.project.findFirst({
     where: { workspaceId: workspace.id, name: spec.name }
@@ -387,8 +443,12 @@ async function ensureProjectWithTeam(
     });
   }
 
+  const fallbackCategory = categories.get("Uncategorized")!;
+
   const tasks: Task[] = [];
   for (const taskSpec of spec.tasks) {
+    const categoryName = categoryNameForTask(taskSpec.name);
+    const category = categories.get(categoryName) ?? fallbackCategory;
     let task = await prisma.task.findFirst({
       where: { projectId: project.id, taskName: taskSpec.name }
     });
@@ -396,14 +456,21 @@ async function ensureProjectWithTeam(
       task = await prisma.task.create({
         data: {
           projectId: project.id,
+          categoryId: category.id,
           taskName: taskSpec.name,
           billableDefault: taskSpec.billableDefault
         }
       });
-    } else if (task.billableDefault !== taskSpec.billableDefault) {
+    } else if (
+      task.billableDefault !== taskSpec.billableDefault ||
+      task.categoryId !== category.id
+    ) {
       task = await prisma.task.update({
         where: { id: task.id },
-        data: { billableDefault: taskSpec.billableDefault }
+        data: {
+          billableDefault: taskSpec.billableDefault,
+          categoryId: category.id
+        }
       });
     }
     tasks.push(task);
@@ -649,6 +716,8 @@ async function seedAdminCurrentWeek(
 async function seedAcmeAgencyRich(workspace: Workspace, users: Map<string, User>): Promise<number> {
   const member = users.get("member@chronomint.dev")!;
   const contractor = users.get("contractor@chronomint.dev")!;
+  const categories = await ensureWorkspaceCategories(workspace.id);
+  const fallbackCategory = categories.get("Uncategorized")!;
 
   const projects = [
     {
@@ -720,12 +789,24 @@ async function seedAcmeAgencyRich(workspace: Workspace, users: Map<string, User>
 
     const tasks: Task[] = [];
     for (const taskName of pSpec.tasks) {
+      const categoryName = categoryNameForTask(taskName);
+      const category = categories.get(categoryName) ?? fallbackCategory;
       let task = await prisma.task.findFirst({
         where: { projectId: project.id, taskName }
       });
       if (!task) {
         task = await prisma.task.create({
-          data: { projectId: project.id, taskName, billableDefault: true }
+          data: {
+            projectId: project.id,
+            categoryId: category.id,
+            taskName,
+            billableDefault: true
+          }
+        });
+      } else if (task.categoryId !== category.id) {
+        task = await prisma.task.update({
+          where: { id: task.id },
+          data: { categoryId: category.id }
         });
       }
       tasks.push(task);

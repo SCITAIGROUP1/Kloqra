@@ -36,12 +36,30 @@ model Workspace {
   updatedAt       DateTime          @updatedAt @map("updated_at")
   members         WorkspaceMember[]
   projects        Project[]
+  categories      Category[]
   hourlyRates     HourlyRate[]
   exportPresets   ExportPreset[]
   exportSchedules ExportSchedule[]
   reportShares    ReportShare[]
 
   @@map("workspaces")
+}
+
+/// Workspace-scoped category that groups tasks (e.g. "Software Development",
+/// "UI/UX Design", "Meetings"). Managed by Admin only.
+model Category {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("categories")
 }
 
 model WorkspaceMember {
@@ -125,14 +143,17 @@ model ProjectInvite {
 model Task {
   id              String    @id @default(uuid())
   projectId       String    @map("project_id")
+  categoryId      String    @map("category_id")
   taskName        String    @map("task_name")
   billableDefault Boolean   @default(true) @map("billable_default")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category        Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   timeLogs        TimeLog[]
 
   @@index([projectId])
+  @@index([categoryId])
   @@map("tasks")
 }
 
