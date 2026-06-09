@@ -60,6 +60,7 @@ describe("Projects E2E", () => {
 
     const memberIds = new Set(memberRes.body.map((p: { id: string }) => p.id));
     expect(adminRes.body.length).toBeGreaterThanOrEqual(memberRes.body.length);
+    expect(memberRes.body.length).toBeGreaterThan(0);
     expect(memberRes.body.every((p: { id: string }) => memberIds.has(p.id))).toBe(true);
   });
 });

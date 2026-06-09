@@ -104,6 +104,13 @@ describe("AuthService unit tests", () => {
       expect(session.workspaceId).toBe("ws-1");
       expect(session.workspaceRole).toBe("ADMIN");
       expect(session.user.email).toBe("admin@chronomint.dev");
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            memberships: expect.objectContaining({ orderBy: { createdAt: "asc" } })
+          })
+        })
+      );
     });
   });
 });

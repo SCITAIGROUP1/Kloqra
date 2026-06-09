@@ -598,6 +598,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 720,
         budgetBurnPct: 0.61,
         memberEmails: wsMembers(
+          "member@chronomint.dev",
           "alex@chronomint.dev",
           "jordan@chronomint.dev",
           "casey@chronomint.dev"

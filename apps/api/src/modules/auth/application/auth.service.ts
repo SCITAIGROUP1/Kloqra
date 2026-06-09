@@ -89,7 +89,13 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthSessionDto> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { memberships: { include: { workspace: true }, take: 1 } }
+      include: {
+        memberships: {
+          include: { workspace: true },
+          orderBy: { createdAt: "asc" },
+          take: 1
+        }
+      }
     });
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new DomainException(
@@ -304,7 +310,8 @@ export class AuthService {
         })
       : await this.prisma.workspaceMember.findFirst({
           where: { userId },
-          include: { user: true, workspace: true }
+          include: { user: true, workspace: true },
+          orderBy: { createdAt: "asc" }
         });
     if (!membership) return null;
 
