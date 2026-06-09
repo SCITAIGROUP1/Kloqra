@@ -80,6 +80,11 @@ export function TodayLogsWidget({
                 </span>
                 <span className="text-muted-foreground/40 shrink-0">&bull;</span>
                 <span className="text-muted-foreground truncate">{task?.taskName ?? "Other"}</span>
+                {task?.categoryName ? (
+                  <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                    {task.categoryName}
+                  </span>
+                ) : null}
               </div>
               {log.description && (
                 <p className="text-[11px] text-muted-foreground truncate font-normal pl-4">

@@ -1,4 +1,4 @@
-/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each */
+/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each, category-aware logs */
 
 /** Canonical workspace categories (matches admin onboarding + migration backfill naming). */
 export const SEED_CATEGORIES = [
@@ -16,6 +16,9 @@ export const SEED_CATEGORIES = [
 
 export type SeedCategoryName = (typeof SEED_CATEGORIES)[number]["name"];
 
+/** Relative logging weight per category for a user persona (1 = baseline). */
+export type CategoryBias = Partial<Record<SeedCategoryName, number>>;
+
 export type SeedUserSpec = {
   email: string;
   name: string;
@@ -26,12 +29,16 @@ export type SeedUserSpec = {
   /** 0–1 daily logging intensity */
   intensity: number;
   preferences?: { dailyTargetHours?: number; timezone?: string };
+  /** Skews which categories this person logs time against */
+  categoryBias?: CategoryBias;
 };
 
 export type SeedTaskSpec = {
   name: string;
   category: SeedCategoryName;
   billableDefault: boolean;
+  /** Relative weight when picking tasks for logs (default 1) */
+  weight?: number;
 };
 
 export type SeedProjectSpec = {
@@ -65,7 +72,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     defaultHourlyRate: 150,
     historyDays: 90,
     intensity: 0.95,
-    preferences: { dailyTargetHours: 8, timezone: "America/New_York" }
+    preferences: { dailyTargetHours: 8, timezone: "America/New_York" },
+    categoryBias: { Meetings: 1.5, Documentation: 1.4, "Software Development": 0.75 }
   },
   {
     email: "ops@chronomint.dev",
@@ -74,7 +82,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     defaultHourlyRate: 140,
     historyDays: 90,
     intensity: 0.9,
-    preferences: { dailyTargetHours: 7.5, timezone: "America/Chicago" }
+    preferences: { dailyTargetHours: 7.5, timezone: "America/Chicago" },
+    categoryBias: { DevOps: 1.8, Meetings: 1.3, "Software Development": 0.9 }
   },
   {
     email: "member@chronomint.dev",
@@ -82,7 +91,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 100,
     historyDays: 90,
-    intensity: 0.92
+    intensity: 0.92,
+    categoryBias: { "Software Development": 1.5, "QA & Testing": 1.25, Meetings: 0.85 }
   },
   {
     email: "alex@chronomint.dev",
@@ -90,7 +100,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 95,
     historyDays: 85,
-    intensity: 0.88
+    intensity: 0.88,
+    categoryBias: { "Software Development": 1.7, "QA & Testing": 0.9 }
   },
   {
     email: "jordan@chronomint.dev",
@@ -98,7 +109,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 110,
     historyDays: 80,
-    intensity: 0.9
+    intensity: 0.9,
+    categoryBias: { "Software Development": 2.0, DevOps: 0.8 }
   },
   {
     email: "taylor@chronomint.dev",
@@ -106,7 +118,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 88,
     historyDays: 75,
-    intensity: 0.85
+    intensity: 0.85,
+    categoryBias: { "UI/UX Design": 2.2, Meetings: 1.1 }
   },
   {
     email: "riley@chronomint.dev",
@@ -114,7 +127,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 105,
     historyDays: 70,
-    intensity: 0.87
+    intensity: 0.87,
+    categoryBias: { "QA & Testing": 2.1, "Software Development": 0.75 }
   },
   {
     email: "casey@chronomint.dev",
@@ -122,7 +136,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 92,
     historyDays: 65,
-    intensity: 0.84
+    intensity: 0.84,
+    categoryBias: { Documentation: 1.6, "Software Development": 1.1, Meetings: 1.2 }
   },
   {
     email: "drew@chronomint.dev",
@@ -130,7 +145,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 102,
     historyDays: 60,
-    intensity: 0.82
+    intensity: 0.82,
+    categoryBias: { DevOps: 2.0, "Software Development": 1.0 }
   },
   {
     email: "sage@chronomint.dev",
@@ -138,7 +154,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 94,
     historyDays: 55,
-    intensity: 0.8
+    intensity: 0.8,
+    categoryBias: { Documentation: 1.8, Meetings: 1.15 }
   },
   {
     email: "blake@chronomint.dev",
@@ -146,7 +163,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 108,
     historyDays: 45,
-    intensity: 0.78
+    intensity: 0.78,
+    categoryBias: { "UI/UX Design": 1.5, Meetings: 1.25, Documentation: 1.1 }
   },
   {
     email: "rowan@chronomint.dev",
@@ -154,7 +172,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     role: "MEMBER",
     defaultHourlyRate: 107,
     historyDays: 35,
-    intensity: 0.75
+    intensity: 0.75,
+    categoryBias: { "QA & Testing": 1.6, DevOps: 1.2 }
   },
   {
     email: "quinn@chronomint.dev",
@@ -163,7 +182,8 @@ export const SEED_USERS: SeedUserSpec[] = [
     defaultHourlyRate: 120,
     historyDays: 30,
     intensity: 0.35,
-    preferences: { dailyTargetHours: 6 }
+    preferences: { dailyTargetHours: 6 },
+    categoryBias: { Meetings: 2.0, Documentation: 1.4 }
   }
 ];
 
@@ -207,11 +227,37 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "jordan@chronomint.dev"
         ),
         tasks: [
-          { name: "UX research", category: "UI/UX Design", billableDefault: true },
-          { name: "Component build", category: "Software Development", billableDefault: true },
-          { name: "API integration", category: "Software Development", billableDefault: true },
-          { name: "QA pass", category: "QA & Testing", billableDefault: true },
-          { name: "Stakeholder review", category: "Meetings", billableDefault: true }
+          { name: "UX research", category: "UI/UX Design", billableDefault: true, weight: 1.4 },
+          {
+            name: "Wireframes & flows",
+            category: "UI/UX Design",
+            billableDefault: true,
+            weight: 1.6
+          },
+          {
+            name: "Component build",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 2.2
+          },
+          {
+            name: "API integration",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 2.0
+          },
+          {
+            name: "Code review",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.2
+          },
+          { name: "E2E test suite", category: "QA & Testing", billableDefault: true, weight: 1.5 },
+          { name: "QA pass", category: "QA & Testing", billableDefault: true, weight: 1.3 },
+          { name: "CI pipeline", category: "DevOps", billableDefault: true, weight: 0.9 },
+          { name: "Sprint planning", category: "Meetings", billableDefault: true, weight: 1.1 },
+          { name: "Stakeholder review", category: "Meetings", billableDefault: true, weight: 1.0 },
+          { name: "Release notes", category: "Documentation", billableDefault: true, weight: 0.8 }
         ]
       },
       {
@@ -226,10 +272,38 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "casey@chronomint.dev"
         ),
         tasks: [
-          { name: "Creative direction", category: "UI/UX Design", billableDefault: true },
-          { name: "Asset production", category: "UI/UX Design", billableDefault: true },
-          { name: "Media buying analysis", category: "Meetings", billableDefault: true },
-          { name: "Performance report", category: "Documentation", billableDefault: true }
+          {
+            name: "Creative direction",
+            category: "UI/UX Design",
+            billableDefault: true,
+            weight: 2.0
+          },
+          {
+            name: "Asset production",
+            category: "UI/UX Design",
+            billableDefault: true,
+            weight: 1.8
+          },
+          {
+            name: "Brand guidelines",
+            category: "Documentation",
+            billableDefault: true,
+            weight: 1.2
+          },
+          {
+            name: "Media buying analysis",
+            category: "Meetings",
+            billableDefault: true,
+            weight: 1.4
+          },
+          { name: "Client presentation", category: "Meetings", billableDefault: true, weight: 1.3 },
+          {
+            name: "Performance report",
+            category: "Documentation",
+            billableDefault: true,
+            weight: 1.0
+          },
+          { name: "Ad QA review", category: "QA & Testing", billableDefault: true, weight: 0.7 }
         ]
       },
       {
@@ -244,9 +318,22 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "blake@chronomint.dev"
         ),
         tasks: [
-          { name: "Ticket triage", category: "Software Development", billableDefault: true },
-          { name: "Hotfix deployment", category: "DevOps", billableDefault: true },
-          { name: "SLA reporting", category: "Documentation", billableDefault: true }
+          {
+            name: "Ticket triage",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.8
+          },
+          { name: "Hotfix deployment", category: "DevOps", billableDefault: true, weight: 2.0 },
+          { name: "Incident postmortem", category: "Meetings", billableDefault: true, weight: 1.1 },
+          { name: "SLA reporting", category: "Documentation", billableDefault: true, weight: 1.4 },
+          {
+            name: "Regression sweep",
+            category: "QA & Testing",
+            billableDefault: true,
+            weight: 1.2
+          },
+          { name: "Runbook update", category: "Documentation", billableDefault: true, weight: 1.0 }
         ],
         timesheetApproval: true
       },
@@ -262,9 +349,26 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "quinn@chronomint.dev"
         ),
         tasks: [
-          { name: "Evidence collection", category: "QA & Testing", billableDefault: true },
-          { name: "Reconciliation", category: "Software Development", billableDefault: true },
-          { name: "Executive summary", category: "Documentation", billableDefault: true }
+          {
+            name: "Evidence collection",
+            category: "QA & Testing",
+            billableDefault: true,
+            weight: 1.6
+          },
+          { name: "Control walkthrough", category: "Meetings", billableDefault: true, weight: 1.5 },
+          {
+            name: "Reconciliation",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.0
+          },
+          {
+            name: "Executive summary",
+            category: "Documentation",
+            billableDefault: true,
+            weight: 1.3
+          },
+          { name: "Audit prep call", category: "Meetings", billableDefault: true, weight: 1.2 }
         ]
       }
     ]
@@ -302,10 +406,44 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "riley@chronomint.dev"
         ),
         tasks: [
-          { name: "iOS features", category: "Software Development", billableDefault: false },
-          { name: "Android parity", category: "Software Development", billableDefault: false },
-          { name: "Push notifications", category: "Software Development", billableDefault: false },
-          { name: "Release candidate", category: "QA & Testing", billableDefault: false }
+          {
+            name: "iOS features",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 2.2
+          },
+          {
+            name: "Android parity",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 2.0
+          },
+          {
+            name: "Push notifications",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.5
+          },
+          {
+            name: "Mobile design QA",
+            category: "UI/UX Design",
+            billableDefault: false,
+            weight: 1.2
+          },
+          {
+            name: "Release candidate",
+            category: "QA & Testing",
+            billableDefault: false,
+            weight: 1.8
+          },
+          {
+            name: "Device farm runs",
+            category: "QA & Testing",
+            billableDefault: false,
+            weight: 1.4
+          },
+          { name: "App store deploy", category: "DevOps", billableDefault: false, weight: 0.9 },
+          { name: "Sprint demo", category: "Meetings", billableDefault: false, weight: 1.0 }
         ]
       },
       {
@@ -320,10 +458,38 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "drew@chronomint.dev"
         ),
         tasks: [
-          { name: "Endpoint design", category: "Software Development", billableDefault: false },
-          { name: "Auth hardening", category: "Software Development", billableDefault: false },
-          { name: "Rate limiting", category: "Software Development", billableDefault: false },
-          { name: "OpenAPI docs", category: "Documentation", billableDefault: false }
+          {
+            name: "Endpoint design",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.8
+          },
+          {
+            name: "Auth hardening",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.6
+          },
+          {
+            name: "Rate limiting",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.4
+          },
+          {
+            name: "API contract review",
+            category: "Meetings",
+            billableDefault: false,
+            weight: 1.0
+          },
+          { name: "OpenAPI docs", category: "Documentation", billableDefault: false, weight: 1.5 },
+          {
+            name: "Load test harness",
+            category: "QA & Testing",
+            billableDefault: false,
+            weight: 1.2
+          },
+          { name: "K8s rollout", category: "DevOps", billableDefault: false, weight: 1.3 }
         ]
       },
       {
@@ -338,9 +504,37 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "blake@chronomint.dev"
         ),
         tasks: [
-          { name: "Admin dashboard", category: "Software Development", billableDefault: false },
-          { name: "Data export jobs", category: "Software Development", billableDefault: false },
-          { name: "On-call runbooks", category: "Documentation", billableDefault: false }
+          {
+            name: "Admin dashboard",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.7
+          },
+          {
+            name: "Data export jobs",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.5
+          },
+          {
+            name: "Widget wireframes",
+            category: "UI/UX Design",
+            billableDefault: false,
+            weight: 1.3
+          },
+          {
+            name: "On-call runbooks",
+            category: "Documentation",
+            billableDefault: false,
+            weight: 1.6
+          },
+          { name: "Team sync", category: "Meetings", billableDefault: false, weight: 1.1 },
+          {
+            name: "Export smoke tests",
+            category: "QA & Testing",
+            billableDefault: false,
+            weight: 0.9
+          }
         ]
       },
       {
@@ -355,9 +549,22 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "riley@chronomint.dev"
         ),
         tasks: [
-          { name: "Pen test remediation", category: "QA & Testing", billableDefault: false },
-          { name: "Secrets rotation", category: "DevOps", billableDefault: false },
-          { name: "SOC2 evidence", category: "Documentation", billableDefault: false }
+          {
+            name: "Pen test remediation",
+            category: "QA & Testing",
+            billableDefault: false,
+            weight: 1.8
+          },
+          { name: "Vuln triage call", category: "Meetings", billableDefault: false, weight: 1.2 },
+          { name: "Secrets rotation", category: "DevOps", billableDefault: false, weight: 2.0 },
+          { name: "WAF tuning", category: "DevOps", billableDefault: false, weight: 1.4 },
+          { name: "SOC2 evidence", category: "Documentation", billableDefault: false, weight: 1.5 },
+          {
+            name: "Patch validation",
+            category: "Software Development",
+            billableDefault: false,
+            weight: 1.0
+          }
         ],
         timesheetApproval: true
       }
@@ -396,11 +603,35 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "casey@chronomint.dev"
         ),
         tasks: [
-          { name: "Discovery workshops", category: "Meetings", billableDefault: true },
-          { name: "Data mapping", category: "Software Development", billableDefault: true },
-          { name: "Cutover planning", category: "DevOps", billableDefault: true },
-          { name: "Hypercare support", category: "Software Development", billableDefault: true },
-          { name: "Training sessions", category: "Meetings", billableDefault: true }
+          { name: "Discovery workshops", category: "Meetings", billableDefault: true, weight: 2.0 },
+          { name: "Steering committee", category: "Meetings", billableDefault: true, weight: 1.5 },
+          {
+            name: "Data mapping",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.8
+          },
+          {
+            name: "ETL scripts",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.6
+          },
+          { name: "Cutover planning", category: "DevOps", billableDefault: true, weight: 1.4 },
+          {
+            name: "Hypercare support",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.2
+          },
+          { name: "Training sessions", category: "Meetings", billableDefault: true, weight: 1.3 },
+          {
+            name: "Migration runbook",
+            category: "Documentation",
+            billableDefault: true,
+            weight: 1.1
+          },
+          { name: "UAT sign-off", category: "QA & Testing", billableDefault: true, weight: 1.0 }
         ]
       },
       {
@@ -415,10 +646,28 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "sage@chronomint.dev"
         ),
         tasks: [
-          { name: "Source ingestion", category: "Software Development", billableDefault: true },
-          { name: "Dimensional model", category: "Software Development", billableDefault: true },
-          { name: "BI dashboards", category: "UI/UX Design", billableDefault: true },
-          { name: "Data quality rules", category: "QA & Testing", billableDefault: true }
+          {
+            name: "Source ingestion",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 2.0
+          },
+          {
+            name: "Dimensional model",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 1.7
+          },
+          { name: "BI dashboards", category: "UI/UX Design", billableDefault: true, weight: 1.5 },
+          {
+            name: "Data quality rules",
+            category: "QA & Testing",
+            billableDefault: true,
+            weight: 1.6
+          },
+          { name: "Pipeline monitoring", category: "DevOps", billableDefault: true, weight: 1.2 },
+          { name: "Stakeholder demo", category: "Meetings", billableDefault: true, weight: 1.1 },
+          { name: "Data dictionary", category: "Documentation", billableDefault: true, weight: 1.0 }
         ]
       },
       {
@@ -433,9 +682,22 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           "rowan@chronomint.dev"
         ),
         tasks: [
-          { name: "Stakeholder interviews", category: "Meetings", billableDefault: true },
-          { name: "Comms plan", category: "Documentation", billableDefault: true },
-          { name: "Training rollout", category: "Meetings", billableDefault: false }
+          {
+            name: "Stakeholder interviews",
+            category: "Meetings",
+            billableDefault: true,
+            weight: 2.2
+          },
+          {
+            name: "Workshop facilitation",
+            category: "Meetings",
+            billableDefault: true,
+            weight: 1.8
+          },
+          { name: "Comms plan", category: "Documentation", billableDefault: true, weight: 1.5 },
+          { name: "Change assets", category: "UI/UX Design", billableDefault: true, weight: 1.2 },
+          { name: "Training rollout", category: "Meetings", billableDefault: false, weight: 1.4 },
+          { name: "Feedback survey", category: "QA & Testing", billableDefault: true, weight: 0.8 }
         ]
       },
       {
@@ -446,15 +708,98 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetBurnPct: 0.88,
         memberEmails: wsMembers("quinn@chronomint.dev", "casey@chronomint.dev"),
         tasks: [
-          { name: "Policy gap analysis", category: "QA & Testing", billableDefault: true },
-          { name: "Control testing", category: "QA & Testing", billableDefault: true },
-          { name: "Audit response", category: "Documentation", billableDefault: true }
+          {
+            name: "Policy gap analysis",
+            category: "QA & Testing",
+            billableDefault: true,
+            weight: 1.7
+          },
+          { name: "Control testing", category: "QA & Testing", billableDefault: true, weight: 1.8 },
+          { name: "Regulator briefing", category: "Meetings", billableDefault: true, weight: 1.5 },
+          { name: "Audit response", category: "Documentation", billableDefault: true, weight: 1.4 },
+          {
+            name: "Evidence packaging",
+            category: "Documentation",
+            billableDefault: true,
+            weight: 1.2
+          },
+          {
+            name: "Access review scripts",
+            category: "Software Development",
+            billableDefault: true,
+            weight: 0.9
+          }
         ],
         timesheetApproval: true
       }
     ]
   }
 ];
+
+/** Day-of-week multipliers (0=Sun … 6=Sat) applied during log generation. */
+export const DAY_CATEGORY_BOOST: Partial<
+  Record<SeedCategoryName, Partial<Record<number, number>>>
+> = {
+  Meetings: { 1: 2.0, 5: 1.5, 3: 1.1 },
+  "QA & Testing": { 4: 1.6, 2: 1.1 },
+  DevOps: { 3: 1.35, 2: 1.15 },
+  Documentation: { 5: 1.4, 4: 1.1 },
+  "Software Development": { 2: 1.2, 3: 1.15, 4: 1.1 }
+};
+
+export const CATEGORY_LOG_DESCRIPTIONS: Record<SeedCategoryName, string[]> = {
+  "Software Development": [
+    "Feature implementation",
+    "Code review",
+    "Bug fix",
+    "Refactor",
+    "Pairing session",
+    "API wiring",
+    "Performance tuning"
+  ],
+  "UI/UX Design": [
+    "Wireframe iteration",
+    "Design handoff",
+    "Prototype review",
+    "Asset export",
+    "Design QA",
+    "Component spec"
+  ],
+  Meetings: [
+    "Sprint planning",
+    "Client call",
+    "Stakeholder sync",
+    "Standup",
+    "Workshop facilitation",
+    "Steering committee",
+    "Status update"
+  ],
+  "QA & Testing": [
+    "Regression testing",
+    "QA pass",
+    "Test case authoring",
+    "Release validation",
+    "Integration testing",
+    "UAT support"
+  ],
+  DevOps: [
+    "Deployment prep",
+    "CI pipeline fix",
+    "Incident response",
+    "Infra change",
+    "Secrets rotation",
+    "Monitoring setup"
+  ],
+  Documentation: [
+    "Runbook update",
+    "API reference",
+    "Release notes",
+    "User guide",
+    "Executive summary",
+    "Comms draft"
+  ],
+  Uncategorized: ["General work", "Ad-hoc task", "Miscellaneous"]
+};
 
 export const LOG_DESCRIPTIONS = [
   "Sprint planning",

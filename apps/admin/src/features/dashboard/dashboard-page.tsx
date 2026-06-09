@@ -1,7 +1,13 @@
 "use client";
 
 import { DEFAULT_EXPORT_COLUMNS, ROUTES } from "@chronomint/contracts";
-import type { DashboardReportDto, ProjectDto, TeamDto } from "@chronomint/contracts";
+import type {
+  CategoryDto,
+  DashboardReportDto,
+  ProjectDto,
+  TaskDto,
+  TeamDto
+} from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -12,10 +18,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  ProjectColorDot,
   Input
 } from "@chronomint/ui";
-import { toDateInputValue } from "@chronomint/web-shared";
+import { toDateInputValue, ReportScopeFilters } from "@chronomint/web-shared";
 import { LayoutGrid, Move, RotateCcw, Check } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -30,6 +35,7 @@ import { WidgetShell } from "./widget-shell";
 import { ActiveTimersWidget } from "./widgets/active-timers-widget";
 import { BillabilityGaugeWidget } from "./widgets/billability-gauge-widget";
 import { BillableSplitDonutWidget } from "./widgets/billable-split-donut-widget";
+import { CategoryProjectHeatmapWidget } from "./widgets/category-project-heatmap-widget";
 import { HeatmapWidget } from "./widgets/heatmap-widget";
 import { HourlyRatesWidget } from "./widgets/hourly-rates-widget";
 import { LivePresenceWidget } from "./widgets/live-presence-widget";
@@ -73,7 +79,11 @@ const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
   { value: 90, label: "90 days" }
 ];
 
-function rangeQuery(start: string, end: string, filters?: { projectId?: string; userId?: string }) {
+function rangeQuery(
+  start: string,
+  end: string,
+  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
+) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
   const params = new URLSearchParams({
@@ -82,6 +92,8 @@ function rangeQuery(start: string, end: string, filters?: { projectId?: string; 
   });
   if (filters?.projectId) params.set("projectId", filters.projectId);
   if (filters?.userId) params.set("userId", filters.userId);
+  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }
 
@@ -104,7 +116,11 @@ export function DashboardPage() {
   const [endDate, setEndDate] = useState<string>(() => toDateInputValue(new Date()));
   const [projectId, setProjectId] = useState("");
   const [userId, setUserId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [taskId, setTaskId] = useState("");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamDto["members"]>([]);
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -162,12 +178,15 @@ export function DashboardPage() {
 
   const selectedProject = projects.find((p) => p.id === projectId);
   const selectedMember = teamMembers.find((m) => m.userId === userId);
+  const selectedTask = tasks.find((t) => t.id === taskId);
 
-  const scopeLabel = selectedMember
-    ? `${selectedMember.userName} · ${selectedProject!.name}`
-    : selectedProject
-      ? selectedProject.name
-      : "All workspace";
+  const scopeLabel = selectedTask
+    ? `${selectedTask.taskName} · ${selectedProject!.name}`
+    : selectedMember
+      ? `${selectedMember.userName} · ${selectedProject!.name}`
+      : selectedProject
+        ? selectedProject.name
+        : "All workspace";
 
   // Prevent SSR layout hydration mismatch
   useEffect(() => {
@@ -177,18 +196,27 @@ export function DashboardPage() {
   useEffect(() => {
     if (!ws) return;
     api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
   }, [ws]);
 
   useEffect(() => {
     if (!ws || !projectId) {
       setTeamMembers([]);
+      setTasks([]);
       setUserId("");
+      setTaskId("");
       return;
     }
     api<TeamDto>(ROUTES.PROJECTS.TEAM(projectId), { workspaceId: ws })
       .then((team) => setTeamMembers(team.members))
       .catch(() => setTeamMembers([]));
-  }, [ws, projectId]);
+
+    const params = new URLSearchParams({ projectId });
+    if (categoryId) params.set("categoryId", categoryId);
+    api<TaskDto[]>(`${ROUTES.TASKS.LIST}?${params}`, { workspaceId: ws })
+      .then(setTasks)
+      .catch(() => setTasks([]));
+  }, [ws, projectId, categoryId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -196,6 +224,13 @@ export function DashboardPage() {
       setUserId("");
     }
   }, [teamMembers, userId]);
+
+  useEffect(() => {
+    if (!taskId) return;
+    if (!tasks.some((t) => t.id === taskId)) {
+      setTaskId("");
+    }
+  }, [tasks, taskId]);
 
   // Initialize Layout from Store
   useEffect(() => {
@@ -224,6 +259,19 @@ export function DashboardPage() {
   function onProjectChange(nextId: string) {
     setProjectId(nextId);
     setUserId("");
+    setTaskId("");
+  }
+
+  function onCategoryChange(nextId: string) {
+    setCategoryId(nextId);
+    setTaskId("");
+  }
+
+  function clearScopeFilters() {
+    setProjectId("");
+    setUserId("");
+    setCategoryId("");
+    setTaskId("");
   }
 
   const load = useCallback(() => {
@@ -233,14 +281,16 @@ export function DashboardPage() {
     api<DashboardReportDto>(
       `${ROUTES.REPORTING.DASHBOARD}?${rangeQuery(startDate, endDate, {
         projectId: projectId || undefined,
-        userId: userId || undefined
+        userId: userId || undefined,
+        categoryId: categoryId || undefined,
+        taskId: taskId || undefined
       })}`,
       { workspaceId: ws }
     )
       .then(setReport)
       .catch(() => setError("Could not load analytics. Is the API running on port 3001?"))
       .finally(() => setLoading(false));
-  }, [ws, startDate, endDate, projectId, userId]);
+  }, [ws, startDate, endDate, projectId, userId, categoryId, taskId]);
 
   useEffect(() => {
     load();
@@ -263,7 +313,9 @@ export function DashboardPage() {
           by_project: [...DEFAULT_EXPORT_COLUMNS.by_project]
         },
         ...(projectId ? { projectId } : {}),
-        ...(userId ? { userId } : {})
+        ...(userId ? { userId } : {}),
+        ...(categoryId ? { categoryId } : {}),
+        ...(taskId ? { taskId } : {})
       });
       await saveDownloadResponse(res, "chronomint-dashboard-export.xlsx");
     } catch {
@@ -487,6 +539,31 @@ export function DashboardPage() {
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
+            categoryId={categoryId || undefined}
+            taskId={taskId || undefined}
+          />
+        );
+      case "category_distribution":
+        return (
+          <ReportDonutChart report={report!} groupBy="category" projectColors={colorByProjectId} />
+        );
+      case "category_breakdown":
+        return (
+          <ReportBreakdownTable
+            report={report!}
+            groupBy="category"
+            projectColors={colorByProjectId}
+          />
+        );
+      case "category_project_heatmap":
+        return (
+          <CategoryProjectHeatmapWidget
+            from={startDate}
+            to={endDate}
+            projectId={projectId || undefined}
+            userId={userId || undefined}
+            categoryId={categoryId || undefined}
+            taskId={taskId || undefined}
           />
         );
       case "task_breakdown":
@@ -496,6 +573,8 @@ export function DashboardPage() {
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
+            categoryId={categoryId || undefined}
+            taskId={taskId || undefined}
           />
         );
       case "rate_efficiency":
@@ -567,6 +646,9 @@ export function DashboardPage() {
               <SelectItem value="project" className="text-[10px] py-1">
                 Project
               </SelectItem>
+              <SelectItem value="category" className="text-[10px] py-1">
+                Category
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -592,6 +674,9 @@ export function DashboardPage() {
               </SelectItem>
               <SelectItem value="project" className="text-[10px] py-1">
                 Project
+              </SelectItem>
+              <SelectItem value="category" className="text-[10px] py-1">
+                Category
               </SelectItem>
             </SelectContent>
           </Select>
@@ -703,81 +788,50 @@ export function DashboardPage() {
       )}
 
       <Card>
-        <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                <SegmentedControl
-                  value={range as RangeDays}
-                  onChange={(v) => handleRangePresetChange(v)}
-                  options={RANGE_OPTIONS}
+        <CardContent className="flex flex-col gap-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">Period</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <SegmentedControl
+                value={range as RangeDays}
+                onChange={(v) => handleRangePresetChange(v)}
+                options={RANGE_OPTIONS}
+              />
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
+                  className="h-9 bg-background w-[145px] text-xs px-2.5"
                 />
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                    className="h-9 bg-background w-[145px] text-xs px-2.5"
-                  />
-                  <span className="text-muted-foreground text-xs font-medium">—</span>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                    className="h-9 bg-background w-[145px] text-xs px-2.5"
-                  />
-                </div>
+                <span className="text-muted-foreground text-xs font-medium">—</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
+                  className="h-9 bg-background w-[145px] text-xs px-2.5"
+                />
               </div>
             </div>
-            <div className="space-y-2 min-w-[200px]">
-              <Label className="text-xs font-medium text-muted-foreground">Project</Label>
-              <Select
-                value={projectId || "__all__"}
-                onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
-              >
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue placeholder="All projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All projects</SelectItem>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot color={p.color} />
-                        {p.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 min-w-[200px]">
-              <Label className="text-xs font-medium text-muted-foreground">Team member</Label>
-              {projectId ? (
-                <Select
-                  value={userId || "__all__"}
-                  onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
-                >
-                  <SelectTrigger className="h-9 bg-background">
-                    <SelectValue placeholder="Everyone on project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Everyone on project</SelectItem>
-                    {teamMembers.map((m) => (
-                      <SelectItem key={m.userId} value={m.userId}>
-                        {m.userName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <p className="flex h-9 items-center rounded-md border border-dashed border-border px-3 text-xs text-muted-foreground">
-                  Pick a project to filter by member
-                </p>
-              )}
-            </div>
           </div>
+
+          <ReportScopeFilters
+            compact
+            taskRequiresProject
+            memberRequiresProject
+            memberAllLabel="Everyone on project"
+            memberPlaceholder="Everyone on project"
+            values={{ projectId, categoryId, taskId, userId }}
+            projects={projects}
+            categories={categories}
+            tasks={tasks}
+            members={teamMembers.map((m) => ({ userId: m.userId, userName: m.userName }))}
+            onProjectChange={onProjectChange}
+            onCategoryChange={onCategoryChange}
+            onTaskChange={setTaskId}
+            onUserChange={setUserId}
+            onClearAll={clearScopeFilters}
+          />
         </CardContent>
       </Card>
 

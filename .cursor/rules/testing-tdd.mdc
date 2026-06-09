@@ -1,13 +1,42 @@
 ---
-description: Test placement and TDD expectations
-globs: "**/*.{spec,test}.ts"
+description: Test placement, TDD expectations, and pre-commit enforcement
+globs:
+  - "apps/api/src/modules/**"
+  - "packages/contracts/src/**"
+  - "packages/ui/src/**"
+  - "apps/admin/src/features/**"
+  - "apps/client/src/features/**"
 alwaysApply: false
 ---
 
 # Testing conventions
 
+## Placement
+
 - Unit spec beside implementation: `foo.service.ts` + `foo.service.spec.ts`
 - Contract tests: `packages/contracts/src/*.spec.ts`
-- E2E: `apps/client/e2e/`, `apps/api` vitest e2e config
-- QA writes failing tests before BE/FE implementation (see AGENTS.md)
-- Prefer testing behavior over implementation details
+- API integration: `apps/api/test/**/*.e2e.ts`
+- Browser e2e: `apps/admin/e2e/`, `apps/client/e2e/`
+- UI RTL: `packages/ui/src/**/*.spec.tsx`
+
+## New feature rule
+
+Do not commit production code without matching tests in the same change:
+
+- API `application/` or `interface/` → module `*.spec.ts` or `apps/api/test/*.e2e.ts`
+- `packages/contracts` source → `*.spec.ts`
+- `packages/ui` component → sibling `*.spec.tsx`
+- Admin/client `features/` → Playwright e2e or unit spec
+
+Pre-commit runs `scripts/check-staged-has-tests.mjs`. Bypass only for emergencies: `SKIP_TEST_CHECK=1`.
+
+## TDD flow
+
+1. QA / agent writes failing tests first (see `docs/agent/AGENTS.md`)
+2. Implement until green
+3. Prefer behavior assertions over implementation details
+
+## Visual feedback
+
+- `pnpm test:dashboard` — coverage + Playwright HTML hub (like Swagger for tests)
+- `pnpm test:ui` — Vitest interactive runner (API)

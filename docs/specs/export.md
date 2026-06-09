@@ -47,6 +47,7 @@ Filenames: [export-filename.ts](../../packages/contracts/src/export-filename.ts)
 | `by_member`          | One row per user with logs                    |
 | `by_client`          | One row per client (from project metadata)    |
 | `by_task`            | One row per task                              |
+| `by_category`        | One row per category × project                |
 | `users_without_time` | Members with zero logs in range               |
 | `budget_vs_actual`   | Project budget vs logged hours                |
 | `utilization`        | Member × week vs expected hours (default 40h) |
@@ -55,7 +56,7 @@ Column keys and labels: SSOT in `export.dto.ts`.
 
 ## Member export reports
 
-Subset: `time_entries`, `daily_summary`, `by_project` — columns exclude workspace-wide fields.
+Subset: `time_entries`, `daily_summary`, `by_project`, `by_category` — columns exclude workspace-wide fields.
 
 ## Filters
 
@@ -64,12 +65,13 @@ Subset: `time_entries`, `daily_summary`, `by_project` — columns exclude worksp
 | Period    | `from` + `to` (ISO datetimes)             |
 | Project   | Optional `projectId`                      |
 | Member    | Optional `userId` (admin only)            |
+| Category  | Optional `categoryId`                     |
 | Team only | Optional `teamOnly` when project selected |
 | Billable  | `all` \| `billable` \| `non_billable`     |
 
 ## Group by (admin)
 
-`groupBy` on `exportBodySchema` / `exportPreviewBodySchema` is an **ordered array** of dimensions (`project`, `member`, `task`, `client`, `day`, `week`), max 5. Empty array = manual report selection. Legacy presets with a single string (e.g. `"project"`) are normalized on parse.
+`groupBy` on `exportBodySchema` / `exportPreviewBodySchema` is an **ordered array** of dimensions (`project`, `member`, `task`, `category`, `client`, `day`, `week`), max 5. Empty array = manual report selection. Legacy presets with a single string (e.g. `"project"`) are normalized on parse.
 
 - **Admin UI:** Multi-select dimensions; **sort order** list with ↑↓ controls. Combining e.g. Client → Project sorts detail rows that way and includes both `by_client` and `by_project` sheets (plus `time_entries`, and `daily_summary` / `weekly_summary` when day/week are selected).
 - **API:** `sortRowsForGroupBy` applies each dimension’s sort keys in order, then date/time tie-breakers on detail sheets.
@@ -77,7 +79,7 @@ Subset: `time_entries`, `daily_summary`, `by_project` — columns exclude worksp
 
 ## Sheet layout (admin)
 
-`sheetLayout`: `standard` \| `tabs_per_member` \| `tabs_per_project` \| `tabs_per_client` (default `standard`).
+`sheetLayout`: `standard` \| `tabs_per_member` \| `tabs_per_project` \| `tabs_per_client` \| `tabs_per_category` (default `standard`).
 
 - **standard:** One tab per report type (current default).
 - **tabs_per_member / project / client:** Splits `time_entries`, `daily_summary`, `weekly_summary`, and `invoice` into one tab per distinct member, project, or client. Summary report types (`by_member`, etc.) stay as single tabs.

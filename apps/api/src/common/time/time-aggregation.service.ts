@@ -10,8 +10,21 @@ export type ExportFilters = {
   projectId?: string;
   userId?: string;
   userIds?: string[];
+  categoryId?: string;
+  taskId?: string;
   billable?: ExportBillableFilter;
 };
+
+const UNCATEGORIZED_LABEL = "Uncategorized";
+
+function categoryMeta(log: {
+  task: { categoryId: string; category: { id: string; name: string } | null };
+}) {
+  return {
+    categoryId: log.task.category?.id ?? log.task.categoryId,
+    categoryName: log.task.category?.name ?? UNCATEGORIZED_LABEL
+  };
+}
 
 type HoursAgg = {
   totalHours: number;
@@ -39,7 +52,9 @@ export class TimeAggregationService {
 
     return this.prisma.timeLog.findMany({
       where: {
+        ...(filters.taskId ? { taskId: filters.taskId } : {}),
         task: {
+          ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
           project: {
             workspaceId,
             ...(filters.projectId ? { id: filters.projectId } : {})
@@ -72,6 +87,8 @@ export class TimeAggregationService {
             id: true,
             taskName: true,
             projectId: true,
+            categoryId: true,
+            category: { select: { id: true, name: true } },
             project: {
               select: {
                 id: true,
@@ -126,6 +143,7 @@ export class TimeAggregationService {
       HoursAgg & { projectName: string; clientName: string | null; members: Set<string> }
     >();
     const byUser = new Map<string, HoursAgg & { userName: string; userEmail: string }>();
+    const byCategory = new Map<string, HoursAgg & { categoryName: string; tasks: Set<string> }>();
     const daily = new Map<
       string,
       Map<
@@ -182,6 +200,18 @@ export class TimeAggregationService {
       this.addHours(uEntry, hours, billable, amount);
       byUser.set(log.userId, uEntry);
 
+      const { categoryId, categoryName } = categoryMeta(log);
+      const cEntry = byCategory.get(categoryId) ?? {
+        categoryName,
+        tasks: new Set<string>(),
+        totalHours: 0,
+        billableHours: 0,
+        billableAmount: 0
+      };
+      cEntry.tasks.add(log.taskId);
+      this.addHours(cEntry, hours, billable, amount);
+      byCategory.set(categoryId, cEntry);
+
       const dayKey = log.startTime.toISOString().slice(0, 10);
       const dayMap = daily.get(dayKey) ?? new Map();
       const rowKey = `${log.userId}:${pid}`;
@@ -199,7 +229,7 @@ export class TimeAggregationService {
       daily.set(dayKey, dayMap);
     }
 
-    return { workspaceAgg, byProject, byUser, daily };
+    return { workspaceAgg, byProject, byUser, byCategory, daily };
   }
 
   private addHours(agg: HoursAgg, hours: number, billable: boolean, amount: number) {

@@ -18,5 +18,10 @@ export {
 } from "./stores/session.store";
 export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
+export {
+  ReportScopeFilters,
+  type ReportScopeFilterValues,
+  type ScopeMember
+} from "./components/report-scope-filters";
 export { AccountSettingsPage } from "./features/account/account-settings-page";
 export { useUserProfile } from "./features/account/use-user-profile";

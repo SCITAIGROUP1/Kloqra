@@ -66,6 +66,9 @@ export class ExportRowsBuilder {
       case "by_task":
         rows = this.buildByTask(ctx);
         break;
+      case "by_category":
+        rows = this.buildByCategory(ctx);
+        break;
       case "users_without_time":
         rows = await this.buildUsersWithoutTime(ctx);
         break;
@@ -93,9 +96,11 @@ export class ExportRowsBuilder {
       const rate = roundExport(
         ctx.resolveRate(l.userId, l.task.projectId, l.user.defaultHourlyRate?.toNumber() ?? null)
       );
+      const categoryName = l.task.category?.name ?? "Uncategorized";
       return {
         client: l.task.project.clientName ?? "",
         project: l.task.project.name,
+        category: categoryName,
         task: l.task.taskName,
         date: l.startTime.toISOString().slice(0, 10),
         hours,
@@ -108,6 +113,7 @@ export class ExportRowsBuilder {
     rows.push({
       client: "",
       project: "",
+      category: "",
       task: "",
       date: "",
       hours: 0,
@@ -128,10 +134,12 @@ export class ExportRowsBuilder {
       resolveRate(l.userId, l.task.projectId, l.user.defaultHourlyRate?.toNumber() ?? null)
     );
     const amount = l.isBillable ? roundExport(hours * rate) : 0;
+    const categoryName = l.task.category?.name ?? "Uncategorized";
     return {
       workspace: workspaceName,
       client: l.task.project.clientName ?? "",
       project: l.task.project.name,
+      category: categoryName,
       task: l.task.taskName,
       member: l.user.name,
       email: l.user.email,
@@ -300,6 +308,7 @@ export class ExportRowsBuilder {
       string,
       {
         taskName: string;
+        categoryName: string;
         projectName: string;
         clientName: string | null;
         totalHours: number;
@@ -310,8 +319,10 @@ export class ExportRowsBuilder {
 
     for (const log of ctx.logs) {
       const key = log.taskId;
+      const categoryName = log.task.category?.name ?? "Uncategorized";
       const entry = byTask.get(key) ?? {
         taskName: log.task.taskName,
+        categoryName,
         projectName: log.task.project.name,
         clientName: log.task.project.clientName,
         totalHours: 0,
@@ -336,12 +347,70 @@ export class ExportRowsBuilder {
     return [...byTask.values()]
       .map((v) => ({
         task: v.taskName,
+        category: v.categoryName,
         project: v.projectName,
         client: v.clientName ?? "",
         total_hours: roundExport(v.totalHours),
         billable_hours: roundExport(v.billableHours),
         non_billable_hours: roundExport(v.totalHours - v.billableHours),
         billable_amount: roundExport(v.billableAmount)
+      }))
+      .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
+  }
+
+  private buildByCategory(ctx: ExportRowContext): Record<string, string | number>[] {
+    const byCategoryProject = new Map<
+      string,
+      {
+        categoryName: string;
+        projectName: string;
+        clientName: string | null;
+        totalHours: number;
+        billableHours: number;
+        billableAmount: number;
+        tasks: Set<string>;
+      }
+    >();
+
+    for (const log of ctx.logs) {
+      const categoryId = log.task.category?.id ?? log.task.categoryId;
+      const categoryName = log.task.category?.name ?? "Uncategorized";
+      const key = `${categoryId}:${log.task.projectId}`;
+      const entry = byCategoryProject.get(key) ?? {
+        categoryName,
+        projectName: log.task.project.name,
+        clientName: log.task.project.clientName,
+        totalHours: 0,
+        billableHours: 0,
+        billableAmount: 0,
+        tasks: new Set<string>()
+      };
+      const hours = log.durationSec / 3600;
+      entry.tasks.add(log.taskId);
+      entry.totalHours += hours;
+      if (log.isBillable) {
+        entry.billableHours += hours;
+        entry.billableAmount +=
+          hours *
+          ctx.resolveRate(
+            log.userId,
+            log.task.projectId,
+            log.user.defaultHourlyRate?.toNumber() ?? null
+          );
+      }
+      byCategoryProject.set(key, entry);
+    }
+
+    return [...byCategoryProject.values()]
+      .map((v) => ({
+        category: v.categoryName,
+        project: v.projectName,
+        client: v.clientName ?? "",
+        total_hours: roundExport(v.totalHours),
+        billable_hours: roundExport(v.billableHours),
+        non_billable_hours: roundExport(v.totalHours - v.billableHours),
+        billable_amount: roundExport(v.billableAmount),
+        active_tasks: v.tasks.size
       }))
       .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
   }

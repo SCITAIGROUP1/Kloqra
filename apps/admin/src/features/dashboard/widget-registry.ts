@@ -15,7 +15,8 @@ import {
   UserCheck,
   Coins,
   Sparkles,
-  ListTodo
+  ListTodo,
+  Tags
 } from "lucide-react";
 
 export type WidgetGroup = "kpi" | "trends" | "composition" | "projects" | "team" | "workflow";
@@ -213,6 +214,36 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     defaultVisible: false,
     iconName: "PieChart"
   },
+  {
+    id: "category_distribution",
+    label: "Category Distribution",
+    description: "Hours distribution across work categories",
+    group: "composition",
+    defaultSize: { w: 5, h: 5 },
+    minSize: { w: 4, h: 4 },
+    defaultVisible: true,
+    iconName: "Tags"
+  },
+  {
+    id: "category_breakdown",
+    label: "Category Breakdown",
+    description: "Time breakdown table by work category",
+    group: "composition",
+    defaultSize: { w: 6, h: 5 },
+    minSize: { w: 5, h: 4 },
+    defaultVisible: false,
+    iconName: "Tags"
+  },
+  {
+    id: "category_project_heatmap",
+    label: "Category × Project Heatmap",
+    description: "Matrix of hours at category and project intersections",
+    group: "composition",
+    defaultSize: { w: 8, h: 4 },
+    minSize: { w: 6, h: 4 },
+    defaultVisible: false,
+    iconName: "Tags"
+  },
 
   // Group D - Project Analytics
   {
@@ -357,6 +388,9 @@ export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
   { i: "billable_split_donut", x: 0, y: 16, w: 3, h: 4, visible: false },
   { i: "billability_gauge", x: 3, y: 16, w: 3, h: 4, visible: false },
   { i: "task_breakdown", x: 6, y: 16, w: 4, h: 5, visible: false },
+  { i: "category_distribution", x: 0, y: 21, w: 5, h: 5, visible: true },
+  { i: "category_breakdown", x: 5, y: 21, w: 7, h: 5, visible: false },
+  { i: "category_project_heatmap", x: 0, y: 26, w: 8, h: 4, visible: false },
 
   // Remaining hidden widgets layout positions
   { i: "revenue_by_project", x: 0, y: 21, w: 6, h: 5, visible: false },
@@ -386,5 +420,6 @@ export const WIDGET_ICONS: Record<string, any> = {
   UserCheck,
   Coins,
   Sparkles,
-  ListTodo
+  ListTodo,
+  Tags
 };

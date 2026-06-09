@@ -91,10 +91,11 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 ## Reporting
 
-| Method | Path                   | Roles         | DTO           | Controller                                                                                             |
-| ------ | ---------------------- | ------------- | ------------- | ------------------------------------------------------------------------------------------------------ |
-| GET    | `/reporting/dashboard` | ADMIN         | reporting.dto | [reporting.controller.ts](../../apps/api/src/modules/reporting/interface/http/reporting.controller.ts) |
-| GET    | `/reporting/me`        | ADMIN, MEMBER | reporting.dto | reporting.controller                                                                                   |
+| Method | Path                            | Roles         | DTO           | Controller                                                                                             |
+| ------ | ------------------------------- | ------------- | ------------- | ------------------------------------------------------------------------------------------------------ |
+| GET    | `/reporting/dashboard`          | ADMIN         | reporting.dto | [reporting.controller.ts](../../apps/api/src/modules/reporting/interface/http/reporting.controller.ts) |
+| GET    | `/reporting/me`                 | ADMIN, MEMBER | reporting.dto | reporting.controller                                                                                   |
+| GET    | `/reporting/categories-heatmap` | ADMIN         | reporting.dto | reporting.controller                                                                                   |
 
 ## Presence
 

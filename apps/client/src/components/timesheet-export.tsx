@@ -3,7 +3,10 @@
 import {
   ROUTES,
   buildExportFilename,
+  DEFAULT_MEMBER_EXPORT_COLUMNS,
+  type CategoryDto,
   type MemberExportBodyDto,
+  type MemberExportReportType,
   type ProjectDto
 } from "@chronomint/contracts";
 import {
@@ -47,15 +50,19 @@ export function TimesheetExport({
   });
   const [to, setTo] = useState(() => defaultTo ?? toDateInputValue(new Date()));
   const [projectId, setProjectId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [reportType, setReportType] = useState<MemberExportReportType>("time_entries");
   const [format, setFormat] = useState<MemberExportBodyDto["format"]>("csv");
   const [billable, setBillable] = useState<MemberExportBodyDto["billable"]>("all");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!ws) return;
     void api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    void api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
   }, [ws]);
 
   async function runExport() {
@@ -66,9 +73,13 @@ export function TimesheetExport({
         from: new Date(from).toISOString(),
         to: new Date(to + "T23:59:59").toISOString(),
         billable,
-        reportTypes: ["time_entries"],
+        reportTypes: [reportType],
         format,
-        ...(projectId ? { projectId } : {})
+        ...(projectId ? { projectId } : {}),
+        ...(categoryId ? { categoryId } : {}),
+        ...(reportType === "time_entries"
+          ? { columns: { time_entries: [...DEFAULT_MEMBER_EXPORT_COLUMNS.time_entries] } }
+          : {})
       };
       const res = await apiDownloadPost(ROUTES.EXPORT.ME, ws, body);
       const fallback = buildExportFilename({
@@ -76,7 +87,7 @@ export function TimesheetExport({
         from: body.from,
         to: body.to,
         scope: "member",
-        reportSlug: "time-entries",
+        reportSlug: reportType === "by_category" ? "by-category" : "time-entries",
         ext: format === "xlsx" ? "xlsx" : format
       });
       await saveDownloadResponse(res, fallback);
@@ -116,6 +127,23 @@ export function TimesheetExport({
             className="w-[140px]"
           />
         </div>
+        <div className="space-y-1 min-w-[130px]">
+          <Label>Report</Label>
+          <Select
+            value={reportType}
+            onValueChange={(v) => setReportType(v as MemberExportReportType)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="time_entries">Time entries</SelectItem>
+              <SelectItem value="by_category">By category</SelectItem>
+              <SelectItem value="daily_summary">Daily summary</SelectItem>
+              <SelectItem value="by_project">By project</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="space-y-1 min-w-[140px]">
           <Label>Project</Label>
           <Select
@@ -133,6 +161,25 @@ export function TimesheetExport({
                     <ProjectColorDot color={p.color} />
                     {p.name}
                   </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1 min-w-[140px]">
+          <Label>Category</Label>
+          <Select
+            value={categoryId || "__all__"}
+            onValueChange={(v) => setCategoryId(v === "__all__" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All categories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
                 </SelectItem>
               ))}
             </SelectContent>

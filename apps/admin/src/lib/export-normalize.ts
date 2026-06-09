@@ -26,6 +26,8 @@ export function normalizeExportBody(body: Partial<ExportBodyDto>): ExportBodyDto
     columns: body.columns,
     projectId: body.projectId,
     userId: body.userId,
+    categoryId: body.categoryId,
+    taskId: body.taskId,
     teamOnly: body.teamOnly
   };
 }

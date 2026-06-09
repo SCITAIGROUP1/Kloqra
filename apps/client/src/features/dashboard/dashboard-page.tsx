@@ -6,7 +6,9 @@ import type {
   ProjectDto,
   TaskDto,
   TimesheetPeriodDto,
-  ActiveTimerDto
+  ActiveTimerDto,
+  CategoryDto,
+  WorkspaceMemberDto
 } from "@chronomint/contracts";
 import {
   Button,
@@ -22,7 +24,7 @@ import {
   Input,
   SegmentedControl
 } from "@chronomint/ui";
-import { toDateInputValue } from "@chronomint/web-shared";
+import { ReportScopeFilters, toDateInputValue } from "@chronomint/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move, RotateCcw, Check } from "lucide-react";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -31,6 +33,7 @@ import { useWidgetLayout } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
 import { WidgetShell } from "./widget-shell";
+import { CategorySplitWidget } from "./widgets/category-split-widget";
 import { ProjectSplitWidget } from "./widgets/project-split-widget";
 import { TimesheetSubmissionsWidget } from "./widgets/timesheet-submissions-widget";
 import { TodayLogsWidget } from "./widgets/today-logs-widget";
@@ -66,6 +69,8 @@ function formatElapsed(sec: number) {
 
 export function DashboardPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const session = useSessionStore((s) => s.session);
+  const isAdmin = session?.workspaceRole === "ADMIN";
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
 
@@ -78,6 +83,12 @@ export function DashboardPage() {
   });
   const [endDate, setEndDate] = useState<string>(() => toDateInputValue(new Date()));
   const [filterProjectId, setFilterProjectId] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
+  const [filterTaskId, setFilterTaskId] = useState("");
+  const [filterUserId, setFilterUserId] = useState("");
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [scopeTasks, setScopeTasks] = useState<TaskDto[]>([]);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
   function handleRangePresetChange(newRange: RangeDays) {
@@ -205,6 +216,8 @@ export function DashboardPage() {
         from: from.toISOString(),
         to: to.toISOString()
       });
+      if (isAdmin && filterUserId) params.set("userId", filterUserId);
+      if (filterTaskId) params.set("taskId", filterTaskId);
       const res = await api<{ items: TimeLogDto[] }>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
         workspaceId: ws
       });
@@ -212,7 +225,7 @@ export function DashboardPage() {
     } catch {
       // ignore
     }
-  }, [ws, startDate, endDate]);
+  }, [ws, startDate, endDate, isAdmin, filterUserId, filterTaskId]);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -245,6 +258,12 @@ export function DashboardPage() {
       await Promise.all([
         api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
         api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
+        api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories),
+        isAdmin
+          ? api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(
+              setWorkspaceMembers
+            )
+          : Promise.resolve(),
         fetchLogs(),
         fetchSubmissions(),
         fetchActiveTimer()
@@ -254,19 +273,68 @@ export function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [ws, setProjects, setTasks, fetchLogs, fetchSubmissions, fetchActiveTimer]);
+  }, [ws, isAdmin, setProjects, setTasks, fetchLogs, fetchSubmissions, fetchActiveTimer]);
 
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
 
-  // Trigger fetchLogs when date range changes (after initial mount)
+  useEffect(() => {
+    if (!ws || !filterProjectId) {
+      setScopeTasks([]);
+      return;
+    }
+    const params = new URLSearchParams({ projectId: filterProjectId });
+    if (filterCategoryId) params.set("categoryId", filterCategoryId);
+    api<TaskDto[]>(`${ROUTES.TASKS.LIST}?${params}`, { workspaceId: ws })
+      .then(setScopeTasks)
+      .catch(() => setScopeTasks([]));
+  }, [ws, filterProjectId, filterCategoryId]);
+
+  useEffect(() => {
+    if (!filterUserId) return;
+    if (!workspaceMembers.some((m) => m.userId === filterUserId)) {
+      setFilterUserId("");
+    }
+  }, [workspaceMembers, filterUserId]);
+
+  useEffect(() => {
+    if (!filterTaskId) return;
+    if (!scopeTasks.some((t) => t.id === filterTaskId)) {
+      setFilterTaskId("");
+    }
+  }, [scopeTasks, filterTaskId]);
+
+  function onFilterProjectChange(nextId: string) {
+    setFilterProjectId(nextId);
+    setFilterUserId("");
+    setFilterTaskId("");
+  }
+
+  function onFilterCategoryChange(nextId: string) {
+    setFilterCategoryId(nextId);
+    setFilterTaskId("");
+  }
+
+  function clearScopeFilters() {
+    setFilterProjectId("");
+    setFilterCategoryId("");
+    setFilterTaskId("");
+    setFilterUserId("");
+  }
+
+  const scopeMembers = useMemo(
+    () => workspaceMembers.map((m) => ({ userId: m.userId, userName: m.userName })),
+    [workspaceMembers]
+  );
+
+  // Trigger fetchLogs when date range or scope filters change (after initial mount)
   useEffect(() => {
     if (!loading) {
       setLogsLoading(true);
       fetchLogs().finally(() => setLogsLoading(false));
     }
-  }, [startDate, endDate, fetchLogs, loading]);
+  }, [startDate, endDate, filterUserId, filterTaskId, fetchLogs, loading]);
 
   // Keep timer ticking
   useEffect(() => {
@@ -386,18 +454,25 @@ export function DashboardPage() {
     setTaskChoice(tId);
   };
 
-  // Filter logs by selected project
+  // Filter logs by scope (project/category/task/member)
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
-      if (filterProjectId) {
-        const task = tasks.find((t) => t.id === log.taskId);
-        if (!task || task.projectId !== filterProjectId) {
-          return false;
-        }
+      const task = tasks.find((t) => t.id === log.taskId);
+      if (filterProjectId && (!task || task.projectId !== filterProjectId)) {
+        return false;
+      }
+      if (filterCategoryId && (!task || task.categoryId !== filterCategoryId)) {
+        return false;
+      }
+      if (filterTaskId && log.taskId !== filterTaskId) {
+        return false;
+      }
+      if (isAdmin && filterUserId && log.userId !== filterUserId) {
+        return false;
       }
       return true;
     });
-  }, [logs, filterProjectId, tasks]);
+  }, [logs, filterProjectId, filterCategoryId, filterTaskId, filterUserId, isAdmin, tasks]);
 
   // Filter submissions by range and project
   const filteredSubmissions = useMemo(() => {
@@ -430,8 +505,12 @@ export function DashboardPage() {
     }
 
     if (tracking && activeTask) {
-      const activeProjectMatches = !filterProjectId || activeTask.projectId === filterProjectId;
-      if (activeProjectMatches) {
+      const currentUserId = session?.user.id;
+      const userMatches = !filterUserId || filterUserId === currentUserId;
+      const projectMatches = !filterProjectId || activeTask.projectId === filterProjectId;
+      const categoryMatches = !filterCategoryId || activeTask.categoryId === filterCategoryId;
+      const taskMatches = !filterTaskId || activeTask.id === filterTaskId;
+      if (userMatches && projectMatches && categoryMatches && taskMatches) {
         totalSec += elapsedSec;
         if (isBillable) {
           billableSec += elapsedSec;
@@ -444,7 +523,19 @@ export function DashboardPage() {
       billableHours: Math.round((billableSec / 3600) * 10) / 10,
       assignedProjects: projects.filter((p) => p.isActive).length
     };
-  }, [filteredLogs, projects, tracking, activeTask, filterProjectId, elapsedSec, isBillable]);
+  }, [
+    filteredLogs,
+    projects,
+    tracking,
+    activeTask,
+    filterProjectId,
+    filterCategoryId,
+    filterTaskId,
+    filterUserId,
+    session?.user.id,
+    elapsedSec,
+    isBillable
+  ]);
 
   const todayLoggedSec = useMemo(() => {
     const todayStr = toDateKey(new Date());
@@ -558,56 +649,55 @@ export function DashboardPage() {
 
       {/* Filters Toolbar */}
       <Card>
-        <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                <SegmentedControl
-                  value={range as RangeDays}
-                  onChange={(v) => handleRangePresetChange(v as RangeDays)}
-                  options={RANGE_OPTIONS}
+        <CardContent className="flex flex-col gap-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground">Period</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <SegmentedControl
+                value={range as RangeDays}
+                onChange={(v) => handleRangePresetChange(v as RangeDays)}
+                options={RANGE_OPTIONS}
+              />
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
+                  className="h-9 bg-background w-[145px] text-xs px-2.5"
                 />
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                    className="h-9 bg-background w-[145px] text-xs px-2.5"
-                  />
-                  <span className="text-muted-foreground text-xs font-medium">—</span>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                    className="h-9 bg-background w-[145px] text-xs px-2.5"
-                  />
-                </div>
+                <span className="text-muted-foreground text-xs font-medium">—</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
+                  className="h-9 bg-background w-[145px] text-xs px-2.5"
+                />
               </div>
             </div>
-            <div className="space-y-2 min-w-[200px]">
-              <Label className="text-xs font-medium text-muted-foreground">Project</Label>
-              <Select
-                value={filterProjectId || "__all__"}
-                onValueChange={(v) => setFilterProjectId(v === "__all__" ? "" : v)}
-              >
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue placeholder="All projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All projects</SelectItem>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot color={p.color} />
-                        {p.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
+
+          <ReportScopeFilters
+            compact
+            className="w-full"
+            taskRequiresProject
+            hideMemberFilter={!isAdmin}
+            values={{
+              projectId: filterProjectId,
+              categoryId: filterCategoryId,
+              taskId: filterTaskId,
+              userId: filterUserId
+            }}
+            projects={projects}
+            categories={categories}
+            tasks={scopeTasks}
+            members={scopeMembers}
+            onProjectChange={onFilterProjectChange}
+            onCategoryChange={onFilterCategoryChange}
+            onTaskChange={setFilterTaskId}
+            onUserChange={setFilterUserId}
+            onClearAll={clearScopeFilters}
+            hintText="Optional — narrow dashboard widgets"
+          />
         </CardContent>
       </Card>
 
@@ -710,6 +800,8 @@ export function DashboardPage() {
                               tasks={tasks}
                             />
                           );
+                        case "category_split":
+                          return <CategorySplitWidget />;
                         case "pinned_favorites":
                           return (
                             <QuickActions

@@ -1,5 +1,5 @@
-import { AdminProjectsPage } from "@/features/projects/projects-page";
+import { ProjectsListPage } from "@/features/projects/projects-list-page";
 
 export default function Page() {
-  return <AdminProjectsPage />;
+  return <ProjectsListPage />;
 }

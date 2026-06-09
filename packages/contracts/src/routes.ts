@@ -81,6 +81,7 @@ export const ROUTES = {
     BUDGET: (id: string) => `/reporting/projects/${id}/budget`,
     UTILIZATION: "/reporting/utilization",
     HEATMAP: "/reporting/heatmap",
+    CATEGORIES_HEATMAP: "/reporting/categories-heatmap",
     TASKS: "/reporting/tasks"
   },
   PRESENCE: {

@@ -1,0 +1,18 @@
+{
+  "scope": "application",
+  "note": "Per-module line floors for src/modules/*/application. Target ramp to 70% over 2-3 sprints.",
+  "targets": {
+    "auth": 70,
+    "timer": 70,
+    "timelogs": 70,
+    "export": 70,
+    "reporting": 70
+  },
+  "floors": {
+    "auth": 20,
+    "timer": 68,
+    "timelogs": 28,
+    "export": 5,
+    "reporting": 14
+  }
+}

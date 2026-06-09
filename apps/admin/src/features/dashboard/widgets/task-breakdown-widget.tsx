@@ -19,6 +19,8 @@ interface TaskBreakdownWidgetProps {
   to: string;
   projectId?: string;
   userId?: string;
+  categoryId?: string;
+  taskId?: string;
 }
 
 const CHART_PALETTE = [
@@ -32,7 +34,11 @@ const CHART_PALETTE = [
   "hsl(316 70% 50%)"
 ];
 
-function rangeQuery(start: string, end: string, filters?: { projectId?: string; userId?: string }) {
+function rangeQuery(
+  start: string,
+  end: string,
+  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
+) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
   const params = new URLSearchParams({
@@ -41,10 +47,19 @@ function rangeQuery(start: string, end: string, filters?: { projectId?: string; 
   });
   if (filters?.projectId) params.set("projectId", filters.projectId);
   if (filters?.userId) params.set("userId", filters.userId);
+  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }
 
-export function TaskBreakdownWidget({ from, to, projectId, userId }: TaskBreakdownWidgetProps) {
+export function TaskBreakdownWidget({
+  from,
+  to,
+  projectId,
+  userId,
+  categoryId,
+  taskId
+}: TaskBreakdownWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [data, setData] = useState<TaskBreakdownResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +70,7 @@ export function TaskBreakdownWidget({ from, to, projectId, userId }: TaskBreakdo
     setLoading(true);
     setError(null);
     try {
-      const params = rangeQuery(from, to, { projectId, userId });
+      const params = rangeQuery(from, to, { projectId, userId, categoryId, taskId });
       const res = await api<TaskBreakdownResponseDto>(`${ROUTES.REPORTING.TASKS}?${params}`, {
         workspaceId: ws
       });
@@ -65,7 +80,7 @@ export function TaskBreakdownWidget({ from, to, projectId, userId }: TaskBreakdo
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to, projectId, userId]);
+  }, [ws, from, to, projectId, userId, categoryId, taskId]);
 
   useEffect(() => {
     void fetchTasks();
@@ -96,7 +111,7 @@ export function TaskBreakdownWidget({ from, to, projectId, userId }: TaskBreakdo
   }
 
   const chartData = data.tasks.map((t, idx) => ({
-    name: t.taskName,
+    name: t.categoryName ? `${t.taskName} (${t.categoryName})` : t.taskName,
     value: t.totalHours,
     fill: CHART_PALETTE[idx % CHART_PALETTE.length]
   }));

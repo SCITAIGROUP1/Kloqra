@@ -55,6 +55,19 @@ function buildSortKeys(report: ExportReportType, dimensions: ExportGroupByDimens
           push("project", (r) => String(r.project ?? ""));
         }
         break;
+      case "category":
+        if (
+          report === "time_entries" ||
+          report === "by_task" ||
+          report === "by_category" ||
+          report === "invoice"
+        ) {
+          push("category", (r) => String(r.category ?? ""));
+        }
+        if (report === "by_category") {
+          push("project", (r) => String(r.project ?? ""));
+        }
+        break;
       case "client":
         if (
           report === "time_entries" ||

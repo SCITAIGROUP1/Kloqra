@@ -10,8 +10,16 @@ export class ReportCacheService {
 
   constructor(private redis: RedisService) {}
 
-  dashboardKey(workspaceId: string, from: string, to: string, userId?: string, projectId?: string) {
-    return `report:dashboard:${workspaceId}:${from}:${to}:${userId ?? ""}:${projectId ?? ""}`;
+  dashboardKey(
+    workspaceId: string,
+    from: string,
+    to: string,
+    userId?: string,
+    projectId?: string,
+    categoryId?: string,
+    taskId?: string
+  ) {
+    return `report:dashboard:${workspaceId}:${from}:${to}:${userId ?? ""}:${projectId ?? ""}:${categoryId ?? ""}:${taskId ?? ""}`;
   }
 
   async getDashboard(key: string): Promise<DashboardReportDto | null> {

@@ -30,6 +30,12 @@ Demo passwords (after seed): `password123`
 4. [Billing](admin/billing.md)
 5. [Exports](admin/exports.md)
 
+## QA (testing)
+
+For testers and QA engineers — setup from scratch, manual checklists, automated tests, and sign-off:
+
+- **[QA testing guide](qa/testing-guide.md)** — start here if you are non-technical QA
+
 ## More for developers
 
 See the [documentation hub](../README.md).

@@ -2,19 +2,20 @@
 
 ## User-visible outcome
 
-- **Admins** view workspace dashboard aggregates (hours by project, by user, trends) for a date range.
-- **Members** view personal summary via `/reporting/me` (where exposed in client).
+- **Admins** view workspace dashboard aggregates (hours by project, by user, by category, trends) for a date range.
+- **Members** view personal summary via `/reporting/me` (where exposed in client), including `byCategory` week rollup.
 
 ## API
 
-| Method | Route                  | Roles         | Contract                                                              |
-| ------ | ---------------------- | ------------- | --------------------------------------------------------------------- |
-| GET    | `/reporting/dashboard` | ADMIN         | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) |
-| GET    | `/reporting/me`        | ADMIN, MEMBER | reporting.dto                                                         |
+| Method | Route                           | Roles         | Contract                                                              |
+| ------ | ------------------------------- | ------------- | --------------------------------------------------------------------- |
+| GET    | `/reporting/dashboard`          | ADMIN         | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) |
+| GET    | `/reporting/me`                 | ADMIN, MEMBER | reporting.dto                                                         |
+| GET    | `/reporting/categories-heatmap` | ADMIN         | reporting.dto                                                         |
 
 Controller: [reporting.controller.ts](../../apps/api/src/modules/reporting/interface/http/reporting.controller.ts)
 
-Query parameters: `from`, `to` (ISO datetimes), optional `projectId`, `userId`.
+Query parameters: `from`, `to` (ISO datetimes), optional `projectId`, `userId`, `categoryId`. Member `/reporting/me` accepts optional `categoryId` only.
 
 ## Behavior
 
@@ -25,7 +26,7 @@ Query parameters: `from`, `to` (ISO datetimes), optional `projectId`, `userId`.
 ## Given / When / Then
 
 **When** ADMIN GETs `/reporting/dashboard` with a valid range  
-**Then** response includes workspace-level totals and breakdowns used by the admin dashboard charts.
+**Then** response includes workspace-level totals, `timeByCategory`, and breakdowns used by the admin dashboard charts.
 
 **When** user GETs `/reporting/me`  
 **Then** only that user’s logs in the workspace are included.

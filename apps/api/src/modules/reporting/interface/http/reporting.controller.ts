@@ -1,4 +1,4 @@
-import { reportQuerySchema, ROUTES } from "@chronomint/contracts";
+import { myWeekQuerySchema, reportQuerySchema, ROUTES } from "@chronomint/contracts";
 import { Controller, Get, Query, Param, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,
@@ -58,6 +58,18 @@ export class ReportingController {
   }
 
   @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.CATEGORIES_HEATMAP)
+  categoriesHeatmap(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+  ) {
+    return this.reporting.categoryProjectHeatmap(
+      user.workspaceId,
+      query as Parameters<ReportingService["categoryProjectHeatmap"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
   @Get(ROUTES.REPORTING.TASKS)
   tasks(
     @CurrentUser() user: RequestUser,
@@ -71,7 +83,14 @@ export class ReportingController {
 
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.ME)
-  myWeek(@CurrentUser() user: RequestUser) {
-    return this.reporting.myWeekSummary(user.workspaceId, user.userId);
+  myWeek(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(myWeekQuerySchema)) query: unknown
+  ) {
+    return this.reporting.myWeekSummary(
+      user.workspaceId,
+      user.userId,
+      query as Parameters<ReportingService["myWeekSummary"]>[2]
+    );
   }
 }

@@ -172,14 +172,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   }, [tasks, categoryById]);
 
   return (
-    <div className="space-y-4 border-t pt-6">
-      <div className="space-y-1">
-        <p className="text-sm font-medium">Tasks</p>
-        <p className="text-xs text-muted-foreground">
-          Only admins can manage the task list. Members pick from these tasks when logging time.
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {categories.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No categories yet. Create at least one category before adding tasks.

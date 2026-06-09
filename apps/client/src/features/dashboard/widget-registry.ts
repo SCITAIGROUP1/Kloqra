@@ -7,7 +7,8 @@ import {
   Star,
   History,
   ListTodo,
-  Activity
+  Activity,
+  Tags
 } from "lucide-react";
 
 export type WidgetGroup = "kpi" | "trends" | "composition" | "workflow";
@@ -99,6 +100,16 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     defaultVisible: true,
     iconName: "PieChart"
   },
+  {
+    id: "category_split",
+    label: "Category Split",
+    description: "Donut chart of your week hours by work category",
+    group: "composition",
+    defaultSize: { w: 3, h: 3 },
+    minSize: { w: 3, h: 3 },
+    defaultVisible: false,
+    iconName: "Tags"
+  },
 
   // Workflow & Active Widgets
   {
@@ -173,6 +184,7 @@ export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
   { i: "quick_timer", x: 0, y: 2, w: 6, h: 3, visible: true },
   { i: "daily_progress", x: 6, y: 2, w: 3, h: 3, visible: true },
   { i: "project_split", x: 9, y: 2, w: 3, h: 3, visible: true },
+  { i: "category_split", x: 0, y: 12, w: 3, h: 3, visible: false },
 
   // y=5: Pinned Favorites, Recent Activity and Weekly Progress Chart
   { i: "pinned_favorites", x: 0, y: 5, w: 3, h: 3, visible: true },
@@ -193,5 +205,6 @@ export const WIDGET_ICONS: Record<string, any> = {
   Star,
   History,
   ListTodo,
-  Activity
+  Activity,
+  Tags
 };

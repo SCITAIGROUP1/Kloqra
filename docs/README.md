@@ -4,21 +4,21 @@ Start here for architecture, development, API reference, feature specs, user gui
 
 ## Quick links
 
-| I want to…                   | Go to                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| Run the app locally          | [Root README](../README.md)                                                    |
-| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md)                                   |
-| Contribute code              | [CONTRIBUTING.md](../CONTRIBUTING.md)                                          |
-| Run tests                    | [TESTING.md](development/TESTING.md)                                           |
-| Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                          |
-| Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                 |
-| Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md) |
-| Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)   |
-| Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                       |
-| Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                     |
-| Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                       |
-| Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)         |
-| Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                             |
+| I want to…                   | Go to                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| Run the app locally          | [Root README](../README.md)                                                                        |
+| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md)                                                       |
+| Contribute code              | [CONTRIBUTING.md](../CONTRIBUTING.md)                                                              |
+| Run tests                    | [TESTING.md](development/TESTING.md) · [QA guide (non-technical)](user-guides/qa/testing-guide.md) |
+| Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                                              |
+| Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                                     |
+| Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                     |
+| Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)                       |
+| Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                                           |
+| Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                                         |
+| Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                                           |
+| Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)                             |
+| Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                                                 |
 
 ## By audience
 
@@ -42,6 +42,7 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [user-guides/README.md](user-guides/README.md) — which guide to read
 - Member (client app): [user-guides/member/](user-guides/member/)
 - Admin app: [user-guides/admin/](user-guides/admin/)
+- QA / manual testing: [user-guides/qa/testing-guide.md](user-guides/qa/testing-guide.md)
 
 ### Ops
 

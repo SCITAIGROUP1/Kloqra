@@ -1,7 +1,7 @@
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
-import * as request from "supertest";
+import request from "supertest";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 
