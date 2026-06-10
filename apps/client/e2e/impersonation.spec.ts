@@ -4,7 +4,7 @@ const ADMIN_BASE_URL = process.env.ADMIN_BASE_URL ?? "http://localhost:3002";
 
 test("admin impersonation redirects to client dashboard", async ({ page }) => {
   await page.goto(`${ADMIN_BASE_URL}/login`);
-  await page.fill("input[type='email']", "admin@chronomint.dev");
+  await page.fill("input[type='email']", "admin@kloqra.dev");
   await page.fill("input[type='password']", "password123");
   await page.click("button[type='submit']");
 
@@ -24,7 +24,7 @@ test("admin impersonation redirects to client dashboard", async ({ page }) => {
   await expect(workspaceSwitcher).toBeVisible();
   const currentWorkspace = (await workspaceSwitcher.textContent()) ?? "";
   const targetWorkspace = currentWorkspace.includes("Meridian")
-    ? "Northwind Agency"
+    ? "Acme Corporation"
     : "Meridian Product Co";
 
   await workspaceSwitcher.click();

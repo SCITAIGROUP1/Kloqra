@@ -1,5 +1,5 @@
-import { DEFAULT_PROJECT_COLOR } from "@chronomint/contracts";
-import type { ProjectDto, TaskDto } from "@chronomint/contracts";
+import { DEFAULT_PROJECT_COLOR } from "@kloqra/contracts";
+import type { ProjectDto, TaskDto } from "@kloqra/contracts";
 
 export function contrastTextOn(hex: string): string {
   const normalized = hex.replace("#", "");

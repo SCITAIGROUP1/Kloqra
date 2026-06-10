@@ -1,6 +1,6 @@
 ---
 name: Export feature plan
-overview: Define what ChronoMint exports should contain (scoped to workspace, filterable by project/member/day range and billable status), let admins choose which report views and columns (with custom order) to download, and extend the existing export API/UI from flat CSV/PDF to multi-view exports including Excel.
+overview: Define what Kloqra exports should contain (scoped to workspace, filterable by project/member/day range and billable status), let admins choose which report views and columns (with custom order) to download, and extend the existing export API/UI from flat CSV/PDF to multi-view exports including Excel.
 todos:
   - id: contracts-export-schema
     content: "Extend exportQuerySchema: billable, reportTypes[], format xlsx, per-report column keys[]; export column catalogs in contracts"
@@ -211,7 +211,7 @@ columns: z.record(reportTypeEnum, z.array(columnKeyEnum)).optional(),
 from, to, projectId?, userId?, teamOnly?: boolean
 ```
 
-Response: binary stream with `Content-Disposition` filename `chronomint-{workspaceSlug}-{from}-{to}.{zip|xlsx|pdf}`.
+Response: binary stream with `Content-Disposition` filename `kloqra-{workspaceSlug}-{from}-{to}.{zip|xlsx|pdf}`.
 
 **Refactor for DRY:** Extract shared “fetch logs + resolve rates + aggregate” from [`reporting.service.ts`](apps/api/src/modules/reporting/application/reporting.service.ts) into something like `apps/api/src/modules/reporting/application/time-aggregation.service.ts` (or shared helper used by reporting + export) so billable amounts stay consistent with the dashboard.
 

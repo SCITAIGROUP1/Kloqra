@@ -65,13 +65,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: chronomint
-          POSTGRES_PASSWORD: chronomint
-          POSTGRES_DB: chronomint_test
+          POSTGRES_USER: kloqra
+          POSTGRES_PASSWORD: kloqra
+          POSTGRES_DB: kloqra_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U chronomint"
+          --health-cmd "pg_isready -U kloqra"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -85,7 +85,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://chronomint:chronomint@localhost:5432/chronomint_test
+      DATABASE_URL: postgresql://kloqra:kloqra@localhost:5432/kloqra_test
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
@@ -112,11 +112,11 @@ jobs:
             ${{ runner.os }}-nextjs-
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
-      - run: pnpm --filter @chronomint/api exec prisma migrate deploy
+      - run: pnpm --filter @kloqra/api exec prisma migrate deploy
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm --filter @chronomint/contracts build
+      - run: pnpm --filter @kloqra/contracts build
       - run: pnpm test
       - run: pnpm build
 
@@ -137,13 +137,13 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
-      - run: pnpm install --frozen-lockfile --filter @chronomint/api...
+      - run: pnpm install --frozen-lockfile --filter @kloqra/api...
       - name: prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          pnpm --filter @chronomint/api prisma:generate
-          pnpm --filter @chronomint/api exec prisma migrate deploy
+          pnpm --filter @kloqra/api prisma:generate
+          pnpm --filter @kloqra/api exec prisma migrate deploy
 
   deploy-api:
     name: Deploy API (Railway)

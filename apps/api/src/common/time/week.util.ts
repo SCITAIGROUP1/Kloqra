@@ -1,4 +1,4 @@
-import type { WorkspaceSettings } from "@chronomint/contracts";
+import type { WorkspaceSettings } from "@kloqra/contracts";
 
 export function getWeekStartUtc(
   date: Date,

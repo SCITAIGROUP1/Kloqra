@@ -1,4 +1,4 @@
-import type { ProjectDto, TaskDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
+import type { ProjectDto, TaskDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface ProjectsState {

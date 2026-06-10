@@ -4,6 +4,8 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 **Auth:** Unless noted, routes require `JwtAuthGuard` + `X-Workspace-Id`.
 
+**Pagination:** Several list routes accept `page`, `limit`, and optional `search`. Responses use `{ items, page, limit, total, totalPages }`. See [OVERVIEW.md](./OVERVIEW.md#pagination).
+
 ## Health
 
 | Method | Path      | Roles | DTO | Controller                                                                                    |
@@ -23,20 +25,26 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 ## Users
 
-| Method | Path                    | Roles | DTO                                                                         | Controller                                                                                 |
-| ------ | ----------------------- | ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| GET    | `/users/me`             | Auth  | [user-profile.dto.ts](../../packages/contracts/src/dto/user-profile.dto.ts) | [users.controller.ts](../../apps/api/src/modules/users/interface/http/users.controller.ts) |
-| PATCH  | `/users/me`             | Auth  | user-profile.dto                                                            | users.controller                                                                           |
-| PATCH  | `/users/me/preferences` | Auth  | user-profile.dto                                                            | users.controller                                                                           |
-| POST   | `/users/me/password`    | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| Method | Path                     | Roles | DTO                                                                         | Controller                                                                                 |
+| ------ | ------------------------ | ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| GET    | `/users/me`              | Auth  | [user-profile.dto.ts](../../packages/contracts/src/dto/user-profile.dto.ts) | [users.controller.ts](../../apps/api/src/modules/users/interface/http/users.controller.ts) |
+| PATCH  | `/users/me`              | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| PATCH  | `/users/me/preferences`  | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| POST   | `/users/me/password`     | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| GET    | `/users/me/sessions`     | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| DELETE | `/users/me/sessions/:id` | Auth  | —                                                                           | users.controller                                                                           |
+| POST   | `/users/me/2fa/enable`   | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| POST   | `/users/me/2fa/verify`   | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| POST   | `/users/me/2fa/disable`  | Auth  | user-profile.dto                                                            | users.controller                                                                           |
 
 ## Workspaces
 
-| Method | Path                             | Roles | DTO                                                                   | Controller                                                                                             |
-| ------ | -------------------------------- | ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| GET    | `/workspaces`                    | Auth  | —                                                                     | [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts) |
-| GET    | `/workspaces/:id/members`        | Auth  | —                                                                     | workspace.controller                                                                                   |
-| POST   | `/workspaces/:id/members/invite` | Auth  | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) | workspace.controller                                                                                   |
+| Method | Path                               | Roles | DTO                                                                   | Controller                                                                                             |
+| ------ | ---------------------------------- | ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| GET    | `/workspaces`                      | Auth  | —                                                                     | [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts) |
+| GET    | `/workspaces/:id/members`          | Auth  | —                                                                     | workspace.controller                                                                                   |
+| GET    | `/workspaces/:id/members/overview` | ADMIN | paginated team overview                                               | workspace.controller                                                                                   |
+| POST   | `/workspaces/:id/members/invite`   | ADMIN | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) | workspace.controller                                                                                   |
 
 ## Projects and team invites
 
@@ -53,6 +61,17 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 | POST   | `/projects/:id/team/invites`                  | ADMIN | team.dto                                                          | projects.controller                                                                                         |
 | GET    | `/team-invites/:token`                        | —     | —                                                                 | [team-invites.controller.ts](../../apps/api/src/modules/projects/interface/http/team-invites.controller.ts) |
 | POST   | `/team-invites/:token/accept`                 | Auth  | —                                                                 | team-invites.controller                                                                                     |
+
+## Categories
+
+| Method | Path              | Roles | DTO                                                                 | Controller                                                                                                |
+| ------ | ----------------- | ----- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| GET    | `/categories`     | Auth  | [category.dto.ts](../../packages/contracts/src/dto/category.dto.ts) | [categories.controller.ts](../../apps/api/src/modules/categories/interface/http/categories.controller.ts) |
+| POST   | `/categories`     | ADMIN | category.dto                                                        | categories.controller                                                                                     |
+| PATCH  | `/categories/:id` | ADMIN | category.dto                                                        | categories.controller                                                                                     |
+| DELETE | `/categories/:id` | ADMIN | —                                                                   | categories.controller                                                                                     |
+
+List responses are paginated (`page`, `limit`, `search`).
 
 ## Tasks
 
@@ -91,11 +110,13 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 ## Reporting
 
-| Method | Path                            | Roles         | DTO           | Controller                                                                                             |
-| ------ | ------------------------------- | ------------- | ------------- | ------------------------------------------------------------------------------------------------------ |
-| GET    | `/reporting/dashboard`          | ADMIN         | reporting.dto | [reporting.controller.ts](../../apps/api/src/modules/reporting/interface/http/reporting.controller.ts) |
-| GET    | `/reporting/me`                 | ADMIN, MEMBER | reporting.dto | reporting.controller                                                                                   |
-| GET    | `/reporting/categories-heatmap` | ADMIN         | reporting.dto | reporting.controller                                                                                   |
+| Method | Path                            | Roles         | DTO           | Controller           |
+| ------ | ------------------------------- | ------------- | ------------- | -------------------- |
+| GET    | `/reporting/dashboard`          | ADMIN         | reporting.dto | reporting.controller |
+| GET    | `/reporting/me`                 | ADMIN, MEMBER | reporting.dto | reporting.controller |
+| GET    | `/reporting/categories-heatmap` | ADMIN         | reporting.dto | reporting.controller |
+| GET    | `/reporting/utilization`        | ADMIN         | paginated     | reporting.controller |
+| GET    | `/reporting/utilization`        | ADMIN         | paginated     | reporting.controller |
 
 ## Presence
 

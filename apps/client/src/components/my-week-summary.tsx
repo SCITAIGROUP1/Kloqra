@@ -1,7 +1,8 @@
 "use client";
 
-import { ROUTES, type MyWeekSummaryDto, type ProjectDto } from "@chronomint/contracts";
-import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@chronomint/ui";
+import { ROUTES, type MyWeekSummaryDto, type ProjectDto } from "@kloqra/contracts";
+import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@kloqra/ui";
+import { fetchListItems } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { colorForProject } from "@/lib/project-color-styles";
@@ -17,7 +18,7 @@ export function MyWeekSummary() {
     if (!ws) return;
     void api<MyWeekSummaryDto>(ROUTES.REPORTING.ME, { workspaceId: ws }).then(setSummary);
     if (projects.length === 0) {
-      void api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+      void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
     }
   }, [ws, setProjects, projects.length]);
 

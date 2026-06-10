@@ -1,4 +1,4 @@
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import { Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,

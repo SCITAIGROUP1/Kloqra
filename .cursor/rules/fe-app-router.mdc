@@ -14,13 +14,13 @@ alwaysApply: false
 
 ## Shared code
 
-Use `@chronomint/web-shared` for API client, downloads, session/workspace stores, providers, date helpers.
+Use `@kloqra/web-shared` for API client, downloads, session/workspace stores, providers, date helpers.
 
-Use `@chronomint/ui` for design primitives (`Button`, `Card`, `PageHeader`, etc.).
+Use `@kloqra/ui` for design primitives (`Button`, `Card`, `PageHeader`, etc.).
 
 ## Rules
 
 - `"use client"` only where hooks, browser APIs, or interactivity are required
 - Authenticated calls: `api()` from web-shared; public token pages: `publicFetch()`
 - State: Zustand stores in web-shared or app-specific `stores/`
-- Types: `@chronomint/contracts` only — no duplicate DTO shapes
+- Types: `@kloqra/contracts` only — no duplicate DTO shapes

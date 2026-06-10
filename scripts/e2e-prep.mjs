@@ -20,7 +20,7 @@ if (!ok) {
 Browser e2e needs a seeded database. Before Playwright:
 
   pnpm prisma:seed
-  pnpm --filter @chronomint/api dev   # :3001 (Playwright may start this for you)
+  pnpm --filter @kloqra/api dev   # :3001 (Playwright may start this for you)
 
 Or run the full stack: pnpm dev
 

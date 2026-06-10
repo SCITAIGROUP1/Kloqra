@@ -1,5 +1,5 @@
 {
-  "project": "ChronoMint",
+  "project": "Kloqra",
   "phase": "1-2",
   "tasks": [
     { "id": "P1-00", "title": "Monorepo scaffold", "status": "done", "owner": "LSA" },

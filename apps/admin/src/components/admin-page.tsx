@@ -1,4 +1,7 @@
 export {
+  AppBar,
+  AppBarActionButton,
+  AppBarSecondary,
   DashboardSkeleton,
   EmptyState,
   PageHeader,
@@ -7,4 +10,4 @@ export {
   SegmentedControl,
   StatCard,
   ToggleChip
-} from "@chronomint/ui";
+} from "@kloqra/ui";

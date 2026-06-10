@@ -368,7 +368,7 @@ async stop(workspaceId: string, userId: string, dto: StopTimerDto) {
 Add two new POST endpoints. No body validation needed (pause/resume take no input besides the authenticated user):
 
 ```diff
- import { startTimerSchema, stopTimerSchema, ROUTES } from "@chronomint/contracts";
+ import { startTimerSchema, stopTimerSchema, ROUTES } from "@kloqra/contracts";
 -import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 +import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 
@@ -773,7 +773,7 @@ MODULE 7 (admin/live-presence-widget)  ← depends on updated PresenceMemberDto
 ### 1. Build check
 
 ```bash
-npx pnpm --filter @chronomint/contracts build
+npx pnpm --filter @kloqra/contracts build
 npx pnpm typecheck
 npx pnpm lint
 ```

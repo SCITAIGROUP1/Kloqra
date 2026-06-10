@@ -11,7 +11,7 @@ Base URL (local): `http://localhost:3001`
 
 ## Validation
 
-Request bodies and query params are validated with Zod schemas from `@chronomint/contracts` via `ZodValidationPipe`. Invalid input returns **400** with a structured error.
+Request bodies and query params are validated with Zod schemas from `@kloqra/contracts` via `ZodValidationPipe`. Invalid input returns **400** with a structured error.
 
 ## Error shape
 
@@ -33,7 +33,41 @@ Domain errors use `DomainException` with contract `ErrorCodes`, for example:
 
 ## Pagination
 
-List endpoints return full result sets for v1 (no cursor pagination). Keep date ranges reasonable on `timelogs` and exports.
+List endpoints that support table views return a **paginated envelope**:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "limit": 20,
+  "total": 42,
+  "totalPages": 3
+}
+```
+
+**Query parameters** (see `listPaginationQuerySchema` in `@kloqra/contracts`):
+
+| Param    | Default                                                    | Description                              |
+| -------- | ---------------------------------------------------------- | ---------------------------------------- |
+| `page`   | `1`                                                        | 1-based page index                       |
+| `limit`  | `20` for UI tables (`DEFAULT_TABLE_PAGE_SIZE`); max `1000` | Page size                                |
+| `search` | —                                                          | Optional text search (endpoint-specific) |
+
+Additional filter params (e.g. `projectId`) are endpoint-specific.
+
+**Paginated list endpoints (v1):**
+
+- `GET /projects`
+- `GET /tasks`
+- `GET /categories`
+- `GET /billing/rates`
+- `GET /projects/:id/team`
+- `GET /workspaces/:id/members/overview`
+- `GET /reporting/utilization`
+
+Non-paginated list endpoints (date-bounded or small sets): `GET /timelogs` (use `from`/`to`), workspace member lists, etc.
+
+Frontend: `usePaginatedList` and `fetchPaginatedList` in `@kloqra/web-shared`. See [FRONTEND-UI.md](../development/FRONTEND-UI.md).
 
 ## Module boundaries
 

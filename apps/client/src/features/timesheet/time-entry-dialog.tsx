@@ -5,9 +5,10 @@ import type {
   TaskDto,
   ProjectDto,
   ListTimelogAuditEventsResponseDto
-} from "@chronomint/contracts";
-import { ROUTES } from "@chronomint/contracts";
+} from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import {
+  AppModal,
   Button,
   Input,
   Label,
@@ -19,7 +20,8 @@ import {
   SelectValue,
   TimeEntryAuditTrail,
   cn
-} from "@chronomint/ui";
+} from "@kloqra/ui";
+import { Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatDraftDateLabel,
@@ -147,261 +149,266 @@ export function TimeEntryDialog({
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [projectTasks]);
 
-  if (!open || !draft || !mounted) return null;
+  if (!mounted) return null;
 
   const canDelete = Boolean(editingLog && onDelete && !readOnly);
   const canEdit = !readOnly && editingLog?.source !== "timer";
-  const dateLabel = formatDraftDateLabel(draft, editingLog);
-  const canSave = canSaveTaskDraft(draft);
-  const saveHint = taskSaveHint(draft);
+  const dateLabel = draft ? formatDraftDateLabel(draft, editingLog) : "";
+  const canSave = draft ? canSaveTaskDraft(draft) : false;
+  const saveHint = draft ? taskSaveHint(draft) : null;
 
   let durationHint = "";
-  try {
-    const { startTime, endTime } = draftToIsoRange(draft, timezone);
-    const sec = (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000;
-    if (sec > 0) durationHint = formatDuration(sec);
-  } catch {
-    /* ignore */
+  if (draft) {
+    try {
+      const { startTime, endTime } = draftToIsoRange(draft, timezone);
+      const sec = (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000;
+      if (sec > 0) durationHint = formatDuration(sec);
+    } catch {
+      /* ignore */
+    }
   }
 
   function patch(partial: Partial<TimeEntryDraft>) {
-    onDraftChange({ ...draft!, ...partial });
+    if (draft) onDraftChange({ ...draft, ...partial });
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="time-entry-title"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="time-entry-title" className="text-lg font-semibold">
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>
-        {editingLog?.source === "timer" && (
-          <p className="mt-1 text-xs text-muted-foreground">Started with the stopwatch</p>
-        )}
-        {editingLog && workspaceId && (
-          <div className="flex rounded-lg border border-border bg-muted/40 p-1 mt-4">
-            <button
-              type="button"
-              className={cn(
-                "flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-all duration-200 cursor-pointer",
-                activeTab === "details"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("details")}
-            >
-              Details
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-all duration-200 cursor-pointer",
-                activeTab === "history"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("history")}
-            >
-              Change History
-            </button>
-          </div>
-        )}
+  const description = (
+    <>
+      {dateLabel}
+      {editingLog?.source === "timer" ? (
+        <span className="mt-1 block text-xs">Started with the stopwatch</span>
+      ) : null}
+    </>
+  );
 
-        {activeTab === "details" ? (
-          <form
-            className="mt-4 space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              onSave();
+  const footer =
+    activeTab === "details" ? (
+      <div className="flex w-full flex-wrap items-center gap-2">
+        {canEdit && (
+          <Button
+            type="submit"
+            form="time-entry-form"
+            disabled={saving || !canSave}
+            title={saveHint ?? undefined}
+          >
+            {saving ? "Saving…" : editingLog ? "Save changes" : "Log time"}
+          </Button>
+        )}
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        {canDelete && (
+          <Button
+            type="button"
+            variant="destructive"
+            className="sm:ml-auto"
+            disabled={saving}
+            onClick={() => {
+              if (onDelete) onDelete();
             }}
           >
-            <div className="space-y-2">
-              <Label>Project</Label>
-              <Select
-                value={draft.projectId}
-                disabled={!canEdit}
-                onValueChange={(projectId) =>
-                  patch({
-                    projectId,
-                    taskSelection: "",
-                    isBillable: true
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot color={p.color} />
-                        {formatProjectLabel(p, workspaceNames)}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Task</Label>
-              <Select
-                key={draft.projectId}
-                disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
-                value={draft.taskSelection || undefined}
-                onValueChange={(taskSelection) =>
-                  patch({
-                    taskSelection,
-                    isBillable: suggestBillableFromTask(tasks, taskSelection)
-                  })
-                }
-              >
-                <SelectTrigger aria-invalid={Boolean(draft.projectId && !draft.taskSelection)}>
-                  <SelectValue
-                    placeholder={
-                      !draft.projectId
-                        ? "Select a project first"
-                        : projectTasks.length === 0
-                          ? "No tasks for this project"
-                          : "Select a task"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  {projectTasksByCategory.map(([categoryName, list]) => (
-                    <div key={categoryName}>
-                      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        {categoryName}
-                      </div>
-                      {list.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.taskName}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  ))}
-                </SelectContent>
-              </Select>
-              {draft.projectId && projectTasks.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No tasks yet on this project. Ask your admin to add tasks before logging time.
-                </p>
-              )}
-              {saveHint && (
-                <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
-                  {saveHint}
-                </p>
-              )}
-            </div>
-
-            {draft.taskSelection && (
-              <p className="text-xs text-muted-foreground">{taskLabel(draft.taskSelection)}</p>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="entry-start">Start</Label>
-                <Input
-                  id="entry-start"
-                  type="time"
-                  value={draft.startTime}
-                  disabled={!canEdit}
-                  onChange={(e) => patch({ startTime: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="entry-end">End</Label>
-                <Input
-                  id="entry-end"
-                  type="time"
-                  value={draft.endTime}
-                  disabled={!canEdit}
-                  onChange={(e) => patch({ endTime: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            {durationHint && (
-              <p className="text-xs text-muted-foreground">Duration: {durationHint}</p>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="entry-description">Description</Label>
-              <Input
-                id="entry-description"
-                value={draft.description}
-                disabled={!canEdit}
-                onChange={(e) => patch({ description: e.target.value })}
-                placeholder="What did you work on?"
-              />
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="size-4 rounded border border-input accent-primary"
-                checked={draft.isBillable}
-                disabled={!canEdit}
-                onChange={(e) => patch({ isBillable: e.target.checked })}
-              />
-              <span>Billable time</span>
-            </label>
-            <p className="text-xs text-muted-foreground">
-              Billable is set per entry — the same task can include both billable and non-billable
-              work.
-            </p>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border pt-4">
-              {canEdit && (
-                <Button type="submit" disabled={saving || !canSave} title={saveHint ?? undefined}>
-                  {saving ? "Saving…" : editingLog ? "Save changes" : "Log time"}
-                </Button>
-              )}
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              {canDelete && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="ml-auto"
-                  disabled={saving}
-                  onClick={() => {
-                    if (onDelete) onDelete();
-                  }}
-                >
-                  Delete entry
-                </Button>
-              )}
-            </div>
-          </form>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <div className="max-h-72 overflow-y-auto pr-1">
-              <TimeEntryAuditTrail
-                fetchEvents={fetchAuditEvents}
-                tasks={tasks}
-                projects={projects}
-              />
-            </div>
-            <div className="flex justify-end pt-2 border-t border-border pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Close
-              </Button>
-            </div>
-          </div>
+            Delete entry
+          </Button>
         )}
       </div>
-    </div>
+    ) : (
+      <Button type="button" variant="outline" onClick={onClose}>
+        Close
+      </Button>
+    );
+
+  return (
+    <AppModal
+      open={open && draft !== null}
+      onOpenChange={(next) => !next && onClose()}
+      title={title}
+      description={description}
+      icon={<Clock className="size-5" />}
+      size="md"
+      bodyClassName="space-y-4"
+      footer={footer}
+    >
+      {draft && editingLog && workspaceId ? (
+        <div className="flex rounded-lg border border-border bg-muted/40 p-1">
+          <button
+            type="button"
+            className={cn(
+              "flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-all duration-200 cursor-pointer",
+              activeTab === "details"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setActiveTab("details")}
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-all duration-200 cursor-pointer",
+              activeTab === "history"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setActiveTab("history")}
+          >
+            Change History
+          </button>
+        </div>
+      ) : null}
+
+      {draft && activeTab === "details" ? (
+        <form
+          id="time-entry-form"
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSave();
+          }}
+        >
+          <div className="space-y-2">
+            <Label>Project</Label>
+            <Select
+              value={draft.projectId}
+              disabled={!canEdit}
+              onValueChange={(projectId) =>
+                patch({
+                  projectId,
+                  taskSelection: "",
+                  isBillable: true
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent className="z-[100]">
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span className="flex items-center gap-2">
+                      <ProjectColorDot color={p.color} />
+                      {formatProjectLabel(p, workspaceNames)}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Task</Label>
+            <Select
+              key={draft.projectId}
+              disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
+              value={draft.taskSelection || undefined}
+              onValueChange={(taskSelection) =>
+                patch({
+                  taskSelection,
+                  isBillable: suggestBillableFromTask(tasks, taskSelection)
+                })
+              }
+            >
+              <SelectTrigger aria-invalid={Boolean(draft.projectId && !draft.taskSelection)}>
+                <SelectValue
+                  placeholder={
+                    !draft.projectId
+                      ? "Select a project first"
+                      : projectTasks.length === 0
+                        ? "No tasks for this project"
+                        : "Select a task"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent className="z-[100]">
+                {projectTasksByCategory.map(([categoryName, list]) => (
+                  <div key={categoryName}>
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      {categoryName}
+                    </div>
+                    {list.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.taskName}
+                      </SelectItem>
+                    ))}
+                  </div>
+                ))}
+              </SelectContent>
+            </Select>
+            {draft.projectId && projectTasks.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No tasks yet on this project. Ask your admin to add tasks before logging time.
+              </p>
+            )}
+            {saveHint && (
+              <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
+                {saveHint}
+              </p>
+            )}
+          </div>
+
+          {draft.taskSelection && (
+            <p className="text-xs text-muted-foreground">{taskLabel(draft.taskSelection)}</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="entry-start">Start</Label>
+              <Input
+                id="entry-start"
+                type="time"
+                value={draft.startTime}
+                disabled={!canEdit}
+                onChange={(e) => patch({ startTime: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="entry-end">End</Label>
+              <Input
+                id="entry-end"
+                type="time"
+                value={draft.endTime}
+                disabled={!canEdit}
+                onChange={(e) => patch({ endTime: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+          {durationHint && (
+            <p className="text-xs text-muted-foreground">Duration: {durationHint}</p>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="entry-description">Description</Label>
+            <Input
+              id="entry-description"
+              value={draft.description}
+              disabled={!canEdit}
+              onChange={(e) => patch({ description: e.target.value })}
+              placeholder="What did you work on?"
+            />
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 rounded border border-input accent-primary"
+              checked={draft.isBillable}
+              disabled={!canEdit}
+              onChange={(e) => patch({ isBillable: e.target.checked })}
+            />
+            <span>Billable time</span>
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Billable is set per entry — the same task can include both billable and non-billable
+            work.
+          </p>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </form>
+      ) : draft && activeTab === "history" ? (
+        <div className="max-h-72 overflow-y-auto pr-1">
+          <TimeEntryAuditTrail fetchEvents={fetchAuditEvents} tasks={tasks} projects={projects} />
+        </div>
+      ) : null}
+    </AppModal>
   );
 }
 

@@ -3,8 +3,10 @@ import type {
   DashboardReportDto,
   MyWeekQueryDto,
   MyWeekSummaryDto,
-  ReportQueryDto
-} from "@chronomint/contracts";
+  ReportQueryDto,
+  UtilizationQueryDto
+} from "@kloqra/contracts";
+import { buildPaginationMeta } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -79,7 +81,7 @@ export class ReportingService {
         return {
           projectId,
           projectName: v.projectName,
-          projectColor: colorByProjectId.get(projectId) ?? "#6366f1",
+          projectColor: colorByProjectId.get(projectId) ?? "#236bfe",
           totalHours: roundExport(v.totalHours),
           billableHours: roundExport(v.billableHours)
         };
@@ -365,7 +367,7 @@ export class ReportingService {
 
   // ── Team Utilization ──────────────────────────────────────────────────────
 
-  async utilization(workspaceId: string, query: { from: string; to: string }) {
+  async utilization(workspaceId: string, query: UtilizationQueryDto) {
     const from = new Date(query.from);
     const to = new Date(query.to);
 
@@ -407,7 +409,7 @@ export class ReportingService {
       }
     }
 
-    const rows = [...byUser.entries()]
+    let rows = [...byUser.entries()]
       .map(([userId, v]) => {
         const loggedHours = roundExport(v.hours);
         const billableHours = roundExport(v.billableHours);
@@ -419,16 +421,34 @@ export class ReportingService {
           billableHours,
           targetHours,
           utilizationPct,
-          status: utilizationPct >= 90 ? "on_track" : utilizationPct >= 60 ? "low" : "critical"
+          status:
+            utilizationPct >= 90
+              ? ("on_track" as const)
+              : utilizationPct >= 60
+                ? ("low" as const)
+                : ("critical" as const)
         };
       })
       .sort((a, b) => b.utilizationPct - a.utilizationPct);
+
+    if (query.search) {
+      const q = query.search.toLowerCase();
+      rows = rows.filter((row) => row.userName.toLowerCase().includes(q));
+    }
+    if (query.userId) {
+      rows = rows.filter((row) => row.userId === query.userId);
+    }
+
+    const total = rows.length;
+    const start = (query.page - 1) * query.limit;
+    const pageMembers = rows.slice(start, start + query.limit);
 
     return {
       period: { from: query.from, to: query.to },
       expectedWeeklyHours,
       targetHours,
-      members: rows
+      members: pageMembers,
+      ...buildPaginationMeta(total, query.page, query.limit)
     };
   }
 

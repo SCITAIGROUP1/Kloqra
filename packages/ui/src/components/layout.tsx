@@ -2,33 +2,62 @@
 
 import type { ReactNode } from "react";
 import { cn } from "../lib/utils.js";
+import { AppBarToolbar } from "./shell/app-bar-toolbar.js";
+import { AppBar, type AppBarProps } from "./shell/app-bar.js";
+import { useShellToolbar } from "./shell-toolbar-context.js";
 
+export type PageHeaderProps = {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+  /** `appBar` — sticky shared app bar (default). `inline` — simple section header. */
+  variant?: "appBar" | "inline";
+} & Pick<AppBarProps, "secondary">;
+
+/** @deprecated Prefer `AppBar` for new pages. Kept for existing imports. */
 export function PageHeader({
   title,
   description,
   actions,
-  className
-}: {
-  title: string;
-  description?: ReactNode;
-  actions?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between",
-        className
-      )}
-    >
-      <div className="space-y-1.5 min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description ? (
-          <p className="text-sm text-muted-foreground max-w-2xl">{description}</p>
-        ) : null}
+  secondary,
+  className,
+  variant = "appBar"
+}: PageHeaderProps) {
+  const shellToolbar = useShellToolbar();
+  const trailing = <AppBarToolbar pageActions={actions} shellActions={shellToolbar ?? undefined} />;
+
+  if (variant === "inline") {
+    return (
+      <div
+        className={cn(
+          "flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between",
+          className
+        )}
+      >
+        <div className="min-w-0 space-y-1.5">
+          {typeof title === "string" ? (
+            <h1 className="text-2xl font-medium tracking-tight">{title}</h1>
+          ) : (
+            <div className="text-2xl font-medium tracking-tight">{title}</div>
+          )}
+          {description ? (
+            <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        {actions || shellToolbar ? <div className="flex shrink-0">{trailing}</div> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
+    );
+  }
+
+  return (
+    <AppBar
+      title={title}
+      description={description}
+      actions={actions}
+      secondary={secondary}
+      className={className}
+    />
   );
 }
 
@@ -46,7 +75,7 @@ export function Section({
   return (
     <section className={cn("space-y-3", className)}>
       <div>
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="text-sm font-medium">{title}</h2>
         {description ? <p className="text-xs text-muted-foreground mt-0.5">{description}</p> : null}
       </div>
       {children}

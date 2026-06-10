@@ -1,4 +1,4 @@
-import { startTimerSchema, stopTimerSchema, ROUTES } from "@chronomint/contracts";
+import { startTimerSchema, stopTimerSchema, ROUTES } from "@kloqra/contracts";
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,

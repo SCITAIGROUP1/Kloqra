@@ -1,7 +1,7 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { ProjectDto, TimeLogDto, ListTimeLogsResponseDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { ProjectDto, TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
 import {
   Card,
   CardContent,
@@ -16,10 +16,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  ProjectColorDot
-} from "@chronomint/ui";
+  ProjectColorDot,
+  Spinner
+} from "@kloqra/ui";
+import { fetchListItems } from "@kloqra/web-shared";
 import { FileText, ArrowRight, ArrowLeft, Download, Info } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { toDateInputValue } from "@/lib/export-date-presets";
@@ -58,7 +61,7 @@ export function InvoiceWizard() {
     d.setDate(d.getDate() + 30); // 30 days due date default
     return toDateInputValue(d);
   });
-  const [companyName, setCompanyName] = useState("ChronoMint Workspace");
+  const [companyName, setCompanyName] = useState("Kloqra Workspace");
   const [clientName, setClientName] = useState("");
 
   const selectedProject = useMemo(
@@ -69,7 +72,7 @@ export function InvoiceWizard() {
   // Load projects
   useEffect(() => {
     if (!ws) return;
-    api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws })
+    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws })
       .then(setProjects)
       .catch(() => {});
   }, [ws]);
@@ -93,8 +96,9 @@ export function InvoiceWizard() {
       });
       // Filter for billable logs only
       setLogs(res.items.filter((item) => item.isBillable));
-    } catch {
+    } catch (e) {
       setLogs([]);
+      toast.error(e instanceof Error ? e.message : "Could not load billable time logs.");
     } finally {
       setLogsLoading(false);
     }
@@ -142,9 +146,12 @@ export function InvoiceWizard() {
         clientName
       });
       await saveDownloadResponse(res, `invoice-${invoiceNumber}.pdf`);
-      setStep(1); // Reset
+      toast.success(`Invoice ${invoiceNumber} downloaded.`);
+      setStep(1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate invoice PDF");
+      const message = e instanceof Error ? e.message : "Failed to generate invoice PDF";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -216,7 +223,7 @@ export function InvoiceWizard() {
                   Time Logs Summary
                 </p>
                 {logsLoading ? (
-                  <p className="text-muted-foreground animate-pulse">Checking time logs...</p>
+                  <Spinner label="Checking time logs…" className="py-1" />
                 ) : logs.length === 0 ? (
                   <p className="text-destructive flex items-center gap-1.5 font-medium">
                     <Info className="size-4" />

@@ -1,11 +1,11 @@
 ---
-name: chronomint-feature-delivery
+name: kloqra-feature-delivery
 description: >-
-  ChronoMint feature delivery order, MIP handoff, and pre-PR checks. Use when
+  Kloqra feature delivery order, MIP handoff, and pre-PR checks. Use when
   implementing any feature across contracts, API, or frontend apps.
 ---
 
-# ChronoMint feature delivery
+# Kloqra feature delivery
 
 ## Execution order
 
@@ -40,7 +40,7 @@ pnpm build
 
 ## References
 
-- [chronomint-test-delivery](../chronomint-test-delivery/SKILL.md)
+- [kloqra-test-delivery](../kloqra-test-delivery/SKILL.md)
 - [docs/development/TESTING.md](../../../docs/development/TESTING.md)
 - [docs/agent/AGENTS.md](../../docs/agent/AGENTS.md)
 - [CONTRIBUTING.md](../../CONTRIBUTING.md)

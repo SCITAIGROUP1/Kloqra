@@ -20,7 +20,7 @@ export function SentryInitializer() {
           timestamp: new Date().toISOString().split(".")[0],
           platform: "javascript",
           sdk: {
-            name: "chronomint-client-sentry",
+            name: "kloqra-client-sentry",
             version: "1.0.0"
           },
           logger: "javascript",
@@ -52,7 +52,7 @@ export function SentryInitializer() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Sentry-Auth": `Sentry sentry_version=7, sentry_client=chronomint-client-sentry/1.0.0, sentry_key=${publicKey}`
+            "X-Sentry-Auth": `Sentry sentry_version=7, sentry_client=kloqra-client-sentry/1.0.0, sentry_key=${publicKey}`
           },
           body: JSON.stringify(event)
         });

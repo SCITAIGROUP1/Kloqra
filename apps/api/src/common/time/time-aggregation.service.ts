@@ -1,4 +1,4 @@
-import type { ExportBillableFilter } from "@chronomint/contracts";
+import type { ExportBillableFilter } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 

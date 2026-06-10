@@ -75,7 +75,7 @@ Members get a **Show / Hide occupied slots** control in the calendar toolbar —
 | Setting                | Behavior                                                                                                                                                |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Default**            | On (`true`) — first visit shows overlay so members discover the feature                                                                                 |
-| **Persistence**        | `localStorage` key `chronomint-show-occupancy-overlay` (mirrors `chronomint-show-timesheet-summary`)                                                    |
+| **Persistence**        | `localStorage` key `kloqra-show-occupancy-overlay` (mirrors `kloqra-show-timesheet-summary`)                                                            |
 | **Scope when OFF**     | Hide cross-workspace hatch on empty grid, slot `cursor-not-allowed` / disabled styling, and occupancy legend                                            |
 | **Always on (safety)** | Locked/timer styling on entry blocks; overlap checks on save/move/duplicate; invalid drag ghost during move — enforcement does not depend on the toggle |
 

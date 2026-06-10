@@ -21,7 +21,7 @@ describe("export-filename", () => {
         reportSlug: "time-entries",
         ext: "csv"
       })
-    ).toBe("chronomint-demo-workspace-2025-05-01_to_2025-05-31-time-entries.csv");
+    ).toBe("kloqra-demo-workspace-2025-05-01_to_2025-05-31-time-entries.csv");
   });
 
   it("builds member-scoped names", () => {
@@ -33,11 +33,11 @@ describe("export-filename", () => {
         scope: "member",
         ext: "pdf"
       })
-    ).toBe("chronomint-demo-2025-05-01_to_2025-05-07-my-timesheet.pdf");
+    ).toBe("kloqra-demo-2025-05-01_to_2025-05-07-my-timesheet.pdf");
   });
 
   it("formats and parses Content-Disposition", () => {
-    const name = "chronomint-demo-2025-05-01_to_2025-05-31.csv";
+    const name = "kloqra-demo-2025-05-01_to_2025-05-31.csv";
     const header = formatContentDisposition(name);
     expect(parseContentDispositionFilename(header)).toBe(name);
   });

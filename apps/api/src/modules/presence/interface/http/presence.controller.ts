@@ -1,4 +1,4 @@
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import { Controller, Get, Req, Res, UseGuards } from "@nestjs/common";
 import { type Response, type Request } from "express";
 import {

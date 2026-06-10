@@ -1,12 +1,12 @@
 "use client";
 
-import type { DashboardReportDto } from "@chronomint/contracts";
+import type { DashboardReportDto } from "@kloqra/contracts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
-} from "@chronomint/ui/chart";
+} from "@kloqra/ui/chart";
 import React from "react";
 import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
 

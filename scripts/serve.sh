@@ -8,7 +8,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
   PNPM="npx pnpm@9.15.0"
 fi
 
-echo "==> ChronoMint serve (no Docker)"
+echo "==> Kloqra serve (no Docker)"
 
 # Postgres
 PG_ISREADY=""
@@ -50,8 +50,8 @@ echo "==> Installing dependencies..."
 $PNPM install
 
 echo "==> Building shared packages..."
-$PNPM --filter @chronomint/contracts build
-$PNPM --filter @chronomint/ui build
+$PNPM --filter @kloqra/contracts build
+$PNPM --filter @kloqra/ui build
 $PNPM prisma:generate
 
 echo "==> Applying migrations..."
@@ -65,7 +65,7 @@ echo "==> Starting apps..."
 echo "    Client  http://localhost:3000"
 echo "    Admin   http://localhost:3002"
 echo "    API     http://localhost:3001"
-echo "    Login:  member@chronomint.dev / admin@chronomint.dev  password: password123"
+echo "    Login:  member@kloqra.dev / admin@kloqra.dev  password: password123"
 echo ""
 
 exec $PNPM dev

@@ -1,8 +1,8 @@
-# ChronoMint — Next Level-Up Plan
+# Kloqra — Next Level-Up Plan
 
 ## What's Already Shipped (v0.3.0)
 
-ChronoMint is a solid production-quality monorepo. Here's what's fully implemented:
+Kloqra is a solid production-quality monorepo. Here's what's fully implemented:
 
 | Area                                                         | Status                            |
 | ------------------------------------------------------------ | --------------------------------- |

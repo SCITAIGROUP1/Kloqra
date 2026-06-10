@@ -1,16 +1,17 @@
 "use client";
 import {
   AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-  Button
-} from "@chronomint/ui";
-import { Clock, Trash2, Square } from "lucide-react";
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  modalIconWrapVariants
+} from "@kloqra/ui";
+import { Clock, Square, Trash2 } from "lucide-react";
 
 interface StaleTimerDialogProps {
   open: boolean;
@@ -31,25 +32,20 @@ export function StaleTimerDialog({
 }: StaleTimerDialogProps) {
   return (
     <AlertDialog open={open}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent size="md">
         <AlertDialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-500/15">
-              <Clock className="size-5 text-amber-500" />
-            </span>
-            <AlertDialogTitle>Timer Still Running</AlertDialogTitle>
+          <div className={modalIconWrapVariants({ tone: "warning" })}>
+            <Clock className="size-5" />
           </div>
-          <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
+          <AlertDialogTitle>Timer still running</AlertDialogTitle>
+          <AlertDialogDescription>
             Your timer has been running for <strong>{elapsedHours.toFixed(1)} hours</strong>, which
             exceeds your {thresholdHours}h daily progress goal. Did you forget to stop it?
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex flex-col gap-2 sm:flex-col">
+        <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
           <AlertDialogAction asChild>
-            <Button
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/95"
-              onClick={onKeepRunning}
-            >
+            <Button className="w-full" onClick={onKeepRunning}>
               Keep running — I&apos;m still working
             </Button>
           </AlertDialogAction>

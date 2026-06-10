@@ -10,11 +10,28 @@
 
 One active timer per user at a time.
 
-## View your week
+## View your week (calendar)
 
 1. Go to **Timesheet** (`/timesheet`).
-2. Use the week navigation to move between weeks.
-3. Entries show project, task, duration, and billable flag.
+2. Switch **day**, **week**, or **month** view.
+3. Drag on the grid to create entries; drag blocks to move; resize edges.
+4. Toggle **occupied slots** to see busy time from other workspaces.
+
+## Time tracker (list view)
+
+1. Go to **Time tracker** (`/time-tracker`).
+2. Browse entries grouped by week with pagination.
+3. Edit or delete entries inline (respects timesheet lock when submitted).
+
+## Submit for approval
+
+If your project requires approval:
+
+1. Go to **Approvals** (`/approvals`).
+2. Review each project card for the current period.
+3. Add an optional note → **Send to Approvals**.
+
+Locked entries cannot be edited until approved or rejected.
 
 ## Add a manual entry
 

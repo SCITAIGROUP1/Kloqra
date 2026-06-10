@@ -1,13 +1,13 @@
-# ChronoMint Client
+# Kloqra Client
 
-Next.js 15 member app — timer, timesheet, tasks, and personal exports.
+Next.js 15 member app — timer, timesheet, time tracker, dashboard, tasks, and personal exports.
 
 ## Commands
 
 ```bash
 # From repo root
-pnpm --filter @chronomint/client dev
-pnpm --filter @chronomint/client test:e2e
+pnpm --filter @kloqra/client dev
+pnpm --filter @kloqra/client test:e2e
 ```
 
 ## Environment
@@ -16,20 +16,30 @@ Copy `.env.example` to `.env.local`:
 
 ```
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_AUTH_SCOPE=client
 ```
 
 ## Routes
 
-| Path                  | Purpose                                   |
-| --------------------- | ----------------------------------------- |
-| `/login`, `/register` | Authentication                            |
-| `/timer`              | Start/stop timer                          |
-| `/timesheet`          | Week view, manual entries, export my data |
-| `/tasks`              | Task list                                 |
-| `/projects`           | Assigned projects                         |
-| `/invite/[token]`     | Accept team invite                        |
+| Path                  | Purpose                                      |
+| --------------------- | -------------------------------------------- |
+| `/login`, `/register` | Authentication                               |
+| `/timer`              | Start/stop timer; daily goal widget          |
+| `/timesheet`          | Calendar week/day/month view; manual entries |
+| `/time-tracker`       | Week-grouped log list with edit/delete       |
+| `/dashboard`          | Member dashboard widgets                     |
+| `/approvals`          | Submit timesheets for project approval       |
+| `/tasks`              | Task list (paginated, filter by project)     |
+| `/projects`           | Assigned projects                            |
+| `/profile`            | User profile                                 |
+| `/settings`           | Account preferences and security             |
+| `/invite/[token]`     | Accept project team invite                   |
 
 Default URL: http://localhost:3000
+
+## UI patterns
+
+Shared profile/settings from `@kloqra/web-shared`. Toasts via Sonner. See [docs/development/FRONTEND-UI.md](../../docs/development/FRONTEND-UI.md).
 
 ## Deploy (Vercel)
 

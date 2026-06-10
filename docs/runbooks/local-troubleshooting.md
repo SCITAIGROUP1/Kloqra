@@ -7,10 +7,10 @@
 **Fix:**
 
 1. Ensure PostgreSQL is running (Postgres.app or `docker compose up -d`).
-2. Create the database once: `createdb chronomint`
+2. Create the database once: `createdb kloqra`
 3. Set `DATABASE_URL` in `apps/api/.env`:
-   - Postgres.app: `postgresql://YOUR_MAC_USERNAME@localhost:5432/chronomint`
-   - Docker: `postgresql://chronomint:chronomint@localhost:5432/chronomint`
+   - Postgres.app: `postgresql://YOUR_MAC_USERNAME@localhost:5432/kloqra`
+   - Docker: `postgresql://kloqra:kloqra@localhost:5432/kloqra`
 4. Run `pnpm prisma:migrate`
 
 ## Migrations out of sync
@@ -20,7 +20,9 @@ pnpm prisma:migrate
 pnpm prisma:generate
 ```
 
-If you reset locally: drop and recreate `chronomint`, then migrate and `pnpm prisma:seed`.
+If you reset locally: drop and recreate `kloqra`, then migrate and `pnpm prisma:seed`.
+
+**Migrating from the old `chronomint` database name:** create `createdb kloqra`, set `DATABASE_URL=postgresql://YOUR_USER@localhost:5432/kloqra` in `apps/api/.env`, then `pnpm prisma:migrate && pnpm prisma:seed`. Seed accounts are `@kloqra.dev` (not `@chronomint.dev`). Primary workspace: **Acme Corporation**.
 
 ## Timer does not start
 
@@ -45,7 +47,7 @@ If you reset locally: drop and recreate `chronomint`, then migrate and `pnpm pri
 
 ## Admin redirects to client or “not admin”
 
-Sign in to admin with **`admin@chronomint.dev`**. Member accounts are workspace `MEMBER` role and are not intended for the admin app.
+Sign in to admin with **`admin@kloqra.dev`**. Member accounts are workspace `MEMBER` role and are not intended for the admin app.
 
 ## Weird login/logout with client and admin both open
 
@@ -86,8 +88,8 @@ Stop the conflicting process or change `PORT` in `apps/api/.env` and update `NEX
 
 ```bash
 pnpm install
-pnpm --filter @chronomint/contracts build
-pnpm --filter @chronomint/ui build
+pnpm --filter @kloqra/contracts build
+pnpm --filter @kloqra/ui build
 pnpm dev
 ```
 

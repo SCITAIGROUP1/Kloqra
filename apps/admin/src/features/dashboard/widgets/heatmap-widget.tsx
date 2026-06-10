@@ -1,7 +1,7 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { HeatmapResponseDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { HeatmapResponseDto } from "@kloqra/contracts";
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";

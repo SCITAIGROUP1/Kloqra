@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@chronomint/contracts";
+import type { ErrorCode } from "@kloqra/contracts";
 import { HttpException, HttpStatus } from "@nestjs/common";
 
 export class DomainException extends HttpException {

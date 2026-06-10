@@ -1,6 +1,6 @@
 # Deploy client & admin on Vercel
 
-ChronoMint has **three** deployable parts:
+Kloqra has **three** deployable parts:
 
 | App                        | Platform                   | Why                                                               |
 | -------------------------- | -------------------------- | ----------------------------------------------------------------- |
@@ -16,10 +16,10 @@ Deploy the **API first** (see [railway.md](./railway.md)), then point both front
 
 Use **four Vercel projects per environment** (two apps × two envs), or one project per app with Preview/Production env vars.
 
-| Environment | Client project              | Admin project              | Git branch            |
-| ----------- | --------------------------- | -------------------------- | --------------------- |
-| Staging     | `chronomint-client-staging` | `chronomint-admin-staging` | `staging` / `develop` |
-| Production  | `chronomint-client`         | `chronomint-admin`         | `main`                |
+| Environment | Client project          | Admin project          | Git branch            |
+| ----------- | ----------------------- | ---------------------- | --------------------- |
+| Staging     | `kloqra-client-staging` | `kloqra-admin-staging` | `staging` / `develop` |
+| Production  | `kloqra-client`         | `kloqra-admin`         | `main`                |
 
 Env templates: [`deploy/env.staging.example`](../../deploy/env.staging.example), [`deploy/env.production.example`](../../deploy/env.production.example).
 
@@ -42,7 +42,7 @@ Full guide: **[railway.md](./railway.md)**.
 
 Summary:
 
-1. Project `chronomint-staging` or `chronomint-prod`
+1. Project `kloqra-staging` or `kloqra-prod`
 2. PostgreSQL + Redis plugins
 3. API service: monorepo root, Dockerfile `apps/api/Dockerfile`, config in [`railway.toml`](../../railway.toml)
 4. Run migrations: `bash scripts/deploy/migrate.sh <DATABASE_URL>`
@@ -58,13 +58,13 @@ Health check: `GET /health` on your API URL.
 ## 2. Vercel — Client app
 
 1. [vercel.com](https://vercel.com) → **Add New Project** → Import your GitHub repo.
-2. **Project name:** e.g. `chronomint-client-staging` or `chronomint-client`
+2. **Project name:** e.g. `kloqra-client-staging` or `kloqra-client`
 3. **Root Directory:** `apps/client`
 4. **Framework Preset:** Next.js (auto)
 5. Enable **“Include source files outside of the Root Directory”** (required for `packages/ui` and `packages/contracts`).
 6. Build settings (from [`apps/client/vercel.json`](../../apps/client/vercel.json)):
    - Install: `pnpm install --frozen-lockfile`
-   - Build: `pnpm --filter @chronomint/client... build`
+   - Build: `pnpm --filter @kloqra/client... build`
 7. **Environment variables:**
 
    | Name                       | Value                                                   |
@@ -81,11 +81,11 @@ Health check: `GET /health` on your API URL.
 Create a **second** Vercel project (same repo, different root):
 
 1. **Add New Project** → same GitHub repo.
-2. **Project name:** e.g. `chronomint-admin-staging` or `chronomint-admin`
+2. **Project name:** e.g. `kloqra-admin-staging` or `kloqra-admin`
 3. **Root Directory:** `apps/admin`
 4. **Include source files outside of the Root Directory:** ON
 5. Build from [`apps/admin/vercel.json`](../../apps/admin/vercel.json):
-   - Build: `pnpm --filter @chronomint/admin... build`
+   - Build: `pnpm --filter @kloqra/admin... build`
 6. **Environment variables:**
 
    | Name                       | Value                          |
@@ -104,8 +104,8 @@ After both frontends are deployed:
 
 ```bash
 bash scripts/deploy/wire-cors.sh \
-  https://chronomint-client-staging.vercel.app \
-  https://chronomint-admin-staging.vercel.app
+  https://kloqra-client-staging.vercel.app \
+  https://kloqra-admin-staging.vercel.app
 ```
 
 Set the output as `FRONTEND_ORIGIN` on the Railway API service and redeploy.
@@ -124,7 +124,7 @@ FRONTEND_ORIGIN=https://app.example.com,https://admin.example.com
 bash scripts/deploy/smoke.sh https://your-api-host
 ```
 
-1. Open admin URL → login (`admin@chronomint.dev` if you seeded staging).
+1. Open admin URL → login (`admin@kloqra.dev` if you seeded staging).
 2. Open client URL → login as member → start timer.
 3. Admin **Team live** should show activity.
 4. Run an **Export** from admin and confirm download.
@@ -175,7 +175,7 @@ The API is a **NestJS** server with **Prisma**, **PostgreSQL**, **Redis** (timer
 
 | Issue                                        | Fix                                                                                                                                                |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build can’t find `@chronomint/ui`            | Turn on “Include source files outside Root Directory”; ensure `vercel.json` build uses `...` filter                                                |
+| Build can’t find `@kloqra/ui`                | Turn on “Include source files outside Root Directory”; ensure `vercel.json` build uses `...` filter                                                |
 | `pnpm: command not found`                    | Vercel project Settings → enable pnpm (`packageManager` in root `package.json` is `pnpm@9.15.0`)                                                   |
 | Login works locally, fails in prod           | Check `NEXT_PUBLIC_API_BASE_URL`, API `FRONTEND_ORIGIN`, and API logs                                                                              |
 | 404 to `vercel.app/your-api.railway.app/...` | `NEXT_PUBLIC_API_BASE_URL` is missing `https://` (e.g. set to `api.up.railway.app` only). Use `https://api.up.railway.app`, redeploy client/admin. |

@@ -5,8 +5,8 @@
 After `pnpm install`, analyze production chunks:
 
 ```bash
-pnpm --filter @chronomint/admin analyze
-pnpm --filter @chronomint/client analyze
+pnpm --filter @kloqra/admin analyze
+pnpm --filter @kloqra/client analyze
 ```
 
 Open the generated report in the browser. Re-run after changing heavy dependencies (e.g. `recharts`) or route-level `next/dynamic` splits.
@@ -20,4 +20,4 @@ Open the generated report in the browser. Re-run after changing heavy dependenci
 ## Frontend patterns
 
 - Admin dashboard and exports use `next/dynamic` for large client features and chart chunks.
-- `experimental.optimizePackageImports` is enabled in both Next apps for `@chronomint/ui`, `lucide-react`, and (admin) `recharts`.
+- `experimental.optimizePackageImports` is enabled in both Next apps for `@kloqra/ui`, `lucide-react`, and (admin) `recharts`.

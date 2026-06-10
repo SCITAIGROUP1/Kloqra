@@ -1,4 +1,4 @@
-import type { ExportGroupByDimension, ExportSheetLayout } from "@chronomint/contracts";
+import type { ExportGroupByDimension, ExportSheetLayout } from "@kloqra/contracts";
 
 /** Dimensions tied to workbook tab splits (mutually exclusive as primary). */
 export const LAYOUT_GROUP_BY_DIMS: ExportGroupByDimension[] = [

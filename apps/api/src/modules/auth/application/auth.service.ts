@@ -1,11 +1,18 @@
 import { createHash, randomUUID } from "node:crypto";
-import { ErrorCodes } from "@chronomint/contracts";
-import type { LoginDto, RegisterDto, AuthSessionDto } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
+import type {
+  LoginDto,
+  RegisterDto,
+  AuthSessionDto,
+  LoginRequires2faResponseDto
+} from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import { verify as verifyTotp } from "otplib";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { splitDisplayName } from "../../users/application/user-name.util";
 
 function slugify(name: string): string {
   return name
@@ -42,11 +49,14 @@ export class AuthService {
     const slugTaken = await this.prisma.workspace.findUnique({ where: { slug } });
     if (slugTaken) slug = `${slug}-${Date.now()}`;
 
+    const { firstName, lastName } = splitDisplayName(dto.name);
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         passwordHash,
         name: dto.name,
+        firstName,
+        lastName,
         memberships: {
           create: {
             role: "ADMIN",
@@ -86,24 +96,70 @@ export class AuthService {
     );
   }
 
-  async login(dto: LoginDto): Promise<AuthSessionDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      include: {
-        memberships: {
-          include: { workspace: true },
-          orderBy: { createdAt: "asc" },
-          take: 1
-        }
-      }
-    });
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+  async login(dto: LoginDto): Promise<AuthSessionDto | LoginRequires2faResponseDto> {
+    let userId: string | undefined;
+
+    if (dto.pendingToken) {
+      userId = this.verifyPending2faToken(dto.pendingToken);
+    }
+
+    const user = userId
+      ? await this.prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            memberships: {
+              include: { workspace: true },
+              orderBy: { createdAt: "asc" },
+              take: 1
+            }
+          }
+        })
+      : await this.prisma.user.findUnique({
+          where: { email: dto.email },
+          include: {
+            memberships: {
+              include: { workspace: true },
+              orderBy: { createdAt: "asc" },
+              take: 1
+            }
+          }
+        });
+
+    if (!user) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
         "Invalid credentials",
         HttpStatus.UNAUTHORIZED
       );
     }
+
+    if (!dto.pendingToken) {
+      if (!dto.email || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+        throw new DomainException(
+          ErrorCodes.UNAUTHORIZED,
+          "Invalid credentials",
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+    }
+
+    if (user.totpEnabledAt && user.totpSecret) {
+      if (!dto.totpCode) {
+        return {
+          requires2fa: true,
+          pendingToken: this.signPending2faToken(user.id)
+        };
+      }
+      const verification = await verifyTotp({ token: dto.totpCode, secret: user.totpSecret });
+      if (!verification.valid) {
+        throw new DomainException(
+          ErrorCodes.UNAUTHORIZED,
+          "Invalid authentication code",
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+    }
+
     const membership = user.memberships[0];
     if (!membership) {
       throw new DomainException(
@@ -118,6 +174,30 @@ export class AuthService {
       membership.role as "ADMIN" | "MEMBER",
       membership.workspace.name
     );
+  }
+
+  private signPending2faToken(userId: string): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    return this.jwt.sign({ sub: userId, purpose: "2fa-pending" }, { secret, expiresIn: "5m" });
+  }
+
+  private verifyPending2faToken(token: string): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    try {
+      const payload = this.jwt.verify(token, { secret }) as { sub: string; purpose?: string };
+      if (payload.purpose !== "2fa-pending") {
+        throw new Error("invalid purpose");
+      }
+      return payload.sub;
+    } catch {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Two-factor session expired — sign in again",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
   }
 
   signAccessToken(
@@ -144,7 +224,8 @@ export class AuthService {
     userId: string,
     workspaceId: string,
     family?: string,
-    impersonatorId?: string
+    impersonatorId?: string,
+    sessionMeta?: { userAgent?: string; ipAddress?: string }
   ): Promise<string> {
     const secret = process.env.JWT_REFRESH_SECRET?.trim();
     if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
@@ -164,13 +245,17 @@ export class AuthService {
     const expiresInMs = 7 * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + expiresInMs);
 
+    const now = new Date();
     await this.prisma.refreshToken.create({
       data: {
         userId,
         workspaceId,
         tokenHash: hashToken(raw),
         family: tokenFamily,
-        expiresAt
+        expiresAt,
+        userAgent: sessionMeta?.userAgent ?? null,
+        ipAddress: sessionMeta?.ipAddress ?? null,
+        lastUsedAt: now
       }
     });
 
@@ -259,7 +344,7 @@ export class AuthService {
     // Revoke the consumed token
     await this.prisma.refreshToken.update({
       where: { tokenHash: hash },
-      data: { revokedAt: new Date() }
+      data: { revokedAt: new Date(), lastUsedAt: new Date() }
     });
 
     // Build session
@@ -271,7 +356,11 @@ export class AuthService {
       stored.userId,
       stored.workspaceId,
       family,
-      impersonatorId
+      impersonatorId,
+      {
+        userAgent: stored.userAgent ?? undefined,
+        ipAddress: stored.ipAddress ?? undefined
+      }
     );
 
     return { session, newRefreshToken: newToken };

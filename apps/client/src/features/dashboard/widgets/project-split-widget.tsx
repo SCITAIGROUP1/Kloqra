@@ -1,12 +1,12 @@
 "use client";
 
-import type { TimeLogDto, ProjectDto, TaskDto } from "@chronomint/contracts";
+import type { TimeLogDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
-} from "@chronomint/ui/chart";
+} from "@kloqra/ui/chart";
 import React, { useMemo } from "react";
 import { Cell, Legend, Pie, PieChart } from "recharts";
 

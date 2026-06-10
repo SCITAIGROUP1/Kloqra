@@ -1,5 +1,5 @@
-import type { TimesheetApprovalPeriod, WorkspaceSettings } from "@chronomint/contracts";
-import { DEFAULT_TIMESHEET_APPROVAL_PERIOD, parseWorkspaceSettings } from "@chronomint/contracts";
+import type { TimesheetApprovalPeriod, WorkspaceSettings } from "@kloqra/contracts";
+import { DEFAULT_TIMESHEET_APPROVAL_PERIOD, parseWorkspaceSettings } from "@kloqra/contracts";
 import { getWeekStartDate } from "./week.util";
 
 export type PeriodRange = {

@@ -173,7 +173,7 @@ Pattern: identical lifecycle to `ExportScheduleService` — `OnModuleInit` / `On
 
 ```typescript
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-import { HARD_AUTO_STOP_HOURS } from "@chronomint/contracts";
+import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
@@ -392,7 +392,7 @@ A self-contained dialog component. Shows when the timer is running long. Three c
 "use client";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader,
          AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
-         AlertDialogCancel, AlertDialogAction, Button } from "@chronomint/ui";
+         AlertDialogCancel, AlertDialogAction, Button } from "@kloqra/ui";
 import { Clock, Trash2, Square } from "lucide-react";
 
 interface StaleTimerDialogProps {

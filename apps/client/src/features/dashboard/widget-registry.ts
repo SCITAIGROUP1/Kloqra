@@ -169,7 +169,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     group: "workflow",
     defaultSize: { w: 6, h: 3 },
     minSize: { w: 4, h: 3 },
-    defaultVisible: false,
+    defaultVisible: true,
     iconName: "ListTodo"
   }
 ];
@@ -193,7 +193,7 @@ export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
 
   // y=8: Today's activity feed and My Timesheets (hidden by default)
   { i: "today_logs", x: 0, y: 8, w: 6, h: 4, visible: true },
-  { i: "timesheet_submissions", x: 6, y: 8, w: 6, h: 3, visible: false }
+  { i: "timesheet_submissions", x: 6, y: 8, w: 6, h: 3, visible: true }
 ];
 
 export const WIDGET_ICONS: Record<string, any> = {

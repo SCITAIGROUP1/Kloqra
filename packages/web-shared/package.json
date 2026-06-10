@@ -1,5 +1,5 @@
 {
-  "name": "@chronomint/web-shared",
+  "name": "@kloqra/web-shared",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,11 +17,12 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@chronomint/contracts": "workspace:*",
-    "@chronomint/ui": "workspace:*",
+    "@kloqra/contracts": "workspace:*",
+    "@kloqra/ui": "workspace:*",
     "lucide-react": "^0.469.0",
     "next-themes": "^0.4.4",
     "sonner": "^1.7.1",
@@ -33,12 +34,15 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@chronomint/config-typescript": "workspace:*",
+    "@kloqra/config-typescript": "workspace:*",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "jsdom": "^29.1.1",
     "next": "^15.1.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
   }
 }

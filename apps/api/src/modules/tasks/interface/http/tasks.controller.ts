@@ -2,8 +2,9 @@ import {
   createTaskSchema,
   listTasksQuerySchema,
   updateTaskSchema,
+  type ListTasksQuery,
   ROUTES
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   Body,
   Controller,
@@ -33,16 +34,9 @@ export class TasksController {
   @Get(ROUTES.TASKS.LIST)
   list(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(listTasksQuerySchema))
-    query: { projectId?: string; categoryId?: string }
+    @Query(new ZodValidationPipe(listTasksQuerySchema)) query: ListTasksQuery
   ) {
-    return this.tasks.list(
-      user.workspaceId,
-      user.userId,
-      user.role,
-      query.projectId,
-      query.categoryId
-    );
+    return this.tasks.list(user.workspaceId, user.userId, user.role, query);
   }
 
   @Roles("ADMIN")

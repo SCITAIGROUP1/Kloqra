@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { type PipeTransform, Injectable, BadRequestException } from "@nestjs/common";
 import type { ZodSchema } from "zod";
 

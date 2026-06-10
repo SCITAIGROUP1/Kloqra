@@ -1,14 +1,14 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { TaskDto, ProjectDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { TaskDto, ProjectDto } from "@kloqra/contracts";
 import {
+  AppBar,
   Badge,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
   ProjectColorDot,
   Select,
   SelectContent,
@@ -17,13 +17,14 @@ import {
   SelectValue,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow
-} from "@chronomint/ui";
+  TablePagination,
+  TableRow,
+  TableToolbar,
+  TableLoadingState
+} from "@kloqra/ui";
+import { fetchListItems, usePaginatedList } from "@kloqra/web-shared";
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
 import { formatProjectLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -32,14 +33,34 @@ const ALL_PROJECTS = "__all__";
 
 export function TasksPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
+  const { projects, workspaceNamesById, setProjects } = useProjectsStore();
   const [projectFilter, setProjectFilter] = useState<string>(ALL_PROJECTS);
 
   useEffect(() => {
     if (!ws) return;
-    void api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    void api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-  }, [ws, setProjects, setTasks]);
+    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+  }, [ws, setProjects]);
+
+  const taskFilters = useMemo(
+    () => (projectFilter === ALL_PROJECTS ? undefined : { projectId: projectFilter }),
+    [projectFilter]
+  );
+
+  const {
+    items: tasks,
+    page,
+    setPage,
+    search,
+    setSearch,
+    total,
+    totalPages,
+    limit,
+    loading
+  } = usePaginatedList<TaskDto>({
+    workspaceId: ws,
+    basePath: ROUTES.TASKS.LIST,
+    filters: taskFilters
+  });
 
   const projectsById = useMemo(() => {
     const m = new Map<string, ProjectDto>();
@@ -47,102 +68,88 @@ export function TasksPage() {
     return m;
   }, [projects]);
 
-  const filteredTasks = useMemo(() => {
-    if (projectFilter === ALL_PROJECTS) return tasks;
-    return tasks.filter((t) => t.projectId === projectFilter);
-  }, [tasks, projectFilter]);
-
   const grouped = useMemo(() => {
     const groups = new Map<string, TaskDto[]>();
-    for (const t of filteredTasks) {
+    for (const t of tasks) {
       const key = t.categoryName ?? "Other";
       const list = groups.get(key) ?? [];
       list.push(t);
       groups.set(key, list);
     }
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [filteredTasks]);
+  }, [tasks]);
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Tasks</h2>
-        <p className="text-sm text-muted-foreground">
-          Browse the tasks your admin has defined for each project, grouped by category. Tasks are
-          managed by admins in the Categories and Projects pages.
-        </p>
-      </div>
+      <AppBar
+        title="Tasks"
+        description="Browse tasks grouped by category. Tasks are managed by admins in Categories and Projects."
+      />
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-          <div>
-            <CardTitle>All tasks</CardTitle>
-            <CardDescription>
-              {filteredTasks.length} task{filteredTasks.length === 1 ? "" : "s"} across{" "}
-              {grouped.length} categor{grouped.length === 1 ? "y" : "ies"}.
-            </CardDescription>
-          </div>
-          <div className="w-[260px]">
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by project" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_PROJECTS}>All projects</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot color={p.color} />
+      <DataTableCard>
+        <TableToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search tasks…"
+          searchAriaLabel="Search tasks"
+          filters={
+            <div className="w-[220px]">
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="h-9 bg-background">
+                  <SelectValue placeholder="Filter by project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_PROJECTS}>All projects</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
                       {formatProjectLabel(p, workspaceNamesById)}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tasks for this selection yet.</p>
-          ) : (
-            <div className="space-y-6">
-              {grouped.map(([categoryName, list]) => (
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
+
+        {loading ? (
+          <TableLoadingState rows={6} columns={3} />
+        ) : tasks.length === 0 ? (
+          <p className="p-6 text-sm text-muted-foreground">No tasks found for this filter.</p>
+        ) : (
+          <>
+            <div className="space-y-6 p-4 sm:p-6">
+              {grouped.map(([categoryName, categoryTasks]) => (
                 <div key={categoryName} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{categoryName}</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {list.length} task{list.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
+                  <h3 className="text-sm font-semibold text-muted-foreground">{categoryName}</h3>
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Task</TableHead>
-                        <TableHead className="w-[260px]">Project</TableHead>
-                        <TableHead className="w-[140px]">Billable default</TableHead>
-                      </TableRow>
+                      <DataTableHeaderRow>
+                        <DataTableHead>Task</DataTableHead>
+                        <DataTableHead>Project</DataTableHead>
+                        <DataTableHead>Billable default</DataTableHead>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
-                      {list.map((t) => {
+                      {categoryTasks.map((t) => {
                         const project = projectsById.get(t.projectId);
                         return (
                           <TableRow key={t.id}>
-                            <TableCell className="font-medium">{t.taskName}</TableCell>
-                            <TableCell>
+                            <DataTableCell className="font-medium">{t.taskName}</DataTableCell>
+                            <DataTableCell>
                               {project ? (
-                                <span className="flex items-center gap-2 text-sm">
-                                  <ProjectColorDot color={project.color} />
-                                  {formatProjectLabel(project, workspaceNamesById)}
+                                <span className="inline-flex items-center gap-2">
+                                  <ProjectColorDot color={project.color} size="sm" />
+                                  {project.name}
                                 </span>
                               ) : (
-                                <span className="text-sm text-muted-foreground">—</span>
+                                "—"
                               )}
-                            </TableCell>
-                            <TableCell>
+                            </DataTableCell>
+                            <DataTableCell>
                               <Badge variant={t.billableDefault ? "default" : "secondary"}>
                                 {t.billableDefault ? "Billable" : "Non-billable"}
                               </Badge>
-                            </TableCell>
+                            </DataTableCell>
                           </TableRow>
                         );
                       })}
@@ -151,9 +158,17 @@ export function TasksPage() {
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+              disabled={loading}
+            />
+          </>
+        )}
+      </DataTableCard>
     </div>
   );
 }

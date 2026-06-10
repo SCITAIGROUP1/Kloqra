@@ -1,8 +1,8 @@
 "use client";
 
-import type { DashboardReportDto } from "@chronomint/contracts";
-import { ROUTES } from "@chronomint/contracts";
-import { ProjectColorDot } from "@chronomint/ui";
+import type { DashboardReportDto } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import { ProjectColorDot } from "@kloqra/ui";
 import { AlertCircle, CheckCircle, Info, Flame } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
@@ -47,7 +47,7 @@ export function ProjectHealthWidget({ report }: ProjectHealthWidgetProps) {
           return {
             projectId: p.projectId,
             projectName: p.projectName,
-            projectColor: (p as any).projectColor || "#6366f1",
+            projectColor: (p as any).projectColor || "#236bfe",
             totalHours: p.totalHours,
             billableHours: p.billableHours,
             revenue: p.billableAmount,
@@ -59,7 +59,7 @@ export function ProjectHealthWidget({ report }: ProjectHealthWidgetProps) {
           return {
             projectId: p.projectId,
             projectName: p.projectName,
-            projectColor: "#6366f1",
+            projectColor: "#236bfe",
             totalHours: p.totalHours,
             billableHours: p.billableHours,
             revenue: p.billableAmount,

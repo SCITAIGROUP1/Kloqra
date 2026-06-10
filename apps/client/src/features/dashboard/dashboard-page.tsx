@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import type {
   TimeLogDto,
   ProjectDto,
@@ -9,23 +9,33 @@ import type {
   ActiveTimerDto,
   CategoryDto,
   WorkspaceMemberDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
+  AppBar,
+  AppBarActionButton,
   Button,
   Card,
   CardContent,
+  DashboardSkeleton,
+  Input,
   Label,
+  ProjectColorDot,
+  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  ProjectColorDot,
-  Input,
-  SegmentedControl
-} from "@chronomint/ui";
-import { ReportScopeFilters, toDateInputValue } from "@chronomint/web-shared";
-import { Play, Pause, Square, LayoutGrid, Move, RotateCcw, Check } from "lucide-react";
+  SelectValue
+} from "@kloqra/ui";
+import {
+  applyDashboardPeriodPreset,
+  DashboardArrangeBanner,
+  matchDashboardPeriodPreset,
+  ReportScopeFilters,
+  type DashboardPeriodPreset,
+  fetchListItems
+} from "@kloqra/web-shared";
+import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
@@ -49,14 +59,11 @@ import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
-  { value: 1, label: "Today" },
-  { value: 7, label: "7 days" },
-  { value: 30, label: "30 days" },
-  { value: 90, label: "90 days" }
+const RANGE_OPTIONS: { value: DashboardPeriodPreset; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This week" },
+  { value: "month", label: "This month" }
 ];
-
-type RangeDays = 1 | 7 | 30 | 90;
 
 function formatElapsed(sec: number) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00:00";
@@ -75,13 +82,9 @@ export function DashboardPage() {
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
 
   // Dashboard filter states
-  const [range, setRange] = useState<RangeDays | "">(7);
-  const [startDate, setStartDate] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return toDateInputValue(d);
-  });
-  const [endDate, setEndDate] = useState<string>(() => toDateInputValue(new Date()));
+  const [range, setRange] = useState<DashboardPeriodPreset | "">("week");
+  const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
+  const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
   const [filterProjectId, setFilterProjectId] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTaskId, setFilterTaskId] = useState("");
@@ -91,42 +94,17 @@ export function DashboardPage() {
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  function handleRangePresetChange(newRange: RangeDays) {
+  function handleRangePresetChange(newRange: DashboardPeriodPreset) {
     setRange(newRange);
-    const to = new Date();
-    if (newRange === 1) {
-      const today = toDateInputValue(to);
-      setStartDate(today);
-      setEndDate(today);
-      return;
-    }
-    const from = new Date();
-    from.setDate(from.getDate() - newRange);
-    setStartDate(toDateInputValue(from));
-    setEndDate(toDateInputValue(to));
+    const { from, to } = applyDashboardPeriodPreset(newRange);
+    setStartDate(from);
+    setEndDate(to);
   }
 
   function handleCustomDateChange(newStart: string, newEnd: string) {
     setStartDate(newStart);
     setEndDate(newEnd);
-
-    const todayStr = toDateInputValue(new Date());
-    if (newStart === newEnd && newStart === todayStr) {
-      setRange(1);
-      return;
-    }
-
-    if (newEnd === todayStr) {
-      const fromDate = new Date(newStart + "T12:00:00");
-      const toDate = new Date(newEnd + "T12:00:00");
-      const diffTime = toDate.getTime() - fromDate.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays === 7 || diffDays === 30 || diffDays === 90) {
-        setRange(diffDays as RangeDays);
-        return;
-      }
-    }
-    setRange("");
+    setRange(matchDashboardPeriodPreset(newStart, newEnd) ?? "");
   }
 
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
@@ -153,6 +131,8 @@ export function DashboardPage() {
   const initialized = useWidgetLayout((s) => s.initialized);
   const initialize = useWidgetLayout((s) => s.initialize);
   const updateLayout = useWidgetLayout((s) => s.updateLayout);
+  const persistLayout = useWidgetLayout((s) => s.persistLayout);
+  const saveLayoutAsDefault = useWidgetLayout((s) => s.saveLayoutAsDefault);
   const toggleWidget = useWidgetLayout((s) => s.toggleWidget);
   const resetLayout = useWidgetLayout((s) => s.resetLayout);
 
@@ -256,9 +236,11 @@ export function DashboardPage() {
     setLoading(true);
     try {
       await Promise.all([
-        api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-        api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
-        api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories),
+        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
+        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
+        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
+          setCategories
+        ),
         isAdmin
           ? api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(
               setWorkspaceMembers
@@ -284,9 +266,9 @@ export function DashboardPage() {
       setScopeTasks([]);
       return;
     }
-    const params = new URLSearchParams({ projectId: filterProjectId });
-    if (filterCategoryId) params.set("categoryId", filterCategoryId);
-    api<TaskDto[]>(`${ROUTES.TASKS.LIST}?${params}`, { workspaceId: ws })
+    const filters: Record<string, string> = { projectId: filterProjectId };
+    if (filterCategoryId) filters.categoryId = filterCategoryId;
+    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
       .then(setScopeTasks)
       .catch(() => setScopeTasks([]));
   }, [ws, filterProjectId, filterCategoryId]);
@@ -449,6 +431,18 @@ export function DashboardPage() {
     toast.success("Dashboard layout reset");
   };
 
+  const handleDoneArranging = () => {
+    persistLayout(ws);
+    setIsArranging(false);
+  };
+
+  const handleDoneAndSaveAsDefault = () => {
+    persistLayout(ws);
+    saveLayoutAsDefault(ws);
+    setIsArranging(false);
+    toast.success("Layout saved as default");
+  };
+
   const handleQuickSelect = (pId: string, tId: string) => {
     setProjectId(pId);
     setTaskChoice(tId);
@@ -551,55 +545,49 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="h-24 bg-card animate-pulse" />
-          <Card className="h-24 bg-card animate-pulse" />
-          <Card className="h-24 bg-card animate-pulse" />
-        </div>
-        <Card className="h-96 bg-card animate-pulse" />
+      <div className="space-y-8">
+        <AppBar
+          title="Dashboard"
+          description="Analyze your weekly progress and customize your widget layout."
+        />
+        <DashboardSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 space-y-6 pb-16">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Analyze your weekly progress and customize your widget layout.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Button
-            size="sm"
-            variant={isCatalogOpen ? "secondary" : "outline"}
-            onClick={() => {
-              setIsCatalogOpen(!isCatalogOpen);
-              setIsArranging(false);
-            }}
-            className="gap-1.5 text-xs h-9"
-          >
-            <LayoutGrid className="size-3.5" />
-            {isCatalogOpen ? "Close Catalog" : "Add Widgets"}
-          </Button>
-          <Button
-            size="sm"
-            variant={isArranging ? "secondary" : "outline"}
-            onClick={() => {
-              setIsArranging(!isArranging);
-              setIsCatalogOpen(false);
-            }}
-            className="gap-1.5 text-xs h-9"
-          >
-            <Move className="size-3.5" />
-            {isArranging ? "Done Arranging" : "Arrange Widgets"}
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen space-y-6 pb-16">
+      <AppBar
+        title="Dashboard"
+        description="Analyze your weekly progress and customize your widget layout."
+        actions={
+          <>
+            <AppBarActionButton
+              active={isCatalogOpen}
+              onClick={() => {
+                setIsCatalogOpen(!isCatalogOpen);
+                setIsArranging(false);
+              }}
+            >
+              <LayoutGrid className="size-3.5" />
+              {isCatalogOpen ? "Close Catalog" : "Add Widgets"}
+            </AppBarActionButton>
+            <AppBarActionButton
+              active={isArranging}
+              onClick={() => {
+                if (isArranging) {
+                  persistLayout(ws);
+                }
+                setIsArranging(!isArranging);
+                setIsCatalogOpen(false);
+              }}
+            >
+              <Move className="size-3.5" />
+              {isArranging ? "Done Arranging" : "Arrange Grid"}
+            </AppBarActionButton>
+          </>
+        }
+      />
 
       {/* Customize Panels */}
       {isCatalogOpen && (
@@ -612,39 +600,11 @@ export function DashboardPage() {
       )}
 
       {isArranging && (
-        <div className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/85 backdrop-blur-md shadow-sm animate-in slide-in-from-top-2 fade-in duration-200">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Move className="size-4 text-primary animate-pulse shrink-0" />
-              <span className="text-sm font-semibold">Rearranging Layout</span>
-              <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-mono hidden sm:inline">
-                Edit Mode
-              </span>
-              <span className="text-[10px] text-muted-foreground hidden md:inline ml-1">
-                Drag anywhere on a widget to move; drag edges or the corner to resize.
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleResetLayout}
-                className="h-8 gap-1.5 text-xs font-semibold hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-              >
-                <RotateCcw className="size-3.5" />
-                Reset Layout
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsArranging(false)}
-                className="h-8 gap-1.5 text-xs font-semibold shadow-sm"
-              >
-                <Check className="size-3.5" />
-                Done
-              </Button>
-            </div>
-          </div>
-        </div>
+        <DashboardArrangeBanner
+          onResetLayout={handleResetLayout}
+          onDone={handleDoneArranging}
+          onSaveAsDefault={handleDoneAndSaveAsDefault}
+        />
       )}
 
       {/* Filters Toolbar */}
@@ -654,8 +614,8 @@ export function DashboardPage() {
             <Label className="text-xs font-medium text-muted-foreground">Period</Label>
             <div className="flex flex-wrap items-center gap-3">
               <SegmentedControl
-                value={range as RangeDays}
-                onChange={(v) => handleRangePresetChange(v as RangeDays)}
+                value={range as DashboardPeriodPreset}
+                onChange={(v) => handleRangePresetChange(v as DashboardPeriodPreset)}
                 options={RANGE_OPTIONS}
               />
               <div className="flex items-center gap-1.5">
@@ -718,7 +678,7 @@ export function DashboardPage() {
             resizeHandles={["s", "e", "se"]}
             onLayoutChange={(currentLayout) => {
               if (isArranging) {
-                updateLayout(ws, currentLayout);
+                updateLayout(ws, currentLayout, { persist: false });
               }
             }}
             margin={[16, 16]}
@@ -728,22 +688,17 @@ export function DashboardPage() {
               const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);
               let label = widgetDef?.label ?? "Widget";
               if (item.i === "stat_total_hours") {
-                if (range === 1) label = "Total Hours (Today)";
-                else if (range !== 7) label = "Total Hours (Period)";
+                if (range === "today") label = "Total Hours (Today)";
+                else if (range === "month") label = "Total Hours (Period)";
               }
               if (item.i === "weekly_progress") {
-                if (range === 1) label = "Today's Progress";
-                else if (range !== 7) label = "Progress Chart";
+                if (range === "today") label = "Today's Progress";
+                else if (range === "month") label = "Progress Chart";
               }
 
               return (
                 <div key={item.i} className="w-full h-full">
-                  <WidgetShell
-                    id={item.i}
-                    label={label}
-                    isEditing={isArranging}
-                    onHide={() => toggleWidget(ws, item.i)}
-                  >
+                  <WidgetShell id={item.i} label={label} isEditing={isArranging}>
                     {(() => {
                       switch (item.i) {
                         case "stat_total_hours":

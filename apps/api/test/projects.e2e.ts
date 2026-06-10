@@ -16,8 +16,8 @@ describe("Projects E2E", () => {
     app.use(cookieParser());
     await app.init();
 
-    adminSession = await loginAs(app, "admin@chronomint.dev");
-    memberSession = await loginAs(app, "member@chronomint.dev");
+    adminSession = await loginAs(app, "admin@kloqra.dev");
+    memberSession = await loginAs(app, "member@kloqra.dev");
   });
 
   afterAll(async () => {

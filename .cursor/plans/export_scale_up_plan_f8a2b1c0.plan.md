@@ -1,6 +1,6 @@
 ---
 name: Export scale-up plan
-overview: Scale ChronoMint exports toward Clockify-style reporting distribution—more report types, wizard UX (presets, preview, dashboard shortcut), client-ready PDFs, then scheduled/shareable exports—while keeping aggregation SSOT in contracts + time-aggregation.service.
+overview: Scale Kloqra exports toward Clockify-style reporting distribution—more report types, wizard UX (presets, preview, dashboard shortcut), client-ready PDFs, then scheduled/shareable exports—while keeping aggregation SSOT in contracts + time-aggregation.service.
 todos:
   - id: phase1-preview-api
     content: Add POST /export/preview (or GET) returning row counts per report type + empty-range flag; admin wizard shows ~N rows before download
@@ -122,7 +122,7 @@ Below **Export** button on [exports/page.tsx](<../../apps/admin/src/app/(admin)/
 
 | Item        | Detail                                                              |
 | ----------- | ------------------------------------------------------------------- |
-| Storage key | `chronomint-export-presets:{workspaceId}`                           |
+| Storage key | `kloqra-export-presets:{workspaceId}`                               |
 | Shape       | `{ id, name, body: ExportBodyDto }[]`                               |
 | UI          | Dropdown: Load preset · Save as… · Delete; does not auto-run export |
 

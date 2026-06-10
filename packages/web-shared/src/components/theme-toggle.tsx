@@ -1,9 +1,9 @@
 "use client";
 
-import { cn } from "@chronomint/ui";
-import { Monitor, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { AppBarIconButton, cn, ShellMenuPanel, ShellMenuRadioItem } from "@kloqra/ui";
+import { Check, Monitor, Moon, Sun } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useThemePreference } from "../hooks/use-theme-preference";
 
 type ThemeChoice = "light" | "dark" | "system";
 
@@ -13,39 +13,96 @@ const OPTIONS: { value: ThemeChoice; label: string; Icon: typeof Sun }[] = [
   { value: "system", label: "System", Icon: Monitor }
 ];
 
-export function ThemeToggle({ className, collapsed }: { className?: string; collapsed?: boolean }) {
-  const { theme, setTheme } = useTheme();
+export type ThemeToggleVariant = "segmented" | "icon-cycle" | "icon-menu";
+
+export function ThemeToggle({
+  className,
+  collapsed,
+  variant
+}: {
+  className?: string;
+  collapsed?: boolean;
+  /** `icon-menu` — app bar icon with compact dropdown. `icon-cycle` — single icon cycles themes. `segmented` — inline 3-option grid. */
+  variant?: ThemeToggleVariant;
+}) {
+  const resolvedVariant: ThemeToggleVariant = variant ?? (collapsed ? "icon-cycle" : "segmented");
+  const { theme, applyTheme } = useThemePreference();
   const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
   if (!mounted) {
-    return <div className={cn("h-9 rounded-lg bg-muted/40", className)} aria-hidden />;
+    return <div className={cn("h-10 w-10 rounded-xl bg-muted/40", className)} aria-hidden />;
   }
 
   const active = (theme ?? "system") as ThemeChoice;
+  const activeOption = OPTIONS.find((opt) => opt.value === active) ?? OPTIONS[2];
+  const ActiveIcon = activeOption.Icon;
 
-  if (collapsed) {
-    const activeOption = OPTIONS.find((opt) => opt.value === active) ?? OPTIONS[2];
-    const ActiveIcon = activeOption.Icon;
-
+  if (resolvedVariant === "icon-cycle") {
     const cycleTheme = () => {
       const nextTheme = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
-      setTheme(nextTheme);
+      applyTheme(nextTheme);
     };
 
     return (
-      <button
-        type="button"
+      <AppBarIconButton
         onClick={cycleTheme}
-        className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground hover:bg-background/60 hover:text-foreground transition-colors mx-auto shadow-sm",
-          className
-        )}
+        className={className}
         title={`Theme: ${activeOption.label} (click to cycle)`}
+        aria-label={`Theme: ${activeOption.label}`}
       >
-        <ActiveIcon className="h-4 w-4" aria-hidden />
-      </button>
+        <ActiveIcon aria-hidden />
+      </AppBarIconButton>
+    );
+  }
+
+  if (resolvedVariant === "icon-menu") {
+    return (
+      <div className={cn("relative", className)} ref={menuRef}>
+        <AppBarIconButton
+          onClick={() => setOpen((value) => !value)}
+          aria-label="Appearance"
+          aria-haspopup="menu"
+          aria-expanded={open}
+        >
+          <Moon aria-hidden />
+        </AppBarIconButton>
+        {open ? (
+          <ShellMenuPanel aria-label="Appearance">
+            {OPTIONS.map(({ value, label, Icon }) => {
+              const isActive = active === value;
+              return (
+                <ShellMenuRadioItem
+                  key={value}
+                  active={isActive}
+                  onClick={() => {
+                    applyTheme(value);
+                    setOpen(false);
+                  }}
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="flex-1 text-left">{label}</span>
+                  {isActive ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
+                </ShellMenuRadioItem>
+              );
+            })}
+          </ShellMenuPanel>
+        ) : null}
+      </div>
     );
   }
 
@@ -64,7 +121,7 @@ export function ThemeToggle({ className, collapsed }: { className?: string; coll
           <button
             key={value}
             type="button"
-            onClick={() => setTheme(value)}
+            onClick={() => applyTheme(value)}
             className={cn(
               "flex flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1.5 text-[10px] font-medium transition-colors",
               isActive

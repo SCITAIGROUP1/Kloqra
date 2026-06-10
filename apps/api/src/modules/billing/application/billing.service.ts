@@ -1,6 +1,7 @@
-import type { CreateHourlyRateDto, ReportQueryDto } from "@chronomint/contracts";
+import type { CreateHourlyRateDto, ListHourlyRatesQuery, ReportQueryDto } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
+import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
@@ -13,22 +14,35 @@ export class BillingService {
     private reportCache: ReportCacheService
   ) {}
 
-  listRates(workspaceId: string) {
-    return this.prisma.hourlyRate
-      .findMany({
-        where: { workspaceId },
-        orderBy: { effectiveFrom: "desc" }
+  async listRates(workspaceId: string, query: ListHourlyRatesQuery) {
+    const where = {
+      workspaceId,
+      ...(query.userId ? { userId: query.userId } : {}),
+      ...(query.projectId ? { projectId: query.projectId } : {})
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.hourlyRate.count({ where }),
+      this.prisma.hourlyRate.findMany({
+        where,
+        orderBy: { effectiveFrom: "desc" },
+        ...paginationSkipTake(query.page, query.limit)
       })
-      .then((rows) =>
-        rows.map((r) => ({
-          id: r.id,
-          workspaceId: r.workspaceId,
-          userId: r.userId,
-          projectId: r.projectId,
-          rate: r.rate.toNumber(),
-          effectiveFrom: r.effectiveFrom.toISOString()
-        }))
-      );
+    ]);
+
+    return toPaginatedResponse(
+      rows.map((r) => ({
+        id: r.id,
+        workspaceId: r.workspaceId,
+        userId: r.userId,
+        projectId: r.projectId,
+        rate: r.rate.toNumber(),
+        effectiveFrom: r.effectiveFrom.toISOString()
+      })),
+      total,
+      query.page,
+      query.limit
+    );
   }
 
   async createRate(workspaceId: string, dto: CreateHourlyRateDto) {

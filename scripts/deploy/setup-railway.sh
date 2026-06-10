@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap a Railway staging or production project for the ChronoMint API.
+# Bootstrap a Railway staging or production project for the Kloqra API.
 #
 # Prerequisites:
 #   - Railway CLI: https://docs.railway.com/guides/cli
@@ -16,7 +16,7 @@ if [[ "$ENV_NAME" != "staging" && "$ENV_NAME" != "production" ]]; then
   exit 1
 fi
 
-PROJECT_NAME="chronomint-${ENV_NAME}"
+PROJECT_NAME="kloqra-${ENV_NAME}"
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
@@ -31,7 +31,7 @@ fi
 
 cd "$ROOT"
 
-echo "=== ChronoMint Railway setup: ${PROJECT_NAME} ==="
+echo "=== Kloqra Railway setup: ${PROJECT_NAME} ==="
 echo ""
 echo "This script guides CLI setup. You can also use the Railway dashboard:"
 echo "  https://railway.app → New Project → Deploy from GitHub"
@@ -80,7 +80,7 @@ if [[ -n "$DB_URL" ]]; then
   read -r -p "Seed database? [y/N] " SEED
   case "$SEED" in
     [yY]|[yY][eE][sS])
-      DATABASE_URL="$DB_URL" pnpm --filter @chronomint/api exec prisma db seed
+      DATABASE_URL="$DB_URL" pnpm --filter @kloqra/api exec prisma db seed
       ;;
   esac
 fi

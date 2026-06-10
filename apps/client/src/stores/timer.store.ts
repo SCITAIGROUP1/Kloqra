@@ -1,4 +1,4 @@
-import type { ActiveTimerDto } from "@chronomint/contracts";
+import type { ActiveTimerDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface TimerState {

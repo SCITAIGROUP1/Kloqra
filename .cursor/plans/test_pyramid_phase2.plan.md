@@ -93,7 +93,7 @@ Add to `apps/admin`:
 - `@playwright/test` devDependency
 - `playwright.config.ts` — baseURL `http://localhost:3002`, same reporters as client (list + junit + html)
 - `package.json` scripts: `test:e2e`, `test:e2e:ui` (optional)
-- `e2e/helpers/auth.ts` — login as `admin@chronomint.dev` / `password123`, land on dashboard
+- `e2e/helpers/auth.ts` — login as `admin@kloqra.dev` / `password123`, land on dashboard
 
 Reuse patterns from [`apps/client/playwright.config.ts`](apps/client/playwright.config.ts) and [`apps/client/e2e/smoke.spec.ts`](apps/client/e2e/smoke.spec.ts).
 
@@ -114,8 +114,8 @@ Use `data-testid` or role-based selectors only where headings/buttons are ambigu
 Update [`.github/workflows/ci.yml`](.github/workflows/ci.yml) `e2e` job:
 
 ```bash
-pnpm --filter @chronomint/admin test:e2e
-pnpm --filter @chronomint/client test:e2e
+pnpm --filter @kloqra/admin test:e2e
+pnpm --filter @kloqra/client test:e2e
 ```
 
 Upload `apps/admin/test-results/playwright-junit.xml` and `apps/admin/playwright-report/**`.
@@ -123,7 +123,7 @@ Upload `apps/admin/test-results/playwright-junit.xml` and `apps/admin/playwright
 Root [`package.json`](package.json):
 
 ```json
-"test:e2e": "pnpm test:integration && pnpm --filter @chronomint/admin test:e2e && pnpm --filter @chronomint/client test:e2e"
+"test:e2e": "pnpm test:integration && pnpm --filter @kloqra/admin test:e2e && pnpm --filter @kloqra/client test:e2e"
 ```
 
 Update [`docs/development/TESTING.md`](docs/development/TESTING.md).
@@ -240,7 +240,7 @@ Keep `pnpm` workspaces; Turbo orchestrates, does not replace pnpm.
 
 ### 4.3 CI job note
 
-Jobs are already split (`quality`, `unit`, `integration`, `e2e`). Turbo helps **within** jobs (e.g. `turbo run test --filter=@chronomint/api`) and across PR rebuilds. Further splitting e2e/admin vs e2e/client into parallel jobs is optional (~0.5 day).
+Jobs are already split (`quality`, `unit`, `integration`, `e2e`). Turbo helps **within** jobs (e.g. `turbo run test --filter=@kloqra/api`) and across PR rebuilds. Further splitting e2e/admin vs e2e/client into parallel jobs is optional (~0.5 day).
 
 ---
 

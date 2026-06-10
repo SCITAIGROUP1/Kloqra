@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import {
   type CanActivate,
   type ExecutionContext,

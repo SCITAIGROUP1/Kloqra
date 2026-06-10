@@ -20,14 +20,14 @@ describe("Timelogs occupancy E2E", () => {
 
     const memberRes = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "member@chronomint.dev", password: "password123" });
+      .send({ email: "member@kloqra.dev", password: "password123" });
     expect(memberRes.status).toBe(201);
     memberToken = memberRes.body.accessToken;
     memberWorkspaceId = memberRes.body.workspaceId;
 
     const adminRes = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@chronomint.dev", password: "password123" });
+      .send({ email: "admin@kloqra.dev", password: "password123" });
     expect(adminRes.status).toBe(201);
     adminToken = adminRes.body.accessToken;
     adminWorkspaceId = adminRes.body.workspaceId;

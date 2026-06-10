@@ -1,1 +1,1 @@
-export { api, publicFetch } from "@chronomint/web-shared";
+export { api, publicFetch } from "@kloqra/web-shared";

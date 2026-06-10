@@ -4,13 +4,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: chronomint
-      POSTGRES_PASSWORD: chronomint
-      POSTGRES_DB: chronomint
+      POSTGRES_USER: kloqra
+      POSTGRES_PASSWORD: kloqra
+      POSTGRES_DB: kloqra
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chronomint"]
+      test: ["CMD-SHELL", "pg_isready -U kloqra"]
       interval: 5s
       timeout: 5s
       retries: 5

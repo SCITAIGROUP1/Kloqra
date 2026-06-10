@@ -1,11 +1,14 @@
 import {
-  createTeamInviteSchema,
   createProjectSchema,
   listProjectsQuerySchema,
+  listProjectTeamQuerySchema,
   updateProjectSchema,
   updateTeamMemberSchema,
+  createTeamInviteSchema,
+  type ListProjectsQuery,
+  type ListProjectTeamQuery,
   ROUTES
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   Body,
   Controller,
@@ -35,9 +38,9 @@ export class ProjectsController {
   @Get(ROUTES.PROJECTS.LIST)
   list(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(listProjectsQuerySchema)) query: { isActive?: boolean }
+    @Query(new ZodValidationPipe(listProjectsQuerySchema)) query: ListProjectsQuery
   ) {
-    return this.projects.list(user.workspaceId, user.userId, user.role, query.isActive);
+    return this.projects.list(user.workspaceId, user.userId, user.role, query);
   }
 
   @Roles("ADMIN")
@@ -76,8 +79,12 @@ export class ProjectsController {
 
   @Roles("ADMIN")
   @Get(ROUTES.PROJECTS.TEAM(":id"))
-  getTeam(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.projects.getTeam(user.workspaceId, id);
+  getTeam(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(listProjectTeamQuerySchema)) query: ListProjectTeamQuery
+  ) {
+    return this.projects.getTeam(user.workspaceId, id, query);
   }
 
   @Roles("ADMIN")

@@ -6,7 +6,7 @@ import {
   type ExportScheduleDto,
   type ExportScheduleFrequency,
   type UpdateExportScheduleDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   HttpStatus,
   Injectable,
@@ -156,11 +156,11 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
 
       await this.mailer.send({
         to: recipients,
-        subject: `[ChronoMint] Scheduled export: ${schedule.name}`,
+        subject: `[Kloqra] Scheduled export: ${schedule.name}`,
         html: `
           <p>Hi,</p>
           <p>Your scheduled export <strong>${schedule.name}</strong> is ready. Please find the file attached.</p>
-          <p>This report was generated automatically by ChronoMint.</p>
+          <p>This report was generated automatically by Kloqra.</p>
         `.trim(),
         attachments: [
           {

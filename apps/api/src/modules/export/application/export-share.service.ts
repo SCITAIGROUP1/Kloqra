@@ -6,7 +6,7 @@ import {
   type CreateReportShareDto,
   type PublicReportShareViewDto,
   type ReportShareDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";

@@ -83,7 +83,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     defaultSize: { w: 2, h: 2 },
     minSize: { w: 2, h: 2 },
     maxSize: { w: 4, h: 2 },
-    defaultVisible: true,
+    defaultVisible: false,
     iconName: "Clock"
   },
   {
@@ -94,7 +94,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     defaultSize: { w: 2, h: 2 },
     minSize: { w: 2, h: 2 },
     maxSize: { w: 4, h: 2 },
-    defaultVisible: true,
+    defaultVisible: false,
     iconName: "Coins"
   },
   {
@@ -139,17 +139,17 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     group: "trends",
     defaultSize: { w: 12, h: 5 },
     minSize: { w: 6, h: 4 },
-    defaultVisible: true,
+    defaultVisible: false,
     iconName: "Calendar"
   },
   {
     id: "weekly_chart",
-    label: "Weekly Breakdown",
-    description: "Stacked bar chart of hours logged weekly",
+    label: "Weekly Activity",
+    description: "Daily hours logged across the selected period",
     group: "trends",
     defaultSize: { w: 6, h: 5 },
     minSize: { w: 4, h: 4 },
-    defaultVisible: false,
+    defaultVisible: true,
     iconName: "BarChart3"
   },
   {
@@ -364,31 +364,31 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
 
 export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
   // Row 0 - KPI cards (y=0)
-  { i: "stat_total_hours", x: 0, y: 0, w: 2, h: 2, visible: true },
-  { i: "stat_billable", x: 2, y: 0, w: 2, h: 2, visible: true },
-  { i: "stat_nonbillable", x: 4, y: 0, w: 2, h: 2, visible: true },
-  { i: "stat_revenue", x: 6, y: 0, w: 2, h: 2, visible: true },
-  { i: "stat_projects", x: 8, y: 0, w: 2, h: 2, visible: true },
-  { i: "stat_members", x: 10, y: 0, w: 2, h: 2, visible: true },
+  { i: "stat_total_hours", x: 0, y: 0, w: 3, h: 2, visible: true },
+  { i: "stat_billable", x: 3, y: 0, w: 3, h: 2, visible: true },
+  { i: "stat_projects", x: 6, y: 0, w: 3, h: 2, visible: true },
+  { i: "stat_members", x: 9, y: 0, w: 3, h: 2, visible: true },
+  { i: "stat_nonbillable", x: 0, y: 0, w: 2, h: 2, visible: false },
+  { i: "stat_revenue", x: 2, y: 0, w: 2, h: 2, visible: false },
   { i: "active_timers", x: 0, y: 2, w: 2, h: 2, visible: false },
 
-  // Row 2 - Core details (y=2)
-  { i: "budget_burndown", x: 0, y: 2, w: 6, h: 4, visible: true },
-  { i: "team_utilization", x: 6, y: 2, w: 6, h: 4, visible: true },
+  // Row 2 - Weekly activity + budget (y=2)
+  { i: "weekly_chart", x: 0, y: 2, w: 6, h: 5, visible: true },
+  { i: "budget_burndown", x: 6, y: 2, w: 6, h: 5, visible: true },
+  { i: "team_utilization", x: 6, y: 2, w: 6, h: 4, visible: false },
 
-  // Row 6 - Trend (y=6)
-  { i: "daily_chart", x: 0, y: 6, w: 12, h: 5, visible: true },
-  { i: "weekly_chart", x: 0, y: 11, w: 6, h: 5, visible: false },
+  // Row 7+ - optional analytics (hidden by default)
+  { i: "daily_chart", x: 0, y: 7, w: 12, h: 5, visible: false },
   { i: "revenue_trend", x: 6, y: 11, w: 6, h: 4, visible: false },
   { i: "time_of_day_heatmap", x: 0, y: 16, w: 8, h: 4, visible: false },
 
   // Row 11 - Tables & Breakdowns (y=11)
-  { i: "breakdown_table", x: 0, y: 11, w: 7, h: 5, visible: true },
-  { i: "distribution_donut", x: 7, y: 11, w: 5, h: 5, visible: true },
+  { i: "breakdown_table", x: 0, y: 11, w: 7, h: 5, visible: false },
+  { i: "distribution_donut", x: 7, y: 11, w: 5, h: 5, visible: false },
   { i: "billable_split_donut", x: 0, y: 16, w: 3, h: 4, visible: false },
   { i: "billability_gauge", x: 3, y: 16, w: 3, h: 4, visible: false },
   { i: "task_breakdown", x: 6, y: 16, w: 4, h: 5, visible: false },
-  { i: "category_distribution", x: 0, y: 21, w: 5, h: 5, visible: true },
+  { i: "category_distribution", x: 0, y: 21, w: 5, h: 5, visible: false },
   { i: "category_breakdown", x: 5, y: 21, w: 7, h: 5, visible: false },
   { i: "category_project_heatmap", x: 0, y: 26, w: 8, h: 4, visible: false },
 

@@ -1,4 +1,4 @@
-import type { ExportBodyDto } from "@chronomint/contracts";
+import type { ExportBodyDto } from "@kloqra/contracts";
 
 export type StoredExportPreset = {
   id: string;
@@ -6,7 +6,7 @@ export type StoredExportPreset = {
   body: ExportBodyDto;
 };
 
-const key = (workspaceId: string) => `chronomint-export-presets:${workspaceId}`;
+const key = (workspaceId: string) => `kloqra-export-presets:${workspaceId}`;
 
 export function listLocalExportPresets(workspaceId: string): StoredExportPreset[] {
   if (typeof window === "undefined") return [];

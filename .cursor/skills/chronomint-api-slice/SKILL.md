@@ -1,11 +1,11 @@
 ---
-name: chronomint-api-slice
+name: kloqra-api-slice
 description: >-
   Add or extend a NestJS vertical slice in apps/api. Use when creating API
   modules, controllers, or services.
 ---
 
-# ChronoMint API slice
+# Kloqra API slice
 
 ## Scaffold
 
@@ -33,5 +33,5 @@ Register in `apps/api/src/app.module.ts`.
 ## Controller checklist
 
 - `@UseGuards(JwtAuthGuard)` (and `RolesGuard` when needed)
-- Paths from `ROUTES` in `@chronomint/contracts`
+- Paths from `ROUTES` in `@kloqra/contracts`
 - Inject services only — no `PrismaService` in controllers

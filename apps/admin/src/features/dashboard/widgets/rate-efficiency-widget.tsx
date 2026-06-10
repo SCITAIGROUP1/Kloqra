@@ -1,7 +1,8 @@
 "use client";
 
-import type { DashboardReportDto, ProjectDto } from "@chronomint/contracts";
-import { ROUTES } from "@chronomint/contracts";
+import type { DashboardReportDto, ProjectDto } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import { fetchListItems } from "@kloqra/web-shared";
 import React, { useEffect, useState, useCallback } from "react";
 import {
   ScatterChart,
@@ -14,7 +15,6 @@ import {
   Cell,
   ResponsiveContainer
 } from "recharts";
-import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 interface RateEfficiencyWidgetProps {
@@ -41,9 +41,9 @@ export function RateEfficiencyWidget({ report }: RateEfficiencyWidgetProps) {
     }
 
     try {
-      const projects = await api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(
-        () => []
-      );
+      const projects = await fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
+        workspaceId: ws
+      }).catch(() => []);
 
       const points = report.timeByProject.map((p) => {
         const project = projects.find((pr) => pr.id === p.projectId);

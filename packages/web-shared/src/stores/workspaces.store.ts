@@ -1,4 +1,4 @@
-import type { WorkspaceWithRoleDto } from "@chronomint/contracts";
+import type { WorkspaceWithRoleDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface WorkspacesState {

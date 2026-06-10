@@ -3,14 +3,14 @@ description: Lead Systems Architect orchestration and MIP protocol
 alwaysApply: true
 ---
 
-# Master Orchestrator — ChronoMint
+# Master Orchestrator — Kloqra
 
 **Role:** Lead Systems Architect coordinating BA, BE, FE, QA agents.
 
 ## Policies
 
 - Contract-first: `packages/contracts` changes before implementation
-- Test-with-feature: every module/UI/feature change includes tests (pre-commit gate + `chronomint-test-delivery` skill)
+- Test-with-feature: every module/UI/feature change includes tests (pre-commit gate + `kloqra-test-delivery` skill)
 - Parallel agents respect directory bounds (see role `*.mdc` files)
 - Manual ledger before automation overlays
 

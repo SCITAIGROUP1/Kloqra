@@ -1,28 +1,38 @@
 "use client";
 
-import { DEFAULT_EXPORT_COLUMNS, ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import type {
   CategoryDto,
   DashboardReportDto,
   ProjectDto,
   TaskDto,
-  TeamDto
-} from "@chronomint/contracts";
+  TeamMemberDto
+} from "@kloqra/contracts";
 import {
+  AppBar,
+  AppBarActionButton,
   Button,
   Card,
   CardContent,
+  Input,
   Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Input
-} from "@chronomint/ui";
-import { toDateInputValue, ReportScopeFilters } from "@chronomint/web-shared";
-import { LayoutGrid, Move, RotateCcw, Check } from "lucide-react";
-import Link from "next/link";
+  WidgetShell
+} from "@kloqra/ui";
+import {
+  applyDashboardPeriodPreset,
+  DashboardArrangeBanner,
+  fetchProjectTeam,
+  matchDashboardPeriodPreset,
+  ReportScopeFilters,
+  type DashboardPeriodPreset,
+  fetchListItems
+} from "@kloqra/web-shared";
+import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
@@ -31,7 +41,6 @@ import { TeamUtilizationWidget } from "./team-utilization-widget";
 import { useWidgetLayout } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
-import { WidgetShell } from "./widget-shell";
 import { ActiveTimersWidget } from "./widgets/active-timers-widget";
 import { BillabilityGaugeWidget } from "./widgets/billability-gauge-widget";
 import { BillableSplitDonutWidget } from "./widgets/billable-split-donut-widget";
@@ -45,38 +54,31 @@ import { ProjectHealthWidget } from "./widgets/project-health-widget";
 import { RateEfficiencyWidget } from "./widgets/rate-efficiency-widget";
 import { RevenueTrendWidget } from "./widgets/revenue-trend-widget";
 import { TaskBreakdownWidget } from "./widgets/task-breakdown-widget";
-import {
-  DashboardSkeleton,
-  EmptyState,
-  PageHeader,
-  SegmentedControl,
-  StatCard
-} from "@/components/admin-page";
+import { DashboardSkeleton, EmptyState, SegmentedControl } from "@/components/admin-page";
 import {
   DailyStackedBarChart,
   ReportDonutChart,
   ReportBreakdownTable,
-  WeeklyBarChart,
+  WeeklyActivityChart,
   RevenueByProjectChart,
   HoursByMemberChart
 } from "@/components/charts-lazy";
+import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { LivePresenceBadge } from "@/components/live-presence-badge";
 import { formatDurationClock } from "@/components/report-charts";
 import { api } from "@/lib/api";
-import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 // Types
-type RangeDays = 7 | 30 | 90;
+type AdminPeriodPreset = Extract<DashboardPeriodPreset, "week" | "month">;
 type ChartByMode = "billability" | "project";
 type GroupByMode = "user" | "project";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
-  { value: 7, label: "7 days" },
-  { value: 30, label: "30 days" },
-  { value: 90, label: "90 days" }
+const RANGE_OPTIONS: { value: AdminPeriodPreset; label: string }[] = [
+  { value: "week", label: "This week" },
+  { value: "month", label: "This month" }
 ];
 
 function rangeQuery(
@@ -107,13 +109,9 @@ function formatMoney(n: number) {
 
 export function DashboardPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [range, setRange] = useState<RangeDays | "">(7);
-  const [startDate, setStartDate] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return toDateInputValue(d);
-  });
-  const [endDate, setEndDate] = useState<string>(() => toDateInputValue(new Date()));
+  const [range, setRange] = useState<AdminPeriodPreset | "">("week");
+  const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
+  const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
   const [projectId, setProjectId] = useState("");
   const [userId, setUserId] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -121,38 +119,22 @@ export function DashboardPage() {
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [tasks, setTasks] = useState<TaskDto[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamDto["members"]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberDto[]>([]);
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
 
-  function handleRangePresetChange(newRange: RangeDays) {
+  function handleRangePresetChange(newRange: AdminPeriodPreset) {
     setRange(newRange);
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - newRange);
-    setStartDate(toDateInputValue(from));
-    setEndDate(toDateInputValue(to));
+    const { from, to } = applyDashboardPeriodPreset(newRange);
+    setStartDate(from);
+    setEndDate(to);
   }
 
   function handleCustomDateChange(newStart: string, newEnd: string) {
     setStartDate(newStart);
     setEndDate(newEnd);
-
-    // Check if it matches a preset
-    const todayStr = toDateInputValue(new Date());
-    if (newEnd === todayStr) {
-      const fromDate = new Date(newStart + "T12:00:00");
-      const toDate = new Date(newEnd + "T12:00:00");
-      const diffTime = toDate.getTime() - fromDate.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays === 7 || diffDays === 30 || diffDays === 90) {
-        setRange(diffDays as RangeDays);
-        return;
-      }
-    }
-    setRange("");
+    setRange(matchDashboardPeriodPreset(newStart, newEnd, ["week", "month"]) ?? "");
   }
 
   // Widget Customization UI States
@@ -173,6 +155,8 @@ export function DashboardPage() {
   const initialized = useWidgetLayout((s) => s.initialized);
   const initialize = useWidgetLayout((s) => s.initialize);
   const updateLayout = useWidgetLayout((s) => s.updateLayout);
+  const persistLayout = useWidgetLayout((s) => s.persistLayout);
+  const saveLayoutAsDefault = useWidgetLayout((s) => s.saveLayoutAsDefault);
   const toggleWidget = useWidgetLayout((s) => s.toggleWidget);
   const resetLayout = useWidgetLayout((s) => s.resetLayout);
 
@@ -195,8 +179,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!ws) return;
-    api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
+    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
   }, [ws]);
 
   useEffect(() => {
@@ -207,13 +191,13 @@ export function DashboardPage() {
       setTaskId("");
       return;
     }
-    api<TeamDto>(ROUTES.PROJECTS.TEAM(projectId), { workspaceId: ws })
+    fetchProjectTeam(projectId, { workspaceId: ws })
       .then((team) => setTeamMembers(team.members))
       .catch(() => setTeamMembers([]));
 
-    const params = new URLSearchParams({ projectId });
-    if (categoryId) params.set("categoryId", categoryId);
-    api<TaskDto[]>(`${ROUTES.TASKS.LIST}?${params}`, { workspaceId: ws })
+    const filters: Record<string, string> = { projectId };
+    if (categoryId) filters.categoryId = categoryId;
+    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
       .then(setTasks)
       .catch(() => setTasks([]));
   }, [ws, projectId, categoryId]);
@@ -296,38 +280,21 @@ export function DashboardPage() {
     load();
   }, [load]);
 
-  async function quickExport() {
-    if (!ws) return;
-    setExporting(true);
-    try {
-      const from = new Date(startDate + "T00:00:00");
-      const to = new Date(endDate + "T23:59:59.999");
-      const res = await apiDownloadPost(ROUTES.EXPORT.GENERATE, ws, {
-        from: from.toISOString(),
-        to: to.toISOString(),
-        billable: "all",
-        reportTypes: ["time_entries", "by_project"],
-        format: "xlsx",
-        columns: {
-          time_entries: [...DEFAULT_EXPORT_COLUMNS.time_entries],
-          by_project: [...DEFAULT_EXPORT_COLUMNS.by_project]
-        },
-        ...(projectId ? { projectId } : {}),
-        ...(userId ? { userId } : {}),
-        ...(categoryId ? { categoryId } : {}),
-        ...(taskId ? { taskId } : {})
-      });
-      await saveDownloadResponse(res, "chronomint-dashboard-export.xlsx");
-    } catch {
-      setError("Quick export failed.");
-    } finally {
-      setExporting(false);
-    }
-  }
-
   const handleResetLayout = () => {
     resetLayout(ws);
     toast.success("Dashboard layout reset to default");
+  };
+
+  const handleDoneArranging = () => {
+    persistLayout(ws);
+    setIsArranging(false);
+  };
+
+  const handleDoneAndSaveAsDefault = () => {
+    persistLayout(ws);
+    saveLayoutAsDefault(ws);
+    setIsArranging(false);
+    toast.success("Layout saved as default");
   };
 
   const updateHeaderAction = useCallback((id: string, node: React.ReactNode) => {
@@ -358,18 +325,10 @@ export function DashboardPage() {
     [updateHeaderAction]
   );
 
-  const customizeHref = (() => {
-    const params = new URLSearchParams({
-      from: startDate,
-      to: endDate
-    });
-    return `/exports?${params}`;
-  })();
-
   if (loading) {
     return (
       <div className="space-y-8">
-        <PageHeader title="Dashboard" description="Loading workspace analytics…" />
+        <AppBar title="Dashboard" description="Loading workspace analytics…" />
         <DashboardSkeleton />
       </div>
     );
@@ -378,7 +337,7 @@ export function DashboardPage() {
   if (error || !report) {
     return (
       <div className="space-y-8">
-        <PageHeader title="Dashboard" description="Workspace time and revenue overview." />
+        <AppBar title="Dashboard" description="Workspace time and revenue overview." />
         <EmptyState
           title="Could not load reports"
           description={error ?? "No data returned from the API."}
@@ -401,58 +360,61 @@ export function DashboardPage() {
     switch (id) {
       case "stat_total_hours":
         return (
-          <StatCard
-            label="Total hours"
+          <DashboardStatCard
+            label="Total Hours"
             value={formatDurationClock(report!.workspace.totalHours)}
             hint={`${report!.workspace.activeMembers} members active`}
-            cardless
+            icon={Clock}
+            tone="primary"
           />
         );
       case "stat_billable":
         return (
-          <StatCard
-            label="Billable"
+          <DashboardStatCard
+            label="Billable Hours"
             value={formatDurationClock(report!.workspace.billableHours)}
             hint={`${report!.workspace.billablePercent}% of total`}
-            accent="billable"
-            cardless
+            icon={DollarSign}
+            tone="success"
           />
         );
       case "stat_nonbillable":
         return (
-          <StatCard
-            label="Non-billable"
+          <DashboardStatCard
+            label="Non-Billable"
             value={formatDurationClock(report!.workspace.nonBillableHours)}
-            accent="muted"
-            cardless
+            icon={Clock}
+            tone="warning"
           />
         );
       case "stat_revenue":
         return (
-          <StatCard
+          <DashboardStatCard
             label="Revenue"
             value={`$${formatMoney(report!.workspace.totalAmount)}`}
             hint={report!.workspace.currency}
-            accent="revenue"
-            cardless
+            icon={DollarSign}
+            tone="premium"
           />
         );
       case "stat_projects":
         return (
-          <StatCard
-            label="Projects"
+          <DashboardStatCard
+            label="Active Projects"
             value={String(report!.workspace.activeProjects)}
             hint="With time logged"
-            cardless
+            icon={Folder}
+            tone="premium"
           />
         );
       case "stat_members":
         return (
-          <StatCard
-            label="Members"
+          <DashboardStatCard
+            label="Active Members"
             value={String(report!.workspace.activeMembers)}
             hint="With time logged"
-            cardless
+            icon={Users}
+            tone="warning"
           />
         );
       case "budget_burndown":
@@ -483,7 +445,7 @@ export function DashboardPage() {
           />
         );
       case "weekly_chart":
-        return <WeeklyBarChart report={report!} />;
+        return <WeeklyActivityChart report={report!} />;
       case "revenue_by_project":
         return <RevenueByProjectChart report={report!} projectColors={colorByProjectId} />;
       case "hours_by_member":
@@ -694,7 +656,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-8 min-h-screen pb-16">
-      <PageHeader
+      <AppBar
         title="Dashboard"
         description={
           <>
@@ -707,36 +669,29 @@ export function DashboardPage() {
         actions={
           <>
             <LivePresenceBadge />
-            <Button
-              size="sm"
-              variant={isCatalogOpen ? "secondary" : "outline"}
+            <AppBarActionButton
+              active={isCatalogOpen}
               onClick={() => {
                 setIsCatalogOpen(!isCatalogOpen);
-                setIsArranging(false); // Close arrange bar if catalog is opened
+                setIsArranging(false);
               }}
-              className="gap-1.5 text-xs h-9"
             >
               <LayoutGrid className="size-3.5" />
               {isCatalogOpen ? "Closing Catalog" : "Add Widgets"}
-            </Button>
-            <Button
-              size="sm"
-              variant={isArranging ? "secondary" : "outline"}
+            </AppBarActionButton>
+            <AppBarActionButton
+              active={isArranging}
               onClick={() => {
+                if (isArranging) {
+                  persistLayout(ws);
+                }
                 setIsArranging(!isArranging);
-                setIsCatalogOpen(false); // Close catalog if arrange is opened
+                setIsCatalogOpen(false);
               }}
-              className="gap-1.5 text-xs h-9"
             >
               <Move className="size-3.5" />
               {isArranging ? "Done Arranging" : "Arrange Grid"}
-            </Button>
-            <Button size="sm" variant="secondary" onClick={quickExport} disabled={exporting}>
-              {exporting ? "Exporting…" : "Quick export"}
-            </Button>
-            <Button size="sm" variant="outline" asChild>
-              <Link href={customizeHref}>Full export</Link>
-            </Button>
+            </AppBarActionButton>
           </>
         }
       />
@@ -752,39 +707,12 @@ export function DashboardPage() {
       )}
 
       {isArranging && (
-        <div className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/85 backdrop-blur-md shadow-sm animate-in slide-in-from-top-2 fade-in duration-200">
-          <div className="flex items-center justify-between px-6 py-3 max-w-[1600px] mx-auto">
-            <div className="flex items-center gap-2">
-              <Move className="size-4 text-primary animate-pulse" />
-              <span className="text-sm font-semibold">Rearranging Layout</span>
-              <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-mono">
-                Full-Width Edit Mode
-              </span>
-              <span className="text-[10px] text-muted-foreground hidden md:inline ml-2">
-                Drag anywhere on a widget to move; drag edges or the corner to resize.
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleResetLayout}
-                className="h-8 gap-1.5 text-xs font-semibold hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-              >
-                <RotateCcw className="size-3.5" />
-                Reset Layout
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsArranging(false)}
-                className="h-8 gap-1.5 text-xs font-semibold shadow-sm"
-              >
-                <Check className="size-3.5" />
-                Done
-              </Button>
-            </div>
-          </div>
-        </div>
+        <DashboardArrangeBanner
+          editModeLabel="Full-Width Edit Mode"
+          onResetLayout={handleResetLayout}
+          onDone={handleDoneArranging}
+          onSaveAsDefault={handleDoneAndSaveAsDefault}
+        />
       )}
 
       <Card>
@@ -793,8 +721,8 @@ export function DashboardPage() {
             <Label className="text-xs font-medium text-muted-foreground">Period</Label>
             <div className="flex flex-wrap items-center gap-3">
               <SegmentedControl
-                value={range as RangeDays}
-                onChange={(v) => handleRangePresetChange(v)}
+                value={range as AdminPeriodPreset}
+                onChange={(v) => handleRangePresetChange(v as AdminPeriodPreset)}
                 options={RANGE_OPTIONS}
               />
               <div className="flex items-center gap-1.5">
@@ -858,7 +786,7 @@ export function DashboardPage() {
               resizeHandles={["s", "e", "se"]}
               onLayoutChange={(currentLayout) => {
                 if (isArranging) {
-                  updateLayout(ws, currentLayout);
+                  updateLayout(ws, currentLayout, { persist: false });
                 }
               }}
               margin={[16, 16]}
@@ -873,7 +801,7 @@ export function DashboardPage() {
                       id={item.i}
                       label={label}
                       isEditing={isArranging}
-                      onHide={() => toggleWidget(ws, item.i)}
+                      showTitleInView={widgetDef?.group !== "kpi"}
                       headerActions={renderWidgetHeaderControls(item.i)}
                     >
                       {renderWidgetContent(item.i)}

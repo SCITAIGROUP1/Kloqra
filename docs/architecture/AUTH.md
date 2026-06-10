@@ -2,7 +2,7 @@
 
 ## Overview
 
-ChronoMint uses JWT access tokens plus httpOnly refresh cookies. All workspace-scoped API routes require authentication and an active workspace context.
+Kloqra uses JWT access tokens plus httpOnly refresh cookies. All workspace-scoped API routes require authentication and an active workspace context.
 
 ## Login flow
 

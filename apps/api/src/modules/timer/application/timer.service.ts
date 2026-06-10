@@ -1,5 +1,5 @@
-import type { StartTimerDto, StopTimerDto } from "@chronomint/contracts";
-import { ErrorCodes } from "@chronomint/contracts";
+import type { StartTimerDto, StopTimerDto } from "@kloqra/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";

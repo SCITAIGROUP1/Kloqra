@@ -1,78 +1,95 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { ProjectDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { ProjectDto } from "@kloqra/contracts";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  AppBar,
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
+  EmptyState,
   ProjectNameWithColor,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow
-} from "@chronomint/ui";
-import { useEffect } from "react";
-import { api } from "@/lib/api";
+  TablePagination,
+  TableRow,
+  TableLoadingState
+} from "@kloqra/ui";
+import { usePaginatedList } from "@kloqra/web-shared";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function ProjectsPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { projects, workspaceNamesById, setProjects } = useProjectsStore();
-
-  useEffect(() => {
-    api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-  }, [ws, setProjects]);
+  const { workspaceNamesById } = useProjectsStore();
+  const {
+    items: projects,
+    page,
+    setPage,
+    total,
+    totalPages,
+    limit,
+    loading
+  } = usePaginatedList<ProjectDto>({
+    workspaceId: ws,
+    basePath: ROUTES.PROJECTS.LIST
+  });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">My projects</h2>
-        <p className="text-sm text-muted-foreground">
-          Projects where you are on the team. Ask an admin for a team invite link to join more.
-        </p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Assigned projects</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {projects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              You are not on any projects yet. Open an invite link from your admin to join.
-            </p>
-          ) : (
+      <AppBar
+        title="My projects"
+        description="Projects where you are on the team. Ask an admin for a team invite link to join more."
+      />
+      <DataTableCard>
+        {loading ? (
+          <TableLoadingState rows={5} columns={4} />
+        ) : projects.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              title="No assigned projects"
+              description="You are not on any projects yet. Open an invite link from your admin to join."
+            />
+          </div>
+        ) : (
+          <>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Workspace</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Active</TableHead>
-                </TableRow>
+                <DataTableHeaderRow>
+                  <DataTableHead>Workspace</DataTableHead>
+                  <DataTableHead>Project</DataTableHead>
+                  <DataTableHead>Client</DataTableHead>
+                  <DataTableHead>Active</DataTableHead>
+                </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
                 {projects.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>
+                    <DataTableCell>
                       {p.workspaceName ?? workspaceNamesById[p.workspaceId] ?? "—"}
-                    </TableCell>
-                    <TableCell>
+                    </DataTableCell>
+                    <DataTableCell>
                       <ProjectNameWithColor name={p.name} color={p.color} />
-                    </TableCell>
-                    <TableCell>{p.clientName ?? "—"}</TableCell>
-                    <TableCell>{p.isActive ? "Yes" : "No"}</TableCell>
+                    </DataTableCell>
+                    <DataTableCell>{p.clientName ?? "—"}</DataTableCell>
+                    <DataTableCell>{p.isActive ? "Yes" : "No"}</DataTableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+              disabled={loading}
+            />
+          </>
+        )}
+      </DataTableCard>
     </div>
   );
 }

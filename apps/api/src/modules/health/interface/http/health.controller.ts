@@ -1,4 +1,4 @@
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import { Controller, Get } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { PrismaService } from "../../../../common/prisma/prisma.service";

@@ -2,7 +2,7 @@
   "recordedAt": "2026-06-10",
   "note": "Contracts gate enforced in CI (≥90% lines). API uses per-module application floors in apps/api/scripts/module-floors.json.",
   "packages": {
-    "@chronomint/api": {
+    "@kloqra/api": {
       "lines": 17.5,
       "statements": 17.5,
       "functions": 37.01,
@@ -10,7 +10,7 @@
       "artifact": "apps/api/coverage/coverage-summary.json",
       "moduleFloors": "apps/api/scripts/module-floors.json"
     },
-    "@chronomint/contracts": {
+    "@kloqra/contracts": {
       "lines": 95.09,
       "statements": 95.09,
       "functions": 28.26,
@@ -23,7 +23,7 @@
         "functions": 25
       }
     },
-    "@chronomint/ui": {
+    "@kloqra/ui": {
       "artifact": "packages/ui/coverage/coverage-summary.json"
     }
   },

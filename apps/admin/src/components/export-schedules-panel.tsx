@@ -5,7 +5,7 @@ import {
   type CreateExportScheduleDto,
   type ExportBodyDto,
   type ExportScheduleDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   Button,
   Card,
@@ -13,15 +13,18 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CenteredLoader,
   Input,
   Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from "@chronomint/ui";
+  SelectValue,
+  Spinner
+} from "@kloqra/ui";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 type Props = {
@@ -31,35 +34,50 @@ type Props = {
 
 export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
   const [schedules, setSchedules] = useState<ExportScheduleDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [frequency, setFrequency] = useState<CreateExportScheduleDto["frequency"]>("weekly");
   const [emails, setEmails] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!workspaceId) return;
-    api<ExportScheduleDto[]>(ROUTES.EXPORT.SCHEDULES, { workspaceId })
-      .then(setSchedules)
-      .catch(() => {});
+    setLoading(true);
+    try {
+      const list = await api<ExportScheduleDto[]>(ROUTES.EXPORT.SCHEDULES, { workspaceId });
+      setSchedules(list);
+      setError(null);
+    } catch (e) {
+      setSchedules([]);
+      const message = e instanceof Error ? e.message : "Could not load export schedules.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   }, [workspaceId]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   async function createSchedule() {
     setError(null);
+    const recipientEmails = emails
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (recipientEmails.length === 0) {
+      const message = "Enter at least one email.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setSaving(true);
     try {
-      const recipientEmails = emails
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-      if (recipientEmails.length === 0) {
-        setError("Enter at least one email.");
-        return;
-      }
       await api(ROUTES.EXPORT.SCHEDULES, {
         method: "POST",
         workspaceId,
@@ -73,26 +91,51 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
       });
       setName("");
       setEmails("");
-      load();
+      toast.success("Export schedule created.");
+      await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create schedule");
+      const message = e instanceof Error ? e.message : "Failed to create schedule";
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function toggleSchedule(s: ExportScheduleDto) {
-    await api(ROUTES.EXPORT.SCHEDULE(s.id), {
-      method: "PATCH",
-      workspaceId,
-      body: JSON.stringify({ enabled: !s.enabled })
-    });
-    load();
+  async function toggleSchedule(schedule: ExportScheduleDto) {
+    setBusyId(schedule.id);
+    setError(null);
+    try {
+      await api(ROUTES.EXPORT.SCHEDULE(schedule.id), {
+        method: "PATCH",
+        workspaceId,
+        body: JSON.stringify({ enabled: !schedule.enabled })
+      });
+      toast.success(schedule.enabled ? "Schedule paused." : "Schedule enabled.");
+      await load();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not update schedule.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
   }
 
-  async function deleteSchedule(id: string) {
-    await api(ROUTES.EXPORT.SCHEDULE(id), { method: "DELETE", workspaceId });
-    load();
+  async function deleteSchedule(schedule: ExportScheduleDto) {
+    setBusyId(schedule.id);
+    setError(null);
+    try {
+      await api(ROUTES.EXPORT.SCHEDULE(schedule.id), { method: "DELETE", workspaceId });
+      toast.success(`"${schedule.name}" deleted.`);
+      await load();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not delete schedule.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -112,6 +155,7 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Weekly payroll"
+              disabled={saving}
             />
           </div>
           <div className="space-y-2 min-w-[120px]">
@@ -119,6 +163,7 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
             <Select
               value={frequency}
               onValueChange={(v) => setFrequency(v as CreateExportScheduleDto["frequency"])}
+              disabled={saving}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -136,15 +181,18 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
               value={emails}
               onChange={(e) => setEmails(e.target.value)}
               placeholder="ops@company.com, finance@company.com"
+              disabled={saving}
             />
           </div>
         </div>
-        <Button type="button" onClick={createSchedule} disabled={saving}>
+        <Button type="button" onClick={() => void createSchedule()} disabled={saving || loading}>
           {saving ? "Saving…" : "Create schedule from current settings"}
         </Button>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        {schedules.length > 0 ? (
+        {loading ? (
+          <CenteredLoader label="Loading schedules…" className="py-8" />
+        ) : schedules.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {schedules.map((s) => (
               <li
@@ -160,15 +208,17 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => toggleSchedule(s)}
+                    disabled={busyId === s.id}
+                    onClick={() => void toggleSchedule(s)}
                   >
-                    {s.enabled ? "Pause" : "Enable"}
+                    {busyId === s.id ? <Spinner size="sm" /> : s.enabled ? "Pause" : "Enable"}
                   </Button>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => deleteSchedule(s.id)}
+                    disabled={busyId === s.id}
+                    onClick={() => void deleteSchedule(s)}
                   >
                     Delete
                   </Button>
@@ -176,7 +226,9 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
               </li>
             ))}
           </ul>
-        ) : null}
+        ) : (
+          <p className="text-sm text-muted-foreground">No scheduled exports yet.</p>
+        )}
       </CardContent>
     </Card>
   );

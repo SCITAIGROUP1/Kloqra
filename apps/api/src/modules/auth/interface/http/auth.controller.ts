@@ -4,8 +4,9 @@ import {
   switchWorkspaceSchema,
   impersonateSchema,
   ROUTES,
-  ErrorCodes
-} from "@chronomint/contracts";
+  ErrorCodes,
+  type AuthSessionDto
+} from "@kloqra/contracts";
 import {
   Body,
   Controller,
@@ -79,7 +80,11 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
-    const session = await this.auth.login(body as Parameters<AuthService["login"]>[0]);
+    const result = await this.auth.login(body as Parameters<AuthService["login"]>[0]);
+    if ("requires2fa" in result && result.requires2fa) {
+      return result;
+    }
+    const session = result as AuthSessionDto;
     await this.setCookies(req, res, session);
     return {
       ...session,
@@ -234,6 +239,13 @@ export class AuthController {
     return { ok: true };
   }
 
+  private sessionMetaFromRequest(req: Request) {
+    return {
+      userAgent: req.headers["user-agent"],
+      ipAddress: req.ip || req.socket.remoteAddress
+    };
+  }
+
   private async setCookies(
     req: Request,
     res: Response,
@@ -251,7 +263,8 @@ export class AuthController {
       session.user.id,
       session.workspaceId,
       undefined,
-      impersonatorId
+      impersonatorId,
+      this.sessionMetaFromRequest(req)
     );
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {

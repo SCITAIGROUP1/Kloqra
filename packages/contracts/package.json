@@ -1,5 +1,5 @@
 {
-  "name": "@chronomint/contracts",
+  "name": "@kloqra/contracts",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",
@@ -24,7 +24,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@chronomint/config-typescript": "workspace:*",
+    "@kloqra/config-typescript": "workspace:*",
     "@vitest/coverage-v8": "^2.1.8",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",

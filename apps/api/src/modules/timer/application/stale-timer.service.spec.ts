@@ -1,4 +1,4 @@
-import { HARD_AUTO_STOP_HOURS } from "@chronomint/contracts";
+import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { StaleTimerService } from "./stale-timer.service";
 

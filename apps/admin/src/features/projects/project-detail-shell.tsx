@@ -1,21 +1,46 @@
 "use client";
 
-import { Badge, Button, EmptyState, ProjectNameWithColor } from "@chronomint/ui";
+import { AppBar, Badge, Button, EmptyState, ProjectNameWithColor } from "@kloqra/ui";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { ProjectDetailProvider, useProjectDetail } from "./project-detail-context";
-import { ProjectDetailTabs } from "./project-detail-tabs";
+import {
+  ProjectDetailNav,
+  resolveProjectDetailSection,
+  type ProjectDetailSectionId
+} from "./project-detail-nav";
 
-function ProjectDetailShellInner({ children }: { children: React.ReactNode }) {
+const SECTION_COPY: Record<ProjectDetailSectionId, { title: string; description: string }> = {
+  tasks: {
+    title: "Tasks",
+    description: "Define the task list members choose when logging time on this project."
+  },
+  team: {
+    title: "Team",
+    description: "Invite members and manage who can log time on this project."
+  },
+  settings: {
+    title: "Settings",
+    description: "Update project details, approval rules, and color."
+  }
+};
+
+function ProjectDetailShellInner({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const { project, loading, error } = useProjectDetail();
+  const activeSection = resolveProjectDetailSection(pathname);
+  const copy = SECTION_COPY[activeSection];
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-        <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-        <div className="h-64 animate-pulse rounded-xl bg-muted/50" />
+        <AppBar title="Project" description="Loading project details…" />
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 lg:flex-row">
+          <div className="h-48 w-full animate-pulse rounded-xl bg-muted/50 lg:w-56" />
+          <div className="h-64 flex-1 animate-pulse rounded-xl bg-muted/50" />
+        </div>
       </div>
     );
   }
@@ -36,21 +61,9 @@ function ProjectDetailShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8 gap-1.5 px-2 text-muted-foreground"
-        >
-          <Link href="/projects">
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Projects
-          </Link>
-        </Button>
-
-        <div className="space-y-1.5 border-b border-border pb-6">
-          <div className="flex flex-wrap items-center gap-3">
+      <AppBar
+        title={
+          <span className="inline-flex flex-wrap items-center gap-3">
             <ProjectNameWithColor
               name={project.name}
               color={project.color}
@@ -59,23 +72,46 @@ function ProjectDetailShellInner({ children }: { children: React.ReactNode }) {
             <Badge variant={project.isActive ? "default" : "secondary"}>
               {project.isActive ? "Active" : "Inactive"}
             </Badge>
+          </span>
+        }
+        description={
+          project.clientName
+            ? `Client: ${project.clientName}`
+            : "Manage tasks, team members, and project settings."
+        }
+        actions={
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1.5 border-border/80 bg-card shadow-none"
+          >
+            <Link href="/projects">
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Projects
+            </Link>
+          </Button>
+        }
+      />
+
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 lg:flex-row lg:items-start">
+        <aside className="w-full shrink-0 rounded-xl border border-border bg-card p-3 shadow-sm lg:w-56">
+          <ProjectDetailNav projectId={project.id} />
+        </aside>
+
+        <section className="min-w-0 flex-1 space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">{copy.title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.description}</p>
           </div>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            {project.clientName
-              ? `Client: ${project.clientName}`
-              : "Manage tasks, team members, and project settings."}
-          </p>
-        </div>
-
-        <ProjectDetailTabs projectId={project.id} />
+          {children}
+        </section>
       </div>
-
-      <div>{children}</div>
     </div>
   );
 }
 
-export function ProjectDetailShell({ children }: { children: React.ReactNode }) {
+export function ProjectDetailShell({ children }: { children: ReactNode }) {
   const params = useParams();
   const projectId = typeof params.projectId === "string" ? params.projectId : "";
 

@@ -90,7 +90,7 @@ flowchart LR
   5. Add FK `tasks_category_id_fkey ... ON DELETE RESTRICT`.
 - **Seed** ([`apps/api/prisma/seed.ts`](apps/api/prisma/seed.ts)): create a starter category set per workspace (e.g. `Software Development`, `UI/UX Design`, `Meetings`), assign seeded tasks to appropriate categories.
 
-### 3. API (`apps/api/src/modules/`) — `chronomint-api-slice` skill
+### 3. API (`apps/api/src/modules/`) — `kloqra-api-slice` skill
 
 - **New module** `apps/api/src/modules/categories/`:
   - `categories.module.ts`, `categories.controller.ts`, `application/categories.service.ts`.
@@ -104,11 +104,11 @@ flowchart LR
   - Replace hardcoded path on `PATCH /tasks/:id` with `ROUTES.TASKS.BY_ID(":id")`.
 - **Timer / Timelogs** — no contract change, but verify `TimerService.start` and `TimelogsService.create` still resolve task→project access correctly (no behavior change expected).
 
-### 4. Admin frontend (`apps/admin/`) — `chronomint-fe-feature` skill
+### 4. Admin frontend (`apps/admin/`) — `kloqra-fe-feature` skill
 
 - **New page** `apps/admin/src/app/(admin)/categories/page.tsx` → `apps/admin/src/features/categories/categories-page.tsx`:
   - Table of categories (name, description, task-count) with create/edit/delete dialogs.
-  - Use `api()` from `@chronomint/web-shared` against `ROUTES.CATEGORIES.*`.
+  - Use `api()` from `@kloqra/web-shared` against `ROUTES.CATEGORIES.*`.
 - **Nav** in [`apps/admin/src/components/admin-shell.tsx`](apps/admin/src/components/admin-shell.tsx): insert `Categories` entry between `Workspace` and `Projects` (icon: `Tags` or `FolderTree` from lucide).
 - **Project detail tasks UI** in [`apps/admin/src/features/projects/projects-page.tsx`](apps/admin/src/features/projects/projects-page.tsx): add a "Tasks" panel on the selected project. Each task row shows `taskName`, `category` (dropdown of workspace categories), `billable default`. Create-task form requires a category select. Restrict to ADMIN role (already gated by admin app).
 
@@ -140,7 +140,7 @@ flowchart LR
 
 ```bash
 pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build
-pnpm --filter @chronomint/api prisma migrate dev   # local verification of the backfill
+pnpm --filter @kloqra/api prisma migrate dev   # local verification of the backfill
 ```
 
 ## Risk / rollback

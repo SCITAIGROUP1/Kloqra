@@ -1,7 +1,7 @@
 "use client";
 
-import type { TimeLogDto, ProjectDto, TaskDto } from "@chronomint/contracts";
-import { Button, ProjectColorDot } from "@chronomint/ui";
+import type { TimeLogDto, ProjectDto, TaskDto } from "@kloqra/contracts";
+import { Button, ProjectColorDot } from "@kloqra/ui";
 import { Play, Trash2, Clock } from "lucide-react";
 import React, { useMemo } from "react";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
@@ -50,9 +50,8 @@ export function TodayLogsWidget({
     return (
       <div className="flex h-full flex-col items-center justify-center min-h-[220px] text-center p-4">
         <Clock className="size-8 text-muted-foreground/45 mb-2" />
-        <p className="text-xs text-muted-foreground">No time entries logged today yet.</p>
-        <p className="text-[10px] text-muted-foreground/60 mt-1">
-          Start the timer above to log some hours!
+        <p className="text-xs text-muted-foreground">
+          No time tracked yet today. Hit start and get going.
         </p>
       </div>
     );

@@ -1,7 +1,8 @@
-import type { CreateCategoryDto, UpdateCategoryDto } from "@chronomint/contracts";
-import { ErrorCodes } from "@chronomint/contracts";
+import type { CreateCategoryDto, ListCategoriesQuery, UpdateCategoryDto } from "@kloqra/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 type CategoryRow = {
@@ -25,13 +26,35 @@ export class CategoriesService {
     };
   }
 
-  async list(workspaceId: string) {
-    const rows = await this.prisma.category.findMany({
-      where: { workspaceId },
-      include: { _count: { select: { tasks: true } } },
-      orderBy: { name: "asc" }
-    });
-    return rows.map((r) => this.toDto(r, r._count.tasks));
+  async list(workspaceId: string, query: ListCategoriesQuery) {
+    const where = {
+      workspaceId,
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: "insensitive" as const } },
+              { description: { contains: query.search, mode: "insensitive" as const } }
+            ]
+          }
+        : {})
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.category.count({ where }),
+      this.prisma.category.findMany({
+        where,
+        include: { _count: { select: { tasks: true } } },
+        orderBy: { name: "asc" },
+        ...paginationSkipTake(query.page, query.limit)
+      })
+    ]);
+
+    return toPaginatedResponse(
+      rows.map((r) => this.toDto(r, r._count.tasks)),
+      total,
+      query.page,
+      query.limit
+    );
   }
 
   async create(workspaceId: string, dto: CreateCategoryDto) {

@@ -1,4 +1,4 @@
-# Contributing to ChronoMint
+# Contributing to Kloqra
 
 ## Prerequisites
 
@@ -12,31 +12,36 @@
 ```bash
 pnpm install
 cp apps/api/.env.example apps/api/.env
-createdb chronomint   # once
+createdb kloqra   # once
 pnpm serve            # migrate, seed, start all apps
 ```
+
+Demo logins after seed: `admin@kloqra.dev` / `member@kloqra.dev` (password `password123`). Local database name: **`kloqra`** (CI uses `kloqra_test`).
 
 See [ENVIRONMENT.md](ENVIRONMENT.md) for variable details.
 
 ## Monorepo layout
 
-| Path                 | Purpose                                         |
-| -------------------- | ----------------------------------------------- |
-| `apps/api`           | NestJS API — sole write path to PostgreSQL      |
-| `apps/client`        | Next.js member app (timer, timesheet)           |
-| `apps/admin`         | Next.js admin app (dashboard, billing, exports) |
-| `packages/contracts` | Zod DTOs and route constants (SSOT)             |
-| `packages/ui`        | Shared UI primitives and charts                 |
-| `docs/`              | Documentation hub                               |
+| Path                  | Purpose                                         |
+| --------------------- | ----------------------------------------------- |
+| `apps/api`            | NestJS API — sole write path to PostgreSQL      |
+| `apps/client`         | Next.js member app (timer, timesheet)           |
+| `apps/admin`          | Next.js admin app (dashboard, billing, exports) |
+| `packages/contracts`  | Zod DTOs and route constants (SSOT)             |
+| `packages/ui`         | Shared UI primitives, tables, modals, charts    |
+| `packages/web-shared` | API client, profile/settings, list hooks        |
+| `docs/`               | Documentation hub                               |
 
 ## Contract-first workflow
 
 1. Add or change Zod schemas in `packages/contracts/src/dto/`.
 2. Export types and `ROUTES` from `packages/contracts`.
 3. Implement API in `apps/api/src/modules/<feature>/`.
-4. Implement UI in `apps/client` or `apps/admin`.
+4. Implement UI in `apps/client` or `apps/admin` (use `@kloqra/ui` + `@kloqra/web-shared`).
 5. Add or update `docs/specs/<feature>.md`.
 6. Add a line to [docs/README.md](../README.md) if the feature is new.
+
+UI conventions: [FRONTEND-UI.md](./FRONTEND-UI.md).
 
 Do not duplicate DTO shapes in the API or frontends.
 

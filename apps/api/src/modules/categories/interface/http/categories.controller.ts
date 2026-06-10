@@ -1,5 +1,21 @@
-import { createCategorySchema, updateCategorySchema, ROUTES } from "@chronomint/contracts";
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  createCategorySchema,
+  listCategoriesQuerySchema,
+  updateCategorySchema,
+  type ListCategoriesQuery,
+  ROUTES
+} from "@kloqra/contracts";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards
+} from "@nestjs/common";
 import {
   CurrentUser,
   type RequestUser
@@ -16,8 +32,11 @@ export class CategoriesController {
   constructor(private categories: CategoriesService) {}
 
   @Get(ROUTES.CATEGORIES.LIST)
-  list(@CurrentUser() user: RequestUser) {
-    return this.categories.list(user.workspaceId);
+  list(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(listCategoriesQuerySchema)) query: ListCategoriesQuery
+  ) {
+    return this.categories.list(user.workspaceId, query);
   }
 
   @Roles("ADMIN")

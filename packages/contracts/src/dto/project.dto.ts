@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
 import { PROJECT_COLORS } from "../project-colors";
 import { timesheetApprovalPeriodSchema } from "../workspace-settings";
 import { uuidSchema } from "./common.dto";
 
 export const projectColorSchema = z
   .string()
-  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a hex value like #6366f1")
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a hex value like #236bfe")
   .refine((c) => PROJECT_COLORS.includes(c as (typeof PROJECT_COLORS)[number]), {
     message: "Color must be from the project palette"
   });
@@ -36,10 +37,14 @@ export const createProjectSchema = z.object({
 
 export const updateProjectSchema = createProjectSchema.partial();
 
-export const listProjectsQuerySchema = z.object({
+export const listProjectsQuerySchema = listPaginationQuerySchema.extend({
   isActive: z.coerce.boolean().optional()
 });
+
+export const listProjectsResponseSchema = createPaginatedListResponseSchema(projectSchema);
 
 export type ProjectDto = z.infer<typeof projectSchema>;
 export type CreateProjectDto = z.infer<typeof createProjectSchema>;
 export type UpdateProjectDto = z.infer<typeof updateProjectSchema>;
+export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>;
+export type ListProjectsResponse = z.infer<typeof listProjectsResponseSchema>;

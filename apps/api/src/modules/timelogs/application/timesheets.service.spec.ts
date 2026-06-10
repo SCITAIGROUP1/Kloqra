@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -28,6 +28,12 @@ describe("TimesheetsService", () => {
     mockPrisma = {
       project: {
         findFirst: vi.fn().mockResolvedValue(projectRow)
+      },
+      timeLog: {
+        findMany: vi.fn().mockResolvedValue([{ task: { projectId } }])
+      },
+      teamMember: {
+        findMany: vi.fn().mockResolvedValue([{ team: { projectId } }])
       },
       timesheetPeriod: {
         findUnique: vi.fn(),
@@ -113,6 +119,28 @@ describe("TimesheetsService", () => {
       })
     });
     expect(result.status).toBe("APPROVED");
+  });
+
+  it("listSubmissions with logged scope queries time logs", async () => {
+    mockPrisma.timesheetPeriod.findUnique.mockResolvedValue(null);
+
+    const result = await service.listSubmissions(workspaceId, userId, "2025-06-05", "logged");
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalled();
+    expect(mockPrisma.teamMember.findMany).not.toHaveBeenCalled();
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.status).toBe("DRAFT");
+  });
+
+  it("listSubmissions with assigned scope queries team memberships", async () => {
+    mockPrisma.timesheetPeriod.findUnique.mockResolvedValue(null);
+
+    const result = await service.listSubmissions(workspaceId, userId, "2025-06-05", "assigned");
+
+    expect(mockPrisma.teamMember.findMany).toHaveBeenCalled();
+    expect(mockPrisma.timeLog.findMany).not.toHaveBeenCalled();
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.projectName).toBe("Website");
   });
 
   it("reject transitions period to REJECTED", async () => {

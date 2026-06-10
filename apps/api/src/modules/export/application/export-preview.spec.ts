@@ -1,4 +1,4 @@
-import { exportPreviewBodySchema, exportReportTypeSchema } from "@chronomint/contracts";
+import { exportPreviewBodySchema, exportReportTypeSchema } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 
 describe("export preview contracts", () => {

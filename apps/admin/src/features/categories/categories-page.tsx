@@ -1,31 +1,50 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { CategoryDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { CategoryDto } from "@kloqra/contracts";
 import {
+  AppBar,
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
   Input,
   Label,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow
-} from "@chronomint/ui";
+  TablePagination,
+  TableRow,
+  TableToolbar,
+  TableLoadingState
+} from "@kloqra/ui";
+import { usePaginatedList } from "@kloqra/web-shared";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
 export function AdminCategoriesPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const {
+    items: categories,
+    page,
+    setPage,
+    search,
+    setSearch,
+    total,
+    totalPages,
+    limit,
+    loading,
+    reload
+  } = usePaginatedList<CategoryDto>({
+    workspaceId: ws,
+    basePath: ROUTES.CATEGORIES.LIST
+  });
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -34,17 +53,6 @@ export function AdminCategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!ws) return;
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws]);
-
-  async function refresh() {
-    const list = await api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws });
-    setCategories(list);
-  }
 
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -61,9 +69,12 @@ export function AdminCategoriesPage() {
       });
       setName("");
       setDescription("");
-      await refresh();
+      toast.success("Category created.");
+      await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create category.");
+      const message = err instanceof Error ? err.message : "Could not create category.";
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -96,24 +107,18 @@ export function AdminCategoriesPage() {
         })
       });
       cancelEdit();
-      await refresh();
+      toast.success("Category updated.");
+      await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update category.");
+      const message = err instanceof Error ? err.message : "Could not update category.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
   }
 
   async function removeCategory(category: CategoryDto) {
-    const blocker =
-      category.taskCount && category.taskCount > 0
-        ? `Move or delete the ${category.taskCount} task${category.taskCount === 1 ? "" : "s"} in this category first.`
-        : null;
-    if (blocker) {
-      setError(blocker);
-      return;
-    }
-    if (!window.confirm(`Delete category "${category.name}"?`)) return;
     setBusyId(category.id);
     setError(null);
     try {
@@ -121,163 +126,167 @@ export function AdminCategoriesPage() {
         method: "DELETE",
         workspaceId: ws
       });
-      await refresh();
+      toast.success(`"${category.name}" deleted.`);
+      await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete category.");
+      const message = err instanceof Error ? err.message : "Could not delete category.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-bold">Categories</h2>
-        <p className="text-sm text-muted-foreground">
-          Workspace-wide buckets for tasks (e.g. Software Development, UI/UX Design, Meetings). Each
-          task on every project must belong to one category.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <AppBar
+        title="Categories"
+        description="Organize tasks into categories. Each task belongs to one category."
+      />
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>New category</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={createCategory} className="flex flex-wrap items-end gap-x-6 gap-y-5">
-            <div className="min-w-[220px] flex-1 space-y-2">
-              <Label htmlFor="category-name">Name</Label>
-              <Input
-                id="category-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Software Development"
-                maxLength={120}
-                required
-              />
-            </div>
-            <div className="min-w-[260px] flex-[2] space-y-2">
-              <Label htmlFor="category-description">Description</Label>
-              <Input
-                id="category-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional — what this bucket covers"
-                maxLength={500}
-              />
-            </div>
-            <Button type="submit" disabled={saving || !name.trim()} className="gap-2">
-              <Plus className="h-4 w-4" aria-hidden />
-              Create
-            </Button>
-          </form>
-          {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
-        </CardContent>
-      </Card>
+      <form
+        onSubmit={createCategory}
+        className="grid gap-4 rounded-xl border border-primary/10 bg-card p-4 shadow-sm sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+      >
+        <div className="space-y-2">
+          <Label htmlFor="category-name">Name</Label>
+          <Input
+            id="category-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Development"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="category-description">Description</Label>
+          <Input
+            id="category-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+        <Button type="submit" disabled={saving} className="gap-2">
+          <Plus className="size-4" aria-hidden />
+          Add category
+        </Button>
+      </form>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>All categories</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {categories.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No categories yet. Create your first one above.
-            </p>
-          ) : (
+      <DataTableCard>
+        <TableToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search categories…"
+          searchAriaLabel="Search categories"
+        />
+        {loading ? (
+          <TableLoadingState rows={6} columns={4} />
+        ) : (
+          <>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[220px]">Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-[110px] text-right">Tasks</TableHead>
-                  <TableHead className="w-[180px] text-right">Actions</TableHead>
-                </TableRow>
+                <DataTableHeaderRow>
+                  <DataTableHead>Name</DataTableHead>
+                  <DataTableHead>Description</DataTableHead>
+                  <DataTableHead>Tasks</DataTableHead>
+                  <DataTableHead className="text-right">Actions</DataTableHead>
+                </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
-                {categories.map((c) => {
-                  const isEditing = editingId === c.id;
+                {categories.map((category) => {
+                  const isEditing = editingId === category.id;
                   return (
-                    <TableRow key={c.id}>
-                      <TableCell>
+                    <TableRow key={category.id}>
+                      <DataTableCell>
                         {isEditing ? (
                           <Input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            maxLength={120}
+                            aria-label="Edit category name"
                           />
                         ) : (
-                          <span className="font-medium">{c.name}</span>
+                          <span className="font-medium">{category.name}</span>
                         )}
-                      </TableCell>
-                      <TableCell>
+                      </DataTableCell>
+                      <DataTableCell className="text-muted-foreground">
                         {isEditing ? (
                           <Input
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
-                            maxLength={500}
-                            placeholder="Optional"
+                            aria-label="Edit category description"
                           />
                         ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {c.description ?? "—"}
-                          </span>
+                          (category.description ?? "—")
                         )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{c.taskCount ?? 0}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isEditing ? (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={cancelEdit}
-                              disabled={busyId === c.id}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => saveEdit(c)}
-                              disabled={busyId === c.id || !editName.trim()}
-                            >
-                              Save
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => startEdit(c)}
-                              className="gap-1"
-                            >
-                              <Pencil className="h-3.5 w-3.5" aria-hidden />
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => removeCategory(c)}
-                              disabled={busyId === c.id}
-                              className="gap-1 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                              Delete
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
+                      </DataTableCell>
+                      <DataTableCell>
+                        <Badge variant="secondary">{category.taskCount ?? 0}</Badge>
+                      </DataTableCell>
+                      <DataTableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelEdit}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={busyId === category.id}
+                                onClick={() => void saveEdit(category)}
+                              >
+                                Save
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => startEdit(category)}
+                                aria-label={`Edit ${category.name}`}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={busyId === category.id}
+                                onClick={() => void removeCategory(category)}
+                                aria-label={`Delete ${category.name}`}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </DataTableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+              disabled={loading}
+            />
+          </>
+        )}
+      </DataTableCard>
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

@@ -97,7 +97,7 @@ async function main() {
     allProjectCtx.push(...projectCtx);
     await seedHourlyRates(workspace.id, users, projectCtx);
     await seedExportPresets(workspace.id);
-    await seedSampleInvite(projectCtx, users.get("admin@chronomint.dev")!);
+    await seedSampleInvite(projectCtx, users.get("admin@kloqra.dev")!);
     const timesheetCount = await seedTimesheetPeriods(projectCtx, users, workspace.id);
     const categorySummary = await categoryTaskCounts(workspace.id);
     console.log(
@@ -284,7 +284,7 @@ async function seedSampleInvite(projectCtx: ProjectCtx[], admin: User) {
   await prisma.projectInvite.create({
     data: {
       projectId: portal.project.id,
-      token: "seed-invite-northwind-freelancer",
+      token: "seed-invite-acme-freelancer",
       email: "freelance@example.com",
       expiresAt: expires,
       createdById: admin.id
@@ -592,7 +592,7 @@ async function seedTimesheetPeriods(
             reviewNote: status === "REJECTED" ? "Please add missing Friday entries" : null,
             reviewedBy:
               status === "APPROVED" || status === "REJECTED"
-                ? users.get("admin@chronomint.dev")!.id
+                ? users.get("admin@kloqra.dev")!.id
                 : null
           }
         });
@@ -606,7 +606,7 @@ async function seedTimesheetPeriods(
 
 function printCredentials() {
   console.log("\n══════════════════════════════════════════════════════════");
-  console.log("  SEED CREDENTIALS  (password for all accounts below)");
+  console.log("  KLOQRA SEED CREDENTIALS  (password for all accounts below)");
   console.log(`  Password: ${SEED_PASSWORD}`);
   console.log("══════════════════════════════════════════════════════════\n");
 

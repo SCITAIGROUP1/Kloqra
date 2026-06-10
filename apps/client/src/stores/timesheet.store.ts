@@ -1,4 +1,4 @@
-import type { TimeLogDto } from "@chronomint/contracts";
+import type { TimeLogDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface TimesheetState {

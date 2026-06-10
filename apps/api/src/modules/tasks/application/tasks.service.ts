@@ -1,8 +1,13 @@
-import type { CreateTaskDto, UpdateTaskDto } from "@chronomint/contracts";
-import { ErrorCodes } from "@chronomint/contracts";
+import type { CreateTaskDto, ListTasksQuery, UpdateTaskDto } from "@kloqra/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
+import {
+  emptyPaginatedResponse,
+  paginationSkipTake,
+  toPaginatedResponse
+} from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 type TaskWithCategory = {
@@ -32,29 +37,47 @@ export class TasksService {
     };
   }
 
-  async list(
-    workspaceId: string,
-    userId: string,
-    role: "ADMIN" | "MEMBER",
-    projectId?: string,
-    categoryId?: string
-  ) {
+  async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
-    if (projectId) {
-      if (!projectIds.includes(projectId)) return [];
-      projectIds = [projectId];
+    if (query.projectId) {
+      if (!projectIds.includes(query.projectId)) {
+        return emptyPaginatedResponse(query.page, query.limit);
+      }
+      projectIds = [query.projectId];
     }
-    if (projectIds.length === 0) return [];
+    if (projectIds.length === 0) {
+      return emptyPaginatedResponse(query.page, query.limit);
+    }
 
-    const tasks = await this.prisma.task.findMany({
-      where: {
-        projectId: { in: projectIds },
-        ...(categoryId ? { categoryId } : {})
-      },
-      include: { category: { select: { name: true } } },
-      orderBy: [{ category: { name: "asc" } }, { taskName: "asc" }]
-    });
-    return tasks.map((t) => this.toDto(t));
+    const where = {
+      projectId: { in: projectIds },
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { taskName: { contains: query.search, mode: "insensitive" as const } },
+              { category: { name: { contains: query.search, mode: "insensitive" as const } } }
+            ]
+          }
+        : {})
+    };
+
+    const [total, tasks] = await Promise.all([
+      this.prisma.task.count({ where }),
+      this.prisma.task.findMany({
+        where,
+        include: { category: { select: { name: true } } },
+        orderBy: [{ category: { name: "asc" } }, { taskName: "asc" }],
+        ...paginationSkipTake(query.page, query.limit)
+      })
+    ]);
+
+    return toPaginatedResponse(
+      tasks.map((t) => this.toDto(t)),
+      total,
+      query.page,
+      query.limit
+    );
   }
 
   async create(workspaceId: string, dto: CreateTaskDto) {

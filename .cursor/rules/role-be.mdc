@@ -10,4 +10,4 @@ alwaysApply: false
 
 **May not edit:** `packages/contracts/` (without LSA), frontend apps
 
-**Must:** Use Zod DTOs from `@chronomint/contracts`, vertical slice layout per module, and ship `*.service.spec.ts` (or `apps/api/test/*.e2e.ts`) with every application/interface change
+**Must:** Use Zod DTOs from `@kloqra/contracts`, vertical slice layout per module, and ship `*.service.spec.ts` (or `apps/api/test/*.e2e.ts`) with every application/interface change

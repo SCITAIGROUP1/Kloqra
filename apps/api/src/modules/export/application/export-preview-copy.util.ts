@@ -1,8 +1,4 @@
-import type {
-  ExportBodyDto,
-  ExportPreviewSheetDto,
-  ExportSheetLayout
-} from "@chronomint/contracts";
+import type { ExportBodyDto, ExportPreviewSheetDto, ExportSheetLayout } from "@kloqra/contracts";
 
 function periodLabel(from: string, to: string) {
   return `${from.slice(0, 10)} – ${to.slice(0, 10)}`;

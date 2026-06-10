@@ -6,9 +6,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@chronomint/ui", "@chronomint/contracts", "@chronomint/web-shared"],
+  transpilePackages: ["@kloqra/ui", "@kloqra/contracts", "@kloqra/web-shared"],
   experimental: {
-    optimizePackageImports: ["@chronomint/ui", "lucide-react"]
+    optimizePackageImports: ["@kloqra/ui", "lucide-react"]
   }
 };
 

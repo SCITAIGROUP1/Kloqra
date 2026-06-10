@@ -10,4 +10,4 @@ alwaysApply: false
 
 **May not edit:** `apps/api/`, `packages/contracts/`
 
-**Must:** Zustand for client state, `@chronomint/ui` primitives, `@chronomint/web-shared` for shared app code, and tests with every feature (`packages/ui` → `*.spec.tsx`, admin/client `features/` → Playwright e2e or unit spec)
+**Must:** Zustand for client state, `@kloqra/ui` primitives, `@kloqra/web-shared` for shared app code, and tests with every feature (`packages/ui` → `*.spec.tsx`, admin/client `features/` → Playwright e2e or unit spec)

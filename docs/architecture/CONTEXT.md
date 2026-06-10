@@ -1,4 +1,4 @@
-# ChronoMint Architecture Context
+# Kloqra Architecture Context
 
 ## System context
 
@@ -19,10 +19,11 @@ flowchart TB
 ## Monorepo layout
 
 - `apps/api` — sole write path to database
-- `apps/client` — member timer, timesheet, projects
-- `apps/admin` — dashboards, billing, exports, team live
+- `apps/client` — member timer, timesheet, dashboard, time tracker
+- `apps/admin` — dashboards, billing, exports, team live, approvals
 - `packages/contracts` — Zod SSOT for all DTOs
-- `packages/ui` — themed primitives + charts
+- `packages/ui` — themed primitives, tables, modals, loaders
+- `packages/web-shared` — API client, profile/settings, list hooks
 
 ## Module boundaries (API)
 
@@ -48,6 +49,9 @@ No cross-imports between feature modules.
 | reporting       | [reporting.md](../specs/reporting.md)           |
 | presence        | [presence.md](../specs/presence.md)             |
 | export          | [export.md](../specs/export.md)                 |
+| users           | [user-profile.md](../specs/user-profile.md)     |
+
+Frontend patterns: [FRONTEND-UI.md](../development/FRONTEND-UI.md).
 
 API route catalog: [api/ROUTES.md](../api/ROUTES.md).
 

@@ -1,4 +1,4 @@
-import { HARD_AUTO_STOP_HOURS } from "@chronomint/contracts";
+import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";

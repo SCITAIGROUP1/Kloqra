@@ -2,7 +2,7 @@
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../../../../packages/web-shared/src/**/*.{ts,tsx}";
 @import "tw-animate-css";
-@import "@chronomint/ui/globals.css";
+@import "@kloqra/ui/globals.css";
 
 /* Dashboard grid — customize mode */
 .react-grid-placeholder {

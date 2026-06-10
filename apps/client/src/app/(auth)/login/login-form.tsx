@@ -1,45 +1,85 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { AuthSessionDto } from "@chronomint/contracts";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type {
+  AuthSessionDto,
+  LoginRequires2faResponseDto,
+  StartupPagePreference
+} from "@kloqra/contracts";
+import { Button, Input, Label } from "@kloqra/ui";
+import { applyDefaultWorkspaceIfNeeded, AuthShell, resolveStartupPath } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
+
+type LoginResponse = (AuthSessionDto & { accessToken: string }) | LoginRequires2faResponseDto;
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setSession = useSessionStore((s) => s.setSession);
   const next = searchParams.get("next");
-  const [email, setEmail] = useState("member@chronomint.dev");
+  const [email, setEmail] = useState("member@kloqra.dev");
   const [password, setPassword] = useState("password123");
+  const [totpCode, setTotpCode] = useState("");
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  async function completeLogin(res: AuthSessionDto & { accessToken: string }) {
+    const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
+    setSession(switched.session, switched.accessToken);
+    try {
+      const profile = await api<{ preferences: { startupPage?: StartupPagePreference } }>(
+        ROUTES.USERS.ME,
+        { workspaceId: switched.session.workspaceId }
+      );
+      const startup = resolveStartupPath(profile.preferences.startupPage);
+      router.push(next && next.startsWith("/") ? next : startup);
+    } catch {
+      router.push(next && next.startsWith("/") ? next : "/timer");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     try {
-      const res = await api<AuthSessionDto & { accessToken: string }>(ROUTES.AUTH.LOGIN, {
+      const res = await api<LoginResponse>(ROUTES.AUTH.LOGIN, {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email,
+          password,
+          ...(pendingToken ? { pendingToken } : {}),
+          ...(totpCode ? { totpCode } : {})
+        })
       });
-      setSession(res, res.accessToken);
-      router.push(next && next.startsWith("/") ? next : "/timer");
+      if ("requires2fa" in res && res.requires2fa) {
+        setPendingToken(res.pendingToken);
+        return;
+      }
+      await completeLogin(res as AuthSessionDto & { accessToken: string });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(
+        err instanceof Error ? err.message : "Something went wrong. Your time is safe — try again."
+      );
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Sign in to ChronoMint</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-4">
+    <AuthShell
+      title="Sign in"
+      footer={
+        <p className="text-center text-sm text-muted-foreground">
+          <a href="/register" className="text-primary hover:underline">
+            Create account
+          </a>
+        </p>
+      }
+    >
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        {!pendingToken ? (
+          <>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -58,16 +98,26 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit">Sign in</Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            <a href="/register" className="text-primary hover:underline">
-              Create account
-            </a>
-          </p>
-        </CardContent>
-      </Card>
-    </main>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="totp">Authentication code</Label>
+            <Input
+              id="totp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+              maxLength={6}
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter the 6-digit code from your authenticator app.
+            </p>
+          </div>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit">{pendingToken ? "Verify" : "Sign in"}</Button>
+      </form>
+    </AuthShell>
   );
 }

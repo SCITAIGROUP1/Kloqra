@@ -1,8 +1,9 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { PresenceSnapshotDto, ProjectDto } from "@chronomint/contracts";
-import { ProjectColorDot } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type { PresenceSnapshotDto, ProjectDto } from "@kloqra/contracts";
+import { ProjectColorDot } from "@kloqra/ui";
+import { fetchListItems } from "@kloqra/web-shared";
 import { Play } from "lucide-react";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
@@ -41,7 +42,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
     try {
       const [snap, projectsData] = await Promise.all([
         api<PresenceSnapshotDto>(ROUTES.PRESENCE.SNAPSHOT, { workspaceId: ws }),
-        api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(() => [])
+        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(() => [])
       ]);
       setMembers(snap.members);
       setProjects(projectsData);

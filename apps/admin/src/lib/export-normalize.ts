@@ -1,8 +1,4 @@
-import type {
-  ExportBodyDto,
-  ExportPreviewResponseDto,
-  ExportReportType
-} from "@chronomint/contracts";
+import type { ExportBodyDto, ExportPreviewResponseDto, ExportReportType } from "@kloqra/contracts";
 import { normalizeGroupByFromBody } from "@/lib/export-group-by";
 
 const DEFAULT_REPORT_TYPES: ExportReportType[] = ["time_entries"];

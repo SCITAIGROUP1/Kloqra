@@ -1,7 +1,7 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { CategoryDto, TaskDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { CategoryDto, TaskDto } from "@kloqra/contracts";
 import {
   Badge,
   Button,
@@ -12,15 +12,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@chronomint/ui";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+  cn,
+  CenteredLoader
+} from "@kloqra/ui";
+import { SettingsCard, fetchListItems } from "@kloqra/web-shared";
+import { ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 type Props = {
@@ -68,8 +66,11 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setError(null);
     try {
       const [taskList, categoryList] = await Promise.all([
-        api<TaskDto[]>(`${ROUTES.TASKS.LIST}?projectId=${projectId}`, { workspaceId }),
-        api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId })
+        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
+          workspaceId,
+          filters: { projectId }
+        }),
+        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId })
       ]);
       setTasks(taskList);
       setCategories(categoryList);
@@ -98,9 +99,12 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
       });
       setNewName("");
       setNewBillable(true);
+      toast.success("Task created.");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create task.");
+      const message = err instanceof Error ? err.message : "Could not create task.";
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -136,9 +140,12 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
         })
       });
       cancelEdit();
+      toast.success("Task updated.");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update task.");
+      const message = err instanceof Error ? err.message : "Could not update task.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -152,9 +159,12 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setError(null);
     try {
       await api(ROUTES.TASKS.BY_ID(task.id), { method: "DELETE", workspaceId });
+      toast.success(`"${task.taskName}" deleted.`);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete task.");
+      const message = err instanceof Error ? err.message : "Could not delete task.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -174,125 +184,131 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   return (
     <div className="space-y-4">
       {categories.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-sm">
           No categories yet. Create at least one category before adding tasks.
-        </p>
+        </div>
       ) : (
-        <form onSubmit={createTask} className="space-y-3 rounded-lg border bg-muted/20 p-4">
-          <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
-            <div className="space-y-2">
-              <Label htmlFor="new-task-name">Task name</Label>
-              <Input
-                id="new-task-name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Frontend development"
-                maxLength={200}
-                required
-              />
+        <SettingsCard
+          icon={Plus}
+          title="Add task"
+          description="Members pick from this list when logging time on the project."
+        >
+          <form onSubmit={createTask} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="new-task-name">Task name</Label>
+                <Input
+                  id="new-task-name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Frontend development"
+                  maxLength={200}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-task-category">Category</Label>
+                <Select value={newCategoryId} onValueChange={setNewCategoryId}>
+                  <SelectTrigger id="new-task-category">
+                    <SelectValue placeholder="Choose category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-task-category">Category</Label>
-              <Select value={newCategoryId} onValueChange={setNewCategoryId}>
-                <SelectTrigger id="new-task-category">
-                  <SelectValue placeholder="Choose category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border border-input accent-primary"
+                  checked={newBillable}
+                  onChange={(e) => setNewBillable(e.target.checked)}
+                />
+                <span>Billable by default</span>
+              </label>
+              <Button
+                type="submit"
+                disabled={saving || !newName.trim() || !newCategoryId}
+                className="gap-2 sm:w-auto"
+              >
+                <Plus className="size-4" aria-hidden />
+                Add task
+              </Button>
             </div>
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 rounded border border-input accent-primary"
-              checked={newBillable}
-              onChange={(e) => setNewBillable(e.target.checked)}
-            />
-            <span>Billable by default</span>
-          </label>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={saving || !newName.trim() || !newCategoryId}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            Add task
-          </Button>
-        </form>
+          </form>
+        </SettingsCard>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      {loading && tasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Loading tasks…</p>
-      ) : tasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No tasks yet. Add one above so members can log time.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {grouped.map(([categoryName, list]) => (
-            <div key={categoryName} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{categoryName}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  {list.length} task{list.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task</TableHead>
-                    <TableHead className="w-[180px]">Category</TableHead>
-                    <TableHead className="w-[120px]">Billable</TableHead>
-                    <TableHead className="w-[180px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {list.map((t) => {
-                    const isEditing = editingId === t.id;
+      <SettingsCard
+        icon={ListTodo}
+        title="Task list"
+        description={
+          loading
+            ? "Loading tasks…"
+            : tasks.length === 0
+              ? "No tasks yet — add one above."
+              : `${tasks.length} task${tasks.length === 1 ? "" : "s"} across ${grouped.length} ${grouped.length === 1 ? "category" : "categories"}`
+        }
+      >
+        {loading && tasks.length === 0 ? (
+          <CenteredLoader label="Loading tasks…" className="py-8" />
+        ) : tasks.length === 0 ? null : (
+          <div className="space-y-5">
+            {grouped.map(([categoryName, list]) => (
+              <div key={categoryName} className="space-y-2">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {categoryName}
+                  <span className="ml-2 font-normal normal-case tracking-normal">
+                    · {list.length} task{list.length === 1 ? "" : "s"}
+                  </span>
+                </p>
+                <ul className="space-y-2">
+                  {list.map((task) => {
+                    const isEditing = editingId === task.id;
                     return (
-                      <TableRow key={t.id}>
-                        <TableCell>
-                          {isEditing ? (
-                            <Input
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              maxLength={200}
-                            />
-                          ) : (
-                            <span className="font-medium">{t.taskName}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isEditing ? (
-                            <Select value={editCategoryId} onValueChange={setEditCategoryId}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              {t.categoryName ?? categoryById.get(t.categoryId)?.name ?? "—"}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isEditing ? (
+                      <li
+                        key={task.id}
+                        className={cn(
+                          "rounded-lg border border-border/80 bg-muted/10 px-4 py-3 transition-colors",
+                          isEditing && "border-primary/30 bg-primary/5"
+                        )}
+                      >
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor={`edit-name-${task.id}`}>Task name</Label>
+                                <Input
+                                  id={`edit-name-${task.id}`}
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  maxLength={200}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`edit-category-${task.id}`}>Category</Label>
+                                <Select value={editCategoryId} onValueChange={setEditCategoryId}>
+                                  <SelectTrigger id={`edit-category-${task.id}`}>
+                                    <SelectValue placeholder="Category" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {categories.map((c) => (
+                                      <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
                             <label className="flex cursor-pointer items-center gap-2 text-sm">
                               <input
                                 type="checkbox"
@@ -300,66 +316,75 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 checked={editBillable}
                                 onChange={(e) => setEditBillable(e.target.checked)}
                               />
-                              <span>Billable</span>
+                              <span>Billable by default</span>
                             </label>
-                          ) : (
-                            <Badge variant={t.billableDefault ? "default" : "secondary"}>
-                              {t.billableDefault ? "Billable" : "Non-billable"}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {isEditing ? (
                             <div className="flex justify-end gap-2">
                               <Button
+                                type="button"
                                 size="sm"
                                 variant="outline"
                                 onClick={cancelEdit}
-                                disabled={busyId === t.id}
+                                disabled={busyId === task.id}
                               >
                                 Cancel
                               </Button>
                               <Button
+                                type="button"
                                 size="sm"
-                                onClick={() => saveEdit(t)}
-                                disabled={busyId === t.id || !editName.trim() || !editCategoryId}
+                                onClick={() => void saveEdit(task)}
+                                disabled={busyId === task.id || !editName.trim() || !editCategoryId}
                               >
                                 Save
                               </Button>
                             </div>
-                          ) : (
-                            <div className="flex justify-end gap-2">
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">{task.taskName}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {task.categoryName ??
+                                  categoryById.get(task.categoryId)?.name ??
+                                  "Uncategorized"}
+                              </p>
+                            </div>
+                            <Badge variant={task.billableDefault ? "default" : "secondary"}>
+                              {task.billableDefault ? "Billable" : "Non-billable"}
+                            </Badge>
+                            <div className="flex shrink-0 items-center gap-1">
                               <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => startEdit(t)}
-                                className="gap-1"
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-8"
+                                onClick={() => startEdit(task)}
+                                aria-label={`Edit ${task.taskName}`}
                               >
-                                <Pencil className="h-3.5 w-3.5" aria-hidden />
-                                Edit
+                                <Pencil className="size-4" aria-hidden />
                               </Button>
                               <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => removeTask(t)}
-                                disabled={busyId === t.id}
-                                className="gap-1 text-destructive hover:text-destructive"
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-8 text-destructive hover:text-destructive"
+                                onClick={() => void removeTask(task)}
+                                disabled={busyId === task.id}
+                                aria-label={`Delete ${task.taskName}`}
                               >
-                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                                Delete
+                                <Trash2 className="size-4" aria-hidden />
                               </Button>
                             </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                          </div>
+                        )}
+                      </li>
                     );
                   })}
-                </TableBody>
-              </Table>
-            </div>
-          ))}
-        </div>
-      )}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </SettingsCard>
     </div>
   );
 }

@@ -5,12 +5,51 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { cn } from "../lib/utils.js";
+import {
+  shellMainClass,
+  shellMainContentClass,
+  shellMobileDrawerClass,
+  shellMobileHeaderClass,
+  shellSidebarClass,
+  shellSidebarCollapsedWidthClass,
+  shellSidebarExpandedWidthClass,
+  shellSidebarFooterClass,
+  shellSidebarFooterCollapsedClass,
+  shellSidebarScrollClass,
+  shellSidebarScrollCollapsedClass
+} from "./shell/shell-styles.js";
+import { ShellToolbarProvider } from "./shell-toolbar-context.js";
 
 export type SidebarNavItem = {
   href: string;
   label: string;
   Icon: React.ComponentType<{ className?: string }>;
+  badge?: number | string;
 };
+
+function NavBadge({ badge, collapsed }: { badge: number | string; collapsed?: boolean }) {
+  const count = typeof badge === "number" ? badge : parseInt(String(badge), 10);
+  const showCount = !Number.isNaN(count) && count > 0;
+  if (!showCount && badge === 0) return null;
+  if (!showCount && !badge) return null;
+
+  if (collapsed) {
+    return (
+      <span
+        className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-amber-950"
+        aria-hidden
+      >
+        {showCount ? (count > 9 ? "9+" : count) : badge}
+      </span>
+    );
+  }
+
+  return (
+    <span className="ml-auto shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 border border-amber-500/30">
+      {showCount ? count : badge}
+    </span>
+  );
+}
 
 export type ResponsiveLayoutShellProps = {
   children: React.ReactNode;
@@ -22,6 +61,7 @@ export type ResponsiveLayoutShellProps = {
   workspaceSwitcher: (collapsed: boolean) => React.ReactNode;
   footerContent: (collapsed: boolean) => React.ReactNode;
   impersonationBanner?: React.ReactNode;
+  shellToolbar?: React.ReactNode;
 };
 
 export function ResponsiveLayoutShell({
@@ -33,7 +73,8 @@ export function ResponsiveLayoutShell({
   logoLinkHref,
   workspaceSwitcher,
   footerContent,
-  impersonationBanner
+  impersonationBanner,
+  shellToolbar
 }: ResponsiveLayoutShellProps) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -43,7 +84,9 @@ export function ResponsiveLayoutShell({
   // Load sidebar preference from localStorage after mounting
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("chronomint-sidebar-collapsed");
+    const saved =
+      localStorage.getItem("kloqra-sidebar-collapsed") ??
+      localStorage.getItem("kloqra-sidebar-collapsed");
     if (saved !== null) {
       setIsCollapsed(saved === "true");
     }
@@ -64,7 +107,7 @@ export function ResponsiveLayoutShell({
   const toggleCollapse = () => {
     const next = !isCollapsed;
     setIsCollapsed(next);
-    localStorage.setItem("chronomint-sidebar-collapsed", String(next));
+    localStorage.setItem("kloqra-sidebar-collapsed", String(next));
   };
 
   return (
@@ -72,60 +115,73 @@ export function ResponsiveLayoutShell({
       {/* --- DESKTOP SIDEBAR --- */}
       <aside
         className={cn(
-          "sticky top-0 h-screen shrink-0 flex-col border-r border-border/80 bg-card/90 shadow-sm backdrop-blur-md transition-all duration-300 ease-in-out hidden md:flex",
-          isCollapsed ? "w-[4.5rem]" : "w-[17rem]"
+          shellSidebarClass,
+          isCollapsed ? shellSidebarCollapsedWidthClass : shellSidebarExpandedWidthClass
         )}
       >
-        {/* Collapse Toggle Button */}
-        {mounted && (
-          <button
-            type="button"
-            onClick={toggleCollapse}
-            className="absolute -right-3 top-6 z-40 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card shadow-sm text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none transition-transform duration-300 cursor-pointer"
-            style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        )}
-
         <div
           className={cn(
-            "flex flex-1 flex-col overflow-y-auto p-4 transition-all duration-300",
-            isCollapsed ? "gap-4 items-center" : "gap-5"
+            isCollapsed ? shellSidebarScrollCollapsedClass : shellSidebarScrollClass,
+            !isCollapsed && "gap-5"
           )}
         >
-          {/* Logo */}
-          <Link
-            href={logoLinkHref}
+          {/* Brand + collapse */}
+          <div
             className={cn(
-              "flex items-center rounded-xl transition-all duration-300",
-              isCollapsed ? "px-0 py-0.5 justify-center" : "gap-3 px-1 py-0.5 w-full"
+              "w-full transition-all duration-300",
+              isCollapsed ? "flex flex-col items-center gap-1.5" : "flex items-center gap-2"
             )}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
-              {logoIcon}
-            </div>
-            <div
+            <Link
+              href={logoLinkHref}
               className={cn(
-                "min-w-0 transition-all duration-300 ease-in-out origin-left",
-                isCollapsed
-                  ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
-                  : "opacity-100"
+                "flex min-w-0 items-center rounded-xl transition-all duration-300",
+                isCollapsed ? "justify-center p-0" : "flex-1 gap-3 py-0.5"
               )}
             >
-              <p className="truncate text-sm font-semibold tracking-tight">{logoTitle}</p>
-              <p className="truncate text-xs text-muted-foreground">{logoSubtitle}</p>
-            </div>
-          </Link>
+              {logoIcon}
+              <div
+                className={cn(
+                  "min-w-0 transition-all duration-300 ease-in-out origin-left",
+                  isCollapsed
+                    ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
+                    : "opacity-100"
+                )}
+              >
+                <p className="truncate text-sm font-medium tracking-tight">{logoTitle}</p>
+                <p className="truncate text-xs text-muted-foreground">{logoSubtitle}</p>
+              </div>
+            </Link>
+            {mounted ? (
+              <button
+                type="button"
+                onClick={toggleCollapse}
+                className={cn(
+                  "flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-all duration-300 hover:bg-muted/50 hover:text-foreground focus:outline-none cursor-pointer",
+                  isCollapsed ? "h-7 w-7" : "h-8 w-8 mr-0.5"
+                )}
+                style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+            ) : null}
+          </div>
 
           {/* Workspace Switcher Slot */}
-          <div className="w-full">{workspaceSwitcher(isCollapsed)}</div>
+          <div className={cn("w-full", isCollapsed && "flex justify-center")}>
+            {workspaceSwitcher(isCollapsed)}
+          </div>
 
           {/* Navigation Links */}
-          <nav className="flex flex-col gap-0.5 w-full" aria-label="Desktop Navigation">
-            {navItems.map(({ href, label, Icon }) => {
+          <nav
+            className={cn("flex w-full flex-col", isCollapsed ? "items-center gap-1" : "gap-0.5")}
+            aria-label="Desktop Navigation"
+          >
+            {navItems.map(({ href, label, Icon, badge }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
+              const showBadge =
+                badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
               return (
                 <Link
                   key={href}
@@ -133,7 +189,7 @@ export function ResponsiveLayoutShell({
                   title={isCollapsed ? label : undefined}
                   className={cn(
                     "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-300",
-                    isCollapsed ? "justify-center h-10 w-10 mx-auto px-0" : "px-3 py-2.5 gap-3",
+                    isCollapsed ? "h-9 w-9 shrink-0 justify-center p-0" : "gap-3 px-3 py-2.5",
                     active
                       ? "bg-primary/12 text-primary"
                       : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
@@ -148,16 +204,23 @@ export function ResponsiveLayoutShell({
                       aria-hidden
                     />
                   )}
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-colors",
-                      active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                    )}
-                    aria-hidden
-                  />
+                  <span
+                    className={cn("relative shrink-0", isCollapsed && showBadge && "inline-flex")}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        active
+                          ? "text-primary"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      )}
+                      aria-hidden
+                    />
+                    {showBadge && isCollapsed && <NavBadge badge={badge} collapsed />}
+                  </span>
                   <span
                     className={cn(
-                      "transition-all duration-300 truncate origin-left",
+                      "transition-all duration-300 truncate origin-left flex-1 min-w-0",
                       isCollapsed
                         ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
                         : "opacity-100"
@@ -165,25 +228,20 @@ export function ResponsiveLayoutShell({
                   >
                     {label}
                   </span>
+                  {showBadge && !isCollapsed && <NavBadge badge={badge} />}
                 </Link>
               );
             })}
           </nav>
         </div>
 
-        {/* Footer Content */}
-        <div
-          className={cn(
-            "shrink-0 border-t border-border/70 p-4 transition-all duration-300",
-            isCollapsed ? "flex flex-col items-center justify-center" : ""
-          )}
-        >
-          <div className="w-full">{footerContent(isCollapsed)}</div>
+        <div className={isCollapsed ? shellSidebarFooterCollapsedClass : shellSidebarFooterClass}>
+          {footerContent(isCollapsed)}
         </div>
       </aside>
 
       {/* --- MOBILE NAVBAR --- */}
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/80 bg-card/90 backdrop-blur-md px-4 md:hidden shrink-0">
+      <header className={shellMobileHeaderClass}>
         <button
           type="button"
           onClick={() => setIsMobileOpen(true)}
@@ -193,10 +251,8 @@ export function ResponsiveLayoutShell({
           <Menu className="h-5 w-5" />
         </button>
 
-        <Link href={logoLinkHref} className="flex items-center gap-2 font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            {logoIcon}
-          </div>
+        <Link href={logoLinkHref} className="flex items-center gap-2 font-medium">
+          {logoIcon}
           <span className="text-sm tracking-tight">{logoTitle}</span>
         </Link>
 
@@ -216,10 +272,7 @@ export function ResponsiveLayoutShell({
 
       {/* Drawer Panel */}
       <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-full w-[17rem] flex-col border-r border-border/80 bg-card p-4 shadow-xl transition-transform duration-300 ease-in-out md:hidden",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
+        className={cn(shellMobileDrawerClass, isMobileOpen ? "translate-x-0" : "-translate-x-full")}
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border/50">
@@ -228,11 +281,9 @@ export function ResponsiveLayoutShell({
             className="flex items-center gap-3 rounded-xl py-0.5"
             onClick={() => setIsMobileOpen(false)}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
-              {logoIcon}
-            </div>
+            {logoIcon}
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-tight">{logoTitle}</p>
+              <p className="truncate text-sm font-medium tracking-tight">{logoTitle}</p>
               <p className="truncate text-xs text-muted-foreground">{logoSubtitle}</p>
             </div>
           </Link>
@@ -251,8 +302,10 @@ export function ResponsiveLayoutShell({
           {workspaceSwitcher(false)}
 
           <nav className="flex flex-col gap-0.5" aria-label="Mobile Navigation">
-            {navItems.map(({ href, label, Icon }) => {
+            {navItems.map(({ href, label, Icon, badge }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
+              const showBadge =
+                badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
               return (
                 <Link
                   key={href}
@@ -278,7 +331,8 @@ export function ResponsiveLayoutShell({
                     )}
                     aria-hidden
                   />
-                  {label}
+                  <span className="flex-1">{label}</span>
+                  {showBadge && <NavBadge badge={badge} />}
                 </Link>
               );
             })}
@@ -292,9 +346,13 @@ export function ResponsiveLayoutShell({
       </aside>
 
       {/* --- MAIN PAGE CONTENT --- */}
-      <main className="min-h-screen min-w-0 flex-1 overflow-y-auto">
+      <main className={shellMainClass}>
         {impersonationBanner}
-        <div className="mx-auto w-full max-w-7xl p-6 lg:p-8">{children}</div>
+        <ShellToolbarProvider toolbar={shellToolbar}>
+          <div className={cn("mx-auto w-full max-w-[1600px]", shellMainContentClass)}>
+            {children}
+          </div>
+        </ShellToolbarProvider>
       </main>
     </div>
   );

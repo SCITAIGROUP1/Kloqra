@@ -23,7 +23,7 @@ This plan designs and implements the "View as Member" (Impersonation) feature, a
 
 We will define new routes and extend the DTO models to support impersonation fields.
 
-#### [routes.ts](file:///Users/chamal/Desktop/ChronoMint/packages/contracts/src/routes.ts)
+#### [routes.ts](file:///Users/chamal/Desktop/Kloqra/packages/contracts/src/routes.ts)
 
 - Add `IMPERSONATE` and `STOP_IMPERSONATION` endpoint definitions to the `ROUTES.AUTH` object.
 
@@ -35,7 +35,7 @@ We will define new routes and extend the DTO models to support impersonation fie
   }
 ```
 
-#### [auth.dto.ts](file:///Users/chamal/Desktop/ChronoMint/packages/contracts/src/dto/auth.dto.ts)
+#### [auth.dto.ts](file:///Users/chamal/Desktop/Kloqra/packages/contracts/src/dto/auth.dto.ts)
 
 - Update `authSessionSchema` to support optional impersonation audit fields:
 
@@ -65,7 +65,7 @@ export type ImpersonateDto = z.infer<typeof impersonateSchema>;
 
 We will add checks, support impersonator details in token signing, cookie generation, and token rotation, and implement the endpoints.
 
-#### [jwt-auth.guard.ts](file:///Users/chamal/Desktop/ChronoMint/apps/api/src/common/guards/jwt-auth.guard.ts)
+#### [jwt-auth.guard.ts](file:///Users/chamal/Desktop/Kloqra/apps/api/src/common/guards/jwt-auth.guard.ts)
 
 - Propagate `impersonatorId` from JWT payload onto the request user object if present.
 
@@ -78,7 +78,7 @@ req.user = {
 };
 ```
 
-#### [current-user.decorator.ts](file:///Users/chamal/Desktop/ChronoMint/apps/api/src/common/decorators/current-user.decorator.ts)
+#### [current-user.decorator.ts](file:///Users/chamal/Desktop/Kloqra/apps/api/src/common/decorators/current-user.decorator.ts)
 
 - Add `impersonatorId` to `RequestUser` interface:
 
@@ -91,13 +91,13 @@ export interface RequestUser {
 }
 ```
 
-#### [auth.service.ts](file:///Users/chamal/Desktop/ChronoMint/apps/api/src/modules/auth/application/auth.service.ts)
+#### [auth.service.ts](file:///Users/chamal/Desktop/Kloqra/apps/api/src/modules/auth/application/auth.service.ts)
 
 - Support `impersonatorId` on `signAccessToken` and `signAndStoreRefreshToken`.
 - Retain `impersonatorId` context during refresh token rotation.
 - Retrieve the admin user's name on `getMe` and return both `impersonatorId` and `impersonatorName` in `buildSession` so the Client application can display them.
 
-#### [auth.controller.ts](file:///Users/chamal/Desktop/ChronoMint/apps/api/src/modules/auth/interface/http/auth.controller.ts)
+#### [auth.controller.ts](file:///Users/chamal/Desktop/Kloqra/apps/api/src/modules/auth/interface/http/auth.controller.ts)
 
 - Implement `POST /auth/impersonate` endpoint:
   1. Guard with `UseGuards(JwtAuthGuard)`.
@@ -116,7 +116,7 @@ export interface RequestUser {
 
 We will add a "View as Member" action to the members workspace tab.
 
-#### [workspace-page.tsx](file:///Users/chamal/Desktop/ChronoMint/apps/admin/src/features/workspace/workspace-page.tsx)
+#### [workspace-page.tsx](file:///Users/chamal/Desktop/Kloqra/apps/admin/src/features/workspace/workspace-page.tsx)
 
 - Add a column to the members table with a "View as member" button.
 - Make the button disabled for the current logged-in user themselves.
@@ -128,7 +128,7 @@ We will add a "View as Member" action to the members workspace tab.
 
 We will support silent refresh on empty local storage, and implement the visual impersonation banner.
 
-#### [workspace-shell.tsx](file:///Users/chamal/Desktop/ChronoMint/apps/client/src/components/workspace-shell.tsx)
+#### [workspace-shell.tsx](file:///Users/chamal/Desktop/Kloqra/apps/client/src/components/workspace-shell.tsx)
 
 - Update `useEffect` load-session effect:
   - If local access token is not present, call `tryRefreshSession()` first.

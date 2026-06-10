@@ -1,7 +1,7 @@
 "use client";
 
-import type { TimeLogDto } from "@chronomint/contracts";
-import { cn } from "@chronomint/ui";
+import type { TimeLogDto } from "@kloqra/contracts";
+import { cn } from "@kloqra/ui";
 import {
   formatDuration,
   getMonthGrid,

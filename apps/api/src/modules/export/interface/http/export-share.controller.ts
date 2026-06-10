@@ -1,4 +1,4 @@
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import { Controller, Get, Param } from "@nestjs/common";
 import { ExportShareService } from "../../application/export-share.service";
 

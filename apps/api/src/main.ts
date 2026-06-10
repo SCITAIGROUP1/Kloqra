@@ -69,7 +69,7 @@ async function bootstrap() {
   // ── OpenAPI / Swagger ─────────────────────────────────────────────────────
   if (process.env.NODE_ENV !== "production" || process.env.ENABLE_SWAGGER === "true") {
     const config = new DocumentBuilder()
-      .setTitle("ChronoMint API")
+      .setTitle("Kloqra API")
       .setDescription("Next-gen time analytics engine — contract-first REST API")
       .setVersion("2.0")
       .addBearerAuth({ type: "http", scheme: "bearer", bearerFormat: "JWT" }, "access-token")
@@ -94,7 +94,7 @@ async function bootstrap() {
         filter: true,
         tagsSorter: "alpha"
       },
-      customSiteTitle: "ChronoMint API Docs"
+      customSiteTitle: "Kloqra API Docs"
     });
   }
 

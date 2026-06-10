@@ -1,4 +1,4 @@
-import type { PresenceSnapshotDto } from "@chronomint/contracts";
+import type { PresenceSnapshotDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface PresenceState {

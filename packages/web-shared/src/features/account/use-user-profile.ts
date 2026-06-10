@@ -1,6 +1,13 @@
 "use client";
 
-import { ROUTES, type UserProfileDto } from "@chronomint/contracts";
+import {
+  ROUTES,
+  type TwoFactorDisableDto,
+  type TwoFactorVerifyDto,
+  type UpdateUserProfileDto,
+  type UserProfileDto,
+  type UserSessionDto
+} from "@kloqra/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
@@ -33,22 +40,24 @@ export function useUserProfile() {
     void reload();
   }, [reload]);
 
-  const updateName = useCallback(
-    async (name: string) => {
+  const updateProfile = useCallback(
+    async (dto: UpdateUserProfileDto) => {
       if (!ws) throw new Error("No workspace");
       const updated = await api<UserProfileDto>(ROUTES.USERS.ME, {
         method: "PATCH",
         workspaceId: ws,
-        body: JSON.stringify({ name })
+        body: JSON.stringify(dto)
       });
       setProfile(updated);
-      if (session && accessToken) {
-        setSession({ ...session, user: { ...session.user, name } }, accessToken);
+      if (session && accessToken && updated.name) {
+        setSession({ ...session, user: { ...session.user, name: updated.name } }, accessToken);
       }
       return updated;
     },
     [ws, session, accessToken, setSession]
   );
+
+  const updateName = useCallback(async (name: string) => updateProfile({ name }), [updateProfile]);
 
   const updatePreferences = useCallback(
     async (preferences: Record<string, unknown>) => {
@@ -76,14 +85,70 @@ export function useUserProfile() {
     [ws]
   );
 
+  const listSessions = useCallback(async () => {
+    if (!ws) throw new Error("No workspace");
+    return api<UserSessionDto[]>(ROUTES.USERS.SESSIONS, { workspaceId: ws });
+  }, [ws]);
+
+  const revokeSession = useCallback(
+    async (sessionId: string) => {
+      if (!ws) throw new Error("No workspace");
+      await api(ROUTES.USERS.SESSION(sessionId), {
+        method: "DELETE",
+        workspaceId: ws
+      });
+    },
+    [ws]
+  );
+
+  const enable2fa = useCallback(async () => {
+    if (!ws) throw new Error("No workspace");
+    return api<{ secret: string; otpauthUrl: string }>(ROUTES.USERS.TWO_FA_ENABLE, {
+      method: "POST",
+      workspaceId: ws
+    });
+  }, [ws]);
+
+  const verify2fa = useCallback(
+    async (dto: TwoFactorVerifyDto) => {
+      if (!ws) throw new Error("No workspace");
+      await api(ROUTES.USERS.TWO_FA_VERIFY, {
+        method: "POST",
+        workspaceId: ws,
+        body: JSON.stringify(dto)
+      });
+      await reload();
+    },
+    [ws, reload]
+  );
+
+  const disable2fa = useCallback(
+    async (dto: TwoFactorDisableDto) => {
+      if (!ws) throw new Error("No workspace");
+      await api(ROUTES.USERS.TWO_FA_DISABLE, {
+        method: "POST",
+        workspaceId: ws,
+        body: JSON.stringify(dto)
+      });
+      await reload();
+    },
+    [ws, reload]
+  );
+
   return {
     profile,
     loading,
     error,
     reload,
+    updateProfile,
     updateName,
     updatePreferences,
     changePassword,
+    listSessions,
+    revokeSession,
+    enable2fa,
+    verify2fa,
+    disable2fa,
     workspaceRole: session?.workspaceRole,
     workspaceName: session?.workspaceName
   };

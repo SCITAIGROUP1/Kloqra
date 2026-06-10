@@ -57,7 +57,7 @@ export class SentryFilter implements ExceptionFilter {
         timestamp: new Date().toISOString().split(".")[0],
         platform: "node",
         sdk: {
-          name: "chronomint-custom-sentry",
+          name: "kloqra-custom-sentry",
           version: "1.0.0"
         },
         logger: "nestjs",
@@ -83,7 +83,7 @@ export class SentryFilter implements ExceptionFilter {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Sentry-Auth": `Sentry sentry_version=7, sentry_client=chronomint-custom-sentry/1.0.0, sentry_key=${publicKey}`
+          "X-Sentry-Auth": `Sentry sentry_version=7, sentry_client=kloqra-custom-sentry/1.0.0, sentry_key=${publicKey}`
         },
         body: JSON.stringify(event)
       });

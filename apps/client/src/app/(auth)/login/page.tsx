@@ -1,19 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
+import { AuthShell } from "@kloqra/web-shared";
 import { Suspense } from "react";
 import { LoginForm } from "./login-form";
 
 function LoginFallback() {
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Sign in to ChronoMint</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        </CardContent>
-      </Card>
-    </main>
+    <AuthShell title="Sign in">
+      <p className="text-sm text-muted-foreground">Loading…</p>
+    </AuthShell>
   );
 }
 

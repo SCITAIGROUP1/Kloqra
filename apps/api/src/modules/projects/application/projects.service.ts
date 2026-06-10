@@ -2,12 +2,19 @@ import { randomBytes } from "crypto";
 import type {
   CreateProjectDto,
   CreateTeamInviteDto,
+  ListProjectsQuery,
+  ListProjectTeamQuery,
   UpdateProjectDto
-} from "@chronomint/contracts";
-import { ErrorCodes, pickDefaultProjectColor } from "@chronomint/contracts";
+} from "@kloqra/contracts";
+import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
+import {
+  emptyPaginatedResponse,
+  paginationSkipTake,
+  toPaginatedResponse
+} from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
@@ -63,21 +70,47 @@ export class ProjectsService {
     };
   }
 
-  async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", isActive?: boolean) {
+  async list(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    query: ListProjectsQuery
+  ) {
     const projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
-    if (projectIds.length === 0) return [];
+    if (projectIds.length === 0) {
+      return emptyPaginatedResponse(query.page, query.limit);
+    }
 
-    return this.prisma.project
-      .findMany({
-        where: {
-          id: { in: projectIds },
-          workspaceId,
-          ...(isActive !== undefined ? { isActive } : {})
-        },
+    const where = {
+      id: { in: projectIds },
+      workspaceId,
+      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: "insensitive" as const } },
+              { clientName: { contains: query.search, mode: "insensitive" as const } }
+            ]
+          }
+        : {})
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.project.count({ where }),
+      this.prisma.project.findMany({
+        where,
         include: { workspace: { select: { name: true } } },
-        orderBy: { name: "asc" }
+        orderBy: { name: "asc" },
+        ...paginationSkipTake(query.page, query.limit)
       })
-      .then((rows) => rows.map((p) => this.toDto(p, p.workspace.name)));
+    ]);
+
+    return toPaginatedResponse(
+      rows.map((p) => this.toDto(p, p.workspace.name)),
+      total,
+      query.page,
+      query.limit
+    );
   }
 
   async create(workspaceId: string, dto: CreateProjectDto) {
@@ -145,14 +178,34 @@ export class ProjectsService {
     return { ok: true };
   }
 
-  async getTeam(workspaceId: string, projectId: string) {
+  async getTeam(workspaceId: string, projectId: string, query: ListProjectTeamQuery) {
     const project = await this.getAdmin(workspaceId, projectId);
     const team = await this.ensureTeam(projectId);
-    const members = await this.prisma.teamMember.findMany({
-      where: { teamId: team.id },
-      include: { user: true },
-      orderBy: { createdAt: "asc" }
-    });
+
+    const memberWhere = {
+      teamId: team.id,
+      ...(query.search
+        ? {
+            user: {
+              OR: [
+                { name: { contains: query.search, mode: "insensitive" as const } },
+                { email: { contains: query.search, mode: "insensitive" as const } }
+              ]
+            }
+          }
+        : {})
+    };
+
+    const [total, members] = await Promise.all([
+      this.prisma.teamMember.count({ where: memberWhere }),
+      this.prisma.teamMember.findMany({
+        where: memberWhere,
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
+        ...paginationSkipTake(query.page, query.limit)
+      })
+    ]);
+
     return {
       id: team.id,
       projectId: project.id,
@@ -164,7 +217,8 @@ export class ProjectsService {
         userName: m.user.name,
         userEmail: m.user.email,
         isActive: m.isActive ?? true
-      }))
+      })),
+      ...buildPaginationMeta(total, query.page, query.limit)
     };
   }
 

@@ -1,4 +1,4 @@
-import type { DashboardReportDto } from "@chronomint/contracts";
+import type { DashboardReportDto } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { RedisService, type RedisClient } from "../redis/redis.service";
 

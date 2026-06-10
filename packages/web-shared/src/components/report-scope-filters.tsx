@@ -1,6 +1,6 @@
 "use client";
 
-import type { CategoryDto, ProjectDto, TaskDto } from "@chronomint/contracts";
+import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import {
   Badge,
   Button,
@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
   cn
-} from "@chronomint/ui";
+} from "@kloqra/ui";
 import { ChevronDown, Filter, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 

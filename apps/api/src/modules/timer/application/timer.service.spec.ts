@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";

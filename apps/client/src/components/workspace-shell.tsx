@@ -1,36 +1,40 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { AuthSessionDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
-import { Button, cn, ResponsiveLayoutShell } from "@chronomint/ui";
+import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
+import type { AuthSessionDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
+import { Button, ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
+  applyDefaultWorkspaceIfNeeded,
+  BrandMark,
   getAccessToken,
   logoutSession,
-  ThemeToggle,
+  ShellHeaderActions,
   tryRefreshSession,
   WorkspaceSwitcher
-} from "@chronomint/web-shared";
+} from "@kloqra/web-shared";
 import {
   CalendarDays,
+  ClipboardCheck,
+  Clock,
   FolderKanban,
   LayoutGrid,
   ListTodo,
-  LogOut,
-  Timer as TimerIcon,
-  User
+  Timer as TimerIcon
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMySubmissions } from "@/features/approvals/use-my-submissions";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
-const nav = [
+const baseNav = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
   { href: "/timer", label: "Timer", Icon: TimerIcon },
+  { href: "/time-tracker", label: "Time Tracker", Icon: Clock },
   { href: "/timesheet", label: "Timesheet", Icon: CalendarDays },
+  { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
   { href: "/projects", label: "My projects", Icon: FolderKanban },
   { href: "/tasks", label: "Tasks", Icon: ListTodo }
 ] as const;
@@ -38,6 +42,9 @@ const nav = [
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { session, setSession } = useSessionStore();
+  const [anchorDate] = useState(() => new Date());
+  const wsId = session?.workspaceId ?? "";
+  const { actionableCount } = useMySubmissions(wsId, anchorDate, "assigned", Boolean(wsId));
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
@@ -67,10 +74,11 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       return;
     }
     api<AuthSessionDto>(ROUTES.AUTH.ME)
-      .then((s) => {
-        setSession(s, token);
+      .then(async (s) => {
+        const switched = await applyDefaultWorkspaceIfNeeded(s, token);
+        setSession(switched.session, switched.accessToken);
         return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
-          workspaceId: s.workspaceId
+          workspaceId: switched.session.workspaceId
         });
       })
       .then((list) => {
@@ -106,16 +114,17 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function logout() {
-    await logoutSession(session?.workspaceId);
-    router.push("/login");
-  }
+  const nav = useMemo((): readonly SidebarNavItem[] => {
+    return baseNav.map((item) =>
+      item.href === "/approvals" ? { ...item, badge: actionableCount } : item
+    );
+  }, [actionableCount]);
 
   if (!session) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <TimerIcon className="h-4 w-4 animate-pulse text-primary" />
+          <BrandMark size="sm" iconOnly className="animate-pulse" />
           Loading workspace…
         </div>
       </div>
@@ -125,17 +134,18 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   return (
     <ResponsiveLayoutShell
       navItems={nav}
-      logoIcon={<TimerIcon className="h-5 w-5" strokeWidth={2.25} />}
-      logoTitle="ChronoMint"
-      logoSubtitle={session.user.name}
+      logoIcon={<BrandMark size="md" iconOnly />}
+      logoTitle={BRAND_NAME}
+      logoSubtitle="Member Portal"
       logoLinkHref="/dashboard"
+      shellToolbar={<ShellHeaderActions profileHref="/profile" settingsHref="/settings" />}
       impersonationBanner={
         session.impersonatorId ? (
-          <div className="sticky top-0 z-50 bg-amber-500/10 border-b border-amber-500/20 backdrop-blur-md px-6 py-3 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+          <div className="sticky top-0 z-50 flex items-center justify-between border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-xs text-amber-800 backdrop-blur-md dark:text-amber-300 lg:px-8">
             <div className="flex items-center gap-2.5">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
               </span>
               <span>
                 Viewing workspace as <strong className="font-semibold">{session.user.name}</strong>{" "}
@@ -146,7 +156,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-3 text-xs border-amber-500/30 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 transition-colors"
+              className="h-7 border-amber-500/30 px-3 text-xs text-amber-900 transition-colors hover:bg-amber-500/20 dark:text-amber-200"
               onClick={handleStopImpersonation}
             >
               Return to Admin
@@ -155,71 +165,24 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         ) : undefined
       }
       workspaceSwitcher={(collapsed) => (
-        <div
-          className={cn(
-            "rounded-xl border border-border/70 bg-muted/25 transition-all duration-300",
-            collapsed ? "p-1.5 border-none bg-transparent" : "p-3"
-          )}
-        >
-          {!collapsed && (
-            <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Workspace
-            </p>
-          )}
-          <WorkspaceSwitcher
-            defaultRedirect="/dashboard"
-            collapsed={collapsed}
-            onAfterSwitch={() => {
-              useProjectsStore.getState().setProjects([]);
-              useProjectsStore.getState().setTasks([]);
-            }}
-          />
-        </div>
+        <WorkspaceSwitcher
+          defaultRedirect="/dashboard"
+          collapsed={collapsed}
+          onAfterSwitch={() => {
+            useProjectsStore.getState().setProjects([]);
+            useProjectsStore.getState().setTasks([]);
+          }}
+        />
       )}
       footerContent={(collapsed) => (
-        <div
-          className={cn(
-            "rounded-xl border border-border/70 bg-muted/25 transition-all duration-300 space-y-3",
-            collapsed ? "p-1.5 border-none bg-transparent" : "p-3"
-          )}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              "transition-all duration-300",
-              collapsed ? "h-9 w-9 p-0 mx-auto justify-center" : "w-full justify-start gap-2"
-            )}
-            title={collapsed ? "Account" : undefined}
-            asChild
-          >
-            <Link href="/settings">
-              <User className="h-4 w-4" aria-hidden />
-              {!collapsed && <span>Account</span>}
-            </Link>
-          </Button>
-          <div>
-            {!collapsed && (
-              <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Appearance
-              </p>
-            )}
-            <ThemeToggle collapsed={collapsed} />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              "transition-all duration-300",
-              collapsed ? "h-9 w-9 p-0 mx-auto justify-center" : "w-full justify-start gap-2"
-            )}
-            title={collapsed ? "Log out" : undefined}
-            onClick={() => void logout()}
-          >
-            <LogOut className="h-4 w-4" aria-hidden />
-            {!collapsed && <span>Log out</span>}
-          </Button>
-        </div>
+        <SidebarUserFooter
+          collapsed={collapsed}
+          userName={session.user.name ?? "Member"}
+          profileHref="/profile"
+          onLogout={() => {
+            void logoutSession(session.workspaceId).then(() => router.push("/login"));
+          }}
+        />
       )}
     >
       {children}

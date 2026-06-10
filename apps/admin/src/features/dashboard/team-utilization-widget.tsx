@@ -1,39 +1,28 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { UtilizationResponseDto } from "@kloqra/contracts";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
   Table,
-  TableHeader,
-  TableRow,
-  TableHead,
   TableBody,
-  TableCell
-} from "@chronomint/ui";
+  TableHeader,
+  TablePagination,
+  TableRow
+} from "@kloqra/ui";
+import { buildListQuery } from "@kloqra/web-shared";
 import { Users, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface MemberUtilization {
-  userId: string;
-  userName: string;
-  loggedHours: number;
-  billableHours: number;
-  targetHours: number;
-  utilizationPct: number;
-  status: "on_track" | "low" | "critical";
-}
-
-interface UtilizationData {
-  period: { from: string; to: string };
-  expectedWeeklyHours: number;
-  targetHours: number;
-  members: MemberUtilization[];
-}
+const WIDGET_PAGE_SIZE = 5;
 
 export function TeamUtilizationWidget({
   from,
@@ -51,28 +40,26 @@ export function TeamUtilizationWidget({
   onHeaderActions?: (actions: React.ReactNode) => void;
 }) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [data, setData] = useState<UtilizationData | null>(null);
+  const [data, setData] = useState<UtilizationResponseDto | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const filteredMembers = useMemo(() => {
-    if (!data) return [];
-    let list = data.members;
-    if (userId) {
-      list = list.filter((m) => m.userId === userId);
-    } else if (projectMemberIds) {
-      list = list.filter((m) => projectMemberIds.includes(m.userId));
-    }
-    return list;
-  }, [data, userId, projectMemberIds]);
 
   const fetchUtilization = useCallback(async () => {
     if (!ws || !from || !to) return;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ from, to });
-      const res = await api<UtilizationData>(`${ROUTES.REPORTING.UTILIZATION}?${params}`, {
+      const query = buildListQuery({
+        page,
+        limit: projectMemberIds?.length ? 1000 : WIDGET_PAGE_SIZE,
+        filters: {
+          from,
+          to,
+          ...(userId ? { userId } : {})
+        }
+      });
+      const res = await api<UtilizationResponseDto>(`${ROUTES.REPORTING.UTILIZATION}?${query}`, {
         workspaceId: ws
       });
       setData(res);
@@ -81,16 +68,28 @@ export function TeamUtilizationWidget({
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to]);
+  }, [ws, from, to, page, userId, projectMemberIds]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [from, to, userId, projectMemberIds]);
 
   useEffect(() => {
     void fetchUtilization();
   }, [fetchUtilization]);
 
+  const filteredMembers = useMemo(() => {
+    if (!data) return [];
+    if (projectMemberIds?.length) {
+      return data.members.filter((m) => projectMemberIds.includes(m.userId));
+    }
+    return data.members;
+  }, [data, projectMemberIds]);
+
   const headerActionsNode = useMemo(() => {
     if (!data) return null;
     return (
-      <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full border font-medium">
+      <span className="rounded-full border bg-muted px-2 py-0.5 text-[10px] font-medium">
         Target: {data.targetHours.toFixed(1)} hrs in range
       </span>
     );
@@ -105,7 +104,7 @@ export function TeamUtilizationWidget({
   if (loading) {
     if (cardless) {
       return (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
+        <div className="flex h-full items-center justify-center py-6 text-sm text-muted-foreground animate-pulse">
           Loading team utilization...
         </div>
       );
@@ -122,7 +121,7 @@ export function TeamUtilizationWidget({
   if (error || !data) {
     if (cardless) {
       return (
-        <div className="flex h-full items-center justify-center text-sm text-destructive font-medium py-6">
+        <div className="flex h-full items-center justify-center py-6 text-sm font-medium text-destructive">
           {error || "No data available"}
         </div>
       );
@@ -152,49 +151,63 @@ export function TeamUtilizationWidget({
 
   const widgetContent =
     filteredMembers.length === 0 ? (
-      <p className="text-xs text-muted-foreground py-4 text-center">No team members found.</p>
+      <p className="py-4 text-center text-xs text-muted-foreground">No team members found.</p>
     ) : (
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-xs font-semibold">Member</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Logged</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Billable</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Utilization</TableHead>
-              <TableHead className="text-xs font-semibold text-center">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredMembers.map((m) => {
-              const config = statusConfigs[m.status];
-              const StatusIcon = config.icon;
+      <div className="space-y-0">
+        <div className="overflow-x-auto">
+          <Table className="text-xs">
+            <TableHeader>
+              <DataTableHeaderRow>
+                <DataTableHead className="h-9 px-3">Member</DataTableHead>
+                <DataTableHead className="h-9 px-3 text-right">Logged</DataTableHead>
+                <DataTableHead className="h-9 px-3 text-right">Billable</DataTableHead>
+                <DataTableHead className="h-9 px-3 text-right">Utilization</DataTableHead>
+                <DataTableHead className="h-9 px-3 text-center">Status</DataTableHead>
+              </DataTableHeaderRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMembers.map((m) => {
+                const config = statusConfigs[m.status];
+                const StatusIcon = config.icon;
 
-              return (
-                <TableRow key={m.userId} className="hover:bg-muted/30">
-                  <TableCell className="font-medium text-xs py-2">{m.userName}</TableCell>
-                  <TableCell className="text-right text-xs py-2 font-mono">
-                    {m.loggedHours.toFixed(1)}h
-                  </TableCell>
-                  <TableCell className="text-right text-xs py-2 text-muted-foreground font-mono">
-                    {m.billableHours.toFixed(1)}h
-                  </TableCell>
-                  <TableCell className="text-right text-xs py-2 font-bold font-mono">
-                    {m.utilizationPct}%
-                  </TableCell>
-                  <TableCell className="py-2 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-medium ${config.color}`}
-                    >
-                      <StatusIcon className="size-3" />
-                      {config.label}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                return (
+                  <TableRow key={m.userId} className="hover:bg-muted/30">
+                    <DataTableCell className="px-3 py-2 text-xs font-medium">
+                      {m.userName}
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs">
+                      {m.loggedHours.toFixed(1)}h
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
+                      {m.billableHours.toFixed(1)}h
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
+                      {m.utilizationPct}%
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${config.color}`}
+                      >
+                        <StatusIcon className="size-3" />
+                        {config.label}
+                      </span>
+                    </DataTableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        {!projectMemberIds?.length && data.totalPages > 1 ? (
+          <TablePagination
+            page={page}
+            totalPages={data.totalPages}
+            total={data.total}
+            limit={data.limit}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        ) : null}
       </div>
     );
 
@@ -203,9 +216,9 @@ export function TeamUtilizationWidget({
   }
 
   return (
-    <Card className="transition-all duration-300 hover:shadow-md">
+    <Card className="border-primary/10 shadow-sm transition-all duration-300 hover:shadow-md">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold tracking-tight text-muted-foreground flex items-center justify-between">
+        <CardTitle className="flex items-center justify-between text-sm font-semibold tracking-tight text-muted-foreground">
           <span className="flex items-center gap-2">
             <Users className="size-4 text-primary" />
             <span>Team Utilization ({data.expectedWeeklyHours}h expected/week)</span>

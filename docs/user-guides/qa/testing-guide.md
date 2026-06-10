@@ -1,6 +1,6 @@
 # QA testing guide (non-technical)
 
-This guide is for **QA engineers and testers** who check ChronoMint before releases. You do **not** need to write code. You **do** need the app running on your Mac and a browser.
+This guide is for **QA engineers and testers** who check Kloqra before releases. You do **not** need to write code. You **do** need the app running on your Mac and a browser.
 
 For developer commands and CI details, see [TESTING.md](../../development/TESTING.md).
 
@@ -8,7 +8,7 @@ For developer commands and CI details, see [TESTING.md](../../development/TESTIN
 
 ## What you are checking
 
-ChronoMint has two web apps:
+Kloqra has two web apps:
 
 | App                     | Who uses it                                 | Local URL             |
 | ----------------------- | ------------------------------------------- | --------------------- |
@@ -50,8 +50,8 @@ In **Terminal** (Applications → Utilities → Terminal):
 
 ```bash
 cd ~/Desktop
-git clone https://github.com/SCITAIGROUP1/ChronoMint.git
-cd ChronoMint
+git clone https://github.com/SCITAIGROUP1/Kloqra.git
+cd Kloqra
 ```
 
 (Your team may use a different folder — that is fine.)
@@ -94,7 +94,7 @@ More detail: [local-troubleshooting.md](../../runbooks/local-troubleshooting.md)
 ## Every-day start (after first setup)
 
 1. Open **Postgres.app** (if it is not already running).
-2. Open **Terminal** → `cd` to the ChronoMint folder.
+2. Open **Terminal** → `cd` to the Kloqra folder.
 3. Run:
 
 ```bash
@@ -107,12 +107,12 @@ corepack pnpm serve
 
 Password for all demo users: **`password123`**
 
-| Email                   | Use for    | Role                      |
-| ----------------------- | ---------- | ------------------------- |
-| `member@chronomint.dev` | Client app | Member (logs time)        |
-| `admin@chronomint.dev`  | Admin app  | Admin (manages workspace) |
+| Email               | Use for    | Role                      |
+| ------------------- | ---------- | ------------------------- |
+| `member@kloqra.dev` | Client app | Member (logs time)        |
+| `admin@kloqra.dev`  | Admin app  | Admin (manages workspace) |
 
-Demo workspaces include **Northwind Agency**, **Meridian Product Co**, and **Apex Consulting** (names may vary slightly by seed version).
+Demo workspaces include **Acme Corporation**, **Meridian Product Co**, and **Apex Consulting** (names may vary slightly by seed version).
 
 ---
 
@@ -122,7 +122,7 @@ Use these before signing off a release or after a big feature merge.
 
 ### Client app (member) — smoke checklist
 
-Log in as `member@chronomint.dev`.
+Log in as `member@kloqra.dev`.
 
 | #   | Area           | Steps                                                         | Pass? |
 | --- | -------------- | ------------------------------------------------------------- | ----- |
@@ -138,7 +138,7 @@ Member how-to docs: [getting-started.md](../member/getting-started.md), [timer-a
 
 ### Admin app — smoke checklist
 
-Log in as `admin@chronomint.dev`.
+Log in as `admin@kloqra.dev`.
 
 | #   | Area       | Steps                                                        | Pass? |
 | --- | ---------- | ------------------------------------------------------------ | ----- |
@@ -222,10 +222,10 @@ Opens **http://localhost:9321** — a simple home page linking to:
 
 ### Interactive test runners (optional)
 
-| Command                                                | Opens                   | Best for                             |
-| ------------------------------------------------------ | ----------------------- | ------------------------------------ |
-| `cd apps/api && corepack pnpm test:ui`                 | Vitest UI (~port 51204) | Watching API unit tests              |
-| `corepack pnpm --filter @chronomint/admin test:e2e:ui` | Playwright UI           | Stepping through admin browser tests |
+| Command                                            | Opens                   | Best for                             |
+| -------------------------------------------------- | ----------------------- | ------------------------------------ |
+| `cd apps/api && corepack pnpm test:ui`             | Vitest UI (~port 51204) | Watching API unit tests              |
+| `corepack pnpm --filter @kloqra/admin test:e2e:ui` | Playwright UI           | Stepping through admin browser tests |
 
 ---
 
@@ -234,7 +234,7 @@ Opens **http://localhost:9321** — a simple home page linking to:
 Use your team’s tracker (GitHub Issues, Jira, etc.). Include:
 
 1. **Which app** — Client (3000) or Admin (3002)
-2. **Account** — e.g. `member@chronomint.dev`
+2. **Account** — e.g. `member@kloqra.dev`
 3. **Workspace** — e.g. Meridian Product Co
 4. **Steps** — numbered, exact clicks
 5. **Expected** vs **Actual**

@@ -1,4 +1,10 @@
-import { myWeekQuerySchema, reportQuerySchema, ROUTES } from "@chronomint/contracts";
+import {
+  myWeekQuerySchema,
+  reportQuerySchema,
+  utilizationQuerySchema,
+  type UtilizationQueryDto,
+  ROUTES
+} from "@kloqra/contracts";
 import { Controller, Get, Query, Param, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,
@@ -31,12 +37,9 @@ export class ReportingController {
   @Get(ROUTES.REPORTING.UTILIZATION)
   utilization(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+    @Query(new ZodValidationPipe(utilizationQuerySchema)) query: UtilizationQueryDto
   ) {
-    return this.reporting.utilization(
-      user.workspaceId,
-      query as Parameters<ReportingService["utilization"]>[1]
-    );
+    return this.reporting.utilization(user.workspaceId, query);
   }
 
   @Roles("ADMIN")

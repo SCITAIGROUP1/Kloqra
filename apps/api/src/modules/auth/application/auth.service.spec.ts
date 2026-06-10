@@ -82,7 +82,7 @@ describe("AuthService unit tests", () => {
       mockPrisma.user = {
         findUnique: vi.fn().mockResolvedValue({
           id: "user-1",
-          email: "admin@chronomint.dev",
+          email: "admin@kloqra.dev",
           name: "Admin",
           passwordHash: "hash",
           defaultHourlyRate: null,
@@ -90,20 +90,20 @@ describe("AuthService unit tests", () => {
             {
               workspaceId: "ws-1",
               role: "ADMIN",
-              workspace: { id: "ws-1", name: "ChronoMint" }
+              workspace: { id: "ws-1", name: "Kloqra" }
             }
           ]
         })
       };
 
       const session = await authService.login({
-        email: "admin@chronomint.dev",
+        email: "admin@kloqra.dev",
         password: "password123"
       });
 
       expect(session.workspaceId).toBe("ws-1");
       expect(session.workspaceRole).toBe("ADMIN");
-      expect(session.user.email).toBe("admin@chronomint.dev");
+      expect(session.user.email).toBe("admin@kloqra.dev");
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({

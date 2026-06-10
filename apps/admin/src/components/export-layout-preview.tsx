@@ -1,7 +1,7 @@
 "use client";
 
-import type { ExportPreviewResponseDto, ExportPreviewSheetDto } from "@chronomint/contracts";
-import { cn } from "@chronomint/ui";
+import type { ExportPreviewResponseDto, ExportPreviewSheetDto } from "@kloqra/contracts";
+import { cn } from "@kloqra/ui";
 
 function TabChip({ sheet }: { sheet: ExportPreviewSheetDto }) {
   const icon =

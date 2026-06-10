@@ -1,1 +1,1 @@
-export { Providers } from "@chronomint/web-shared";
+export { Providers } from "@kloqra/web-shared";

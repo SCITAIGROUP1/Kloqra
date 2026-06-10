@@ -1,4 +1,4 @@
-import type { ExportGroupByDimension, ExportReportType } from "@chronomint/contracts";
+import type { ExportGroupByDimension, ExportReportType } from "@kloqra/contracts";
 
 export const GROUP_BY_DIMENSION_OPTIONS: {
   id: ExportGroupByDimension;

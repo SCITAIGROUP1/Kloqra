@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../errors/domain.exception";
 import { PrismaService } from "../prisma/prisma.service";

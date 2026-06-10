@@ -20,7 +20,7 @@ Use `apps/api/src/common/` for cross-cutting infrastructure (Prisma, Redis, guar
 ## Rules
 
 - Controllers: guards, DTO validation, delegate to services — **no Prisma**
-- Routes: use `ROUTES` from `@chronomint/contracts` — no hardcoded path strings
+- Routes: use `ROUTES` from `@kloqra/contracts` — no hardcoded path strings
 - Errors: `DomainException` with contract error codes (not raw Nest exceptions in domain flows)
 - Cross-module deps: Nest `imports` / `exports` — **no** `../../<other-module>/` relative imports
 - File naming: kebab-case for multi-word files (`export-share.controller.ts`)

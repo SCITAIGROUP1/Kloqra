@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@chronomint/ui";
+import { Button } from "@kloqra/ui";
 import { RotateCcw, Check, Sparkles, Filter, X } from "lucide-react";
 import React, { useState } from "react";
 import {

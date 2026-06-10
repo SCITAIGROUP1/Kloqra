@@ -5,8 +5,8 @@ import type {
   ListTimeLogsResponseDto,
   ListTimeLogOccupancyQueryDto,
   ListTimeLogOccupancyResponseDto
-} from "@chronomint/contracts";
-import { ErrorCodes } from "@chronomint/contracts";
+} from "@kloqra/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -67,10 +67,35 @@ export class TimelogsService {
       from.setDate(from.getDate() - DEFAULT_LIST_LOOKBACK_DAYS);
     }
 
+    const taskWhere = query.taskId
+      ? { project: { workspaceId } }
+      : {
+          ...(query.projectId ? { projectId: query.projectId } : {}),
+          ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+          project: { workspaceId }
+        };
+
+    const searchTerm = query.search?.trim();
+    const searchFilter = searchTerm
+      ? {
+          OR: [
+            { description: { contains: searchTerm, mode: "insensitive" as const } },
+            { task: { taskName: { contains: searchTerm, mode: "insensitive" as const } } },
+            { task: { project: { name: { contains: searchTerm, mode: "insensitive" as const } } } },
+            {
+              task: {
+                category: { name: { contains: searchTerm, mode: "insensitive" as const } }
+              }
+            }
+          ]
+        }
+      : undefined;
+
     const logs = await this.prisma.timeLog.findMany({
       where: {
         ...(filterUserId ? { userId: filterUserId } : {}),
         ...(query.taskId ? { taskId: query.taskId } : {}),
+        ...(query.billableOnly ? { isBillable: true } : {}),
         ...(from || to
           ? {
               AND: [
@@ -79,7 +104,8 @@ export class TimelogsService {
               ]
             }
           : {}),
-        task: { project: { workspaceId } }
+        ...(searchFilter ? { AND: [searchFilter] } : {}),
+        task: taskWhere
       },
       orderBy: { startTime: "desc" },
       take: limit + 1,

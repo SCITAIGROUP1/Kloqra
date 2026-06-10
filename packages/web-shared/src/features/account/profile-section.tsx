@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input, Label } from "@chronomint/ui";
+import { Button, Input, Label } from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AccountSectionFooter } from "./account-section-footer";

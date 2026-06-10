@@ -1,7 +1,7 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { ProjectDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { ProjectDto } from "@kloqra/contracts";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";

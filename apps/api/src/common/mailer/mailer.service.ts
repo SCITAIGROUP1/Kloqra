@@ -29,7 +29,7 @@ export class MailerService {
 
   constructor() {
     const host = process.env.SMTP_HOST?.trim();
-    this.from = process.env.SMTP_FROM?.trim() ?? "ChronoMint <noreply@chronomint.app>";
+    this.from = process.env.SMTP_FROM?.trim() ?? "Kloqra <noreply@kloqra.app>";
 
     if (!host) {
       this.logger.warn(

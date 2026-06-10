@@ -84,30 +84,37 @@ describe("occupancy segments", () => {
   });
 
   it("places cross-workspace logs at local wall time, not UTC clock", () => {
-    const northwindElsewhere = buildDayOccupancySegments(
+    const acmeElsewhere = buildDayOccupancySegments(
       "2026-06-09",
       [
         {
           id: "nw-1",
           startTime: "2026-06-09T15:05:00.000Z",
           endTime: "2026-06-09T18:50:00.000Z",
-          workspaceId: "ws-northwind",
-          workspaceName: "Northwind Agency",
+          workspaceId: "ws-acme",
+          workspaceName: "Acme Corporation",
           label: "Client Portal — QA pass"
         }
       ],
       "America/New_York",
       "ws-meridian"
     );
-    expect(northwindElsewhere).toHaveLength(1);
-    const style = blockStyle(
-      northwindElsewhere[0]!.start,
-      northwindElsewhere[0]!.end,
-      "America/New_York"
-    );
+    expect(acmeElsewhere).toHaveLength(1);
+    const style = blockStyle(acmeElsewhere[0]!.start, acmeElsewhere[0]!.end, "America/New_York");
     const topPct = parseFloat(style.top);
     expect(topPct).toBeGreaterThan(40);
     expect(topPct).toBeLessThan(55);
+  });
+});
+
+describe("blockStyle proportional height", () => {
+  it("uses true duration for short entries instead of a 20-minute floor", () => {
+    const start = combineDayAndTimeInZone("2026-06-08", "09:00", "UTC");
+    const end = combineDayAndTimeInZone("2026-06-08", "09:05", "UTC");
+    const style = blockStyle(start, end, "UTC");
+    const heightPct = parseFloat(style.height);
+    expect(heightPct).toBeGreaterThan(0);
+    expect(heightPct).toBeLessThan(1);
   });
 });
 

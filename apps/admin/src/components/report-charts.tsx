@@ -1,12 +1,15 @@
 "use client";
 
-import type { DashboardReportDto } from "@chronomint/contracts";
+import type { DashboardReportDto } from "@kloqra/contracts";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
   Label,
   ProjectNameWithColor,
   Select,
@@ -16,11 +19,10 @@ import {
   SelectValue,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
+  TablePagination,
   TableRow
-} from "@chronomint/ui";
+} from "@kloqra/ui";
 import {
   ChartContainer,
   ChartLegend,
@@ -28,7 +30,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
-} from "@chronomint/ui/chart";
+} from "@kloqra/ui/chart";
+import { useClientTablePagination } from "@kloqra/web-shared";
 import { useMemo, useState } from "react";
 import {
   Bar,
@@ -356,37 +359,52 @@ export function ReportBreakdownTable({ report, groupBy, projectColors }: Breakdo
             amount: p.billableAmount
           }));
 
+  const { page, setPage, pageItems, total, totalPages, limit } = useClientTablePagination(rows, 10);
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Title</TableHead>
-          <TableHead className="text-right">Duration</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={3} className="text-muted-foreground">
-              No data in this period
-            </TableCell>
-          </TableRow>
-        ) : (
-          rows.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className="font-medium">
-                {r.color ? <ProjectNameWithColor name={r.title} color={r.color} /> : r.title}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatDurationClock(r.hours)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{formatMoney(r.amount)} USD</TableCell>
+    <div className="space-y-0">
+      <Table>
+        <TableHeader>
+          <DataTableHeaderRow>
+            <DataTableHead>Title</DataTableHead>
+            <DataTableHead className="text-right">Duration</DataTableHead>
+            <DataTableHead className="text-right">Amount</DataTableHead>
+          </DataTableHeaderRow>
+        </TableHeader>
+        <TableBody>
+          {pageItems.length === 0 ? (
+            <TableRow>
+              <DataTableCell colSpan={3} className="text-muted-foreground">
+                No data in this period
+              </DataTableCell>
             </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
+          ) : (
+            pageItems.map((r) => (
+              <TableRow key={r.id}>
+                <DataTableCell className="font-medium">
+                  {r.color ? <ProjectNameWithColor name={r.title} color={r.color} /> : r.title}
+                </DataTableCell>
+                <DataTableCell className="text-right tabular-nums">
+                  {formatDurationClock(r.hours)}
+                </DataTableCell>
+                <DataTableCell className="text-right tabular-nums">
+                  {formatMoney(r.amount)} USD
+                </DataTableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+      {totalPages > 1 ? (
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -401,7 +419,7 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
 
   return (
     <>
-      <Card className="shadow-sm">
+      <Card className="border-primary/10 shadow-sm">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 space-y-0 pb-2">
           <div>
             <CardTitle className="text-base">Time tracked</CardTitle>
@@ -426,7 +444,7 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-3 shadow-sm">
+        <Card className="lg:col-span-3 border-primary/10 shadow-sm">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 space-y-0 pb-2">
             <div>
               <CardTitle className="text-base">Breakdown</CardTitle>
@@ -451,7 +469,7 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 shadow-sm">
+        <Card className="lg:col-span-2 border-primary/10 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Distribution</CardTitle>
             <CardDescription>Share of time in this period</CardDescription>

@@ -1,5 +1,5 @@
 {
-  "extends": "@chronomint/config-typescript/base.json",
+  "extends": "../../packages/config-typescript/base.json",
   "compilerOptions": {
     "module": "Node16",
     "moduleResolution": "Node16",

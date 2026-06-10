@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { listPaginationQuerySchema } from "../pagination";
 import { isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const teamMemberSchema = z.object({
@@ -44,9 +45,24 @@ export const teamInvitePreviewSchema = z.object({
   expired: z.boolean()
 });
 
+export const listProjectTeamQuerySchema = listPaginationQuerySchema;
+
+export const projectTeamResponseSchema = z.object({
+  id: uuidSchema,
+  projectId: uuidSchema,
+  projectName: z.string(),
+  members: z.array(teamMemberSchema),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative()
+});
+
 export type TeamMemberDto = z.infer<typeof teamMemberSchema>;
 export type UpdateTeamMemberDto = z.infer<typeof updateTeamMemberSchema>;
 export type TeamDto = z.infer<typeof teamSchema>;
+export type ListProjectTeamQuery = z.infer<typeof listProjectTeamQuerySchema>;
+export type ProjectTeamResponseDto = z.infer<typeof projectTeamResponseSchema>;
 export type CreateTeamInviteDto = z.infer<typeof createTeamInviteSchema>;
 export type TeamInviteDto = z.infer<typeof teamInviteSchema>;
 export type TeamInvitePreviewDto = z.infer<typeof teamInvitePreviewSchema>;

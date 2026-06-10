@@ -34,6 +34,11 @@ export const WeeklyBarChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton className="min-h-[220px]" /> }
 );
 
+export const WeeklyActivityChart = dynamic(
+  () => import("./weekly-activity-chart").then((m) => ({ default: m.WeeklyActivityChart })),
+  { ssr: false, loading: () => <ChartSkeleton className="min-h-[220px]" /> }
+);
+
 export const RevenueByProjectChart = dynamic(
   () => import("./dashboard-extra-charts").then((m) => ({ default: m.RevenueByProjectChart })),
   { ssr: false, loading: () => <ChartSkeleton className="min-h-[220px]" /> }

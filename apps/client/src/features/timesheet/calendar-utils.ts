@@ -319,7 +319,7 @@ export function blockStyle(
   if (endMin <= topMin) {
     return { top: "0%", height: "0%", display: "none" };
   }
-  const heightMin = Math.max(20, endMin - topMin);
+  const heightMin = endMin - topMin;
   return {
     top: `${(topMin / total) * 100}%`,
     height: `${(heightMin / total) * 100}%`

@@ -14,7 +14,7 @@ import {
   type TaskDto,
   type ReportShareDto,
   type WorkspaceMemberDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   Badge,
   Button,
@@ -30,13 +30,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from "@chronomint/ui";
-import { ReportScopeFilters } from "@chronomint/web-shared";
+} from "@kloqra/ui";
+import { ReportScopeFilters, fetchListItems } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { InvoiceWizard } from "./invoice-wizard";
 import {
-  PageHeader,
+  AppBar,
   PreviewBanner,
   Section,
   SegmentedControl,
@@ -171,8 +172,8 @@ export function ExportsPage() {
 
   useEffect(() => {
     if (!ws) return;
-    api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
+    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
     api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(setMembers);
     setLocalPresets(listLocalExportPresets(ws));
     api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, { workspaceId: ws })
@@ -186,9 +187,9 @@ export function ExportsPage() {
       setTaskId("");
       return;
     }
-    const params = new URLSearchParams({ projectId });
-    if (categoryId) params.set("categoryId", categoryId);
-    api<TaskDto[]>(`${ROUTES.TASKS.LIST}?${params}`, { workspaceId: ws })
+    const filters: Record<string, string> = { projectId };
+    if (categoryId) filters.categoryId = categoryId;
+    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
       .then(setTasks)
       .catch(() => setTasks([]));
   }, [ws, projectId, categoryId]);
@@ -412,8 +413,11 @@ export function ExportsPage() {
       const list = await api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, { workspaceId: ws });
       setServerPresets(list);
       setPresetName("");
+      toast.success("Export preset saved.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save preset");
+      const message = e instanceof Error ? e.message : "Failed to save preset";
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -432,10 +436,12 @@ export function ExportsPage() {
       });
       setShareUrl(result.shareUrl);
       setError(null);
+      toast.success("Share link created.");
     } catch (e) {
-      setError(
-        e instanceof Error ? `Share link failed: ${e.message}` : "Could not create share link."
-      );
+      const message =
+        e instanceof Error ? `Share link failed: ${e.message}` : "Could not create share link.";
+      setError(message);
+      toast.error(message);
     } finally {
       setSharing(false);
     }
@@ -447,9 +453,12 @@ export function ExportsPage() {
     try {
       const res = await apiDownloadPost(ROUTES.EXPORT.GENERATE, ws, exportBody);
       const ext = format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv";
-      await saveDownloadResponse(res, `chronomint-export.${ext}`);
+      await saveDownloadResponse(res, `kloqra-export.${ext}`);
+      toast.success("Export downloaded.");
     } catch {
-      setError("Export failed. Check filters and that the API is running.");
+      const message = "Export failed. Check filters and that the API is running.";
+      setError(message);
+      toast.error(message);
     } finally {
       setExporting(false);
     }
@@ -467,7 +476,7 @@ export function ExportsPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
+      <AppBar
         title="Exports"
         description={
           <>

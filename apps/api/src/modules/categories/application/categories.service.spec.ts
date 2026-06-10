@@ -10,7 +10,8 @@ function makePrisma() {
       findFirst: vi.fn() as AnyMock,
       create: vi.fn() as AnyMock,
       update: vi.fn() as AnyMock,
-      delete: vi.fn() as AnyMock
+      delete: vi.fn() as AnyMock,
+      count: vi.fn() as AnyMock
     },
     task: {
       count: vi.fn() as AnyMock
@@ -55,6 +56,7 @@ describe("CategoriesService", () => {
 
   describe("list", () => {
     it("returns categories scoped to the workspace with task counts", async () => {
+      prisma.category.count.mockResolvedValue(1);
       prisma.category.findMany.mockResolvedValue([
         {
           id: "c1",
@@ -64,21 +66,29 @@ describe("CategoriesService", () => {
           _count: { tasks: 2 }
         }
       ]);
-      const result = await service.list("w1");
+      const result = await service.list("w1", { page: 1, limit: 20 });
       expect(prisma.category.findMany).toHaveBeenCalledWith({
         where: { workspaceId: "w1" },
         include: { _count: { select: { tasks: true } } },
-        orderBy: { name: "asc" }
+        orderBy: { name: "asc" },
+        skip: 0,
+        take: 20
       });
-      expect(result).toEqual([
-        {
-          id: "c1",
-          workspaceId: "w1",
-          name: "Design",
-          description: null,
-          taskCount: 2
-        }
-      ]);
+      expect(result).toEqual({
+        items: [
+          {
+            id: "c1",
+            workspaceId: "w1",
+            name: "Design",
+            description: null,
+            taskCount: 2
+          }
+        ],
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1
+      });
     });
   });
 

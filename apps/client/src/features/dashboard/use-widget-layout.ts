@@ -5,69 +5,82 @@ interface WidgetLayoutState {
   layoutsByWorkspace: Record<string, WidgetLayoutItem[]>;
   initialized: boolean;
 
-  // Actions
   initialize: (workspaceId: string) => void;
-  updateLayout: (workspaceId: string, rglLayout: any[]) => void;
+  updateLayout: (workspaceId: string, rglLayout: any[], options?: { persist?: boolean }) => void;
+  persistLayout: (workspaceId: string) => void;
+  saveLayoutAsDefault: (workspaceId: string) => void;
   toggleWidget: (workspaceId: string, id: string) => void;
   resetLayout: (workspaceId: string) => void;
 }
 
-const getStorageKey = (workspaceId: string) => `chronomint-member-layout-v3-${workspaceId}`;
+const getStorageKey = (workspaceId: string) => `kloqra-member-layout-v3-${workspaceId}`;
+const getDefaultStorageKey = (workspaceId: string) =>
+  `kloqra-member-layout-v3-default-${workspaceId}`;
 
-export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
+function mergeLayoutsWithRegistry(savedLayouts: WidgetLayoutItem[]): WidgetLayoutItem[] {
+  const finalLayouts: WidgetLayoutItem[] = [];
+
+  for (const registryWidget of WIDGET_REGISTRY) {
+    const saved = savedLayouts.find((item) => item.i === registryWidget.id);
+    if (saved) {
+      finalLayouts.push({
+        i: saved.i,
+        x: saved.x,
+        y: saved.y,
+        w: saved.w,
+        h: saved.h,
+        visible: typeof saved.visible === "boolean" ? saved.visible : registryWidget.defaultVisible
+      });
+    } else {
+      const defaultItem = DEFAULT_LAYOUT.find((item) => item.i === registryWidget.id);
+      if (defaultItem) {
+        finalLayouts.push({ ...defaultItem });
+      } else {
+        finalLayouts.push({
+          i: registryWidget.id,
+          x: 0,
+          y: 99,
+          w: registryWidget.defaultSize.w,
+          h: registryWidget.defaultSize.h,
+          visible: registryWidget.defaultVisible
+        });
+      }
+    }
+  }
+
+  return finalLayouts;
+}
+
+function readStoredLayouts(workspaceId: string): WidgetLayoutItem[] {
+  try {
+    const stored =
+      localStorage.getItem(getStorageKey(workspaceId)) ??
+      localStorage.getItem(getDefaultStorageKey(workspaceId));
+    if (stored) {
+      return JSON.parse(stored) as WidgetLayoutItem[];
+    }
+  } catch (e) {
+    console.error("Failed to parse saved widget layout", e);
+  }
+  return [];
+}
+
+function writeLayout(storageKey: string, layout: WidgetLayoutItem[]) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(layout));
+  } catch (e) {
+    console.error("Failed to save widget layout", e);
+  }
+}
+
+export const useWidgetLayout = create<WidgetLayoutState>((set, get) => ({
   layoutsByWorkspace: {},
   initialized: false,
 
   initialize: (workspaceId: string) => {
     if (!workspaceId) return;
 
-    let savedLayouts: WidgetLayoutItem[] = [];
-    const storageKey = getStorageKey(workspaceId);
-
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        savedLayouts = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error("Failed to parse saved widget layout", e);
-    }
-
-    // Merge with latest registry to ensure new widgets are included
-    const finalLayouts: WidgetLayoutItem[] = [];
-
-    // Start with all widgets from registry
-    for (const registryWidget of WIDGET_REGISTRY) {
-      const saved = savedLayouts.find((item) => item.i === registryWidget.id);
-      if (saved) {
-        // Use saved properties, but keep the current structure
-        finalLayouts.push({
-          i: saved.i,
-          x: saved.x,
-          y: saved.y,
-          w: saved.w,
-          h: saved.h,
-          visible:
-            typeof saved.visible === "boolean" ? saved.visible : registryWidget.defaultVisible
-        });
-      } else {
-        // Not saved yet, load default layout item
-        const defaultItem = DEFAULT_LAYOUT.find((item) => item.i === registryWidget.id);
-        if (defaultItem) {
-          finalLayouts.push({ ...defaultItem });
-        } else {
-          // Fallback if not in DEFAULT_LAYOUT for some reason
-          finalLayouts.push({
-            i: registryWidget.id,
-            x: 0,
-            y: 99,
-            w: registryWidget.defaultSize.w,
-            h: registryWidget.defaultSize.h,
-            visible: registryWidget.defaultVisible
-          });
-        }
-      }
-    }
+    const finalLayouts = mergeLayoutsWithRegistry(readStoredLayouts(workspaceId));
 
     set((state) => ({
       layoutsByWorkspace: {
@@ -78,7 +91,7 @@ export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
     }));
   },
 
-  updateLayout: (workspaceId: string, rglLayout: any[]) => {
+  updateLayout: (workspaceId: string, rglLayout: any[], options?: { persist?: boolean }) => {
     if (!workspaceId) return;
 
     set((state) => {
@@ -97,10 +110,8 @@ export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
         return item;
       });
 
-      try {
-        localStorage.setItem(getStorageKey(workspaceId), JSON.stringify(updated));
-      } catch (e) {
-        console.error("Failed to save widget layout", e);
+      if (options?.persist !== false) {
+        writeLayout(getStorageKey(workspaceId), updated);
       }
 
       return {
@@ -110,6 +121,22 @@ export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
         }
       };
     });
+  },
+
+  persistLayout: (workspaceId: string) => {
+    if (!workspaceId) return;
+    const layout = get().layoutsByWorkspace[workspaceId];
+    if (layout) {
+      writeLayout(getStorageKey(workspaceId), layout);
+    }
+  },
+
+  saveLayoutAsDefault: (workspaceId: string) => {
+    if (!workspaceId) return;
+    const layout = get().layoutsByWorkspace[workspaceId];
+    if (layout) {
+      writeLayout(getDefaultStorageKey(workspaceId), layout);
+    }
   },
 
   toggleWidget: (workspaceId: string, id: string) => {
@@ -127,11 +154,7 @@ export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
         return item;
       });
 
-      try {
-        localStorage.setItem(getStorageKey(workspaceId), JSON.stringify(updated));
-      } catch (e) {
-        console.error("Failed to save widget layout", e);
-      }
+      writeLayout(getStorageKey(workspaceId), updated);
 
       return {
         layoutsByWorkspace: {
@@ -145,19 +168,31 @@ export const useWidgetLayout = create<WidgetLayoutState>((set) => ({
   resetLayout: (workspaceId: string) => {
     if (!workspaceId) return;
 
-    const resetLayout = DEFAULT_LAYOUT.map((item) => ({ ...item }));
+    const customDefault = readStoredLayoutsFromKey(getDefaultStorageKey(workspaceId));
+    const resetLayoutItems =
+      customDefault.length > 0
+        ? mergeLayoutsWithRegistry(customDefault)
+        : DEFAULT_LAYOUT.map((item) => ({ ...item }));
 
-    try {
-      localStorage.setItem(getStorageKey(workspaceId), JSON.stringify(resetLayout));
-    } catch (e) {
-      console.error("Failed to save widget layout", e);
-    }
+    writeLayout(getStorageKey(workspaceId), resetLayoutItems);
 
     set((state) => ({
       layoutsByWorkspace: {
         ...state.layoutsByWorkspace,
-        [workspaceId]: resetLayout
+        [workspaceId]: resetLayoutItems
       }
     }));
   }
 }));
+
+function readStoredLayoutsFromKey(storageKey: string): WidgetLayoutItem[] {
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      return JSON.parse(stored) as WidgetLayoutItem[];
+    }
+  } catch (e) {
+    console.error("Failed to parse saved widget layout", e);
+  }
+  return [];
+}

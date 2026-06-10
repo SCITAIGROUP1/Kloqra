@@ -49,12 +49,24 @@ export const updateTimeLogSchema = z
     { message: "endTime must be >= startTime", path: ["endTime"] }
   );
 
+const listTimeLogsBillableOnlySchema = z
+  .union([z.boolean(), z.enum(["true", "false"])])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) return undefined;
+    return value === true || value === "true";
+  });
+
 export const listTimeLogsQuerySchema = z
   .object({
     taskId: uuidSchema.optional(),
+    projectId: uuidSchema.optional(),
+    categoryId: uuidSchema.optional(),
     userId: uuidSchema.optional(),
     from: isoDatetimeSchema.optional(),
     to: isoDatetimeSchema.optional(),
+    search: z.string().trim().min(1).max(200).optional(),
+    billableOnly: listTimeLogsBillableOnlySchema,
     limit: z.coerce.number().int().min(1).max(1000).optional(),
     cursor: uuidSchema.optional()
   })

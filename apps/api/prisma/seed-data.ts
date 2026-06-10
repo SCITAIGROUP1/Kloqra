@@ -1,4 +1,6 @@
-/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each, category-aware logs */
+/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each, category-aware logs (Kloqra demo). */
+
+export const SEED_EMAIL_DOMAIN = "kloqra.dev";
 
 /** Canonical workspace categories (matches admin onboarding + migration backfill naming). */
 export const SEED_CATEGORIES = [
@@ -66,7 +68,7 @@ export const SEED_PASSWORD = "password123";
 /** 2 admins + 11 members = 13 accounts */
 export const SEED_USERS: SeedUserSpec[] = [
   {
-    email: "admin@chronomint.dev",
+    email: "admin@kloqra.dev",
     name: "Avery Admin",
     role: "ADMIN",
     defaultHourlyRate: 150,
@@ -76,7 +78,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { Meetings: 1.5, Documentation: 1.4, "Software Development": 0.75 }
   },
   {
-    email: "ops@chronomint.dev",
+    email: "ops@kloqra.dev",
     name: "Morgan Blake",
     role: "ADMIN",
     defaultHourlyRate: 140,
@@ -86,7 +88,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { DevOps: 1.8, Meetings: 1.3, "Software Development": 0.9 }
   },
   {
-    email: "member@chronomint.dev",
+    email: "member@kloqra.dev",
     name: "Sam Rivera",
     role: "MEMBER",
     defaultHourlyRate: 100,
@@ -95,7 +97,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "Software Development": 1.5, "QA & Testing": 1.25, Meetings: 0.85 }
   },
   {
-    email: "alex@chronomint.dev",
+    email: "alex@kloqra.dev",
     name: "Alex Chen",
     role: "MEMBER",
     defaultHourlyRate: 95,
@@ -104,7 +106,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "Software Development": 1.7, "QA & Testing": 0.9 }
   },
   {
-    email: "jordan@chronomint.dev",
+    email: "jordan@kloqra.dev",
     name: "Jordan Lee",
     role: "MEMBER",
     defaultHourlyRate: 110,
@@ -113,7 +115,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "Software Development": 2.0, DevOps: 0.8 }
   },
   {
-    email: "taylor@chronomint.dev",
+    email: "taylor@kloqra.dev",
     name: "Taylor Brooks",
     role: "MEMBER",
     defaultHourlyRate: 88,
@@ -122,7 +124,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "UI/UX Design": 2.2, Meetings: 1.1 }
   },
   {
-    email: "riley@chronomint.dev",
+    email: "riley@kloqra.dev",
     name: "Riley Kim",
     role: "MEMBER",
     defaultHourlyRate: 105,
@@ -131,7 +133,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "QA & Testing": 2.1, "Software Development": 0.75 }
   },
   {
-    email: "casey@chronomint.dev",
+    email: "casey@kloqra.dev",
     name: "Casey Nguyen",
     role: "MEMBER",
     defaultHourlyRate: 92,
@@ -140,7 +142,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { Documentation: 1.6, "Software Development": 1.1, Meetings: 1.2 }
   },
   {
-    email: "drew@chronomint.dev",
+    email: "drew@kloqra.dev",
     name: "Drew Martinez",
     role: "MEMBER",
     defaultHourlyRate: 102,
@@ -149,7 +151,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { DevOps: 2.0, "Software Development": 1.0 }
   },
   {
-    email: "sage@chronomint.dev",
+    email: "sage@kloqra.dev",
     name: "Sage Patel",
     role: "MEMBER",
     defaultHourlyRate: 94,
@@ -158,7 +160,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { Documentation: 1.8, Meetings: 1.15 }
   },
   {
-    email: "blake@chronomint.dev",
+    email: "blake@kloqra.dev",
     name: "Blake Wilson",
     role: "MEMBER",
     defaultHourlyRate: 108,
@@ -167,7 +169,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "UI/UX Design": 1.5, Meetings: 1.25, Documentation: 1.1 }
   },
   {
-    email: "rowan@chronomint.dev",
+    email: "rowan@kloqra.dev",
     name: "Rowan Adams",
     role: "MEMBER",
     defaultHourlyRate: 107,
@@ -176,7 +178,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     categoryBias: { "QA & Testing": 1.6, DevOps: 1.2 }
   },
   {
-    email: "quinn@chronomint.dev",
+    email: "quinn@kloqra.dev",
     name: "Quinn Ellis",
     role: "MEMBER",
     defaultHourlyRate: 120,
@@ -187,7 +189,7 @@ export const SEED_USERS: SeedUserSpec[] = [
   }
 ];
 
-const ADMINS = ["admin@chronomint.dev", "ops@chronomint.dev"];
+const ADMINS = ["admin@kloqra.dev", "ops@kloqra.dev"];
 
 function wsMembers(...members: string[]): string[] {
   return [...new Set([...ADMINS, ...members])].slice(0, 10);
@@ -195,37 +197,33 @@ function wsMembers(...members: string[]): string[] {
 
 export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
   {
-    name: "Northwind Agency",
-    slug: "northwind",
+    name: "Acme Corporation",
+    slug: "acme",
     settings: {
       weekStart: "monday",
       expectedWeeklyHours: 40,
       dailyTargetHours: 8,
       timezone: "America/New_York",
-      exportFooterNote: "Northwind Agency — confidential billing export"
+      exportFooterNote: "Acme Corporation — Kloqra confidential billing export"
     },
     memberEmails: wsMembers(
-      "member@chronomint.dev",
-      "alex@chronomint.dev",
-      "jordan@chronomint.dev",
-      "taylor@chronomint.dev",
-      "riley@chronomint.dev",
-      "casey@chronomint.dev",
-      "drew@chronomint.dev",
-      "sage@chronomint.dev"
+      "member@kloqra.dev",
+      "alex@kloqra.dev",
+      "jordan@kloqra.dev",
+      "taylor@kloqra.dev",
+      "riley@kloqra.dev",
+      "casey@kloqra.dev",
+      "drew@kloqra.dev",
+      "sage@kloqra.dev"
     ),
     projects: [
       {
         name: "Client Portal Redesign",
-        color: "#6366f1",
+        color: "#236bfe",
         clientName: "Northwind Traders",
         budgetHours: 480,
         budgetBurnPct: 0.82,
-        memberEmails: wsMembers(
-          "member@chronomint.dev",
-          "alex@chronomint.dev",
-          "jordan@chronomint.dev"
-        ),
+        memberEmails: wsMembers("member@kloqra.dev", "alex@kloqra.dev", "jordan@kloqra.dev"),
         tasks: [
           { name: "UX research", category: "UI/UX Design", billableDefault: true, weight: 1.4 },
           {
@@ -266,11 +264,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Fabrikam Media",
         budgetHours: 220,
         budgetBurnPct: 0.94,
-        memberEmails: wsMembers(
-          "taylor@chronomint.dev",
-          "riley@chronomint.dev",
-          "casey@chronomint.dev"
-        ),
+        memberEmails: wsMembers("taylor@kloqra.dev", "riley@kloqra.dev", "casey@kloqra.dev"),
         tasks: [
           {
             name: "Creative direction",
@@ -312,11 +306,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Contoso Retail",
         budgetHours: 160,
         budgetBurnPct: 1.08,
-        memberEmails: wsMembers(
-          "drew@chronomint.dev",
-          "sage@chronomint.dev",
-          "blake@chronomint.dev"
-        ),
+        memberEmails: wsMembers("drew@kloqra.dev", "sage@kloqra.dev", "blake@kloqra.dev"),
         tasks: [
           {
             name: "Ticket triage",
@@ -343,11 +333,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Adventure Works",
         budgetHours: 120,
         budgetBurnPct: 0.55,
-        memberEmails: wsMembers(
-          "member@chronomint.dev",
-          "rowan@chronomint.dev",
-          "quinn@chronomint.dev"
-        ),
+        memberEmails: wsMembers("member@kloqra.dev", "rowan@kloqra.dev", "quinn@kloqra.dev"),
         tasks: [
           {
             name: "Evidence collection",
@@ -384,14 +370,14 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       timesheetApprovalPeriod: "weekly"
     },
     memberEmails: wsMembers(
-      "member@chronomint.dev",
-      "jordan@chronomint.dev",
-      "riley@chronomint.dev",
-      "casey@chronomint.dev",
-      "drew@chronomint.dev",
-      "blake@chronomint.dev",
-      "rowan@chronomint.dev",
-      "quinn@chronomint.dev"
+      "member@kloqra.dev",
+      "jordan@kloqra.dev",
+      "riley@kloqra.dev",
+      "casey@kloqra.dev",
+      "drew@kloqra.dev",
+      "blake@kloqra.dev",
+      "rowan@kloqra.dev",
+      "quinn@kloqra.dev"
     ),
     projects: [
       {
@@ -400,11 +386,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 620,
         budgetBurnPct: 0.68,
-        memberEmails: wsMembers(
-          "member@chronomint.dev",
-          "jordan@chronomint.dev",
-          "riley@chronomint.dev"
-        ),
+        memberEmails: wsMembers("member@kloqra.dev", "jordan@kloqra.dev", "riley@kloqra.dev"),
         tasks: [
           {
             name: "iOS features",
@@ -452,11 +434,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 400,
         budgetBurnPct: 0.76,
-        memberEmails: wsMembers(
-          "alex@chronomint.dev",
-          "casey@chronomint.dev",
-          "drew@chronomint.dev"
-        ),
+        memberEmails: wsMembers("alex@kloqra.dev", "casey@kloqra.dev", "drew@kloqra.dev"),
         tasks: [
           {
             name: "Endpoint design",
@@ -498,11 +476,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 280,
         budgetBurnPct: 0.48,
-        memberEmails: wsMembers(
-          "taylor@chronomint.dev",
-          "sage@chronomint.dev",
-          "blake@chronomint.dev"
-        ),
+        memberEmails: wsMembers("taylor@kloqra.dev", "sage@kloqra.dev", "blake@kloqra.dev"),
         tasks: [
           {
             name: "Admin dashboard",
@@ -543,11 +517,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 200,
         budgetBurnPct: 0.91,
-        memberEmails: wsMembers(
-          "rowan@chronomint.dev",
-          "quinn@chronomint.dev",
-          "riley@chronomint.dev"
-        ),
+        memberEmails: wsMembers("rowan@kloqra.dev", "quinn@kloqra.dev", "riley@kloqra.dev"),
         tasks: [
           {
             name: "Pen test remediation",
@@ -578,17 +548,17 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       expectedWeeklyHours: 40,
       dailyTargetHours: 7.5,
       timezone: "Europe/London",
-      exportFooterNote: "Apex Consulting — billable hours summary"
+      exportFooterNote: "Apex Consulting — Kloqra billable hours summary"
     },
     memberEmails: wsMembers(
-      "member@chronomint.dev",
-      "alex@chronomint.dev",
-      "taylor@chronomint.dev",
-      "riley@chronomint.dev",
-      "casey@chronomint.dev",
-      "sage@chronomint.dev",
-      "blake@chronomint.dev",
-      "rowan@chronomint.dev"
+      "member@kloqra.dev",
+      "alex@kloqra.dev",
+      "taylor@kloqra.dev",
+      "riley@kloqra.dev",
+      "casey@kloqra.dev",
+      "sage@kloqra.dev",
+      "blake@kloqra.dev",
+      "rowan@kloqra.dev"
     ),
     projects: [
       {
@@ -598,10 +568,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 720,
         budgetBurnPct: 0.61,
         memberEmails: wsMembers(
-          "member@chronomint.dev",
-          "alex@chronomint.dev",
-          "jordan@chronomint.dev",
-          "casey@chronomint.dev"
+          "member@kloqra.dev",
+          "alex@kloqra.dev",
+          "jordan@kloqra.dev",
+          "casey@kloqra.dev"
         ),
         tasks: [
           { name: "Discovery workshops", category: "Meetings", billableDefault: true, weight: 2.0 },
@@ -641,11 +611,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Wide World Importers",
         budgetHours: 540,
         budgetBurnPct: 0.73,
-        memberEmails: wsMembers(
-          "riley@chronomint.dev",
-          "drew@chronomint.dev",
-          "sage@chronomint.dev"
-        ),
+        memberEmails: wsMembers("riley@kloqra.dev", "drew@kloqra.dev", "sage@kloqra.dev"),
         tasks: [
           {
             name: "Source ingestion",
@@ -677,11 +643,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Tailspin Toys",
         budgetHours: 180,
         budgetBurnPct: 0.42,
-        memberEmails: wsMembers(
-          "taylor@chronomint.dev",
-          "blake@chronomint.dev",
-          "rowan@chronomint.dev"
-        ),
+        memberEmails: wsMembers("taylor@kloqra.dev", "blake@kloqra.dev", "rowan@kloqra.dev"),
         tasks: [
           {
             name: "Stakeholder interviews",
@@ -707,7 +669,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Gov Sector Client",
         budgetHours: 260,
         budgetBurnPct: 0.88,
-        memberEmails: wsMembers("quinn@chronomint.dev", "casey@chronomint.dev"),
+        memberEmails: wsMembers("quinn@kloqra.dev", "casey@kloqra.dev"),
         tasks: [
           {
             name: "Policy gap analysis",

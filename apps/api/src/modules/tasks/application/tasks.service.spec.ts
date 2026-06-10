@@ -10,7 +10,8 @@ function makePrisma() {
       findFirst: vi.fn() as AnyMock,
       create: vi.fn() as AnyMock,
       update: vi.fn() as AnyMock,
-      delete: vi.fn() as AnyMock
+      delete: vi.fn() as AnyMock,
+      count: vi.fn() as AnyMock
     },
     project: {
       findFirst: vi.fn() as AnyMock
@@ -42,20 +43,25 @@ describe("TasksService", () => {
   describe("list", () => {
     it("returns empty when the user has no accessible projects", async () => {
       access.accessibleProjectIds.mockResolvedValue([]);
-      const result = await service.list("w1", "u1", "MEMBER");
-      expect(result).toEqual([]);
+      const result = await service.list("w1", "u1", "MEMBER", { page: 1, limit: 20 });
+      expect(result).toEqual({ items: [], page: 1, limit: 20, total: 0, totalPages: 0 });
       expect(prisma.task.findMany).not.toHaveBeenCalled();
     });
 
     it("returns empty when filtering by a project the user cannot access", async () => {
       access.accessibleProjectIds.mockResolvedValue(["p1"]);
-      const result = await service.list("w1", "u1", "MEMBER", "p2");
-      expect(result).toEqual([]);
+      const result = await service.list("w1", "u1", "MEMBER", {
+        page: 1,
+        limit: 20,
+        projectId: "p2"
+      });
+      expect(result).toEqual({ items: [], page: 1, limit: 20, total: 0, totalPages: 0 });
       expect(prisma.task.findMany).not.toHaveBeenCalled();
     });
 
     it("returns tasks with categoryName flattened from the joined relation", async () => {
       access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      prisma.task.count.mockResolvedValue(1);
       prisma.task.findMany.mockResolvedValue([
         {
           id: "t1",
@@ -66,23 +72,30 @@ describe("TasksService", () => {
           category: { name: "Software Development" }
         }
       ]);
-      const result = await service.list("w1", "u1", "ADMIN");
-      expect(result).toEqual([
-        {
-          id: "t1",
-          projectId: "p1",
-          categoryId: "c1",
-          categoryName: "Software Development",
-          taskName: "Frontend",
-          billableDefault: true
-        }
-      ]);
+      const result = await service.list("w1", "u1", "ADMIN", { page: 1, limit: 20 });
+      expect(result).toEqual({
+        items: [
+          {
+            id: "t1",
+            projectId: "p1",
+            categoryId: "c1",
+            categoryName: "Software Development",
+            taskName: "Frontend",
+            billableDefault: true
+          }
+        ],
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1
+      });
     });
 
     it("forwards the categoryId filter to prisma", async () => {
       access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      prisma.task.count.mockResolvedValue(0);
       prisma.task.findMany.mockResolvedValue([]);
-      await service.list("w1", "u1", "ADMIN", undefined, "c1");
+      await service.list("w1", "u1", "ADMIN", { page: 1, limit: 20, categoryId: "c1" });
       expect(prisma.task.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { projectId: { in: ["p1"] }, categoryId: "c1" }

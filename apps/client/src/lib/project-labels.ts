@@ -1,4 +1,4 @@
-import type { ProjectDto } from "@chronomint/contracts";
+import type { ProjectDto } from "@kloqra/contracts";
 
 type ProjectLike = Pick<ProjectDto, "name" | "color" | "workspaceName" | "workspaceId">;
 

@@ -1,1 +1,1 @@
-export { useWorkspacesStore } from "@chronomint/web-shared";
+export { useWorkspacesStore } from "@kloqra/web-shared";

@@ -1,5 +1,5 @@
-import { ErrorCodes } from "@chronomint/contracts";
-import type { TimesheetPeriodDto } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
+import type { TimesheetPeriodDto } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -124,19 +124,43 @@ export class TimesheetsService {
     return this.toPeriodDto(period, project.name, approvalPeriod);
   }
 
-  async listSubmissions(workspaceId: string, userId: string, dateStr: string) {
+  async listSubmissions(
+    workspaceId: string,
+    userId: string,
+    dateStr: string,
+    scope: "logged" | "assigned" = "logged"
+  ) {
     const date = dateStr || new Date().toISOString();
 
-    const projectIds = await this.prisma.timeLog.findMany({
-      where: {
-        userId,
-        task: { project: { workspaceId, timesheetApprovalEnabled: true } }
-      },
-      select: { task: { select: { projectId: true } } },
-      distinct: ["taskId"]
-    });
+    let uniqueProjectIds: string[];
 
-    const uniqueProjectIds = [...new Set(projectIds.map((row) => row.task.projectId))];
+    if (scope === "assigned") {
+      const memberships = await this.prisma.teamMember.findMany({
+        where: {
+          userId,
+          isActive: true,
+          team: {
+            project: {
+              workspaceId,
+              timesheetApprovalEnabled: true,
+              isActive: true
+            }
+          }
+        },
+        select: { team: { select: { projectId: true } } }
+      });
+      uniqueProjectIds = [...new Set(memberships.map((row) => row.team.projectId))];
+    } else {
+      const projectIds = await this.prisma.timeLog.findMany({
+        where: {
+          userId,
+          task: { project: { workspaceId, timesheetApprovalEnabled: true } }
+        },
+        select: { task: { select: { projectId: true } } },
+        distinct: ["taskId"]
+      });
+      uniqueProjectIds = [...new Set(projectIds.map((row) => row.task.projectId))];
+    }
 
     const items: TimesheetPeriodDto[] = [];
     for (const projectId of uniqueProjectIds) {

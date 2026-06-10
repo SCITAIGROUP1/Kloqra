@@ -1,6 +1,6 @@
-import { base } from "@chronomint/config-eslint/base";
-import { nestLayers } from "@chronomint/config-eslint/nest";
-import { reactLayers } from "@chronomint/config-eslint/react";
+import { base } from "@kloqra/config-eslint/base";
+import { nestLayers } from "@kloqra/config-eslint/nest";
+import { reactLayers } from "@kloqra/config-eslint/react";
 
 export default [
   ...base,

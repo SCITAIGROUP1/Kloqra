@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { BRAND_COLORS, BRAND_TAGLINE, ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import PDFDocument from "pdfkit";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -114,11 +114,10 @@ export class InvoiceService {
 
     // Design layout
 
-    // Primary Colors
-    const primaryColor = "#0f172a"; // slate-900
-    const secondaryColor = "#475569"; // slate-600
-    const accentColor = "#0284c7"; // sky-600
-    const borderColor = "#e2e8f0"; // slate-200
+    const primaryColor = BRAND_COLORS.navy;
+    const secondaryColor = BRAND_COLORS.body;
+    const accentColor = BRAND_COLORS.primary;
+    const borderColor = BRAND_COLORS.border;
 
     // Header Title
     doc.fillColor(primaryColor).fontSize(28).text("INVOICE", 50, 50, { align: "right" });
@@ -129,7 +128,7 @@ export class InvoiceService {
 
     // Logo / Brand
     doc.fillColor(primaryColor).fontSize(16).text(dto.companyName, 50, 50, { align: "left" });
-    doc.fillColor(secondaryColor).fontSize(9).text("Time Tracking & Billing Export", 50, 68);
+    doc.fillColor(secondaryColor).fontSize(9).text(BRAND_TAGLINE, 50, 68);
 
     doc.moveDown(3);
 

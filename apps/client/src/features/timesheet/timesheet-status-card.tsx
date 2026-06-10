@@ -1,9 +1,10 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { TimesheetPeriodDto } from "@chronomint/contracts";
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type { TimesheetPeriodDto } from "@kloqra/contracts";
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@kloqra/ui";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -11,6 +12,7 @@ interface TimesheetStatusCardProps {
   statusInfo: TimesheetPeriodDto;
   onSubmitted: () => void;
   anchorDate: Date;
+  submitLabelOverride?: string;
 }
 
 function periodLabel(info: TimesheetPeriodDto): string {
@@ -29,15 +31,16 @@ function periodLabel(info: TimesheetPeriodDto): string {
 }
 
 function submitLabel(approvalPeriod: TimesheetPeriodDto["approvalPeriod"]): string {
-  if (approvalPeriod === "daily") return "Submit Day for Approval";
-  if (approvalPeriod === "monthly") return "Submit Month for Approval";
-  return "Submit Week for Approval";
+  if (approvalPeriod === "daily") return "Send Day to Approvals";
+  if (approvalPeriod === "monthly") return "Send Month to Approvals";
+  return "Send to Approvals";
 }
 
 export function TimesheetStatusCard({
   statusInfo,
   onSubmitted,
-  anchorDate
+  anchorDate,
+  submitLabelOverride
 }: TimesheetStatusCardProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [note, setNote] = useState("");
@@ -63,9 +66,12 @@ export function TimesheetStatusCard({
           note: note.trim() || undefined
         })
       });
+      toast.success("Timesheet submitted for approval.");
       onSubmitted();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to submit timesheet");
+      const message = e instanceof Error ? e.message : "Failed to submit timesheet";
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +160,9 @@ export function TimesheetStatusCard({
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <Button type="submit" size="sm" className="w-full" disabled={submitting}>
-              {submitting ? "Submitting..." : submitLabel(statusInfo.approvalPeriod)}
+              {submitting
+                ? "Sending..."
+                : (submitLabelOverride ?? submitLabel(statusInfo.approvalPeriod))}
             </Button>
           </form>
         )}

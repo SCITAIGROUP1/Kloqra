@@ -13,13 +13,22 @@ export const ROUTES = {
   USERS: {
     ME: "/users/me",
     PREFERENCES: "/users/me/preferences",
-    PASSWORD: "/users/me/password"
+    PASSWORD: "/users/me/password",
+    SESSIONS: "/users/me/sessions",
+    SESSION: (id: string) => `/users/me/sessions/${id}`,
+    TWO_FA_ENABLE: "/users/me/2fa/enable",
+    TWO_FA_VERIFY: "/users/me/2fa/verify",
+    TWO_FA_DISABLE: "/users/me/2fa/disable",
+    ACTIVITY: "/users/me/activity"
   },
   WORKSPACES: {
     LIST: "/workspaces",
     CREATE: "/workspaces",
     BY_ID: (id: string) => `/workspaces/${id}`,
     MEMBERS: (id: string) => `/workspaces/${id}/members`,
+    MEMBERS_OVERVIEW: (id: string) => `/workspaces/${id}/members/overview`,
+    MEMBER: (workspaceId: string, memberId: string) =>
+      `/workspaces/${workspaceId}/members/${memberId}`,
     INVITE: (id: string) => `/workspaces/${id}/members/invite`
   },
   PROJECTS: {

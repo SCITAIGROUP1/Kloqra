@@ -1,5 +1,5 @@
-import { ROUTES } from "@chronomint/contracts";
-import type { AuthSessionDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { useSessionStore } from "../stores/session.store";
 

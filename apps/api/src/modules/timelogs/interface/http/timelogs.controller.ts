@@ -4,8 +4,8 @@ import {
   listTimeLogOccupancyQuerySchema,
   updateTimeLogSchema,
   ROUTES
-} from "@chronomint/contracts";
-import type { ListTimeLogsQueryDto, ListTimeLogOccupancyQueryDto } from "@chronomint/contracts";
+} from "@kloqra/contracts";
+import type { ListTimeLogsQueryDto, ListTimeLogOccupancyQueryDto } from "@kloqra/contracts";
 import {
   Body,
   Controller,

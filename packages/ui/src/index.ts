@@ -4,6 +4,7 @@ export {
   DashboardSkeleton,
   EmptyState,
   PageHeader,
+  type PageHeaderProps,
   PreviewBanner,
   Section,
   SegmentedControl,
@@ -30,6 +31,17 @@ export {
 export { Badge, badgeVariants } from "./components/ui/badge.js";
 
 export {
+  TimesheetApprovalStatusBadge,
+  type TimesheetApprovalStatus
+} from "./components/timesheet-approval-status-badge.js";
+
+export {
+  DashboardStatCard,
+  type DashboardStatCardProps,
+  type DashboardStatTone
+} from "./components/dashboard-stat-card.js";
+
+export {
   Table,
   TableHeader,
   TableBody,
@@ -39,6 +51,25 @@ export {
   TableCell,
   TableCaption
 } from "./components/ui/table.js";
+
+export {
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
+  TablePagination,
+  TableToolbar,
+  type TablePaginationProps,
+  type TableToolbarProps,
+  dataTableCardClass,
+  dataTableCellClass,
+  dataTableHeadClass,
+  dataTableHeaderRowClass
+} from "./components/data-table/data-table.js";
+
+export { TableLoadingRows, TableLoadingState } from "./components/data-table/table-loading.js";
+
+export { Spinner, CenteredLoader, type SpinnerSize } from "./components/ui/spinner.js";
 
 export {
   Select,
@@ -70,6 +101,7 @@ export {
   AlertDialogTrigger,
   AlertDialogContent,
   AlertDialogHeader,
+  AlertDialogBody,
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,
@@ -78,7 +110,82 @@ export {
 } from "./components/ui/confirm-dialog.js";
 
 export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogClose,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription
+} from "./components/ui/dialog.js";
+
+export { AppModal, type AppModalProps } from "./components/ui/app-modal.js";
+
+export {
+  modalIconWrapVariants,
+  type ModalSize,
+  type ModalTone
+} from "./components/ui/modal-styles.js";
+
+export {
   ResponsiveLayoutShell,
   type SidebarNavItem,
   type ResponsiveLayoutShellProps
 } from "./components/layout-shell.js";
+
+export { ShellToolbarProvider, useShellToolbar } from "./components/shell-toolbar-context.js";
+
+export {
+  AppBar,
+  type AppBarProps,
+  AppBarSecondary,
+  type AppBarSecondaryProps,
+  AppBarActionButton,
+  type AppBarActionButtonProps,
+  AppBarIconButton,
+  appBarIconButtonClass,
+  type AppBarIconButtonProps,
+  AppBarToolbar,
+  ShellMenuItem,
+  ShellMenuPanel,
+  ShellMenuRadioItem,
+  SidebarUserFooter,
+  type SidebarUserFooterProps,
+  UserAvatar,
+  type UserAvatarProps,
+  WidgetShell,
+  type WidgetShellProps,
+  appBarActionButtonVariants,
+  appBarIconButtonVariants,
+  appBarIconSizeClass,
+  appBarToolbarClass,
+  appBarToolbarSeparatorClass,
+  shellInsetXClass,
+  shellHeaderBandYClass,
+  shellMainContentClass,
+  getUserInitials,
+  shellAppBarClass,
+  shellAppBarDescriptionClass,
+  shellAppBarPrimaryRowClass,
+  shellAppBarSecondaryRowClass,
+  shellAppBarTitleClass,
+  shellMainClass,
+  shellMenuItemVariants,
+  shellMenuPanelClass,
+  shellMobileDrawerClass,
+  shellMobileHeaderClass,
+  shellSidebarClass,
+  shellSidebarFooterClass,
+  shellSidebarScrollClass,
+  sidebarCollapsedLogoutButtonClass,
+  sidebarLogoutButtonClass,
+  sidebarProfileLinkClass,
+  userAvatarVariants,
+  widgetShellTitleClass,
+  widgetShellVariants,
+  widgetShellViewToolbarClass
+} from "./components/shell/index.js";

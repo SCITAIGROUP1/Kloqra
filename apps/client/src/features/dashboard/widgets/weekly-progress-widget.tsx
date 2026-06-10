@@ -1,12 +1,12 @@
 "use client";
 
-import type { TimeLogDto } from "@chronomint/contracts";
+import type { TimeLogDto } from "@kloqra/contracts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
-} from "@chronomint/ui/chart";
+} from "@kloqra/ui/chart";
 import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
 import { toDateKey } from "@/features/timesheet/calendar-utils";

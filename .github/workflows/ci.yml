@@ -51,7 +51,7 @@ jobs:
       - run: pnpm build
       - name: Bundle analysis (admin, non-blocking)
         continue-on-error: true
-        run: pnpm --filter @chronomint/admin analyze
+        run: pnpm --filter @kloqra/admin analyze
 
   unit:
     needs: [quality]
@@ -100,13 +100,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: chronomint
-          POSTGRES_PASSWORD: chronomint
-          POSTGRES_DB: chronomint_test
+          POSTGRES_USER: kloqra
+          POSTGRES_PASSWORD: kloqra
+          POSTGRES_DB: kloqra_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U chronomint"
+          --health-cmd "pg_isready -U kloqra"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -120,7 +120,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://chronomint:chronomint@localhost:5432/chronomint_test
+      DATABASE_URL: postgresql://kloqra:kloqra@localhost:5432/kloqra_test
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
@@ -133,7 +133,7 @@ jobs:
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
-      - run: pnpm --filter @chronomint/api exec prisma migrate deploy
+      - run: pnpm --filter @kloqra/api exec prisma migrate deploy
       - run: pnpm prisma:seed
       - run: pnpm test:integration
       - name: Upload integration JUnit
@@ -150,13 +150,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: chronomint
-          POSTGRES_PASSWORD: chronomint
-          POSTGRES_DB: chronomint_test
+          POSTGRES_USER: kloqra
+          POSTGRES_PASSWORD: kloqra
+          POSTGRES_DB: kloqra_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U chronomint"
+          --health-cmd "pg_isready -U kloqra"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -170,7 +170,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://chronomint:chronomint@localhost:5432/chronomint_test
+      DATABASE_URL: postgresql://kloqra:kloqra@localhost:5432/kloqra_test
       REDIS_URL: redis://localhost:6379
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       NEXT_PUBLIC_AUTH_SCOPE: client
@@ -194,9 +194,9 @@ jobs:
             ${{ runner.os }}-nextjs-
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
-      - run: pnpm --filter @chronomint/api exec prisma migrate deploy
+      - run: pnpm --filter @kloqra/api exec prisma migrate deploy
       - run: pnpm prisma:seed
-      - run: pnpm --filter @chronomint/contracts --filter @chronomint/ui build
+      - run: pnpm --filter @kloqra/contracts --filter @kloqra/ui build
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
         with:
@@ -205,18 +205,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-chromium-
       - name: Install Playwright Chromium
-        run: pnpm --filter @chronomint/client exec playwright install chromium --with-deps
+        run: pnpm --filter @kloqra/client exec playwright install chromium --with-deps
       - name: Run E2E tests (Playwright)
         run: |
-          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @chronomint/api dev &
-          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @chronomint/admin dev &
+          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @kloqra/api dev &
+          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @kloqra/admin dev &
           for i in {1..60}; do
             curl -sf http://localhost:3001/api/docs >/dev/null &&
             curl -sf http://localhost:3002/login >/dev/null &&
             break || sleep 2
           done
-          pnpm --filter @chronomint/admin test:e2e
-          pnpm --filter @chronomint/client test:e2e
+          pnpm --filter @kloqra/admin test:e2e
+          pnpm --filter @kloqra/client test:e2e
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

@@ -16,7 +16,7 @@ describe("Timer E2E", () => {
     app.use(cookieParser());
     await app.init();
 
-    memberSession = await loginAs(app, "member@chronomint.dev");
+    memberSession = await loginAs(app, "member@kloqra.dev");
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);

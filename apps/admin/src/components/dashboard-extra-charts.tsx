@@ -1,13 +1,13 @@
 "use client";
 
-import type { DashboardReportDto } from "@chronomint/contracts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@chronomint/ui";
+import type { DashboardReportDto } from "@kloqra/contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@kloqra/ui";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
-} from "@chronomint/ui/chart";
+} from "@kloqra/ui/chart";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, XAxis, YAxis } from "recharts";
 
 const billableChartConfig = {

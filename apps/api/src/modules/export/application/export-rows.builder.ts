@@ -3,7 +3,7 @@ import {
   parseWorkspaceSettings,
   type ExportFiltersDto,
   type ExportReportType
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";

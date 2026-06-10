@@ -1,41 +1,69 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { AuthSessionDto } from "@chronomint/contracts";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type { AuthSessionDto, LoginRequires2faResponseDto } from "@kloqra/contracts";
+import { Button, Input, Label } from "@kloqra/ui";
+import { applyDefaultWorkspaceIfNeeded, AuthShell } from "@kloqra/web-shared";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
+type LoginResponse = (AuthSessionDto & { accessToken: string }) | LoginRequires2faResponseDto;
+
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useSessionStore((s) => s.setSession);
-  const [email, setEmail] = useState("admin@chronomint.dev");
+  const [email, setEmail] = useState("admin@kloqra.dev");
   const [password, setPassword] = useState("password123");
+  const [totpCode, setTotpCode] = useState("");
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const res = await api<AuthSessionDto & { accessToken: string }>(ROUTES.AUTH.LOGIN, {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
+  async function completeLogin(res: AuthSessionDto & { accessToken: string }) {
     if (res.workspaceRole !== "ADMIN") {
-      alert("Admin access required");
+      setError("Admin access required");
       return;
     }
-    setSession(res, res.accessToken);
+    const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
+    if (switched.session.workspaceRole !== "ADMIN") {
+      setError("Admin access required");
+      return;
+    }
+    setSession(switched.session, switched.accessToken);
     router.push("/dashboard");
   }
 
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      const res = await api<LoginResponse>(ROUTES.AUTH.LOGIN, {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password,
+          ...(pendingToken ? { pendingToken } : {}),
+          ...(totpCode ? { totpCode } : {})
+        })
+      });
+      if ("requires2fa" in res && res.requires2fa) {
+        setPendingToken(res.pendingToken);
+        return;
+      }
+      await completeLogin(res as AuthSessionDto & { accessToken: string });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Something went wrong. Your time is safe — try again."
+      );
+    }
+  }
+
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Admin sign in</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-4">
+    <AuthShell title="Admin sign in">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        {!pendingToken ? (
+          <>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -54,10 +82,26 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <Button type="submit">Sign in</Button>
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="totp">Authentication code</Label>
+            <Input
+              id="totp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+              maxLength={6}
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter the 6-digit code from your authenticator app.
+            </p>
+          </div>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit">{pendingToken ? "Verify" : "Sign in"}</Button>
+      </form>
+    </AuthShell>
   );
 }

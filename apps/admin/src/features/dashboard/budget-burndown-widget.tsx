@@ -1,11 +1,17 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@kloqra/ui";
 import { AlertTriangle, CheckCircle, TrendingUp, Info } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+
+function budgetBarColor(percentUsed: number): string {
+  if (percentUsed >= 100) return "bg-destructive";
+  if (percentUsed >= 50) return "bg-warning";
+  return "bg-success";
+}
 
 interface BudgetData {
   projectId: string;
@@ -69,27 +75,37 @@ export function BudgetBurnDownWidget({
   }, [ws, projectId]);
 
   const headerActionsNode = useMemo(() => {
-    if (!data || data.budgetHours === null) return null;
-    return (
-      <span
-        className={`text-[10px] px-2 py-0.5 rounded-full border font-medium flex items-center gap-1 ${
-          data.status === "no_budget"
-            ? "text-muted-foreground bg-muted border-muted-foreground/15"
-            : data.status === "on_track"
-              ? "text-green-700 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30"
-              : data.status === "near_budget"
-                ? "text-amber-700 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30"
-                : "text-red-700 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30"
-        }`}
-      >
-        {data.status === "on_track"
-          ? "On Track"
-          : data.status === "near_budget"
-            ? "Near Budget"
-            : "Over Budget"}
-      </span>
-    );
-  }, [data]);
+    if (data && data.budgetHours !== null) {
+      return (
+        <span
+          className={`text-[10px] px-2 py-0.5 rounded-full border font-medium flex items-center gap-1 ${
+            data.status === "no_budget"
+              ? "text-muted-foreground bg-muted border-muted-foreground/15"
+              : data.status === "on_track"
+                ? "text-green-700 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30"
+                : data.status === "near_budget"
+                  ? "text-amber-700 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30"
+                  : "text-red-700 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30"
+          }`}
+        >
+          {data.status === "on_track"
+            ? "On Track"
+            : data.status === "near_budget"
+              ? "Near Budget"
+              : "Over Budget"}
+        </span>
+      );
+    }
+    if (allProjectsData.length > 0) {
+      const targetHours = allProjectsData.reduce((sum, p) => sum + (p.budgetHours ?? 0), 0);
+      return (
+        <span className="text-[10px] font-medium text-muted-foreground">
+          Target: {targetHours.toFixed(0)} hrs
+        </span>
+      );
+    }
+    return null;
+  }, [data, allProjectsData]);
 
   useEffect(() => {
     void fetchBudget();
@@ -217,13 +233,7 @@ export function BudgetBurnDownWidget({
 
           <div className="w-full bg-muted/40 rounded-full h-2 overflow-hidden border">
             <div
-              className={`h-full transition-all duration-500 ${
-                status === "over_budget"
-                  ? "bg-red-500"
-                  : status === "near_budget"
-                    ? "bg-amber-500"
-                    : "bg-primary"
-              }`}
+              className={`h-full transition-all duration-500 ${budgetBarColor(percentUsed ?? 0)}`}
               style={{ width: `${Math.min(100, percentUsed ?? 0)}%` }}
             />
           </div>
@@ -279,13 +289,7 @@ export function BudgetBurnDownWidget({
 
           <div className="w-full bg-muted/40 rounded-full h-2 overflow-hidden border">
             <div
-              className={`h-full transition-all duration-500 ${
-                status === "over_budget"
-                  ? "bg-red-500"
-                  : status === "near_budget"
-                    ? "bg-amber-500"
-                    : "bg-primary"
-              }`}
+              className={`h-full transition-all duration-500 ${budgetBarColor(percentUsed ?? 0)}`}
               style={{ width: `${Math.min(100, percentUsed ?? 0)}%` }}
             />
           </div>
@@ -309,8 +313,6 @@ export function BudgetBurnDownWidget({
           <div className="flex flex-col gap-2.5">
             {allProjectsData.map((p) => {
               const pct = p.percentUsed ?? 0;
-              const isOver = p.status === "over_budget";
-              const isNear = p.status === "near_budget";
 
               return (
                 <div key={p.projectId} className="space-y-1">
@@ -325,9 +327,7 @@ export function BudgetBurnDownWidget({
                   </div>
                   <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-500 ${
-                        isOver ? "bg-red-500" : isNear ? "bg-amber-500" : "bg-primary"
-                      }`}
+                      className={`h-full transition-all duration-500 ${budgetBarColor(pct)}`}
                       style={{ width: `${Math.min(100, pct)}%` }}
                     />
                   </div>
@@ -350,8 +350,6 @@ export function BudgetBurnDownWidget({
           <div className="flex flex-col gap-3">
             {allProjectsData.map((p) => {
               const pct = p.percentUsed ?? 0;
-              const isOver = p.status === "over_budget";
-              const isNear = p.status === "near_budget";
 
               return (
                 <div key={p.projectId} className="space-y-1">
@@ -366,9 +364,7 @@ export function BudgetBurnDownWidget({
                   </div>
                   <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-500 ${
-                        isOver ? "bg-red-500" : isNear ? "bg-amber-500" : "bg-primary"
-                      }`}
+                      className={`h-full transition-all duration-500 ${budgetBarColor(pct)}`}
                       style={{ width: `${Math.min(100, pct)}%` }}
                     />
                   </div>

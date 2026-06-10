@@ -1,4 +1,4 @@
-# ChronoMint domain model
+# Kloqra domain model
 
 ## Hierarchy
 

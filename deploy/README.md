@@ -32,6 +32,16 @@ Runbooks: [docs/runbooks/deploy.md](../docs/runbooks/deploy.md), [docs/runbooks/
 
 **Full CI/CD:** push to `main` / `staging` runs [CI](../.github/workflows/ci.yml), then [Deploy](../.github/workflows/deploy.yml) (migrate, Railway, Vercel, smoke). See deploy.md § GitHub Actions full deploy for secrets.
 
+## Local and CI database naming
+
+| Environment              | Postgres database | Notes                                                    |
+| ------------------------ | ----------------- | -------------------------------------------------------- |
+| Local dev (Postgres.app) | `kloqra`          | `createdb kloqra`; set `DATABASE_URL` in `apps/api/.env` |
+| Docker Compose           | `kloqra`          | See root `docker-compose.yml`                            |
+| GitHub Actions CI        | `kloqra_test`     | Ephemeral; migrate + seed before integration/e2e         |
+
+**Seed (staging only, optional):** `DATABASE_URL="<url>" pnpm --filter @kloqra/api exec prisma db seed` — accounts `admin@kloqra.dev` / `member@kloqra.dev`, password `password123`, primary workspace **Acme Corporation**. Do not seed production unless intentional.
+
 ## GitHub Actions (migrate on deploy)
 
 Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)

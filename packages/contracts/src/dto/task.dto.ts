@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
 import { uuidSchema } from "./common.dto";
 
 export const taskSchema = z.object({
@@ -23,12 +24,15 @@ export const updateTaskSchema = z.object({
   billableDefault: z.boolean().optional()
 });
 
-export const listTasksQuerySchema = z.object({
+export const listTasksQuerySchema = listPaginationQuerySchema.extend({
   projectId: uuidSchema.optional(),
   categoryId: uuidSchema.optional()
 });
+
+export const listTasksResponseSchema = createPaginatedListResponseSchema(taskSchema);
 
 export type TaskDto = z.infer<typeof taskSchema>;
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
+export type ListTasksResponse = z.infer<typeof listTasksResponseSchema>;

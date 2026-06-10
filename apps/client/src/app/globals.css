@@ -2,12 +2,12 @@
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../../../../packages/web-shared/src/**/*.{ts,tsx}";
 @import "tw-animate-css";
-@import "@chronomint/ui/globals.css";
+@import "@kloqra/ui/globals.css";
 
 /* Dashboard grid — customize mode */
 .react-grid-placeholder {
-  background: hsl(var(--primary) / 0.06) !important;
-  border: 1.5px dashed hsl(var(--primary) / 0.35) !important;
+  background: color-mix(in oklch, var(--primary) 6%, transparent) !important;
+  border: 1.5px dashed color-mix(in oklch, var(--primary) 35%, transparent) !important;
   border-radius: 12px !important;
   opacity: 1;
   z-index: 5 !important;
@@ -20,16 +20,16 @@
 
 .layout-customizing .react-grid-item:hover .widget-shell {
   box-shadow:
-    0 4px 16px hsl(var(--foreground) / 0.06),
-    0 0 0 1px hsl(var(--primary) / 0.12);
+    0 4px 16px color-mix(in oklch, var(--foreground) 6%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--primary) 12%, transparent);
 }
 
 .layout-customizing .react-grid-item.react-draggable-dragging .widget-shell {
   cursor: grabbing !important;
   opacity: 0.94;
   box-shadow:
-    0 12px 32px hsl(var(--foreground) / 0.12),
-    0 0 0 1px hsl(var(--primary) / 0.2);
+    0 12px 32px color-mix(in oklch, var(--foreground) 12%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent);
 }
 
 /* Strip default RGL / react-resizable chevron & bracket graphics */
@@ -69,12 +69,12 @@
   transform: none !important;
   cursor: ns-resize !important;
   border-radius: 0 0 0 10px;
-  background-color: hsl(var(--primary) / 0.28) !important;
+  background-color: color-mix(in oklch, var(--primary) 28%, transparent) !important;
 }
 
 .layout-customizing .react-grid-item > .react-resizable-handle-s:hover,
 .layout-customizing .react-grid-item.resizing > .react-resizable-handle-s {
-  background-color: hsl(var(--primary) / 0.5) !important;
+  background-color: color-mix(in oklch, var(--primary) 50%, transparent) !important;
 }
 
 /* Right edge */
@@ -87,12 +87,12 @@
   transform: none !important;
   cursor: ew-resize !important;
   border-radius: 0 10px 0 0;
-  background-color: hsl(var(--primary) / 0.28) !important;
+  background-color: color-mix(in oklch, var(--primary) 28%, transparent) !important;
 }
 
 .layout-customizing .react-grid-item > .react-resizable-handle-e:hover,
 .layout-customizing .react-grid-item.resizing > .react-resizable-handle-e {
-  background-color: hsl(var(--primary) / 0.5) !important;
+  background-color: color-mix(in oklch, var(--primary) 50%, transparent) !important;
 }
 
 /* Corner — hit zone only, no icon */
@@ -109,7 +109,7 @@
 
 .layout-customizing .react-grid-item:hover > .react-resizable-handle-se,
 .layout-customizing .react-grid-item.resizing > .react-resizable-handle-se {
-  background-color: hsl(var(--primary) / 0.38) !important;
+  background-color: color-mix(in oklch, var(--primary) 38%, transparent) !important;
   border-radius: 0 0 10px 0;
 }
 

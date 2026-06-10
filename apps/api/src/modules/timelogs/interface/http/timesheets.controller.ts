@@ -3,7 +3,7 @@ import {
   submitTimesheetSchema,
   timesheetStatusQuerySchema,
   timesheetSubmissionsQuerySchema
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
@@ -39,7 +39,7 @@ export class TimesheetsController {
     query: z.infer<typeof timesheetSubmissionsQuerySchema>
   ) {
     const targetDate = query.date || new Date().toISOString();
-    return this.timesheets.listSubmissions(user.workspaceId, user.userId, targetDate);
+    return this.timesheets.listSubmissions(user.workspaceId, user.userId, targetDate, query.scope);
   }
 
   @Post(ROUTES.TIMESHEETS.SUBMIT)

@@ -1,1 +1,1 @@
-export { getWorkspaceId, useSessionStore } from "@chronomint/web-shared";
+export { getWorkspaceId, useSessionStore } from "@kloqra/web-shared";

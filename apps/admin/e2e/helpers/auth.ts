@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-const ADMIN_EMAIL = "admin@chronomint.dev";
+const ADMIN_EMAIL = "admin@kloqra.dev";
 const ADMIN_PASSWORD = "password123";
 
 export async function loginAsAdmin(page: Page) {

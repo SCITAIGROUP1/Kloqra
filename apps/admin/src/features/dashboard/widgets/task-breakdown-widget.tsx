@@ -1,13 +1,13 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { TaskBreakdownResponseDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { TaskBreakdownResponseDto } from "@kloqra/contracts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
-} from "@chronomint/ui/chart";
+} from "@kloqra/ui/chart";
 import React, { useEffect, useState, useCallback } from "react";
 import { Cell, Legend, Pie, PieChart } from "recharts";
 import { formatDurationClock } from "@/components/report-charts";

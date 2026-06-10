@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post-deploy smoke checks for the ChronoMint API.
+# Post-deploy smoke checks for the Kloqra API.
 #
 # Usage:
 #   bash scripts/deploy/smoke.sh https://your-api.example.com

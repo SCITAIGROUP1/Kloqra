@@ -1,4 +1,4 @@
-# ChronoMint API — Railway service config
+# Kloqra API — Railway service config
 # https://docs.railway.com/guides/config-as-code
 #
 # Create two Railway projects (staging + production), each with:

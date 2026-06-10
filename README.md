@@ -1,4 +1,4 @@
-# ChronoMint
+# Kloqra
 
 Next-gen time analytics engine — contract-first monorepo with NestJS API, Next.js client & admin apps.
 
@@ -6,7 +6,7 @@ Next-gen time analytics engine — contract-first monorepo with NestJS API, Next
 
 - **API:** NestJS, Prisma, PostgreSQL, Redis
 - **Client / Admin:** Next.js 15 (App Router), Zustand, Tailwind v4
-- **Shared:** `@chronomint/contracts` (Zod), `@chronomint/ui`
+- **Shared:** `@kloqra/contracts` (Zod), `@kloqra/ui`, `@kloqra/web-shared`
 
 ## Quick start (no Docker)
 
@@ -24,7 +24,7 @@ Manual steps if you prefer:
 ```bash
 pnpm install
 cp apps/api/.env.example apps/api/.env   # set DATABASE_URL user (Postgres.app = macOS username)
-createdb chronomint   # once
+createdb kloqra   # once
 pnpm prisma:migrate && pnpm prisma:seed
 pnpm dev
 ```
@@ -35,7 +35,7 @@ pnpm dev
 
 ```bash
 docker compose up -d
-# Set DATABASE_URL=postgresql://chronomint:chronomint@localhost:5432/chronomint
+# Set DATABASE_URL=postgresql://kloqra:kloqra@localhost:5432/kloqra
 # Set REDIS_URL=redis://localhost:6379 and remove REDIS_USE_MEMORY
 pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev
 ```
@@ -46,28 +46,31 @@ pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev
 | Admin  | http://localhost:3002 |
 | API    | http://localhost:3001 |
 
-**Seed accounts:** `admin@chronomint.dev` / `member@chronomint.dev` — password `password123`
+**Seed accounts:** `admin@kloqra.dev` / `member@kloqra.dev` — password `password123` (primary workspace: **Acme Corporation**)
 
 ### Client vs admin
 
-| Feature                                     | Client (`:3000`)     | Admin (`:3002`) |
-| ------------------------------------------- | -------------------- | --------------- |
-| Timer, timesheet, tasks (assigned projects) | Yes                  | No              |
-| View assigned projects                      | Yes (`/projects`)    | No              |
-| Create projects & team invite links         | No                   | `/projects`     |
-| Dashboard charts & summary widgets          | No                   | `/dashboard`    |
-| Team live presence                          | No                   | `/team`         |
-| Billing rates                               | No                   | `/billing`      |
-| Export my timesheet (CSV/Excel/PDF)         | Yes (timesheet page) | No              |
-| My week summary                             | Yes (timesheet page) | No              |
-| Multi-report export wizard                  | No                   | `/exports`      |
+| Feature                                   | Client (`:3000`)     | Admin (`:3002`) |
+| ----------------------------------------- | -------------------- | --------------- |
+| Timer, timesheet, time tracker            | Yes                  | No              |
+| Member dashboard widgets                  | Yes (`/dashboard`)   | No              |
+| Submit timesheets for approval            | Yes (`/approvals`)   | No              |
+| View assigned projects & tasks            | Yes                  | No              |
+| Profile & account settings                | Yes                  | Yes             |
+| Create projects, categories, team invites | No                   | Yes             |
+| Team management & timesheet approvals     | No                   | Yes             |
+| Dashboard analytics widgets               | No                   | `/dashboard`    |
+| Team live presence                        | No                   | `/team`         |
+| Billing rates                             | No                   | `/billing`      |
+| Export my timesheet (CSV/Excel/PDF)       | Yes (timesheet page) | No              |
+| Multi-report export & invoice wizard      | No                   | `/exports`      |
 
-Sign in to admin with **`admin@chronomint.dev`** (member accounts are redirected).
+Sign in to admin with **`admin@kloqra.dev`** (member accounts are redirected).
 
 ## Docs
 
 **[Documentation hub](docs/README.md)** — start here for full index.
 
-- [Contributing](CONTRIBUTING.md) · [Environment](docs/development/ENVIRONMENT.md) · [Testing](docs/development/TESTING.md)
+- [Contributing](CONTRIBUTING.md) · [Environment](docs/development/ENVIRONMENT.md) · [Testing](docs/development/TESTING.md) · [Frontend UI](docs/development/FRONTEND-UI.md)
 - [Architecture](docs/architecture/CONTEXT.md) · [API routes](docs/api/ROUTES.md) · [Product roadmap](docs/architecture/PRODUCT_ROADMAP.md)
 - [User guides](docs/user-guides/README.md) · [Deploy runbook](docs/runbooks/deploy.md) · [Agent playbook](docs/agent/AGENTS.md)

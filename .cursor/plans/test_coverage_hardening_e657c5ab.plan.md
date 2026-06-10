@@ -93,8 +93,8 @@ outputFile: { junit: "./test-results/unit-junit.xml" }
 In [`package.json`](package.json):
 
 ```json
-"test:coverage": "pnpm --filter @chronomint/contracts build && pnpm --filter @chronomint/api test -- --coverage && pnpm --filter @chronomint/contracts test -- --coverage",
-"test:integration": "pnpm --filter @chronomint/api test:e2e"
+"test:coverage": "pnpm --filter @kloqra/contracts build && pnpm --filter @kloqra/api test -- --coverage && pnpm --filter @kloqra/contracts test -- --coverage",
+"test:integration": "pnpm --filter @kloqra/api test:e2e"
 ```
 
 Keep existing `pnpm test` unchanged for speed; CI will call `test:coverage` on the unit job.
@@ -112,7 +112,7 @@ Refactor [`.github/workflows/ci.yml`](.github/workflows/ci.yml) into parallel jo
 
 Use `needs: [quality]` on test jobs. Upload artifacts via `actions/upload-artifact` (7-day retention).
 
-**Critical fix:** Add `pnpm --filter @chronomint/api test:e2e` to CI — today [`users.e2e.ts`](apps/api/test/users.e2e.ts) and [`timelogs.e2e.ts`](apps/api/test/timelogs.e2e.ts) only run locally.
+**Critical fix:** Add `pnpm --filter @kloqra/api test:e2e` to CI — today [`users.e2e.ts`](apps/api/test/users.e2e.ts) and [`timelogs.e2e.ts`](apps/api/test/timelogs.e2e.ts) only run locally.
 
 ### 1.4 Playwright reporting
 

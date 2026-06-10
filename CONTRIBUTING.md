@@ -1,4 +1,4 @@
-# Contributing to ChronoMint
+# Contributing to Kloqra
 
 ## Prerequisites
 
@@ -42,10 +42,10 @@ Do not change contracts without LSA review (see `.cursor/rules/contracts-gate.md
 ## Architecture
 
 - **API:** NestJS vertical slices under `apps/api/src/modules/`, shared kernel in `apps/api/src/common/`
-- **Apps:** Next.js 15 App Router; shared FE code in `@chronomint/web-shared`
-- **UI:** `@chronomint/ui` design primitives
+- **Apps:** Next.js 15 App Router; shared FE code in `@kloqra/web-shared`
+- **Shared UI:** `@kloqra/ui` — design system (tables, modals, loaders). `@kloqra/web-shared` — API client, profile/settings, hooks. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Cursor agents
 
 - Rules: `.cursor/rules/*.mdc`
-- Skills: `.cursor/skills/chronomint-*/SKILL.md`
+- Skills: `.cursor/skills/kloqra-*/SKILL.md`

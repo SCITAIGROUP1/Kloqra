@@ -1,8 +1,8 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { TimeLogDto, ListTimeLogsResponseDto } from "@chronomint/contracts";
-import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type { TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
+import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@kloqra/ui";
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
@@ -66,7 +66,7 @@ export function QuickActions({
   // Load favorites from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("chronomint_favorites");
+      const stored = localStorage.getItem("kloqra_favorites");
       if (stored) {
         setFavorites(JSON.parse(stored));
       }
@@ -79,7 +79,7 @@ export function QuickActions({
   const saveFavorites = (items: FavoriteItem[]) => {
     setFavorites(items);
     try {
-      localStorage.setItem("chronomint_favorites", JSON.stringify(items));
+      localStorage.setItem("kloqra_favorites", JSON.stringify(items));
     } catch {
       // ignore
     }

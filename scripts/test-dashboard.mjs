@@ -86,7 +86,7 @@ function buildHtml() {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>ChronoMint Test Hub</title>
+  <title>Kloqra Test Hub</title>
   <style>
     :root { font-family: system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
     body { margin: 0; padding: 2rem; max-width: 960px; }
@@ -106,7 +106,7 @@ function buildHtml() {
   </style>
 </head>
 <body>
-  <h1>ChronoMint Test Hub</h1>
+  <h1>Kloqra Test Hub</h1>
   <p>Local dashboard for coverage and browser test reports — similar to Swagger for the API, but for test artifacts.</p>
 
   <section class="grid">
@@ -116,15 +116,15 @@ function buildHtml() {
     <article class="card">
       <h2>Admin Playwright ${statusBadge(REPORT_PATHS["admin-playwright"])}</h2>
       <p class="muted">Requires API on :3001 and seeded DB before e2e.</p>
-      <p>${exists(REPORT_PATHS["admin-playwright"]) ? `<a href="/${REPORT_PATHS["admin-playwright"]}">Open HTML report</a>` : "Run <code>pnpm --filter @chronomint/admin test:e2e</code>"}</p>
+      <p>${exists(REPORT_PATHS["admin-playwright"]) ? `<a href="/${REPORT_PATHS["admin-playwright"]}">Open HTML report</a>` : "Run <code>pnpm --filter @kloqra/admin test:e2e</code>"}</p>
     </article>
     <article class="card">
       <h2>Client Playwright ${statusBadge(REPORT_PATHS["client-playwright"])}</h2>
-      <p>${exists(REPORT_PATHS["client-playwright"]) ? `<a href="/${REPORT_PATHS["client-playwright"]}">Open HTML report</a>` : "Run <code>pnpm --filter @chronomint/client test:e2e</code>"}</p>
+      <p>${exists(REPORT_PATHS["client-playwright"]) ? `<a href="/${REPORT_PATHS["client-playwright"]}">Open HTML report</a>` : "Run <code>pnpm --filter @kloqra/client test:e2e</code>"}</p>
     </article>
     <article class="card">
       <h2>API docs (Swagger)</h2>
-      <p class="muted">Start the API with <code>pnpm --filter @chronomint/api dev</code></p>
+      <p class="muted">Start the API with <code>pnpm --filter @kloqra/api dev</code></p>
       <p><a href="http://localhost:3001/api/docs" target="_blank" rel="noreferrer">Open Swagger UI</a></p>
     </article>
   </section>
@@ -133,8 +133,8 @@ function buildHtml() {
     <h2>Interactive runners (terminal)</h2>
     <ul class="commands">
       <li><code>pnpm test:ui</code> — Vitest UI (API unit tests)</li>
-      <li><code>pnpm --filter @chronomint/admin test:e2e:ui</code> — Playwright UI (admin)</li>
-      <li><code>pnpm --filter @chronomint/client test:e2e:ui</code> — Playwright UI (client)</li>
+      <li><code>pnpm --filter @kloqra/admin test:e2e:ui</code> — Playwright UI (admin)</li>
+      <li><code>pnpm --filter @kloqra/client test:e2e:ui</code> — Playwright UI (client)</li>
       <li><code>pnpm test:coverage</code> — refresh coverage HTML linked above</li>
       <li><code>pnpm test:integration</code> — API Supertest e2e</li>
     </ul>

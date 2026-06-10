@@ -3,7 +3,7 @@
 #
 # Usage:
 #   DATABASE_URL="postgresql://..." bash scripts/deploy/migrate.sh
-#   bash scripts/deploy/migrate.sh postgresql://user:pass@host:5432/chronomint
+#   bash scripts/deploy/migrate.sh postgresql://user:pass@host:5432/kloqra
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -19,7 +19,7 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 echo "Running prisma migrate deploy..."
-pnpm install --frozen-lockfile --filter @chronomint/api...
-pnpm --filter @chronomint/api prisma:generate
-pnpm --filter @chronomint/api exec prisma migrate deploy
+pnpm install --frozen-lockfile --filter @kloqra/api...
+pnpm --filter @kloqra/api prisma:generate
+pnpm --filter @kloqra/api exec prisma migrate deploy
 echo "Migrations applied successfully."

@@ -1,53 +1,86 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { HourlyRateDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { HourlyRateDto } from "@kloqra/contracts";
 import {
+  AppBar,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
   Input,
   Label,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
-  TableRow
-} from "@chronomint/ui";
-import { useEffect, useState } from "react";
+  TablePagination,
+  TableRow,
+  TableToolbar,
+  TableLoadingState
+} from "@kloqra/ui";
+import { usePaginatedList } from "@kloqra/web-shared";
+import { useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function BillingPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [rates, setRates] = useState<HourlyRateDto[]>([]);
+  const {
+    items: rates,
+    page,
+    setPage,
+    search,
+    setSearch,
+    total,
+    totalPages,
+    limit,
+    loading,
+    reload
+  } = usePaginatedList<HourlyRateDto>({
+    workspaceId: ws,
+    basePath: ROUTES.BILLING.RATES
+  });
+
   const [rate, setRate] = useState("100");
   const [userId, setUserId] = useState("");
-
-  useEffect(() => {
-    api<HourlyRateDto[]>(ROUTES.BILLING.RATES, { workspaceId: ws }).then(setRates);
-  }, [ws]);
+  const [saving, setSaving] = useState(false);
 
   async function addRate(e: React.FormEvent) {
     e.preventDefault();
-    await api(ROUTES.BILLING.RATES, {
-      method: "POST",
-      workspaceId: ws,
-      body: JSON.stringify({
-        rate: parseFloat(rate),
-        ...(userId ? { userId } : {})
-      })
-    });
-    setRates(await api<HourlyRateDto[]>(ROUTES.BILLING.RATES, { workspaceId: ws }));
+    setSaving(true);
+    try {
+      await api(ROUTES.BILLING.RATES, {
+        method: "POST",
+        workspaceId: ws,
+        body: JSON.stringify({
+          rate: parseFloat(rate),
+          ...(userId ? { userId } : {})
+        })
+      });
+      setRate("100");
+      setUserId("");
+      toast.success("Hourly rate saved.");
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save hourly rate.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Billing</h2>
-      <Card>
+      <AppBar
+        title="Billing"
+        description="Configure default and per-member hourly rates for workspace billing."
+      />
+      <Card className="border-primary/10 shadow-sm">
         <CardHeader>
           <CardTitle>Add hourly rate</CardTitle>
         </CardHeader>
@@ -61,45 +94,66 @@ export function BillingPage() {
                 value={rate}
                 onChange={(e) => setRate(e.target.value)}
                 required
+                disabled={saving}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="userId">User ID (optional)</Label>
-              <Input id="userId" value={userId} onChange={(e) => setUserId(e.target.value)} />
+              <Input
+                id="userId"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                disabled={saving}
+              />
             </div>
-            <Button type="submit">Save rate</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save rate"}
+            </Button>
           </form>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Rates</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {rates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No rates configured.</p>
-          ) : (
+      <DataTableCard>
+        <TableToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search rates…"
+          searchAriaLabel="Search hourly rates"
+        />
+        {loading ? (
+          <TableLoadingState rows={5} columns={3} />
+        ) : rates.length === 0 ? (
+          <p className="p-6 text-sm text-muted-foreground">No rates configured.</p>
+        ) : (
+          <>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Rate ($/hr)</TableHead>
-                  <TableHead>User ID</TableHead>
-                  <TableHead>Effective</TableHead>
-                </TableRow>
+                <DataTableHeaderRow>
+                  <DataTableHead>Rate ($/hr)</DataTableHead>
+                  <DataTableHead>User ID</DataTableHead>
+                  <DataTableHead>Effective</DataTableHead>
+                </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
                 {rates.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>{r.rate}</TableCell>
-                    <TableCell>{r.userId ?? "Workspace default"}</TableCell>
-                    <TableCell>{new Date(r.effectiveFrom).toLocaleDateString()}</TableCell>
+                    <DataTableCell>{r.rate}</DataTableCell>
+                    <DataTableCell>{r.userId ?? "Workspace default"}</DataTableCell>
+                    <DataTableCell>{new Date(r.effectiveFrom).toLocaleDateString()}</DataTableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+              disabled={loading}
+            />
+          </>
+        )}
+      </DataTableCard>
     </div>
   );
 }

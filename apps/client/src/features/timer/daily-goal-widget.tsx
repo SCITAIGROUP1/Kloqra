@@ -1,15 +1,15 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { UserProfileDto } from "@chronomint/contracts";
-import { Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
-import { api } from "@chronomint/web-shared";
+import { ROUTES } from "@kloqra/contracts";
+import type { UserProfileDto } from "@kloqra/contracts";
+import { Card, CardContent, CardHeader, CardTitle } from "@kloqra/ui";
+import { api } from "@kloqra/web-shared";
 import { Pencil, Check, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-const dailyTargetStorageKey = (userId: string) => `chronomint:daily-target-hours:${userId}`;
+const dailyTargetStorageKey = (userId: string) => `kloqra:daily-target-hours:${userId}`;
 
 interface DailyGoalWidgetProps {
   totalSeconds: number;

@@ -1,4 +1,4 @@
-# ChronoMint Admin — Dashboard Widget System Plan
+# Kloqra Admin — Dashboard Widget System Plan
 
 Upgrade the admin dashboard from a static fixed-layout page into a **true collective widget
 experience**: every panel is an independently show/hide-able, draggable, resizable widget.
@@ -41,7 +41,7 @@ contracts, and data models.
 **Command after editing:**
 
 ```bash
-pnpm install --filter @chronomint/admin
+pnpm install --filter @kloqra/admin
 ```
 
 ---
@@ -102,7 +102,7 @@ Exports:
 - `toggleWidget(id)` — flip `visible`, save to localStorage
 - `resetLayout()` — restore DEFAULT_LAYOUT, save
 - `updateLayout(newItems)` — called by RGL on drag/resize end, save
-- Storage key: `chronomint-widget-layout-${workspaceId}`
+- Storage key: `kloqra-widget-layout-${workspaceId}`
 - On mount: reads localStorage, merges with registry (adds newly registered widgets at their
   default position without clobbering existing saved positions)
 
@@ -111,8 +111,8 @@ Exports:
 ### Phase 1 Verification
 
 ```bash
-pnpm typecheck --filter @chronomint/admin
-pnpm lint --filter @chronomint/admin
+pnpm typecheck --filter @kloqra/admin
+pnpm lint --filter @kloqra/admin
 ```
 
 No visual change — dashboard renders identically.

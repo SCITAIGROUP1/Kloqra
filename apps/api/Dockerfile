@@ -14,17 +14,17 @@ COPY apps/api ./apps/api
 
 RUN test -f packages/contracts/package.json && test -f packages/contracts/src/index.ts
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @chronomint/contracts build
+RUN pnpm --filter @kloqra/contracts build
 RUN test -d packages/contracts/dist
-RUN pnpm --filter @chronomint/api exec prisma generate
-RUN pnpm --filter @chronomint/api exec nest build
-RUN pnpm --filter @chronomint/api deploy --prod /prod
+RUN pnpm --filter @kloqra/api exec prisma generate
+RUN pnpm --filter @kloqra/api exec nest build
+RUN pnpm --filter @kloqra/api deploy --prod /prod
 # pnpm deploy copies contracts source; ensure compiled dist is present at runtime
-RUN test -d /prod/node_modules/@chronomint/contracts/dist || \
-    cp -r /app/packages/contracts/dist /prod/node_modules/@chronomint/contracts/dist
+RUN test -d /prod/node_modules/@kloqra/contracts/dist || \
+    cp -r /app/packages/contracts/dist /prod/node_modules/@kloqra/contracts/dist
 # pnpm deploy skips postinstall — generate Prisma Client inside /prod (not the monorepo tree)
 ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build"
-RUN pnpm --filter @chronomint/api exec prisma generate --schema=/prod/prisma/schema.prisma && \
+RUN pnpm --filter @kloqra/api exec prisma generate --schema=/prod/prisma/schema.prisma && \
     test -n "$(find /prod/node_modules -name 'libquery_engine-linux-musl*.so.node' -print -quit)"
 
 FROM node:20-alpine3.20 AS runner

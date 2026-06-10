@@ -1,4 +1,4 @@
-import { formatContentDisposition } from "@chronomint/contracts";
+import { formatContentDisposition } from "@kloqra/contracts";
 import { type Response } from "express";
 
 export function sendAttachment(

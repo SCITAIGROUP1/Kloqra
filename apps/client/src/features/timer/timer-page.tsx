@@ -1,14 +1,15 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
+import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
   TaskDto,
   ProjectDto,
   ListTimeLogsResponseDto,
   AutoStoppedTimerDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
+  AppBar,
   Button,
   Card,
   CardContent,
@@ -24,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
   EmptyState
-} from "@chronomint/ui";
+} from "@kloqra/ui";
+import { fetchListItems } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
@@ -217,8 +219,8 @@ export function TimerPage() {
   useEffect(() => {
     if (!ws) return;
     void Promise.all([
-      api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-      api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
+      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
+      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
       fetchActiveTimer(),
       fetchTodayLogs()
     ]);
@@ -327,12 +329,14 @@ export function TimerPage() {
           isBillable
         })
       });
+      const logged = formatElapsed(elapsedSec);
       setActive(null);
       setStopDescription("");
-      toast.success("Timer stopped! Time entry saved.");
+      toast.success(`Timer stopped. ${logged} logged.`);
       void fetchTodayLogs();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Could not stop timer";
+      const message =
+        e instanceof Error ? e.message : "Something went wrong. Your time is safe — try again.";
       if (message.toLowerCase().includes("no active timer")) {
         setActive(null);
       }
@@ -402,12 +406,12 @@ export function TimerPage() {
   // ── Browser tab title ─────────────────────────────────────────────────────
   useEffect(() => {
     if (tracking) {
-      document.title = `${isPaused ? "⏸️" : "⏱️"} ${formatElapsed(elapsedSec)} — ChronoMint`;
+      document.title = `${isPaused ? "⏸️" : "⏱️"} ${formatElapsed(elapsedSec)} — ${BRAND_NAME}`;
     } else {
-      document.title = "ChronoMint";
+      document.title = BRAND_NAME;
     }
     return () => {
-      document.title = "ChronoMint";
+      document.title = BRAND_NAME;
     };
   }, [tracking, elapsedSec, isPaused]);
 
@@ -457,16 +461,16 @@ export function TimerPage() {
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 space-y-6">
+    <div className="space-y-6">
       <OnboardingOverlay />
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Timer</h1>
-        <p className="text-sm text-muted-foreground">
-          {tracking
+      <AppBar
+        title="Timer"
+        description={
+          tracking
             ? "Manage your ongoing timer. Pausing allows taking breaks without breaking logs."
-            : "Choose a project and task before you start tracking."}
-        </p>
-      </div>
+            : "Choose a project and task before you start tracking."
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Main Timer Column */}

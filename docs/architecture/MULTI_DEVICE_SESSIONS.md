@@ -1,6 +1,6 @@
 # Multi-device and parallel session handling
 
-ChronoMint allows the same user to be signed in on **multiple devices** and in **both apps** (client + admin) at the same time. This document defines the model, edge cases, and implementation rules.
+Kloqra allows the same user to be signed in on **multiple devices** and in **both apps** (client + admin) at the same time. This document defines the model, edge cases, and implementation rules.
 
 ## Design stance
 
@@ -126,7 +126,7 @@ Timer is **workspace-scoped user state**, not per device. UI should call `GET /t
 ## Frontend rules
 
 1. Send **`X-Auth-Scope`** on every API call (`NEXT_PUBLIC_AUTH_SCOPE`).
-2. Send **`X-Workspace-Id`** only when it matches the access token workspace (`getEffectiveWorkspaceId()` in `@chronomint/web-shared`).
+2. Send **`X-Workspace-Id`** only when it matches the access token workspace (`getEffectiveWorkspaceId()` in `@kloqra/web-shared`).
 3. On **403** workspace mismatch → clear local session, redirect to login.
 4. On **401** → attempt silent refresh once, then login.
 5. Bootstrap: `GET /auth/me` **without** forcing a stale workspace header; persist response to `localStorage`.

@@ -1,6 +1,6 @@
 "use client";
 
-import type { DashboardReportDto } from "@chronomint/contracts";
+import type { DashboardReportDto } from "@kloqra/contracts";
 import React from "react";
 import { RadialBarChart, RadialBar, ResponsiveContainer } from "recharts";
 

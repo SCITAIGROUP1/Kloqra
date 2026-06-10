@@ -8,7 +8,7 @@ import {
   type MemberExportBodyDto,
   type MemberExportReportType,
   type ProjectDto
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   Button,
   Card,
@@ -23,10 +23,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from "@chronomint/ui";
-import { toDateInputValue } from "@chronomint/web-shared";
+} from "@kloqra/ui";
+import { fetchListItems, toDateInputValue } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -61,8 +60,10 @@ export function TimesheetExport({
 
   useEffect(() => {
     if (!ws) return;
-    void api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    void api<CategoryDto[]>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
+    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    void fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
+      setCategories
+    );
   }, [ws]);
 
   async function runExport() {

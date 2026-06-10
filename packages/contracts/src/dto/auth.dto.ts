@@ -10,7 +10,9 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1)
+  password: z.string().min(1),
+  totpCode: z.string().length(6).regex(/^\d+$/).optional(),
+  pendingToken: z.string().optional()
 });
 
 export const authUserSchema = z.object({

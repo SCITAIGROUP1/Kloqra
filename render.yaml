@@ -7,7 +7,7 @@
 
 services:
   - type: web
-    name: chronomint-api
+    name: kloqra-api
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
@@ -20,7 +20,7 @@ services:
         value: "3001"
       - key: DATABASE_URL
         fromDatabase:
-          name: chronomint-db
+          name: kloqra-db
           property: connectionString
       - key: REDIS_URL
         sync: false
@@ -34,7 +34,7 @@ services:
         sync: false
 
 databases:
-  - name: chronomint-db
+  - name: kloqra-db
     plan: starter
-    databaseName: chronomint
-    user: chronomint
+    databaseName: kloqra
+    user: kloqra

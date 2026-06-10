@@ -1,3 +1,7 @@
+import { BRAND_NAME } from "./brand.js";
+
+const BRAND_SLUG = BRAND_NAME.toLowerCase();
+
 /** Safe path segment for Content-Disposition filenames (ASCII). */
 export function sanitizeFilenameSegment(value: string, maxLen = 48): string {
   const slug = value
@@ -28,7 +32,7 @@ export type BuildExportFilenameInput = {
 
 /**
  * Builds a filesystem-safe download name, e.g.
- * `chronomint-demo-workspace-2025-05-01_to_2025-05-31-time-entries.csv`
+ * `kloqra-demo-workspace-2025-05-01_to_2025-05-31-time-entries.csv`
  */
 export function buildExportFilename(input: BuildExportFilenameInput): string {
   const ws = sanitizeFilenameSegment(input.workspaceSlug, 40);
@@ -38,7 +42,7 @@ export function buildExportFilename(input: BuildExportFilenameInput): string {
   const report = input.reportSlug ? `-${sanitizeFilenameSegment(input.reportSlug, 32)}` : "";
   const ext = input.ext.replace(/^\./, "").toLowerCase();
   const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "bin";
-  return `chronomint-${ws}-${from}_to_${to}${scope}${report}.${safeExt}`;
+  return `${BRAND_SLUG}-${ws}-${from}_to_${to}${scope}${report}.${safeExt}`;
 }
 
 /** RFC 5987-friendly Content-Disposition for binary downloads. */

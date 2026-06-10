@@ -1,10 +1,23 @@
 import {
   inviteMemberSchema,
   updateWorkspaceSchema,
+  updateWorkspaceMemberSchema,
   createWorkspaceSchema,
+  teamMembersOverviewQuerySchema,
+  type TeamMembersOverviewQuery,
   ROUTES
-} from "@chronomint/contracts";
-import { Controller, Get, Param, Post, Patch, Body, UseGuards } from "@nestjs/common";
+} from "@kloqra/contracts";
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Query,
+  UseGuards
+} from "@nestjs/common";
 import {
   CurrentUser,
   type RequestUser
@@ -13,12 +26,16 @@ import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
+import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
 import { WorkspaceService } from "../../application/workspace.service";
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class WorkspaceController {
-  constructor(private workspace: WorkspaceService) {}
+  constructor(
+    private workspace: WorkspaceService,
+    private overviewService: WorkspaceMembersOverviewService
+  ) {}
 
   @Post(ROUTES.WORKSPACES.CREATE)
   create(
@@ -37,6 +54,45 @@ export class WorkspaceController {
   members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
     if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.listMembers(id);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.WORKSPACES.MEMBERS_OVERVIEW(":id"))
+  membersOverview(
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(teamMembersOverviewQuerySchema)) query: TeamMembersOverviewQuery,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.overviewService.getOverview(id, query);
+  }
+
+  @Roles("ADMIN")
+  @Patch(ROUTES.WORKSPACES.MEMBER(":id", ":memberId"))
+  updateMember(
+    @Param("id") id: string,
+    @Param("memberId") memberId: string,
+    @Body(new ZodValidationPipe(updateWorkspaceMemberSchema)) body: unknown,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.updateMember(
+      id,
+      memberId,
+      body as Parameters<WorkspaceService["updateMember"]>[2],
+      user.userId
+    );
+  }
+
+  @Roles("ADMIN")
+  @Delete(ROUTES.WORKSPACES.MEMBER(":id", ":memberId"))
+  removeMember(
+    @Param("id") id: string,
+    @Param("memberId") memberId: string,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.removeMember(id, memberId, user.userId);
   }
 
   @Roles("ADMIN")

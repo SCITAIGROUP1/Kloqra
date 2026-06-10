@@ -1,1 +1,1 @@
-export { apiDownloadPost, saveDownloadResponse } from "@chronomint/web-shared";
+export { apiDownloadPost, saveDownloadResponse } from "@kloqra/web-shared";

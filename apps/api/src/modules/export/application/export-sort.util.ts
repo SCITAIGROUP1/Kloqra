@@ -1,4 +1,4 @@
-import type { ExportGroupByDimension, ExportReportType } from "@chronomint/contracts";
+import type { ExportGroupByDimension, ExportReportType } from "@kloqra/contracts";
 
 type Row = Record<string, string | number>;
 type KeyFn = (row: Row) => string;

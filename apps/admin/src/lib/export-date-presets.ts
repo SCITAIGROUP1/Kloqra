@@ -1,4 +1,4 @@
-import { toDateInputValue } from "@chronomint/web-shared";
+import { toDateInputValue } from "@kloqra/web-shared";
 
 export type DatePreset = "today" | "week" | "7d" | "30d" | "90d" | "month";
 

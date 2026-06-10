@@ -15,7 +15,7 @@ describe("ReportingService myWeekSummary", () => {
 
   beforeEach(() => {
     mockPrisma = {
-      project: { findMany: vi.fn().mockResolvedValue([{ id: "p1", color: "#6366f1" }]) }
+      project: { findMany: vi.fn().mockResolvedValue([{ id: "p1", color: "#236bfe" }]) }
     };
     mockAggregation = {
       fetchLogs: vi.fn().mockResolvedValue([

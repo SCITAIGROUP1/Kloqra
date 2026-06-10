@@ -86,6 +86,112 @@ describe("TimelogsService listOccupancy", () => {
   });
 });
 
+describe("TimelogsService list", () => {
+  let service: TimelogsService;
+  let mockPrisma: {
+    timeLog: { findMany: ReturnType<typeof vi.fn> };
+  };
+
+  beforeEach(() => {
+    mockPrisma = {
+      timeLog: { findMany: vi.fn().mockResolvedValue([]) }
+    };
+    service = new TimelogsService(mockPrisma as never, {} as never, {} as never, {} as never);
+  });
+
+  it("applies projectId and categoryId filters on task relation", async () => {
+    await service.list("ws-1", "user-1", "MEMBER", {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z",
+      projectId: "550e8400-e29b-41d4-a716-446655440000",
+      categoryId: "550e8400-e29b-41d4-a716-446655440001",
+      limit: 10
+    });
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user-1",
+          task: {
+            projectId: "550e8400-e29b-41d4-a716-446655440000",
+            categoryId: "550e8400-e29b-41d4-a716-446655440001",
+            project: { workspaceId: "ws-1" }
+          }
+        }),
+        take: 11
+      })
+    );
+  });
+
+  it("applies search and billableOnly filters", async () => {
+    await service.list("ws-1", "user-1", "MEMBER", {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z",
+      search: "audit",
+      billableOnly: true,
+      limit: 10
+    });
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isBillable: true,
+          AND: [
+            {
+              OR: [
+                { description: { contains: "audit", mode: "insensitive" } },
+                { task: { taskName: { contains: "audit", mode: "insensitive" } } },
+                { task: { project: { name: { contains: "audit", mode: "insensitive" } } } },
+                {
+                  task: {
+                    category: { name: { contains: "audit", mode: "insensitive" } }
+                  }
+                }
+              ]
+            }
+          ]
+        })
+      })
+    );
+  });
+
+  it("returns nextCursor when more results exist", async () => {
+    mockPrisma.timeLog.findMany.mockResolvedValue([
+      {
+        id: "log-2",
+        userId: "user-1",
+        taskId: "task-1",
+        startTime: new Date("2026-06-02T09:00:00.000Z"),
+        endTime: new Date("2026-06-02T10:00:00.000Z"),
+        durationSec: 3600,
+        description: null,
+        isBillable: true,
+        source: "manual"
+      },
+      {
+        id: "log-1",
+        userId: "user-1",
+        taskId: "task-1",
+        startTime: new Date("2026-06-01T09:00:00.000Z"),
+        endTime: new Date("2026-06-01T10:00:00.000Z"),
+        durationSec: 3600,
+        description: null,
+        isBillable: true,
+        source: "manual"
+      }
+    ]);
+
+    const res = await service.list("ws-1", "user-1", "MEMBER", {
+      from: "2026-06-01T00:00:00.000Z",
+      to: "2026-07-01T00:00:00.000Z",
+      limit: 1
+    });
+
+    expect(res.items).toHaveLength(1);
+    expect(res.nextCursor).toBe("log-2");
+  });
+});
+
 describe("TimelogAuditService", () => {
   const audit = new TimelogAuditService({} as never);
 

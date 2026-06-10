@@ -4,8 +4,8 @@ import {
   DEFAULT_EXPORT_COLUMNS,
   EXPORT_COLUMN_LABELS,
   type ExportReportType
-} from "@chronomint/contracts";
-import { Button, Label } from "@chronomint/ui";
+} from "@kloqra/contracts";
+import { Button, Label } from "@kloqra/ui";
 import { useState } from "react";
 
 const REPORT_LABELS: Record<ExportReportType, string> = {

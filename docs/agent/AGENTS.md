@@ -1,4 +1,4 @@
-# ChronoMint Agent Playbook
+# Kloqra Agent Playbook
 
 ## Execution order per task
 

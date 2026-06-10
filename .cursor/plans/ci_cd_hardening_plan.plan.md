@@ -1,6 +1,6 @@
-# ChronoMint Automated CI/CD Workflow Hardening Plan
+# Kloqra Automated CI/CD Workflow Hardening Plan
 
-This plan provides a comprehensive professional overview of ChronoMint's current CI/CD and automation flows, identifies key efficiency and reliability gaps, and proposes concrete hardening changes to optimize resource utilization and deployment safety.
+This plan provides a comprehensive professional overview of Kloqra's current CI/CD and automation flows, identifies key efficiency and reliability gaps, and proposes concrete hardening changes to optimize resource utilization and deployment safety.
 
 ## User Review Required
 
@@ -12,7 +12,7 @@ This plan provides a comprehensive professional overview of ChronoMint's current
 
 ## 1. Professional Overview of Current Automation Flow
 
-ChronoMint uses a multi-layered automation strategy:
+Kloqra uses a multi-layered automation strategy:
 
 ```mermaid
 graph TD
@@ -91,7 +91,7 @@ Separate components with horizontal rules for visual clarity.
 
 ### CI Workflow Configuration
 
-#### [MODIFY] [ci.yml](file:///Users/chamal/Desktop/ChronoMint/.github/workflows/ci.yml)
+#### [MODIFY] [ci.yml](file:///Users/chamal/Desktop/Kloqra/.github/workflows/ci.yml)
 
 - Modify triggers to avoid double-runs (run `push` only on `main` and `staging`, run `pull_request` on all branches).
 - Add path exclusions to skip CI for docs and markdown files.
@@ -103,7 +103,7 @@ Separate components with horizontal rules for visual clarity.
 
 ### CD Workflow Configuration
 
-#### [MODIFY] [deploy.yml](file:///Users/chamal/Desktop/ChronoMint/.github/workflows/deploy.yml)
+#### [MODIFY] [deploy.yml](file:///Users/chamal/Desktop/Kloqra/.github/workflows/deploy.yml)
 
 - Add path exclusions to skip deploy checking if the push was only for documentation files.
 - Add caching steps for Turborepo (`.turbo`) and Next.js (`.next/cache`) inside the manual deploy quality check job.
@@ -182,8 +182,8 @@ e2e:
       # but we must ensure dependencies are built first.
       run: |
         pnpm prisma:generate
-        pnpm --filter @chronomint/contracts build
-        pnpm --filter @chronomint/ui build
+        pnpm --filter @kloqra/contracts build
+        pnpm --filter @kloqra/ui build
         pnpm test:e2e
 ```
 

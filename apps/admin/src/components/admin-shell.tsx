@@ -1,47 +1,50 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { AuthSessionDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
-import { Button, cn, ResponsiveLayoutShell } from "@chronomint/ui";
+import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
+import type { AuthSessionDto, PendingTimesheetDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
+import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
+  applyDefaultWorkspaceIfNeeded,
+  BrandMark,
   getAccessToken,
   logoutSession,
-  ThemeToggle,
+  ShellHeaderActions,
   WorkspaceSwitcher
-} from "@chronomint/web-shared";
+} from "@kloqra/web-shared";
 import {
+  Activity,
   Building2,
+  ClipboardCheck,
   CreditCard,
   Download,
   FolderKanban,
   LayoutDashboard,
-  LogOut,
   Tags,
-  Timer,
-  User,
   Users
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
-const nav = [
+const baseNav = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/workspace", label: "Workspace", Icon: Building2 },
-  { href: "/categories", label: "Categories", Icon: Tags },
+  { href: "/team-management", label: "Team Management", Icon: Users },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
-  { href: "/team", label: "Team Live", Icon: Users },
+  { href: "/categories", label: "Categories", Icon: Tags },
+  { href: "/team", label: "Team Live", Icon: Activity },
+  { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
   { href: "/billing", label: "Billing", Icon: CreditCard },
-  { href: "/exports", label: "Exports", Icon: Download }
+  { href: "/exports", label: "Exports", Icon: Download },
+  { href: "/workspace", label: "Workspace", Icon: Building2 }
 ] as const;
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { session, setSession } = useSessionStore();
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (session) {
@@ -54,14 +57,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       return;
     }
     api<AuthSessionDto>(ROUTES.AUTH.ME)
-      .then((s) => {
+      .then(async (s) => {
         if (s.workspaceRole !== "ADMIN") {
           router.replace("/login?error=admin");
           return;
         }
-        setSession(s, token);
+        const switched = await applyDefaultWorkspaceIfNeeded(s, token);
+        if (switched.session.workspaceRole !== "ADMIN") {
+          router.replace("/login?error=admin");
+          return;
+        }
+        setSession(switched.session, switched.accessToken);
         return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
-          workspaceId: s.workspaceId
+          workspaceId: switched.session.workspaceId
         });
       })
       .then((list) => {
@@ -70,11 +78,33 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       .catch(() => router.replace("/login"));
   }, [session, setSession, setWorkspaces, router]);
 
+  useEffect(() => {
+    if (!session?.workspaceId || session.workspaceRole !== "ADMIN") return;
+
+    const loadPendingCount = () => {
+      void api<PendingTimesheetDto[]>(ROUTES.TIMESHEETS.LIST_PENDING, {
+        workspaceId: session.workspaceId
+      })
+        .then((items) => setPendingCount(items.length))
+        .catch(() => setPendingCount(0));
+    };
+
+    loadPendingCount();
+    const interval = setInterval(loadPendingCount, 60_000);
+    return () => clearInterval(interval);
+  }, [session?.workspaceId, session?.workspaceRole]);
+
+  const nav = useMemo((): readonly SidebarNavItem[] => {
+    return baseNav.map((item) =>
+      item.href === "/approvals" ? { ...item, badge: pendingCount } : item
+    );
+  }, [pendingCount]);
+
   if (!session) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Timer className="h-4 w-4 animate-pulse text-primary" />
+          <BrandMark size="sm" iconOnly className="animate-pulse" />
           Loading workspace…
         </div>
       </div>
@@ -84,75 +114,23 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <ResponsiveLayoutShell
       navItems={nav}
-      logoIcon={<Timer className="h-5 w-5" strokeWidth={2.25} />}
-      logoTitle="ChronoMint"
-      logoSubtitle="Admin console"
+      logoIcon={<BrandMark size="lg" iconOnly />}
+      logoTitle={BRAND_NAME}
+      logoSubtitle="Admin Portal"
       logoLinkHref="/dashboard"
+      shellToolbar={<ShellHeaderActions profileHref="/profile" settingsHref="/settings" />}
       workspaceSwitcher={(collapsed) => (
-        <div
-          className={cn(
-            "rounded-xl border border-border/70 bg-muted/25 transition-all duration-300",
-            collapsed ? "p-1.5 border-none bg-transparent" : "p-3"
-          )}
-        >
-          {!collapsed && (
-            <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Workspace
-            </p>
-          )}
-          <WorkspaceSwitcher
-            filterRole="ADMIN"
-            defaultRedirect="/dashboard"
-            collapsed={collapsed}
-          />
-        </div>
+        <WorkspaceSwitcher filterRole="ADMIN" defaultRedirect="/dashboard" collapsed={collapsed} />
       )}
       footerContent={(collapsed) => (
-        <div
-          className={cn(
-            "rounded-xl border border-border/70 bg-muted/25 transition-all duration-300 space-y-3",
-            collapsed ? "p-1.5 border-none bg-transparent" : "p-3"
-          )}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              "transition-all duration-300",
-              collapsed ? "h-9 w-9 p-0 mx-auto justify-center" : "w-full justify-start gap-2"
-            )}
-            title={collapsed ? "Account" : undefined}
-            asChild
-          >
-            <Link href="/settings">
-              <User className="h-4 w-4" aria-hidden />
-              {!collapsed && <span>Account</span>}
-            </Link>
-          </Button>
-          <div>
-            {!collapsed && (
-              <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Appearance
-              </p>
-            )}
-            <ThemeToggle collapsed={collapsed} />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              "transition-all duration-300",
-              collapsed ? "h-9 w-9 p-0 mx-auto justify-center" : "w-full justify-start gap-2"
-            )}
-            title={collapsed ? "Log out" : undefined}
-            onClick={() => {
-              void logoutSession(session.workspaceId).then(() => router.push("/login"));
-            }}
-          >
-            <LogOut className="h-4 w-4" aria-hidden />
-            {!collapsed && <span>Log out</span>}
-          </Button>
-        </div>
+        <SidebarUserFooter
+          collapsed={collapsed}
+          userName={session.user.name ?? "Admin"}
+          profileHref="/profile"
+          onLogout={() => {
+            void logoutSession(session.workspaceId).then(() => router.push("/login"));
+          }}
+        />
       )}
     >
       {children}

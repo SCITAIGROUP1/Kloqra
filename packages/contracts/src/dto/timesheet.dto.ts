@@ -32,8 +32,11 @@ export const timesheetStatusQuerySchema = z.object({
   projectId: uuidSchema
 });
 
+export const timesheetSubmissionsScopeSchema = z.enum(["logged", "assigned"]);
+
 export const timesheetSubmissionsQuerySchema = z.object({
-  date: z.string().optional()
+  date: z.string().optional(),
+  scope: timesheetSubmissionsScopeSchema.optional().default("logged")
 });
 
 export const pendingTimesheetSchema = z.object({

@@ -1,5 +1,5 @@
 {
-  "extends": "@chronomint/config-typescript/base.json",
+  "extends": "../config-typescript/base.json",
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "Node",

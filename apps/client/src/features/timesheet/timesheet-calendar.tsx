@@ -1,9 +1,10 @@
 "use client";
 
-import type { TimeLogDto, TimeLogOccupancyItemDto } from "@chronomint/contracts";
-import { cn } from "@chronomint/ui";
-import { Building2, Clock, Lock } from "lucide-react";
+import type { ActiveTimerDto, TimeLogDto, TimeLogOccupancyItemDto } from "@kloqra/contracts";
+import { cn } from "@kloqra/ui";
+import { Building2 } from "lucide-react";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarEntryContent, type CalendarTaskInfo } from "./calendar-entry-content";
 import {
   buildDayOccupancySegments,
   buildSlotRows,
@@ -25,6 +26,11 @@ import {
   CALENDAR_END_HOUR,
   todayInZone
 } from "./calendar-utils";
+import {
+  formatClockLabel,
+  formatDayHeader as formatDayHeaderPref,
+  type TimesheetDisplayFormat
+} from "./display-format";
 import { entryColorsFromProject } from "@/lib/project-color-styles";
 
 export type SlotSelect = {
@@ -55,7 +61,10 @@ type TimesheetCalendarProps = {
   workspaceId: string;
   showOccupancyOverlay: boolean;
   taskName: (taskId: string) => string;
+  taskInfo: (taskId: string) => CalendarTaskInfo;
   entryColor: (taskId: string) => string;
+  activeTimer?: ActiveTimerDto | null;
+  liveElapsedSec?: number;
   isEntryLocked: (log: TimeLogDto) => boolean;
   isTimerEntry: (log: TimeLogDto) => boolean;
   overlapConflictMessage: (conflict: {
@@ -72,7 +81,7 @@ type TimesheetCalendarProps = {
   onEntryDuplicate: (log: TimeLogDto, start: Date, end: Date) => void;
   readOnly?: boolean;
   timezone?: string;
-  showSummary?: boolean;
+  displayFormat?: TimesheetDisplayFormat;
 };
 
 function findDayColumnAt(
@@ -101,7 +110,10 @@ export function TimesheetCalendar({
   workspaceId,
   showOccupancyOverlay,
   taskName,
+  taskInfo,
   entryColor,
+  activeTimer,
+  liveElapsedSec = 0,
   isEntryLocked,
   isTimerEntry,
   overlapConflictMessage,
@@ -113,10 +125,14 @@ export function TimesheetCalendar({
   onEntryDuplicate,
   readOnly = false,
   timezone = "UTC",
-  showSummary = true
+  displayFormat
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
   const today = todayInZone(timezone);
+  const labelDay = (day: Date) =>
+    displayFormat ? formatDayHeaderPref(day, displayFormat) : formatDayHeader(day);
+  const labelTime = (hour: number, minute: number) =>
+    displayFormat ? formatClockLabel(hour, minute, displayFormat) : formatTimeLabel(hour, minute);
 
   const occupancyByDay = useMemo(() => {
     const map = new Map<string, ReturnType<typeof buildDayOccupancySegments>>();
@@ -418,12 +434,7 @@ export function TimesheetCalendar({
       </p>
       <div
         ref={scrollContainerRef}
-        className={cn(
-          "overflow-y-auto select-none transition-all duration-300",
-          showSummary
-            ? "max-h-[calc(100vh-32rem)] md:max-h-[calc(100vh-33rem)]"
-            : "max-h-[calc(100vh-16rem)] md:max-h-[calc(100vh-17rem)]"
-        )}
+        className="max-h-[calc(100vh-14rem)] overflow-y-auto select-none md:max-h-[calc(100vh-15rem)]"
       >
         <div
           className="sticky top-0 z-40 grid border-b border-border bg-card"
@@ -443,7 +454,7 @@ export function TimesheetCalendar({
                 isSameDayInZone(day, today, timezone) && "bg-primary/10 text-primary"
               )}
             >
-              {formatDayHeader(day)}
+              {labelDay(day)}
             </div>
           ))}
         </div>
@@ -457,7 +468,7 @@ export function TimesheetCalendar({
                 key={`${hour}-${minute}`}
                 className="flex h-10 items-start justify-end border-b border-border/60 pr-2 pt-0.5 text-[10px] text-muted-foreground"
               >
-                {minute === 0 ? formatTimeLabel(hour, minute) : null}
+                {minute === 0 ? labelTime(hour, minute) : null}
               </div>
             ))}
           </div>
@@ -470,7 +481,10 @@ export function TimesheetCalendar({
               showOccupancyOverlay={showOccupancyOverlay}
               slotRows={slotRows}
               taskName={taskName}
+              taskInfo={taskInfo}
               entryColor={entryColor}
+              activeTimer={activeTimer}
+              liveElapsedSec={liveElapsedSec}
               compact={view === "week"}
               readOnly={readOnly}
               timezone={timezone}
@@ -532,6 +546,7 @@ export function TimesheetCalendar({
               }}
               onDuplicateDragStart={startDuplicateDrag}
               onMovePointerDown={startPendingMove}
+              formatSlotLabel={labelTime}
             />
           ))}
         </div>
@@ -547,7 +562,10 @@ function DayColumn({
   showOccupancyOverlay,
   slotRows,
   taskName,
+  taskInfo,
   entryColor,
+  activeTimer,
+  liveElapsedSec,
   compact,
   isSlotSelected,
   resizePreview,
@@ -565,7 +583,8 @@ function DayColumn({
   onEntryClick,
   onResizeStart,
   onDuplicateDragStart,
-  onMovePointerDown
+  onMovePointerDown,
+  formatSlotLabel
 }: {
   day: Date;
   logs: TimeLogDto[];
@@ -573,7 +592,10 @@ function DayColumn({
   showOccupancyOverlay: boolean;
   slotRows: { hour: number; minute: number }[];
   taskName: (taskId: string) => string;
+  taskInfo: (taskId: string) => CalendarTaskInfo;
   entryColor: (taskId: string) => string;
+  activeTimer?: ActiveTimerDto | null;
+  liveElapsedSec?: number;
   compact: boolean;
   isSlotSelected: (index: number) => boolean;
   resizePreview: {
@@ -615,6 +637,7 @@ function DayColumn({
     originX: number,
     originY: number
   ) => void;
+  formatSlotLabel: (hour: number, minute: number) => string;
 }) {
   const dayKey = calendarDateKey(day, timezone);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -645,7 +668,7 @@ function DayColumn({
               isSlotSelected(index) && "bg-primary/25",
               slotBlocked && "cursor-not-allowed"
             )}
-            aria-label={`${formatTimeLabel(hour, minute)}`}
+            aria-label={formatSlotLabel(hour, minute)}
             aria-disabled={slotBlocked || undefined}
             title={
               elsewhereConflict
@@ -735,11 +758,53 @@ function DayColumn({
                 style={{
                   top: style.top,
                   height: style.height,
-                  minHeight: style.height === "0%" ? "0px" : "1.25rem",
+                  minHeight: style.height === "0%" ? "0px" : "3px",
                   display: style.display
                 }}
                 title={conflict.message}
               />
+            );
+          })()}
+        {activeTimer &&
+          (() => {
+            const timerStart = new Date(activeTimer.startedAt);
+            const timerEnd = activeTimer.isPaused
+              ? new Date(timerStart.getTime() + activeTimer.elapsedSec * 1000)
+              : new Date();
+            const clip = clipLogToDay(
+              {
+                id: "active-timer",
+                startTime: timerStart.toISOString(),
+                endTime: timerEnd.toISOString()
+              } as TimeLogDto,
+              day,
+              timezone
+            );
+            if (!clip) return null;
+            const style = blockStyle(clip.start, clip.end, timezone);
+            const info = taskInfo(activeTimer.taskId);
+            return (
+              <div
+                key="active-timer-live"
+                className="pointer-events-none absolute left-0.5 right-0.5 z-20 overflow-hidden rounded-md border-2 border-emerald-500/80 bg-emerald-500/15 shadow-md ring-2 ring-emerald-500/20"
+                style={{
+                  top: style.top,
+                  height: style.height,
+                  minHeight: style.height === "0%" ? "0px" : "3px",
+                  display: style.display
+                }}
+                title={`${info.taskName} — tracking now`}
+              >
+                <div className="h-full px-1.5 py-0.5">
+                  <CalendarEntryContent
+                    task={info}
+                    durationSec={liveElapsedSec ?? activeTimer.elapsedSec}
+                    compact={compact}
+                    variant="live"
+                    liveElapsedSec={liveElapsedSec ?? activeTimer.elapsedSec}
+                  />
+                </div>
+              </div>
             );
           })()}
         {dayLogs.map(({ log, clip }) => {
@@ -767,7 +832,7 @@ function DayColumn({
               style={{
                 top: style.top,
                 height: style.height,
-                minHeight: style.height === "0%" ? "0px" : "1.25rem",
+                minHeight: style.height === "0%" ? "0px" : "3px",
                 display: style.display,
                 ...colors
               }}
@@ -829,23 +894,13 @@ function DayColumn({
                         : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`
                 }
               >
-                <span
-                  className={cn(
-                    "flex items-center gap-1 truncate font-medium",
-                    compact ? "text-[10px]" : "text-xs"
-                  )}
-                >
-                  {locked && (
-                    <Lock className="h-2.5 w-2.5 shrink-0 text-muted-foreground" aria-hidden />
-                  )}
-                  {timer && !locked && (
-                    <Clock className="h-2.5 w-2.5 shrink-0 text-muted-foreground" aria-hidden />
-                  )}
-                  <span className="truncate">{taskName(log.taskId)}</span>
-                </span>
-                {!compact && log.description && (
-                  <span className="block truncate text-[10px] opacity-80">{log.description}</span>
-                )}
+                <CalendarEntryContent
+                  task={taskInfo(log.taskId)}
+                  description={log.description}
+                  durationSec={log.durationSec}
+                  compact={compact}
+                  variant={locked ? "locked" : timer ? "timer" : "default"}
+                />
               </button>
               {!entryReadOnly && (
                 <div
@@ -861,7 +916,13 @@ function DayColumn({
         })}
 
         {/* Live Red Indicator Line for Current Time and Task */}
-        <LiveIndicatorLine day={day} dayLogs={dayLogs} taskName={taskName} timezone={timezone} />
+        <LiveIndicatorLine
+          day={day}
+          dayLogs={dayLogs}
+          activeTimer={activeTimer}
+          taskName={taskName}
+          timezone={timezone}
+        />
       </div>
     </div>
   );
@@ -870,11 +931,13 @@ function DayColumn({
 function LiveIndicatorLine({
   day,
   dayLogs,
+  activeTimer,
   taskName,
   timezone = "UTC"
 }: {
   day: Date;
   dayLogs: { log: TimeLogDto; clip: { start: Date; end: Date } }[];
+  activeTimer?: ActiveTimerDto | null;
   taskName: (taskId: string) => string;
   timezone?: string;
 }) {
@@ -897,10 +960,14 @@ function LiveIndicatorLine({
   const topMin = currentHour * 60 + currentMinute - CALENDAR_START_HOUR * 60;
   const topPct = (topMin / totalMin) * 100;
 
-  // Find if there is an active running timer log or entry at this specific minute
+  const timerOnDay = activeTimer && isSameDayInZone(new Date(activeTimer.startedAt), day, timezone);
   const currentDayLogs = dayLogs.filter(({ clip }) => now >= clip.start && now <= clip.end);
   const activeLog = currentDayLogs[0]?.log;
-  const activeTaskName = activeLog ? taskName(activeLog.taskId) : null;
+  const activeTaskName = timerOnDay
+    ? taskName(activeTimer.taskId)
+    : activeLog
+      ? taskName(activeLog.taskId)
+      : null;
 
   return (
     <div
@@ -941,13 +1008,13 @@ function OccupancyElsewhereBand({
       style={{
         top: style.top,
         height: style.height,
-        minHeight: style.height === "0%" ? "0px" : "1.25rem",
+        minHeight: style.height === "0%" ? "0px" : "3px",
         display: style.display
       }}
       title={`${segment.workspaceName}: ${segment.label} (${timeRange})`}
     >
       {showLabel && (
-        <div className="flex h-full min-h-[1.25rem] items-center gap-1 px-1.5">
+        <div className="flex h-full min-h-[3px] items-center gap-1 px-1.5">
           <Building2 className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60" aria-hidden />
           <span className="truncate text-[10px] font-medium text-muted-foreground">
             {segment.workspaceName}
@@ -989,7 +1056,7 @@ function EntryGhost({
       style={{
         top: style.top,
         height: style.height,
-        minHeight: style.height === "0%" ? "0px" : "1.25rem",
+        minHeight: style.height === "0%" ? "0px" : "3px",
         display: style.display,
         ...colors,
         ...(variant === "move" && !invalid ? { opacity: 0.85 } : {}),

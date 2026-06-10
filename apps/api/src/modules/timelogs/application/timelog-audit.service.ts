@@ -2,8 +2,8 @@ import type {
   ListTimelogAuditEventsResponseDto,
   TimelogAuditAction,
   TimelogAuditSnapshot
-} from "@chronomint/contracts";
-import { ErrorCodes } from "@chronomint/contracts";
+} from "@kloqra/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { DomainException } from "../../../common/errors/domain.exception";

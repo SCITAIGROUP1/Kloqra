@@ -198,7 +198,7 @@ Add “Settings” link to [`workspace-shell.tsx`](apps/client/src/components/wo
 
 ### UI patterns
 
-- Reuse `@chronomint/ui` `Card`, `Label`, `Input`, `Select`, `Switch` (add Switch to `packages/ui` if missing)
+- Reuse `@kloqra/ui` `Card`, `Label`, `Input`, `Select`, `Switch` (add Switch to `packages/ui` if missing)
 - Forms call API → `setSession` / toast on success
 - Theme: on load, `GET /auth/me` preferences override `next-themes`; on change, `PATCH` preferences + `setTheme`
 - Admin export presets: migrate from any `localStorage` keys in export wizard to `preferences.export.presets` when user saves a preset

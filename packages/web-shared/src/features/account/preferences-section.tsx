@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
   SegmentedControl
-} from "@chronomint/ui";
+} from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AccountSectionFooter } from "./account-section-footer";
@@ -75,7 +75,7 @@ export function PreferencesSection({ profile, onSavePreferences }: PreferencesSe
     try {
       await onSavePreferences({
         dailyTargetHours: parsed,
-        timezone: timezone || undefined,
+        timezone: timezone === "" ? null : timezone,
         weekStart
       });
       setSavedSnapshot({ daily: dailyTargetHours, timezone, weekStart });

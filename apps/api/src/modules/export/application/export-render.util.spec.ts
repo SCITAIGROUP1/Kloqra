@@ -1,4 +1,4 @@
-import { EXPORT_COLUMN_LABELS, resolveExportColumns } from "@chronomint/contracts";
+import { EXPORT_COLUMN_LABELS, resolveExportColumns } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import { projectRows, rowsToCsv } from "./export-render.util";
 

@@ -13,7 +13,7 @@ import {
   type ExportReportType,
   type MemberExportBodyDto,
   type MemberExportReportType
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import archiver from "archiver";
 import ExcelJS from "exceljs";
@@ -471,7 +471,7 @@ export class ExportService {
     const chunks: Buffer[] = [];
     doc.on("data", (c: Buffer) => chunks.push(c));
 
-    const title = fileBase.scope === "member" ? "ChronoMint — My timesheet" : "ChronoMint Export";
+    const title = fileBase.scope === "member" ? "Kloqra — My timesheet" : "Kloqra Export";
     doc.fontSize(18).text(title, { align: "center" });
     doc.moveDown(0.5);
     doc.fontSize(11).text(workspaceName, { align: "center" });

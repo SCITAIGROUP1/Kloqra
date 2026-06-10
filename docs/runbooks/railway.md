@@ -4,10 +4,10 @@ Railway hosts the **NestJS API** with managed PostgreSQL and Redis. Frontends de
 
 ## Topology
 
-| Environment | Railway project      | Vercel client               | Vercel admin               |
-| ----------- | -------------------- | --------------------------- | -------------------------- |
-| Staging     | `chronomint-staging` | `chronomint-client-staging` | `chronomint-admin-staging` |
-| Production  | `chronomint-prod`    | `chronomint-client`         | `chronomint-admin`         |
+| Environment | Railway project  | Vercel client           | Vercel admin           |
+| ----------- | ---------------- | ----------------------- | ---------------------- |
+| Staging     | `kloqra-staging` | `kloqra-client-staging` | `kloqra-admin-staging` |
+| Production  | `kloqra-prod`    | `kloqra-client`         | `kloqra-admin`         |
 
 Each environment uses **isolated** Postgres, Redis, and JWT secrets.
 
@@ -23,7 +23,7 @@ bash scripts/deploy/setup-railway.sh staging
 bash scripts/deploy/setup-vercel.sh staging https://your-staging-api.up.railway.app
 
 # 3. Wire CORS and smoke test
-bash scripts/deploy/wire-cors.sh https://chronomint-client-staging.vercel.app https://chronomint-admin-staging.vercel.app
+bash scripts/deploy/wire-cors.sh https://kloqra-client-staging.vercel.app https://kloqra-admin-staging.vercel.app
 # → paste output as FRONTEND_ORIGIN on Railway API service
 
 bash scripts/deploy/smoke.sh https://your-staging-api.up.railway.app
@@ -37,8 +37,8 @@ Repeat with `production` for the prod environment.
 
 ### 1. Create project
 
-1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → select `ChronoMint`.
-2. Name the project `chronomint-staging`.
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → select `Kloqra`.
+2. Name the project `kloqra-staging`.
 
 ### 2. Add databases
 
@@ -67,7 +67,7 @@ On the **API service** → **Variables**:
 | `JWT_ACCESS_SECRET`  | `bash scripts/deploy/generate-secrets.sh`                           |
 | `JWT_REFRESH_SECRET` | Same script — unique per environment                                |
 | `FRONTEND_ORIGIN`    | Staging Vercel URLs (update after [vercel.md](./vercel.md))         |
-| `PUBLIC_ADMIN_URL`   | `https://chronomint-admin-staging.vercel.app`                       |
+| `PUBLIC_ADMIN_URL`   | `https://kloqra-admin-staging.vercel.app`                           |
 | `NODE_ENV`           | `production`                                                        |
 
 Do **not** set `PORT` — Railway injects it. Do **not** set `REDIS_USE_MEMORY`.
@@ -86,29 +86,38 @@ Once Postgres is reachable:
 DATABASE_URL="<railway-postgres-url>" bash scripts/deploy/migrate.sh
 ```
 
-Optional seed for staging:
+Optional seed for staging (demo logins for QA):
 
 ```bash
-DATABASE_URL="<railway-postgres-url>" pnpm --filter @chronomint/api exec prisma db seed
+DATABASE_URL="<railway-postgres-url>" pnpm --filter @kloqra/api exec prisma db seed
 ```
+
+After seed:
+
+| Account             | Password      | Use        |
+| ------------------- | ------------- | ---------- |
+| `admin@kloqra.dev`  | `password123` | Admin app  |
+| `member@kloqra.dev` | `password123` | Client app |
+
+Primary workspace: **Acme Corporation**. Do **not** seed production unless you intend to load demo data.
 
 Or use Railway shell: **API service → Shell** → run migrate with `DATABASE_URL` already set.
 
 ### 7. Public URL
 
-**Settings → Networking → Generate Domain** → note URL, e.g. `https://chronomint-api-staging.up.railway.app`.
+**Settings → Networking → Generate Domain** → note URL, e.g. `https://kloqra-api-staging.up.railway.app`.
 
 Smoke test:
 
 ```bash
-bash scripts/deploy/smoke.sh https://chronomint-api-staging.up.railway.app
+bash scripts/deploy/smoke.sh https://kloqra-api-staging.up.railway.app
 ```
 
 ---
 
 ## Production setup
 
-Duplicate the staging project as **`chronomint-prod`** with these differences:
+Duplicate the staging project as **`kloqra-prod`** with these differences:
 
 | Item              | Production                               |
 | ----------------- | ---------------------------------------- |
@@ -124,7 +133,7 @@ Template: [`deploy/env.production.example`](../../deploy/env.production.example)
 
 ### Production checklist
 
-- [ ] Separate Railway project `chronomint-prod`
+- [ ] Separate Railway project `kloqra-prod`
 - [ ] Unique JWT secrets (`generate-secrets.sh`)
 - [ ] `prisma migrate deploy` against prod DB before traffic
 - [ ] Custom domains on Railway (API) and Vercel (client/admin)
@@ -140,8 +149,8 @@ Once both Vercel apps are live:
 
 ```bash
 bash scripts/deploy/wire-cors.sh \
-  https://chronomint-client-staging.vercel.app \
-  https://chronomint-admin-staging.vercel.app
+  https://kloqra-client-staging.vercel.app \
+  https://kloqra-admin-staging.vercel.app
 ```
 
 Set the output as `FRONTEND_ORIGIN` on the Railway API service and redeploy.
@@ -179,17 +188,17 @@ Run migrations **before** or **with** each API rollout. Railway auto-deploys on 
 
 ## Troubleshooting
 
-| Issue                                        | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build fails — can't find contracts           | Logs show `/app/apps/api` + `pnpm start` → Railway is using Nixpacks with wrong root. Set **Root Directory** to repo root (empty), **Builder** to Dockerfile `apps/api/Dockerfile`. Or redeploy with latest code (`prebuild` builds contracts).                                                                                                                                                                                                                                                                                                            |
-| `pnpm deploy` / `WORKSPACE_PKG_NOT_FOUND`    | Dockerfile must include root workspace packages (`config-eslint`, `config-prettier`) so `pnpm deploy --prod` can resolve the monorepo. Use latest `apps/api/Dockerfile`.                                                                                                                                                                                                                                                                                                                                                                                   |
-| `Cannot find module '@chronomint/contracts'` | `packages/contracts` missing from the image — use per-package `COPY` lines in `apps/api/Dockerfile` (not one multi-source `COPY`). Confirm **Root Directory** is repo root (empty).                                                                                                                                                                                                                                                                                                                                                                        |
-| `DATABASE_URL is empty` / `PGHOST=<unset>`   | Railway is **not** passing any DB vars into the **API** container. Variables on the Postgres service alone do nothing. On the **API** service → **Variables** → **New Variable** → **Reference** (use the dropdown; do not type `${{Postgres...}}` by hand unless the service name matches exactly) → Postgres → `DATABASE_URL`. Or paste the full `postgresql://` URL in **Raw Editor** on the API service. **Redeploy API.** Verify with `bash scripts/deploy/railway-check-vars.sh production`. Success logs: `DATABASE_URL configured (N characters)`. |
-| Health check failing                         | Check deploy logs for startup crash (often `DATABASE_URL` / Prisma). App must listen on Railway's injected `PORT` at `0.0.0.0`. Verify `GET /health` returns 200. Do not hardcode `PORT=3001` in Railway variables.                                                                                                                                                                                                                                                                                                                                        |
-| `@prisma/client did not initialize yet`      | `pnpm deploy` omits `prisma generate` in the runtime bundle. Use latest `apps/api/Dockerfile` (runs `prisma generate` against `/prod/prisma/schema.prisma` after deploy). Rebuild and redeploy.                                                                                                                                                                                                                                                                                                                                                            |
-| `InstanceLoader` / Prisma engine error       | Deploy logs often show only a Nest stack tail — scroll up for `PrismaClientInitializationError` or `libquery_engine-linux-musl`. Use latest `apps/api/Dockerfile` (OpenSSL + `prisma generate` in `/prod`). Set **Config file** to `/railway.toml`.                                                                                                                                                                                                                                                                                                        |
-| Timer/presence broken                        | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| CORS errors                                  | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Migrations pending                           | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Issue                                      | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build fails — can't find contracts         | Logs show `/app/apps/api` + `pnpm start` → Railway is using Nixpacks with wrong root. Set **Root Directory** to repo root (empty), **Builder** to Dockerfile `apps/api/Dockerfile`. Or redeploy with latest code (`prebuild` builds contracts).                                                                                                                                                                                                                                                                                                            |
+| `pnpm deploy` / `WORKSPACE_PKG_NOT_FOUND`  | Dockerfile must include root workspace packages (`config-eslint`, `config-prettier`) so `pnpm deploy --prod` can resolve the monorepo. Use latest `apps/api/Dockerfile`.                                                                                                                                                                                                                                                                                                                                                                                   |
+| `Cannot find module '@kloqra/contracts'`   | `packages/contracts` missing from the image — use per-package `COPY` lines in `apps/api/Dockerfile` (not one multi-source `COPY`). Confirm **Root Directory** is repo root (empty).                                                                                                                                                                                                                                                                                                                                                                        |
+| `DATABASE_URL is empty` / `PGHOST=<unset>` | Railway is **not** passing any DB vars into the **API** container. Variables on the Postgres service alone do nothing. On the **API** service → **Variables** → **New Variable** → **Reference** (use the dropdown; do not type `${{Postgres...}}` by hand unless the service name matches exactly) → Postgres → `DATABASE_URL`. Or paste the full `postgresql://` URL in **Raw Editor** on the API service. **Redeploy API.** Verify with `bash scripts/deploy/railway-check-vars.sh production`. Success logs: `DATABASE_URL configured (N characters)`. |
+| Health check failing                       | Check deploy logs for startup crash (often `DATABASE_URL` / Prisma). App must listen on Railway's injected `PORT` at `0.0.0.0`. Verify `GET /health` returns 200. Do not hardcode `PORT=3001` in Railway variables.                                                                                                                                                                                                                                                                                                                                        |
+| `@prisma/client did not initialize yet`    | `pnpm deploy` omits `prisma generate` in the runtime bundle. Use latest `apps/api/Dockerfile` (runs `prisma generate` against `/prod/prisma/schema.prisma` after deploy). Rebuild and redeploy.                                                                                                                                                                                                                                                                                                                                                            |
+| `InstanceLoader` / Prisma engine error     | Deploy logs often show only a Nest stack tail — scroll up for `PrismaClientInitializationError` or `libquery_engine-linux-musl`. Use latest `apps/api/Dockerfile` (OpenSSL + `prisma generate` in `/prod`). Set **Config file** to `/railway.toml`.                                                                                                                                                                                                                                                                                                        |
+| Timer/presence broken                      | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| CORS errors                                | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Migrations pending                         | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 See also [deploy.md](./deploy.md), [vercel.md](./vercel.md), [ENVIRONMENT.md](../development/ENVIRONMENT.md).

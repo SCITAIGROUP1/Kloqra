@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 
 /** Prefer JWT workspace; reject stale X-Workspace-Id from another device/tab. */

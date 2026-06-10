@@ -6,6 +6,7 @@ import { PresenceController } from "./interface/http/presence.controller";
 @Module({
   imports: [AuthModule],
   controllers: [PresenceController],
-  providers: [PresenceService]
+  providers: [PresenceService],
+  exports: [PresenceService]
 })
 export class PresenceModule {}

@@ -1,8 +1,8 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { TeamInvitePreviewDto } from "@chronomint/contracts";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type { TeamInvitePreviewDto } from "@kloqra/contracts";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@kloqra/ui";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, publicFetch } from "@/lib/api";

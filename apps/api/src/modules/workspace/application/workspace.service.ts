@@ -1,5 +1,5 @@
-import { ErrorCodes } from "@chronomint/contracts";
-import type { InviteMemberDto } from "@chronomint/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
+import type { InviteMemberDto, UpdateWorkspaceMemberDto } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -24,14 +24,64 @@ export class WorkspaceService {
       where: { workspaceId },
       include: { user: true }
     });
-    return members.map((m) => ({
-      id: m.id,
-      workspaceId: m.workspaceId,
-      userId: m.userId,
-      role: m.role,
-      userName: m.user.name,
-      userEmail: m.user.email
-    }));
+    return members.map((m) => this.toMemberDto(m));
+  }
+
+  async updateMember(
+    workspaceId: string,
+    memberId: string,
+    dto: UpdateWorkspaceMemberDto,
+    _actingUserId: string
+  ) {
+    const member = await this.getMembership(workspaceId, memberId);
+
+    if (member.role === dto.role) {
+      return this.toMemberDto(member);
+    }
+
+    if (member.role === "ADMIN" && dto.role === "MEMBER") {
+      const adminCount = await this.countAdmins(workspaceId);
+      if (adminCount <= 1) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "Cannot demote the last workspace admin",
+          HttpStatus.FORBIDDEN
+        );
+      }
+    }
+
+    const updated = await this.prisma.workspaceMember.update({
+      where: { id: memberId },
+      data: { role: dto.role },
+      include: { user: true }
+    });
+    return this.toMemberDto(updated);
+  }
+
+  async removeMember(workspaceId: string, memberId: string, actingUserId: string) {
+    const member = await this.getMembership(workspaceId, memberId);
+
+    if (member.userId === actingUserId) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Cannot remove yourself from the workspace",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    if (member.role === "ADMIN") {
+      const adminCount = await this.countAdmins(workspaceId);
+      if (adminCount <= 1) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "Cannot remove the last workspace admin",
+          HttpStatus.FORBIDDEN
+        );
+      }
+    }
+
+    await this.prisma.workspaceMember.delete({ where: { id: memberId } });
+    return { ok: true as const };
   }
 
   async invite(workspaceId: string, dto: InviteMemberDto) {
@@ -124,5 +174,43 @@ export class WorkspaceService {
         role: "ADMIN"
       };
     });
+  }
+
+  private async getMembership(workspaceId: string, memberId: string) {
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { id: memberId, workspaceId },
+      include: { user: true }
+    });
+    if (!member) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Workspace member not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return member;
+  }
+
+  private countAdmins(workspaceId: string) {
+    return this.prisma.workspaceMember.count({
+      where: { workspaceId, role: "ADMIN" }
+    });
+  }
+
+  private toMemberDto(member: {
+    id: string;
+    workspaceId: string;
+    userId: string;
+    role: string;
+    user: { name: string; email: string };
+  }) {
+    return {
+      id: member.id,
+      workspaceId: member.workspaceId,
+      userId: member.userId,
+      role: member.role,
+      userName: member.user.name,
+      userEmail: member.user.email
+    };
   }
 }

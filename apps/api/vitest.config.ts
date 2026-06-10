@@ -7,12 +7,12 @@ const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      "@chronomint/contracts": path.resolve(apiRoot, "../../packages/contracts/src/index.ts")
+      "@kloqra/contracts": path.resolve(apiRoot, "../../packages/contracts/src/index.ts")
     }
   },
   test: {
     environment: "node",
-    include: ["src/**/*.spec.ts"],
+    include: ["src/**/*.spec.ts", "prisma/**/*.spec.ts"],
     reporters: ["default", "junit"],
     outputFile: {
       junit: "./test-results/unit-junit.xml"

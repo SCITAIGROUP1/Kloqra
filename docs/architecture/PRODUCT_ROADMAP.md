@@ -1,4 +1,4 @@
-# ChronoMint product roadmap
+# Kloqra product roadmap
 
 Product features beyond the core timer/timesheet loop. Shipped features link to specs under `docs/specs/`; export details in [export.md](../specs/export.md).
 

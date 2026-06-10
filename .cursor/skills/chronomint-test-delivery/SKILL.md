@@ -1,12 +1,12 @@
 ---
-name: chronomint-test-delivery
+name: kloqra-test-delivery
 description: >-
-  Require tests when adding or changing ChronoMint features. Use when implementing
+  Require tests when adding or changing Kloqra features. Use when implementing
   API modules, contracts, UI components, or admin/client features — or when the
   user asks about test coverage, TDD, or pre-commit test gates.
 ---
 
-# ChronoMint test delivery
+# Kloqra test delivery
 
 ## Non-negotiable
 
@@ -36,8 +36,8 @@ Pre-commit enforces this via `scripts/check-staged-has-tests.mjs`. Emergency byp
 ```bash
 pnpm test:dashboard          # local hub: coverage HTML, Playwright reports, Swagger link
 pnpm test:ui                 # Vitest UI for API unit tests
-pnpm --filter @chronomint/admin test:e2e:ui
-pnpm --filter @chronomint/client test:e2e:ui
+pnpm --filter @kloqra/admin test:e2e:ui
+pnpm --filter @kloqra/client test:e2e:ui
 ```
 
 Admin Playwright locally: `pnpm prisma:seed`, then API on `:3001` (or let Playwright start it). CI already migrates, seeds, and starts services.

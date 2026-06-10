@@ -10,7 +10,7 @@ import {
   memberExportBodySchema,
   ROUTES,
   updateExportScheduleSchema
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 import {
   Body,
   Controller,

@@ -4,17 +4,17 @@
 
 Copy `apps/api/.env.example` to `apps/api/.env`.
 
-| Variable              | Required            | Description                                                                                                                                                                |
-| --------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | Yes                 | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/chronomint`. Docker: `postgresql://chronomint:chronomint@localhost:5432/chronomint` |
-| `REDIS_USE_MEMORY`    | Local dev           | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis                                                                                  |
-| `REDIS_URL`           | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set                                                                                                     |
-| `JWT_ACCESS_SECRET`   | Yes                 | Min 32 characters. Signs short-lived access tokens                                                                                                                         |
-| `JWT_REFRESH_SECRET`  | Yes                 | Min 32 characters. Signs refresh tokens (httpOnly cookie)                                                                                                                  |
-| `JWT_ACCESS_EXPIRES`  | No                  | Default `15m`                                                                                                                                                              |
-| `JWT_REFRESH_EXPIRES` | No                  | Default `7d`                                                                                                                                                               |
-| `FRONTEND_ORIGIN`     | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                                           |
-| `PORT`                | No                  | API listen port. Default `3001`                                                                                                                                            |
+| Variable              | Required            | Description                                                                                                                                                |
+| --------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Yes                 | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/kloqra`. Docker: `postgresql://kloqra:kloqra@localhost:5432/kloqra` |
+| `REDIS_USE_MEMORY`    | Local dev           | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis                                                                  |
+| `REDIS_URL`           | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set                                                                                     |
+| `JWT_ACCESS_SECRET`   | Yes                 | Min 32 characters. Signs short-lived access tokens                                                                                                         |
+| `JWT_REFRESH_SECRET`  | Yes                 | Min 32 characters. Signs refresh tokens (httpOnly cookie)                                                                                                  |
+| `JWT_ACCESS_EXPIRES`  | No                  | Default `15m`                                                                                                                                              |
+| `JWT_REFRESH_EXPIRES` | No                  | Default `7d`                                                                                                                                               |
+| `FRONTEND_ORIGIN`     | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                           |
+| `PORT`                | No                  | API listen port. Default `3001`                                                                                                                            |
 
 ## Client (`apps/client`)
 
@@ -39,6 +39,40 @@ Copy `apps/admin/.env.example` to `apps/admin/.env.local`.
 | Client | http://localhost:3000 |
 | API    | http://localhost:3001 |
 | Admin  | http://localhost:3002 |
+
+## Local database and seed
+
+Create the database once (Postgres.app):
+
+```bash
+createdb kloqra
+```
+
+Set `DATABASE_URL` in `apps/api/.env` (see table above). Apply schema and demo data:
+
+```bash
+pnpm prisma:migrate
+pnpm prisma:seed
+```
+
+| Account             | Password      | Role             | App    |
+| ------------------- | ------------- | ---------------- | ------ |
+| `admin@kloqra.dev`  | `password123` | Workspace ADMIN  | Admin  |
+| `member@kloqra.dev` | `password123` | Workspace MEMBER | Client |
+
+Demo workspaces after seed: **Acme Corporation** (primary), **Meridian Product Co**, **Apex Consulting**.
+
+**Upgrading from ChronoMint:** rename is branding-only for the app; the breaking local change is the default DB name `chronomint` → `kloqra`. Create `kloqra`, update `.env`, migrate, and seed — or keep your old DB name in `DATABASE_URL` until you are ready to reset.
+
+## CI / integration tests
+
+GitHub Actions (`.github/workflows/ci.yml`) uses ephemeral Postgres:
+
+- User / password: `kloqra` / `kloqra`
+- Database: `kloqra_test`
+- `DATABASE_URL`: `postgresql://kloqra:kloqra@localhost:5432/kloqra_test`
+
+Each `integration` and `e2e` job runs `prisma migrate deploy` then `pnpm prisma:seed` before tests.
 
 ## Production notes
 

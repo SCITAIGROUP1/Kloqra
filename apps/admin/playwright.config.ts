@@ -32,7 +32,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm --filter @chronomint/api dev",
+      command: "pnpm --filter @kloqra/api dev",
       url: "http://localhost:3001/api/docs",
       reuseExistingServer: true,
       timeout: 180_000

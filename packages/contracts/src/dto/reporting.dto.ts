@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { listPaginationQuerySchema } from "../pagination";
 import { assertMaxDateRange, isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const reportQuerySchema = z
@@ -161,3 +162,40 @@ export const categoryProjectHeatmapResponseSchema = z.object({
 export type CategoryProjectHeatmapResponseDto = z.infer<
   typeof categoryProjectHeatmapResponseSchema
 >;
+
+export const utilizationMemberSchema = z.object({
+  userId: uuidSchema,
+  userName: z.string(),
+  loggedHours: z.number(),
+  billableHours: z.number(),
+  targetHours: z.number(),
+  utilizationPct: z.number(),
+  status: z.enum(["on_track", "low", "critical"])
+});
+
+export const utilizationQuerySchema = z
+  .object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema,
+    userId: uuidSchema.optional()
+  })
+  .merge(listPaginationQuerySchema)
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
+
+export const utilizationResponseSchema = z.object({
+  period: z.object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema
+  }),
+  expectedWeeklyHours: z.number(),
+  targetHours: z.number(),
+  members: z.array(utilizationMemberSchema),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative()
+});
+
+export type UtilizationMemberDto = z.infer<typeof utilizationMemberSchema>;
+export type UtilizationQueryDto = z.infer<typeof utilizationQuerySchema>;
+export type UtilizationResponseDto = z.infer<typeof utilizationResponseSchema>;

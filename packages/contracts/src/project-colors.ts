@@ -1,14 +1,7 @@
+import { BRAND_PROJECT_COLORS } from "./brand";
+
 /** Curated palette — distinct on light and dark backgrounds */
-export const PROJECT_COLORS = [
-  "#6366f1",
-  "#0ea5e9",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#a855f7",
-  "#ec4899",
-  "#14b8a6"
-] as const;
+export const PROJECT_COLORS = BRAND_PROJECT_COLORS;
 
 export const DEFAULT_PROJECT_COLOR = PROJECT_COLORS[0];
 

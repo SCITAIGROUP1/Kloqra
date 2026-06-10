@@ -1,4 +1,4 @@
-# ChronoMint documentation
+# Kloqra documentation
 
 Start here for architecture, development, API reference, feature specs, user guides, and operations.
 
@@ -7,8 +7,9 @@ Start here for architecture, development, API reference, feature specs, user gui
 | I want to…                   | Go to                                                                                              |
 | ---------------------------- | -------------------------------------------------------------------------------------------------- |
 | Run the app locally          | [Root README](../README.md)                                                                        |
-| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md)                                                       |
+| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md) (local DB: `kloqra`, seed: `@kloqra.dev`)             |
 | Contribute code              | [CONTRIBUTING.md](../CONTRIBUTING.md)                                                              |
+| Build frontend features      | [FRONTEND-UI.md](development/FRONTEND-UI.md)                                                       |
 | Run tests                    | [TESTING.md](development/TESTING.md) · [QA guide (non-technical)](user-guides/qa/testing-guide.md) |
 | Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                                              |
 | Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                                     |
@@ -25,9 +26,10 @@ Start here for architecture, development, API reference, feature specs, user gui
 ### Developer
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — monorepo layout, contract-first workflow, pre-commit hooks
-- **Architecture (target):** API slices under `apps/api/src/modules/` + shared `common/time/`; Next.js apps use `features/` + `@chronomint/web-shared`
+- **Architecture (target):** API slices under `apps/api/src/modules/` + shared `common/time/`; Next.js apps use `features/` + `@kloqra/web-shared`
 - [ENVIRONMENT.md](development/ENVIRONMENT.md) — all environment variables
 - [TESTING.md](development/TESTING.md) — unit and e2e tests
+- [FRONTEND-UI.md](development/FRONTEND-UI.md) — tables, modals, loaders, toasts
 - [SECURITY.md](development/SECURITY.md) — auth, secrets, RBAC
 - [architecture/CONTEXT.md](architecture/CONTEXT.md) — system diagram and module boundaries
 - [architecture/DOMAIN_MODEL.md](architecture/DOMAIN_MODEL.md) — workspace, project, team hierarchy
@@ -36,6 +38,7 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [api/OVERVIEW.md](api/OVERVIEW.md) — API conventions
 - [api/ROUTES.md](api/ROUTES.md) — endpoint catalog
 - Per-app READMEs: [apps/api](../apps/api/README.md), [apps/client](../apps/client/README.md), [apps/admin](../apps/admin/README.md)
+- Package READMEs: [packages/ui](../packages/ui/README.md), [packages/web-shared](../packages/web-shared/README.md)
 
 ### User (member or admin)
 
@@ -72,6 +75,7 @@ Canonical behavior for shipped features (read before implementing changes):
 | [export.md](specs/export.md)                 | Admin and member exports   |
 | [presence.md](specs/presence.md)             | Team live presence         |
 | [auth-workspace.md](specs/auth-workspace.md) | Auth and workspace members |
+| [user-profile.md](specs/user-profile.md)     | Profile, settings, 2FA     |
 
 ## Product direction
 

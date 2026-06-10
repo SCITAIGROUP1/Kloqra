@@ -37,11 +37,11 @@ fi
 
 VERCEL_SCOPE="${VERCEL_SCOPE:-production}"
 if [[ "$ENV_NAME" == "staging" ]]; then
-  CLIENT_PROJECT="chronomint-client-staging"
-  ADMIN_PROJECT="chronomint-admin-staging"
+  CLIENT_PROJECT="kloqra-client-staging"
+  ADMIN_PROJECT="kloqra-admin-staging"
 else
-  CLIENT_PROJECT="chronomint-client"
-  ADMIN_PROJECT="chronomint-admin"
+  CLIENT_PROJECT="kloqra-client"
+  ADMIN_PROJECT="kloqra-admin"
 fi
 
 setup_app() {
@@ -67,7 +67,7 @@ setup_app() {
   vercel deploy --prod
 }
 
-echo "=== ChronoMint Vercel setup: ${ENV_NAME} ==="
+echo "=== Kloqra Vercel setup: ${ENV_NAME} ==="
 echo "API URL: ${API_URL}"
 echo ""
 echo "Ensure each Vercel project has:"

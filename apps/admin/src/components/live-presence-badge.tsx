@@ -1,7 +1,7 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { PresenceSnapshotDto } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { PresenceSnapshotDto } from "@kloqra/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";

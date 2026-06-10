@@ -1,4 +1,4 @@
-import { parseContentDispositionFilename } from "@chronomint/contracts";
+import { parseContentDispositionFilename } from "@kloqra/contracts";
 import { getAccessToken } from "../stores/session.store";
 import { getApiBase } from "./base";
 

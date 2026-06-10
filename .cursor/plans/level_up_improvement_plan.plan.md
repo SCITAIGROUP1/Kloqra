@@ -1,6 +1,6 @@
-# ChronoMint — Level-Up Improvement Plan (Completed)
+# Kloqra — Level-Up Improvement Plan (Completed)
 
-ChronoMint is a production-quality time-analytics monorepo (NestJS API, Next.js 15 Client + Admin,
+Kloqra is a production-quality time-analytics monorepo (NestJS API, Next.js 15 Client + Admin,
 Tailwind v4, Prisma/Postgres, Redis). The baseline feature set (Phases 1–2) is fully shipped.
 This plan proposes improvements across **five dimensions**: Security Hardening, Product Features,
 UX/UI Polish, Developer Experience, and Production Readiness.
@@ -160,7 +160,7 @@ Core accountability loop.
 ### 3.1 Timer — Keyboard Shortcut & Browser Tab Title
 
 - `Space` / `Ctrl+Shift+T` → start/stop.
-- `document.title` shows `⏱ 01:23:45 — ChronoMint` when tracking.
+- `document.title` shows `⏱ 01:23:45 — Kloqra` when tracking.
 - MODIFY `apps/client/src/features/timer/timer-page.tsx`.
 
 ### 3.2 Timer — Animated Clock Face

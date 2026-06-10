@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
 import { isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const hourlyRateSchema = z.object({
@@ -24,6 +25,15 @@ export const billableSummarySchema = z.object({
   currency: z.literal("USD")
 });
 
+export const listHourlyRatesQuerySchema = listPaginationQuerySchema.extend({
+  userId: uuidSchema.optional(),
+  projectId: uuidSchema.optional()
+});
+
+export const listHourlyRatesResponseSchema = createPaginatedListResponseSchema(hourlyRateSchema);
+
 export type HourlyRateDto = z.infer<typeof hourlyRateSchema>;
 export type CreateHourlyRateDto = z.infer<typeof createHourlyRateSchema>;
 export type BillableSummaryDto = z.infer<typeof billableSummarySchema>;
+export type ListHourlyRatesQuery = z.infer<typeof listHourlyRatesQuerySchema>;
+export type ListHourlyRatesResponse = z.infer<typeof listHourlyRatesResponseSchema>;

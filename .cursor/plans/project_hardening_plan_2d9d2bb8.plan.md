@@ -15,7 +15,7 @@ todos:
     content: Create packages/web-shared (api, download, stores, providers, date utils, workspace-switcher); migrate client first
     status: completed
   - id: admin-features
-    content: Refactor admin to server page.tsx + features/; move PageHeader primitives to @chronomint/ui
+    content: Refactor admin to server page.tsx + features/; move PageHeader primitives to @kloqra/ui
     status: completed
   - id: api-common-time
     content: Extract time aggregation/week/rounding to apps/api/src/common/time; fix billing DRY and Nest module exports
@@ -26,7 +26,7 @@ todos:
 isProject: false
 ---
 
-# ChronoMint Professionalization & Hardening Plan
+# Kloqra Professionalization & Hardening Plan
 
 ## Current state (what is messy)
 
@@ -46,25 +46,25 @@ flowchart TB
   subgraph target [Target]
     PC[pre-commit: lint-staged]
     ESL[ESLint + Prettier + CI]
-    Shared[@chronomint/web-shared]
+    Shared[@kloqra/web-shared]
     Core[api common: time + week + errors]
     Align[admin mirrors client architecture]
   end
   today --> target
 ```
 
-| Area                  | Problem                                                                                                                                                   | Examples                                                                                                                                                                                                                                                                                                                                               |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Tooling**           | No pre-commit; `lint` is only `tsc --noEmit`; [@chronomint/config-eslint](packages/config-eslint/package.json) is an empty stub; no Prettier/EditorConfig | Easy to merge inconsistent formatting and ad-hoc patterns                                                                                                                                                                                                                                                                                              |
-| **Cursor governance** | Rules are `.md` without `globs`/`alwaysApply`; no project **skills** under `.cursor/skills/`                                                              | Agents follow playbook inconsistently                                                                                                                                                                                                                                                                                                                  |
-| **FE duplication**    | Near-identical copies across apps                                                                                                                         | [apps/admin/src/lib/api.ts](apps/admin/src/lib/api.ts) vs [apps/client/src/lib/api.ts](apps/client/src/lib/api.ts); `providers.tsx`, `workspaces.store.ts`, `session.store.ts`, `workspace-switcher.tsx`, `download.ts`                                                                                                                                |
-| **FE architecture**   | Admin is all `"use client"` route files; client uses thin server `page.tsx` + `features/`                                                                 | [apps/admin/src/app/(admin)/dashboard/page.tsx](<apps/admin/src/app/(admin)/dashboard/page.tsx>) vs [apps/client/src/app/(workspace)/timesheet/page.tsx](<apps/client/src/app/(workspace)/timesheet/page.tsx>)                                                                                                                                         |
-| **FE API usage**      | Public pages bypass shared client                                                                                                                         | [apps/admin/src/app/share/[token]/page.tsx](apps/admin/src/app/share/[token]/page.tsx), [apps/client/src/app/invite/[token]/page.tsx](apps/client/src/app/invite/[token]/page.tsx)                                                                                                                                                                     |
-| **BE cross-module**   | Relative imports across slices instead of module exports                                                                                                  | `export` → `../../reporting/application/time-aggregation.service`                                                                                                                                                                                                                                                                                      |
-| **BE DRY**            | Parallel time math                                                                                                                                        | [billing.service.ts](apps/api/src/modules/billing/application/billing.service.ts) vs [time-aggregation.service.ts](apps/api/src/modules/reporting/application/time-aggregation.service.ts); duplicate `round()` in reporting; [export-week.util.ts](apps/api/src/modules/export/application/export-week.util.ts) vs private `weekStart()` in reporting |
-| **BE SoC**            | Controllers talk to Prisma                                                                                                                                | [auth.controller.ts](apps/api/src/modules/auth/interface/http/auth.controller.ts), [team-invites.controller.ts](apps/api/src/modules/projects/interface/http/team-invites.controller.ts)                                                                                                                                                               |
-| **BE consistency**    | Mixed error types; mixed route definitions                                                                                                                | Export presets use Nest `NotFoundException`; projects/timelogs use `DomainException`; hardcoded paths in projects/workspace controllers while others use `ROUTES` from contracts                                                                                                                                                                       |
-| **Naming**            | Same feature, different prefixes                                                                                                                          | `report-share.service.ts` vs `export-share.controller.ts` under `export/`                                                                                                                                                                                                                                                                              |
+| Area                  | Problem                                                                                                                                               | Examples                                                                                                                                                                                                                                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Tooling**           | No pre-commit; `lint` is only `tsc --noEmit`; [@kloqra/config-eslint](packages/config-eslint/package.json) is an empty stub; no Prettier/EditorConfig | Easy to merge inconsistent formatting and ad-hoc patterns                                                                                                                                                                                                                                                                                              |
+| **Cursor governance** | Rules are `.md` without `globs`/`alwaysApply`; no project **skills** under `.cursor/skills/`                                                          | Agents follow playbook inconsistently                                                                                                                                                                                                                                                                                                                  |
+| **FE duplication**    | Near-identical copies across apps                                                                                                                     | [apps/admin/src/lib/api.ts](apps/admin/src/lib/api.ts) vs [apps/client/src/lib/api.ts](apps/client/src/lib/api.ts); `providers.tsx`, `workspaces.store.ts`, `session.store.ts`, `workspace-switcher.tsx`, `download.ts`                                                                                                                                |
+| **FE architecture**   | Admin is all `"use client"` route files; client uses thin server `page.tsx` + `features/`                                                             | [apps/admin/src/app/(admin)/dashboard/page.tsx](<apps/admin/src/app/(admin)/dashboard/page.tsx>) vs [apps/client/src/app/(workspace)/timesheet/page.tsx](<apps/client/src/app/(workspace)/timesheet/page.tsx>)                                                                                                                                         |
+| **FE API usage**      | Public pages bypass shared client                                                                                                                     | [apps/admin/src/app/share/[token]/page.tsx](apps/admin/src/app/share/[token]/page.tsx), [apps/client/src/app/invite/[token]/page.tsx](apps/client/src/app/invite/[token]/page.tsx)                                                                                                                                                                     |
+| **BE cross-module**   | Relative imports across slices instead of module exports                                                                                              | `export` → `../../reporting/application/time-aggregation.service`                                                                                                                                                                                                                                                                                      |
+| **BE DRY**            | Parallel time math                                                                                                                                    | [billing.service.ts](apps/api/src/modules/billing/application/billing.service.ts) vs [time-aggregation.service.ts](apps/api/src/modules/reporting/application/time-aggregation.service.ts); duplicate `round()` in reporting; [export-week.util.ts](apps/api/src/modules/export/application/export-week.util.ts) vs private `weekStart()` in reporting |
+| **BE SoC**            | Controllers talk to Prisma                                                                                                                            | [auth.controller.ts](apps/api/src/modules/auth/interface/http/auth.controller.ts), [team-invites.controller.ts](apps/api/src/modules/projects/interface/http/team-invites.controller.ts)                                                                                                                                                               |
+| **BE consistency**    | Mixed error types; mixed route definitions                                                                                                            | Export presets use Nest `NotFoundException`; projects/timelogs use `DomainException`; hardcoded paths in projects/workspace controllers while others use `ROUTES` from contracts                                                                                                                                                                       |
+| **Naming**            | Same feature, different prefixes                                                                                                                      | `report-share.service.ts` vs `export-share.controller.ts` under `export/`                                                                                                                                                                                                                                                                              |
 
 **Intentionally not pushing full DDD** (`domain/` / `infrastructure/` per module): the repo’s established slice is `application/` + `interface/http/` + `apps/api/src/common/`. The plan **strengthens** that model rather than introducing a second architecture.
 
@@ -125,7 +125,7 @@ Keep existing role boundaries; add **scoped** rules with frontmatter per [create
 | Rule file                 | `globs`                      | Enforces                                                                                                                            |
 | ------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `api-modules.mdc`         | `apps/api/src/modules/**`    | application/interface layout, no Prisma in controllers, `ROUTES` only, `DomainException`, module exports not relative cross-imports |
-| `fe-app-router.mdc`       | `apps/{admin,client}/src/**` | server `page.tsx` + `features/<domain>/`, `"use client"` only where needed, use `@chronomint/web-shared`                            |
+| `fe-app-router.mdc`       | `apps/{admin,client}/src/**` | server `page.tsx` + `features/<domain>/`, `"use client"` only where needed, use `@kloqra/web-shared`                                |
 | `contracts-gate.mdc`      | `packages/contracts/**`      | extend [contract-lockdown-policy.md](.cursor/rules/contract-lockdown-policy.md)                                                     |
 | `testing-tdd.mdc`         | `**/*.{spec,test}.ts`        | spec beside unit under test; contract tests in packages/contracts                                                                   |
 | `master-orchestrator.mdc` | `alwaysApply: true`          | consolidate [master-orchestrator.md](.cursor/rules/master-orchestrator.md)                                                          |
@@ -136,9 +136,9 @@ Deprecate duplicate `.md` role files only after `.mdc` equivalents exist; link `
 
 Add repo-local skills (not global Cursor skills):
 
-- **`chronomint-feature-delivery`** — AGENTS execution order + MIP handoff template + required commands before PR
-- **`chronomint-api-slice`** — how to add a module (folder layout, register in `app.module`, export services)
-- **`chronomint-fe-feature`** — admin/client pattern: server page → feature component → stores → `api()`
+- **`kloqra-feature-delivery`** — AGENTS execution order + MIP handoff template + required commands before PR
+- **`kloqra-api-slice`** — how to add a module (folder layout, register in `app.module`, export services)
+- **`kloqra-fe-feature`** — admin/client pattern: server page → feature component → stores → `api()`
 
 ### 2.3 Single source playbook
 
@@ -163,7 +163,7 @@ Extract duplicated app code (client is the **reference** for SSR-safe patterns):
 | `utils/date-input.ts`               | `toDateInputValue` from admin `export-date-presets.ts` | remove inline copies in client timesheet                                       |
 | `components/workspace-switcher.tsx` | parameterized                                          | props: `filterRole`, `defaultRedirect` (admin vs client behavior)              |
 
-Both apps depend on `@chronomint/web-shared`; delete local duplicates; re-export thin wrappers only if app-specific.
+Both apps depend on `@kloqra/web-shared`; delete local duplicates; re-export thin wrappers only if app-specific.
 
 ### Admin structural alignment (mirror client)
 
@@ -178,7 +178,7 @@ apps/admin/src/
 
 Priority routes (largest files first): `dashboard`, `exports`, `projects`, `billing`, `workspace`, `team`.
 
-Move [admin-page.tsx](apps/admin/src/components/admin-page.tsx) primitives (`PageHeader`, `StatCard`, `EmptyState`) into **`@chronomint/ui`** (or `web-shared/layout` if not design-system) so client stops hand-rolling `<h1>` headers.
+Move [admin-page.tsx](apps/admin/src/components/admin-page.tsx) primitives (`PageHeader`, `StatCard`, `EmptyState`) into **`@kloqra/ui`** (or `web-shared/layout` if not design-system) so client stops hand-rolling `<h1>` headers.
 
 ### Public token pages
 

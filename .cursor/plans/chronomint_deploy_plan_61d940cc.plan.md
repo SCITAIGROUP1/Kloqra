@@ -1,6 +1,6 @@
 ---
-name: ChronoMint Deploy Plan
-overview: Deploy ChronoMint as three parts (API, client, admin) across staging and production, prioritizing minimal-ops PaaS (Vercel + Railway) while documenting AWS and other paths for later scale.
+name: Kloqra Deploy Plan
+overview: Deploy Kloqra as three parts (API, client, admin) across staging and production, prioritizing minimal-ops PaaS (Vercel + Railway) while documenting AWS and other paths for later scale.
 todos:
   - id: staging-railway
     content: "Provision Railway staging: Postgres + Redis + API service from apps/api/Dockerfile; run prisma migrate deploy"
@@ -20,11 +20,11 @@ todos:
 isProject: false
 ---
 
-# ChronoMint deployment plan
+# Kloqra deployment plan
 
 ## Architecture constraint (from codebase)
 
-ChronoMint is **not** a single deployable unit. It has three apps with different runtime requirements:
+Kloqra is **not** a single deployable unit. It has three apps with different runtime requirements:
 
 ```mermaid
 flowchart LR
@@ -57,15 +57,15 @@ flowchart LR
 
 Given your preference for **minimal ops** and **staging + production**, use this hybrid for both environments.
 
-| Layer            | Staging                                    | Production                         |
-| ---------------- | ------------------------------------------ | ---------------------------------- |
-| Client           | Vercel project `chronomint-client-staging` | Vercel project `chronomint-client` |
-| Admin            | Vercel project `chronomint-admin-staging`  | Vercel project `chronomint-admin`  |
-| API + DB + Redis | Railway project `chronomint-staging`       | Railway project `chronomint-prod`  |
+| Layer            | Staging                                | Production                     |
+| ---------------- | -------------------------------------- | ------------------------------ |
+| Client           | Vercel project `kloqra-client-staging` | Vercel project `kloqra-client` |
+| Admin            | Vercel project `kloqra-admin-staging`  | Vercel project `kloqra-admin`  |
+| API + DB + Redis | Railway project `kloqra-staging`       | Railway project `kloqra-prod`  |
 
 ### Phase 1 — Staging API (Railway)
 
-1. Create Railway project `chronomint-staging`.
+1. Create Railway project `kloqra-staging`.
 2. Add **PostgreSQL** and **Redis** plugins.
 3. Add API service from GitHub repo:
    - Monorepo root (not `apps/api`)
@@ -84,10 +84,10 @@ Given your preference for **minimal ops** and **staging + production**, use this
 5. Run migrations once against staging DB:
 
 ```bash
-DATABASE_URL="<staging-url>" pnpm --filter @chronomint/api exec prisma migrate deploy
+DATABASE_URL="<staging-url>" pnpm --filter @kloqra/api exec prisma migrate deploy
 ```
 
-6. Optional: seed staging data (`pnpm --filter @chronomint/api exec prisma db seed`).
+6. Optional: seed staging data (`pnpm --filter @kloqra/api exec prisma db seed`).
 7. Smoke test: `curl https://<staging-api>/health`
 
 **Do not set** `REDIS_USE_MEMORY` in any deployed environment.
@@ -100,7 +100,7 @@ Create **two** Vercel projects (same repo, different roots):
 
 - Root Directory: `apps/client`
 - Enable **Include source files outside of Root Directory**
-- Build uses existing [`vercel.json`](apps/client/vercel.json): `pnpm --filter @chronomint/client... build`
+- Build uses existing [`vercel.json`](apps/client/vercel.json): `pnpm --filter @kloqra/client... build`
 - Env: `NEXT_PUBLIC_API_BASE_URL=https://<staging-api-url>`, `NEXT_PUBLIC_AUTH_SCOPE=client`
 - Git branch: `develop` or `staging` (Preview vs Production per your branching model)
 
@@ -108,7 +108,7 @@ Create **two** Vercel projects (same repo, different roots):
 
 - Root Directory: `apps/admin`
 - Same monorepo setting
-- Build: `pnpm --filter @chronomint/admin... build`
+- Build: `pnpm --filter @kloqra/admin... build`
 - Env: `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_AUTH_SCOPE=admin`, optional `NEXT_PUBLIC_ADMIN_URL`
 
 ### Phase 3 — Wire CORS and re-smoke
@@ -116,7 +116,7 @@ Create **two** Vercel projects (same repo, different roots):
 Update staging API `FRONTEND_ORIGIN` to exact HTTPS origins:
 
 ```env
-FRONTEND_ORIGIN=https://chronomint-client-staging.vercel.app,https://chronomint-admin-staging.vercel.app
+FRONTEND_ORIGIN=https://kloqra-client-staging.vercel.app,https://kloqra-admin-staging.vercel.app
 ```
 
 Manual smoke (from [`deploy.md`](docs/runbooks/deploy.md)):
@@ -229,7 +229,7 @@ flowchart TB
 | ------------------------ | ---------------------------- | -------------------------------------- |
 | **App Runner**           | Easiest AWS container deploy | Less control over VPC/Redis networking |
 | **Lightsail containers** | Small staging                | Not ideal for prod SSE + Redis         |
-| **EKS**                  | Large teams / multi-service  | Overkill for ChronoMint today          |
+| **EKS**                  | Large teams / multi-service  | Overkill for Kloqra today              |
 
 ### Staging + prod on AWS
 

@@ -1,8 +1,18 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
-import type { HourlyRateDto, ProjectDto, WorkspaceMemberDto } from "@chronomint/contracts";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@chronomint/ui";
+import { ROUTES } from "@kloqra/contracts";
+import type { HourlyRateDto, ProjectDto, WorkspaceMemberDto } from "@kloqra/contracts";
+import {
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
+  Table,
+  TableBody,
+  TableHeader,
+  TablePagination,
+  TableRow
+} from "@kloqra/ui";
+import { fetchListItems, fetchPaginatedList } from "@kloqra/web-shared";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -12,25 +22,26 @@ interface HourlyRatesWidgetProps {
   userId?: string;
 }
 
+const WIDGET_PAGE_SIZE = 5;
+
 export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [rates, setRates] = useState<HourlyRateDto[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
-
-  const filteredRates = useMemo(() => {
-    return rates.filter((r) => {
-      if (projectId && r.projectId && r.projectId !== projectId) {
-        return false;
-      }
-      if (userId && r.userId && r.userId !== userId) {
-        return false;
-      }
-      return true;
-    });
-  }, [rates, projectId, userId]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filters = useMemo(
+    () => ({
+      ...(projectId ? { projectId } : {}),
+      ...(userId ? { userId } : {})
+    }),
+    [projectId, userId]
+  );
 
   const fetchData = useCallback(async () => {
     if (!ws) return;
@@ -38,21 +49,21 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
     setError(null);
     try {
       const [ratesData, projectsData, membersData] = await Promise.all([
-        api<HourlyRateDto[]>(ROUTES.BILLING.RATES, { workspaceId: ws }),
-        api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(() => []),
+        fetchPaginatedList<HourlyRateDto>(ROUTES.BILLING.RATES, {
+          workspaceId: ws,
+          page,
+          limit: WIDGET_PAGE_SIZE,
+          filters
+        }),
+        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(() => []),
         api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).catch(
           () => []
         )
       ]);
 
-      // Sort rates: Global defaults first, then projects, then users (newest first)
-      const sortedRates = [...ratesData].sort((a, b) => {
-        if (!a.projectId && !a.userId) return -1;
-        if (!b.projectId && !b.userId) return 1;
-        return new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime();
-      });
-
-      setRates(sortedRates);
+      setRates(ratesData.items);
+      setTotal(ratesData.total);
+      setTotalPages(ratesData.totalPages);
       setProjects(projectsData);
       setMembers(membersData);
     } catch {
@@ -60,7 +71,11 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
     } finally {
       setLoading(false);
     }
-  }, [ws]);
+  }, [ws, page, filters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [projectId, userId]);
 
   useEffect(() => {
     void fetchData();
@@ -68,7 +83,7 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
+      <div className="flex h-full items-center justify-center py-6 text-sm text-muted-foreground animate-pulse">
         Loading hourly rates...
       </div>
     );
@@ -76,7 +91,7 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-destructive font-medium py-6">
+      <div className="flex h-full items-center justify-center py-6 text-sm font-medium text-destructive">
         {error}
       </div>
     );
@@ -103,34 +118,50 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
   }
 
   return (
-    <div className="space-y-2 pr-1 h-full overflow-auto max-h-[220px]">
-      {filteredRates.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-4 text-center">
+    <div className="flex h-full max-h-[220px] flex-col pr-1">
+      {rates.length === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">
           No hourly rates configured.
         </p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-xs font-semibold">Scope</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Rate</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Effective</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRates.map((r) => (
-              <TableRow key={r.id} className="hover:bg-muted/30">
-                <TableCell className="text-xs py-1.5 font-medium">{getScopeLabel(r)}</TableCell>
-                <TableCell className="text-right text-xs py-1.5 font-bold font-mono">
-                  ${r.rate.toFixed(2)}/hr
-                </TableCell>
-                <TableCell className="text-right text-[10px] py-1.5 text-muted-foreground font-mono">
-                  {formatDate(r.effectiveFrom)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <Table className="text-xs">
+              <TableHeader>
+                <DataTableHeaderRow>
+                  <DataTableHead className="h-9 px-3">Scope</DataTableHead>
+                  <DataTableHead className="h-9 px-3 text-right">Rate</DataTableHead>
+                  <DataTableHead className="h-9 px-3 text-right">Effective</DataTableHead>
+                </DataTableHeaderRow>
+              </TableHeader>
+              <TableBody>
+                {rates.map((r) => (
+                  <TableRow key={r.id} className="hover:bg-muted/30">
+                    <DataTableCell className="px-3 py-2 text-xs font-medium">
+                      {getScopeLabel(r)}
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
+                      ${r.rate.toFixed(2)}/hr
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-right font-mono text-[10px] text-muted-foreground">
+                      {formatDate(r.effectiveFrom)}
+                    </DataTableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {totalPages > 1 ? (
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={WIDGET_PAGE_SIZE}
+              onPageChange={setPage}
+              disabled={loading}
+            />
+          ) : null}
+        </>
       )}
     </div>
   );

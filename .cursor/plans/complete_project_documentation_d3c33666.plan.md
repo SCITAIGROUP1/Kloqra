@@ -1,6 +1,6 @@
 ---
 name: Complete project documentation
-overview: Bring ChronoMint documentation from a solid scaffold (README, architecture stubs, one feature spec, deploy runbook) to a complete, navigable docs set for developers and end users—phased so high-value foundations land first, then API/feature depth, then user guides and ongoing maintenance habits.
+overview: Bring Kloqra documentation from a solid scaffold (README, architecture stubs, one feature spec, deploy runbook) to a complete, navigable docs set for developers and end users—phased so high-value foundations land first, then API/feature depth, then user guides and ongoing maintenance habits.
 todos:
   - id: phase1-hub
     content: Create docs/README.md hub; expand root README Docs section; add CONTRIBUTING, ENVIRONMENT, TESTING, local-troubleshooting, per-app READMEs
@@ -20,7 +20,7 @@ todos:
 isProject: false
 ---
 
-# Complete ChronoMint documentation
+# Complete Kloqra documentation
 
 ## Current state (baseline)
 

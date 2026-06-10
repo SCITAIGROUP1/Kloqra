@@ -1,6 +1,6 @@
 # Deployment runbook
 
-ChronoMint deploys as **three parts** across **staging** and **production**:
+Kloqra deploys as **three parts** across **staging** and **production**:
 
 | Part                   | Platform                | Config                                                     |
 | ---------------------- | ----------------------- | ---------------------------------------------------------- |
@@ -38,12 +38,12 @@ sequenceDiagram
 
 ## Staging
 
-| Resource        | Name                                             |
-| --------------- | ------------------------------------------------ |
-| Railway project | `chronomint-staging`                             |
-| Vercel client   | `chronomint-client-staging` (root `apps/client`) |
-| Vercel admin    | `chronomint-admin-staging` (root `apps/admin`)   |
-| Git branch      | `staging` or `develop`                           |
+| Resource        | Name                                         |
+| --------------- | -------------------------------------------- |
+| Railway project | `kloqra-staging`                             |
+| Vercel client   | `kloqra-client-staging` (root `apps/client`) |
+| Vercel admin    | `kloqra-admin-staging` (root `apps/admin`)   |
+| Git branch      | `staging` or `develop`                       |
 
 ```bash
 bash scripts/deploy/setup-railway.sh staging
@@ -56,12 +56,12 @@ Full steps: [railway.md](./railway.md), [vercel.md](./vercel.md).
 
 ## Production
 
-| Resource        | Name                |
-| --------------- | ------------------- |
-| Railway project | `chronomint-prod`   |
-| Vercel client   | `chronomint-client` |
-| Vercel admin    | `chronomint-admin`  |
-| Git branch      | `main`              |
+| Resource        | Name            |
+| --------------- | --------------- |
+| Railway project | `kloqra-prod`   |
+| Vercel client   | `kloqra-client` |
+| Vercel admin    | `kloqra-admin`  |
+| Git branch      | `main`          |
 
 Use **new** JWT secrets and a **separate** database — never reuse staging credentials.
 
@@ -106,7 +106,7 @@ bash scripts/deploy/generate-secrets.sh
 Build from **monorepo root**:
 
 ```bash
-docker build -f apps/api/Dockerfile -t chronomint-api .
+docker build -f apps/api/Dockerfile -t kloqra-api .
 ```
 
 Health check: `GET /health` — [api/ROUTES.md](../api/ROUTES.md).
@@ -131,10 +131,10 @@ Health check: `GET /health` — [api/ROUTES.md](../api/ROUTES.md).
 | `RAILWAY_TOKEN`         | Secret              | Railway project token (Settings → Tokens)                    |
 | `VERCEL_TOKEN`          | Secret              | Vercel token with deploy scope                               |
 | `VERCEL_ORG_ID`         | Secret              | Team/org id from Vercel account settings                     |
-| `API_URL`               | Variable            | e.g. `https://chronomintapi-production.up.railway.app`       |
+| `API_URL`               | Variable            | e.g. `https://kloqra-api-production.up.railway.app`          |
 | `RAILWAY_SERVICE`       | Variable            | API service **name** in Railway (for `railway up --service`) |
-| `VERCEL_CLIENT_PROJECT` | Variable            | e.g. `chronomint-client`                                     |
-| `VERCEL_ADMIN_PROJECT`  | Variable            | e.g. `chronomint-admin`                                      |
+| `VERCEL_CLIENT_PROJECT` | Variable            | e.g. `kloqra-client`                                         |
+| `VERCEL_ADMIN_PROJECT`  | Variable            | e.g. `kloqra-admin`                                          |
 | `CLIENT_URL`            | Variable (optional) | Client production URL for HTTP smoke                         |
 | `ADMIN_URL`             | Variable (optional) | Admin production URL for HTTP smoke                          |
 
@@ -194,6 +194,26 @@ User walkthroughs: [user-guides](../user-guides/README.md).
 | **AWS ECS** | Scale / compliance  | See plan in `.cursor/plans/`       |
 
 Frontends stay on Vercel for all options unless you migrate to Amplify.
+
+---
+
+## Local database and seed (dev / CI)
+
+| Context                               | Database      | Connection (example)                                    |
+| ------------------------------------- | ------------- | ------------------------------------------------------- |
+| Local Postgres.app                    | `kloqra`      | `postgresql://YOUR_MAC_USER@localhost:5432/kloqra`      |
+| Docker Compose                        | `kloqra`      | `postgresql://kloqra:kloqra@localhost:5432/kloqra`      |
+| GitHub Actions (`integration`, `e2e`) | `kloqra_test` | `postgresql://kloqra:kloqra@localhost:5432/kloqra_test` |
+
+After creating or resetting the database:
+
+```bash
+pnpm prisma:migrate && pnpm prisma:seed
+```
+
+**Seed logins:** `admin@kloqra.dev` / `member@kloqra.dev` — password `password123`. Primary demo workspace: **Acme Corporation**.
+
+If you still have an old local `chronomint` database, either drop it (`dropdb chronomint`) or point `DATABASE_URL` at a new `kloqra` database and reseed.
 
 ---
 

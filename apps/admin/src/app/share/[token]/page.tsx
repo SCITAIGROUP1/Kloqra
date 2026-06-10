@@ -1,19 +1,22 @@
 "use client";
 
-import { ROUTES, type PublicReportShareViewDto } from "@chronomint/contracts";
+import { ROUTES, type PublicReportShareViewDto } from "@kloqra/contracts";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
+  TablePagination,
   TableRow
-} from "@chronomint/ui";
+} from "@kloqra/ui";
+import { useClientTablePagination } from "@kloqra/web-shared";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { publicFetch } from "@/lib/api";
@@ -30,6 +33,62 @@ const REPORT_LABELS: Record<string, string> = {
   budget_vs_actual: "Budget vs actual",
   utilization: "Utilization"
 };
+
+const SHARE_TABLE_PAGE_SIZE = 15;
+
+function SharedReportTable({
+  reportType,
+  rows
+}: {
+  reportType: string;
+  rows: Record<string, unknown>[];
+}) {
+  const cols = rows.length > 0 ? Object.keys(rows[0]!) : [];
+  const { page, setPage, pageItems, total, totalPages, limit } = useClientTablePagination(
+    rows,
+    SHARE_TABLE_PAGE_SIZE
+  );
+
+  if (rows.length === 0) {
+    return <p className="p-6 text-sm text-muted-foreground">No rows in this report.</p>;
+  }
+
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <DataTableHeaderRow>
+            {cols.map((c) => (
+              <DataTableHead key={c} className="whitespace-nowrap capitalize">
+                {c.replace(/_/g, " ")}
+              </DataTableHead>
+            ))}
+          </DataTableHeaderRow>
+        </TableHeader>
+        <TableBody>
+          {pageItems.map((row, i) => (
+            <TableRow key={`${reportType}-${page}-${i}`}>
+              {cols.map((c) => (
+                <DataTableCell key={c} className="tabular-nums text-sm">
+                  {String(row[c] ?? "")}
+                </DataTableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {totalPages > 1 ? (
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      ) : null}
+    </>
+  );
+}
 
 export default function PublicSharePage() {
   const params = useParams();
@@ -54,7 +113,7 @@ export default function PublicSharePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
         <p className="text-muted-foreground">Loading shared report…</p>
       </div>
     );
@@ -62,8 +121,8 @@ export default function PublicSharePage() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full">
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
+        <Card className="w-full max-w-md border-primary/10 shadow-sm">
           <CardHeader>
             <CardTitle>Report unavailable</CardTitle>
             <CardDescription>{error ?? "Unknown error"}</CardDescription>
@@ -74,9 +133,9 @@ export default function PublicSharePage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 py-10 px-4">
+    <div className="min-h-screen bg-muted/30 px-4 py-10">
       <div className="mx-auto max-w-5xl space-y-6">
-        <div className="text-center space-y-1">
+        <div className="space-y-1 text-center">
           <p className="text-sm text-muted-foreground">Shared report · read-only</p>
           <h1 className="text-2xl font-semibold">{data.workspaceName}</h1>
           <p className="text-sm text-muted-foreground">
@@ -84,49 +143,19 @@ export default function PublicSharePage() {
           </p>
         </div>
 
-        {data.reports.map((report) => {
-          const cols = report.rows.length > 0 ? Object.keys(report.rows[0]!) : [];
-          return (
-            <Card key={report.reportType}>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {REPORT_LABELS[report.reportType] ?? report.reportType}
-                </CardTitle>
-                <CardDescription>
-                  Showing up to {report.rows.length} rows (preview limit)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                {report.rows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No rows in this report.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {cols.map((c) => (
-                          <TableHead key={c} className="whitespace-nowrap capitalize">
-                            {c.replace(/_/g, " ")}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {report.rows.map((row, i) => (
-                        <TableRow key={i}>
-                          {cols.map((c) => (
-                            <TableCell key={c} className="tabular-nums text-sm">
-                              {String(row[c] ?? "")}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+        {data.reports.map((report) => (
+          <DataTableCard key={report.reportType}>
+            <div className="border-b border-border/60 px-6 py-4">
+              <h2 className="text-base font-semibold">
+                {REPORT_LABELS[report.reportType] ?? report.reportType}
+              </h2>
+              <p className="text-sm text-muted-foreground">{report.rows.length} rows total</p>
+            </div>
+            <div className="overflow-x-auto">
+              <SharedReportTable reportType={report.reportType} rows={report.rows} />
+            </div>
+          </DataTableCard>
+        ))}
       </div>
     </div>
   );

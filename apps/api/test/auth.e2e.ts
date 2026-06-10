@@ -23,27 +23,27 @@ describe("Auth E2E", () => {
   it("POST /auth/login rejects invalid credentials", async () => {
     const res = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "member@chronomint.dev", password: "wrong-password" });
+      .send({ email: "member@kloqra.dev", password: "wrong-password" });
     expect(res.status).toBe(401);
   });
 
   it("POST /auth/login returns session for seeded member", async () => {
-    const session = await loginAs(app, "member@chronomint.dev");
+    const session = await loginAs(app, "member@kloqra.dev");
     expect(session.accessToken).toBeTruthy();
     expect(session.workspaceId).toBeTruthy();
     expect(session.role).toBe("MEMBER");
   });
 
   it("GET /auth/me returns authenticated user", async () => {
-    const session = await loginAs(app, "member@chronomint.dev");
+    const session = await loginAs(app, "member@kloqra.dev");
     const res = await authedAgent(app, session).get("/auth/me");
     expect(res.status).toBe(200);
-    expect(res.body.user.email).toBe("member@chronomint.dev");
+    expect(res.body.user.email).toBe("member@kloqra.dev");
     expect(res.body.workspaceRole).toBe("MEMBER");
   });
 
   it("DELETE /auth/logout succeeds for authenticated user", async () => {
-    const session = await loginAs(app, "member@chronomint.dev");
+    const session = await loginAs(app, "member@kloqra.dev");
     const logoutRes = await authedAgent(app, session).del("/auth/logout");
     expect(logoutRes.status).toBe(200);
     expect(logoutRes.body.ok).toBe(true);

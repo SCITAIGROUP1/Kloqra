@@ -1,4 +1,4 @@
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import { api } from "../api/client";
 import { useSessionStore } from "../stores/session.store";
 

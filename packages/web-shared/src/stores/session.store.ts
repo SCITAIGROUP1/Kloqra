@@ -1,4 +1,4 @@
-import type { AuthSessionDto } from "@chronomint/contracts";
+import type { AuthSessionDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 /** Per-app scope (e.g. `client` / `admin`) so tokens are not mixed on the same origin. */

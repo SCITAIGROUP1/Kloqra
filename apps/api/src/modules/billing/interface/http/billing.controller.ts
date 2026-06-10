@@ -1,4 +1,10 @@
-import { createHourlyRateSchema, reportQuerySchema, ROUTES } from "@chronomint/contracts";
+import {
+  createHourlyRateSchema,
+  listHourlyRatesQuerySchema,
+  reportQuerySchema,
+  type ListHourlyRatesQuery,
+  ROUTES
+} from "@kloqra/contracts";
 import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,
@@ -17,8 +23,11 @@ export class BillingController {
 
   @Roles("ADMIN")
   @Get(ROUTES.BILLING.RATES)
-  listRates(@CurrentUser() user: RequestUser) {
-    return this.billing.listRates(user.workspaceId);
+  listRates(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(listHourlyRatesQuerySchema)) query: ListHourlyRatesQuery
+  ) {
+    return this.billing.listRates(user.workspaceId, query);
   }
 
   @Roles("ADMIN")

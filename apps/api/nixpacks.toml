@@ -5,7 +5,7 @@
 
 [phases.build]
 cmds = [
-  "pnpm --filter @chronomint/contracts build",
+  "pnpm --filter @kloqra/contracts build",
   "pnpm prisma:generate",
   "pnpm build",
 ]

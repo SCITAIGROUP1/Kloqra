@@ -23,7 +23,7 @@ todos:
 isProject: false
 ---
 
-# ChronoMint Performance & Dynamic Loading Plan
+# Kloqra Performance & Dynamic Loading Plan
 
 ## Current baseline
 
@@ -88,14 +88,14 @@ Update **both** [next.config.ts](apps/admin/next.config.ts) files:
 
 ```ts
 experimental: {
-  optimizePackageImports: ["@chronomint/ui", "lucide-react", "recharts"];
+  optimizePackageImports: ["@kloqra/ui", "lucide-react", "recharts"];
 }
 ```
 
 **Lazy-load heavy UI** (admin first):
 
 - Wrap [report-charts.tsx](apps/admin/src/components/report-charts.tsx) (and dashboard chart sections) with `next/dynamic(() => import(...), { ssr: false, loading: () => <ChartSkeleton /> })`
-- Remove duplicate `recharts` from [apps/admin/package.json](apps/admin/package.json) if charts only come from `@chronomint/ui` — single version via UI package
+- Remove duplicate `recharts` from [apps/admin/package.json](apps/admin/package.json) if charts only come from `@kloqra/ui` — single version via UI package
 
 **Loading boundaries:**
 
@@ -209,7 +209,7 @@ Next 15 already minifies via SWC. **Meaningful “minification” gains come fro
 | **P4** | Redis report cache + presence batching + project-access                                  | P3                      |
 | **P5** | Admin server pages + dynamic features + CI bundle budget                                 | Hardening PR4           |
 
-Run after each: `pnpm typecheck && pnpm test && pnpm build` + `ANALYZE=true pnpm --filter @chronomint/admin build` once to record chunk sizes.
+Run after each: `pnpm typecheck && pnpm test && pnpm build` + `ANALYZE=true pnpm --filter @kloqra/admin build` once to record chunk sizes.
 
 ---
 

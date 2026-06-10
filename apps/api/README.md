@@ -1,4 +1,4 @@
-# ChronoMint API
+# Kloqra API
 
 NestJS application — sole write path to PostgreSQL and Redis (timer state).
 
@@ -6,16 +6,18 @@ NestJS application — sole write path to PostgreSQL and Redis (timer state).
 
 ```bash
 # From repo root
-pnpm --filter @chronomint/api dev
+pnpm --filter @kloqra/api dev
 pnpm prisma:migrate
 pnpm prisma:seed
-pnpm --filter @chronomint/api test
-pnpm --filter @chronomint/api test:e2e
+pnpm --filter @kloqra/api test
+pnpm --filter @kloqra/api test:e2e
 ```
 
 ## Environment
 
 See [docs/development/ENVIRONMENT.md](../../docs/development/ENVIRONMENT.md). Copy `.env.example` to `.env`.
+
+Local database name: **`kloqra`** (`createdb kloqra`). After `pnpm prisma:seed`: `admin@kloqra.dev` / `member@kloqra.dev`, password `password123` (primary workspace: **Acme Corporation**).
 
 Default URL: http://localhost:3001
 
@@ -39,7 +41,7 @@ Each module follows: `application/`, `interface/http/`, optional `infrastructure
 
 ## Contracts
 
-DTOs and routes: `packages/contracts`. Controllers import `ROUTES` and Zod schemas from `@chronomint/contracts`.
+DTOs and routes: `packages/contracts`. Controllers import `ROUTES` and Zod schemas from `@kloqra/contracts`.
 
 ## Documentation
 

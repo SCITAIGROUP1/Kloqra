@@ -2,7 +2,7 @@ import type {
   ExportGroupByDimension,
   ExportReportType,
   ExportSheetLayout
-} from "@chronomint/contracts";
+} from "@kloqra/contracts";
 
 type Row = Record<string, string | number>;
 

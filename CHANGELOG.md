@@ -19,13 +19,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Deployment infrastructure: Railway config ([`railway.toml`](railway.toml)), deploy scripts ([`scripts/deploy/`](scripts/deploy/)), env templates ([`deploy/`](deploy/)), API migrate CI workflow ([`.github/workflows/deploy-api.yml`](.github/workflows/deploy-api.yml)), and runbooks ([`docs/runbooks/railway.md`](docs/runbooks/railway.md)).
+- **Paginated list APIs:** `GET /projects`, `/tasks`, `/categories`, `/billing/rates`, `/projects/:id/team`, `/workspaces/:id/members/overview`, `/reporting/utilization` return `{ items, page, limit, total, totalPages }` with optional `search`.
+- **Shared data tables:** `DataTableCard`, `TableToolbar`, `TablePagination`, `TableLoadingState` in `@kloqra/ui`; `usePaginatedList` in `@kloqra/web-shared`.
+- **Modal system:** `AppModal`, shared `Dialog`/`ConfirmDialog` styling (accent bar, overlay blur, icon badges).
+- **Loading & feedback:** `Spinner`, `CenteredLoader`, skeleton table rows; Sonner toasts on CRUD, exports, timesheet submit, workspace switch, and security actions.
+- **User profile & settings:** `/profile` and `/settings` in both apps via `@kloqra/web-shared` (2FA, sessions, preferences). Spec: `docs/specs/user-profile.md`.
+- **Dedicated approvals:** Admin `/approvals` and member `/approvals` for timesheet submission workflow.
+- **Member dashboard:** Configurable widget layout with arrange mode and save-as-default.
+- **Time tracker:** Week-grouped entry list at `/time-tracker`.
+- **Documentation:** `docs/development/FRONTEND-UI.md`, `packages/web-shared/README.md`, updated API pagination docs and user guides.
+- Deployment infrastructure: Railway config ([`railway.toml`](railway.toml)), deploy scripts ([`scripts/deploy/`](scripts/deploy/)), env templates ([`deploy/`](deploy/)), deploy CI workflow ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)), and runbooks ([`docs/runbooks/railway.md`](docs/runbooks/railway.md)).
 - Complete documentation set under `docs/` (hub, development guides, architecture, API reference, feature specs, user guides, runbooks).
-- **A1 — Real email delivery**: `MailerService` (Nodemailer, SMTP env vars) wired into `ExportScheduleService`; scheduled exports now email the generated file as an attachment. Graceful no-op when `SMTP_HOST` is unset.
-- **A2 — Editable daily goal**: `DailyGoalWidget` now reads `dailyTargetHours` from workspace settings and exposes an inline pencil-icon edit. Admin workspace settings form has a new "Daily Target Hours" field that persists to the workspace `settings` JSON.
-- **A3 — Yesterday Summary**: `GET /timelogs/yesterday-summary` endpoint returning `totalSec`, `billableSec`, `topTask`, `logCount`. Quick Actions panel shows a summary strip above favorites/recents when the user has logs from yesterday.
-- **B3 — Confirm dialog**: Replaced blocking `window.confirm` on timesheet delete with a Radix `AlertDialog`-backed `ConfirmDialog` component exported from `@chronomint/ui`.
-- **B4 — Live Presence Badge**: `<LivePresenceBadge>` component added to the admin dashboard header; polls `/presence/snapshot` every 30 s and renders an animated green pulsing dot with member count.
+- **Real email delivery**: `MailerService` wired into scheduled exports.
+- **Editable daily goal** and **Yesterday Summary** on client timer.
+- **Confirm dialog** and **Live Presence Badge** on admin dashboard.
+
+### Changed
+
+- **Kloqra rebrand:** product name, `@kloqra/*` packages, design tokens, and UI copy across client, admin, and API touchpoints.
+- **Local/CI database:** default Postgres database renamed from `chronomint` to `kloqra` (CI test DB: `kloqra_test`). Update `apps/api/.env` and recreate or migrate your local DB when upgrading.
+- **Seed data:** demo accounts use `@kloqra.dev`; primary workspace is **Acme Corporation** (`slug: acme`). Run `pnpm prisma:seed` after DB reset.
 
 ## [0.2.0] - 2025-06-02
 
@@ -42,7 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Monorepo scaffold: NestJS API, Next.js client and admin, `@chronomint/contracts`, `@chronomint/ui`.
+- Monorepo scaffold: NestJS API, Next.js client and admin, `@kloqra/contracts`, `@kloqra/ui`.
 - Auth (JWT + refresh cookies), workspace RBAC.
 - Projects, tasks, team invites.
 - Timer engine (Redis or in-memory).
@@ -51,6 +64,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Client: timer, timesheet, projects, tasks.
 - Deploy runbook and agent playbook.
 
-[Unreleased]: https://github.com/your-org/chronomint/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/your-org/chronomint/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/your-org/chronomint/releases/tag/v0.1.0
+[Unreleased]: https://github.com/SCITAIGROUP1/Kloqra/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/SCITAIGROUP1/Kloqra/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/SCITAIGROUP1/Kloqra/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/SCITAIGROUP1/Kloqra/releases/tag/v0.1.0

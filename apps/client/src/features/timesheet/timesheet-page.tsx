@@ -1,7 +1,9 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@chronomint/contracts";
+import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
+  ActiveTimerDto,
+  AutoStoppedTimerDto,
   ListTimeLogOccupancyResponseDto,
   ListTimeLogsResponseDto,
   ListTimesheetSubmissionsResponseDto,
@@ -10,34 +12,16 @@ import type {
   ProjectDto,
   TimesheetPeriodDto,
   UserProfileDto
-} from "@chronomint/contracts";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  ProjectColorDot,
-  EmptyState,
-  ConfirmDialog,
-  Badge
-} from "@chronomint/ui";
-import { api as sharedApi, toDateInputValue } from "@chronomint/web-shared";
+} from "@kloqra/contracts";
+import { AppBar, Button, ConfirmDialog, Badge, CenteredLoader } from "@kloqra/ui";
+import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { CalendarTaskInfo } from "./calendar-entry-content";
 import {
   addDays,
   addMonths,
-  formatDuration,
-  formatMonthYear,
-  formatWeekRange,
   getWeekDays,
   startOfMonth,
   startOfWeekWithPreference,
@@ -54,6 +38,12 @@ import {
   slotIntervalForIndex
 } from "./calendar-utils";
 import {
+  formatDayRangeLabel,
+  formatMonthYearLabel,
+  formatWeekRangeLabel,
+  type TimesheetDisplayFormat
+} from "./display-format";
+import {
   TimeEntryDialog,
   canSaveTaskDraft,
   draftFromLog,
@@ -64,17 +54,15 @@ import {
 } from "./time-entry-dialog";
 import { TimesheetCalendar } from "./timesheet-calendar";
 import { TimesheetMonth } from "./timesheet-month";
-import { TimesheetStatusCard } from "./timesheet-status-card";
-import { MyWeekSummary } from "@/components/my-week-summary";
-import { TimesheetExport } from "@/components/timesheet-export";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 import { useTimesheetStore } from "@/stores/timesheet.store";
 
-type ViewMode = "day" | "week" | "month" | "list";
+type ViewMode = "day" | "week" | "month";
 
 function buildLogsQuery(from: Date, to: Date): string {
   const params = new URLSearchParams({
@@ -94,24 +82,26 @@ function buildOccupancyQuery(from: Date, to: Date): string {
 
 export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [userPreferences, setUserPreferences] = useState<{
-    timezone?: string;
-    weekStart?: "monday" | "sunday";
-  }>({});
+  const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
+  const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
 
   useEffect(() => {
     if (!ws) return;
     sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
-      .then((profile) => setUserPreferences(profile.preferences ?? {}))
+      .then((profile) => {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
+        setWeekStartPref(profile.preferences.weekStart ?? "monday");
+        setDisplayFormat({
+          timezone,
+          dateFormat: profile.effectiveDateFormat,
+          timeFormat: profile.effectiveTimeFormat
+        });
+      })
       .catch(() => {});
   }, [ws]);
 
-  const timezone = resolveEffectiveTimezone(
-    userPreferences,
-    Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
-
-  const weekStartPref = userPreferences.weekStart ?? "monday";
+  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const { logs, setLogs } = useTimesheetStore();
   const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
@@ -125,32 +115,50 @@ export function TimesheetPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(true);
 
-  const [showSummary, setShowSummary] = useState(true);
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
+  const { active: activeTimer, elapsedSec: liveElapsedSec, setActive, tick } = useTimerStore();
+
   useEffect(() => {
-    const saved = localStorage.getItem("chronomint-show-timesheet-summary");
-    if (saved === "false") {
-      setShowSummary(false);
-    }
-    const overlaySaved = localStorage.getItem("chronomint-show-occupancy-overlay");
+    const overlaySaved = localStorage.getItem("kloqra-show-occupancy-overlay");
     if (overlaySaved === "false") {
       setShowOccupancyOverlay(false);
     }
   }, []);
 
-  const toggleSummary = useCallback(() => {
-    setShowSummary((prev) => {
-      const next = !prev;
-      localStorage.setItem("chronomint-show-timesheet-summary", String(next));
-      return next;
-    });
-  }, []);
+  const fetchActiveTimer = useCallback(async () => {
+    if (!ws) return;
+    try {
+      const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
+        workspaceId: ws
+      });
+      if (res && "autostopped" in res && res.autostopped) {
+        setActive(null);
+        return;
+      }
+      setActive(res as ActiveTimerDto | null);
+    } catch {
+      setActive(null);
+    }
+  }, [ws, setActive]);
+
+  useEffect(() => {
+    if (!ws) return;
+    void fetchActiveTimer();
+    const poll = setInterval(() => void fetchActiveTimer(), 30_000);
+    return () => clearInterval(poll);
+  }, [ws, fetchActiveTimer]);
+
+  useEffect(() => {
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [tick]);
 
   const toggleOccupancyOverlay = useCallback(() => {
     setShowOccupancyOverlay((prev) => {
       const next = !prev;
-      localStorage.setItem("chronomint-show-occupancy-overlay", String(next));
+      localStorage.setItem("kloqra-show-occupancy-overlay", String(next));
       return next;
     });
   }, []);
@@ -161,7 +169,6 @@ export function TimesheetPage() {
   );
   const monthStart = useMemo(() => startOfMonth(anchor), [anchor]);
 
-  const [submissions, setSubmissions] = useState<TimesheetPeriodDto[]>([]);
   const [submissionByKey, setSubmissionByKey] = useState<Map<string, TimesheetPeriodDto>>(
     () => new Map()
   );
@@ -185,10 +192,8 @@ export function TimesheetPage() {
         }
       }
       setSubmissionByKey(merged);
-      setSubmissions(Array.from(merged.values()));
     } catch {
       setSubmissionByKey(new Map());
-      setSubmissions([]);
     }
   }, [ws, anchor, logs]);
 
@@ -261,18 +266,15 @@ export function TimesheetPage() {
   }, [view, anchor, weekStart, monthStart, timezone]);
 
   const rangeLabel = useMemo(() => {
-    if (view === "day") {
-      return anchor.toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric"
-      });
+    if (!displayFormat) {
+      if (view === "day") return anchor.toLocaleDateString();
+      if (view === "week") return weekStart.toLocaleDateString();
+      return monthStart.toLocaleDateString();
     }
-    if (view === "week") return formatWeekRange(weekStart);
-    if (view === "month") return formatMonthYear(monthStart);
-    return "All entries";
-  }, [view, anchor, weekStart, monthStart]);
+    if (view === "day") return formatDayRangeLabel(anchor, displayFormat);
+    if (view === "week") return formatWeekRangeLabel(weekStart, displayFormat);
+    return formatMonthYearLabel(monthStart, displayFormat);
+  }, [view, anchor, weekStart, monthStart, displayFormat]);
 
   const taskLabel = useCallback(
     (taskId: string) => {
@@ -284,17 +286,34 @@ export function TimesheetPage() {
     [tasks, projects, workspaceNamesById]
   );
 
+  const taskInfo = useCallback(
+    (taskId: string): CalendarTaskInfo => {
+      const task = tasks.find((t) => t.id === taskId);
+      const project = task ? projects.find((p) => p.id === task.projectId) : undefined;
+      return {
+        taskName: task?.taskName ?? "Unknown task",
+        categoryName: task?.categoryName ?? "General",
+        projectName: project?.name
+      };
+    },
+    [tasks, projects]
+  );
+
   const entryColor = useCallback(
     (taskId: string) => colorForTask(taskId, tasks, projects),
     [tasks, projects]
   );
 
   const refreshLogs = useCallback(async () => {
-    const path = visibleRange
-      ? buildLogsQuery(visibleRange.from, visibleRange.to)
-      : ROUTES.TIMELOGS.LIST;
-    const res = await api<ListTimeLogsResponseDto>(path, { workspaceId: ws });
-    setLogs(res.items);
+    try {
+      const path = visibleRange
+        ? buildLogsQuery(visibleRange.from, visibleRange.to)
+        : ROUTES.TIMELOGS.LIST;
+      const res = await api<ListTimeLogsResponseDto>(path, { workspaceId: ws });
+      setLogs(res.items);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load time entries.");
+    }
   }, [ws, setLogs, visibleRange]);
 
   const refreshOccupancy = useCallback(async () => {
@@ -330,8 +349,8 @@ export function TimesheetPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void refreshLogs();
-    void refreshOccupancy();
+    setCalendarLoading(true);
+    void Promise.all([refreshLogs(), refreshOccupancy()]).finally(() => setCalendarLoading(false));
   }, [ws, refreshLogs, refreshOccupancy]);
 
   useEffect(() => {
@@ -342,8 +361,8 @@ export function TimesheetPage() {
 
   useEffect(() => {
     if (!ws) return;
-    api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
+    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
   }, [ws, setTasks, setProjects]);
 
   function goToday() {
@@ -593,107 +612,84 @@ export function TimesheetPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+      <AppBar
+        title={
+          <span className="inline-flex items-center gap-2">
             Timesheet
             <Badge variant="secondary" className="font-normal text-xs">
               {timezone}
             </Badge>
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Drag slots, drag blocks to move, resize edges, Ctrl+drag to duplicate.
-          </p>
-        </div>
-        <div className="flex rounded-lg border border-border p-0.5">
-          {(["day", "week", "month", "list"] as const).map((mode) => (
-            <Button
-              key={mode}
-              type="button"
-              size="sm"
-              variant={view === mode ? "default" : "ghost"}
-              className="capitalize"
-              onClick={() => setView(mode)}
-            >
-              {mode}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {view !== "list" && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={goToday}>
-              Today
-            </Button>
-            <div className="flex items-center gap-1">
+          </span>
+        }
+        description="Drag slots, drag blocks to move, resize edges, Ctrl+drag to duplicate."
+        actions={
+          <div className="flex rounded-lg border border-border bg-card p-0.5">
+            {(["day", "week", "month"] as const).map((mode) => (
               <Button
+                key={mode}
                 type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={goPrev}
-              >
-                ‹
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={goNext}
-              >
-                ›
-              </Button>
-            </div>
-            <span className="text-sm font-medium">{rangeLabel}</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            {(view === "day" || view === "week") && (
-              <Button
-                type="button"
-                variant="ghost"
                 size="sm"
-                onClick={toggleOccupancyOverlay}
-                className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+                variant={view === mode ? "default" : "ghost"}
+                className="h-9 capitalize"
+                onClick={() => setView(mode)}
               >
-                {showOccupancyOverlay ? (
-                  <>
-                    <EyeOff className="h-3.5 w-3.5" />
-                    Hide occupied slots
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-3.5 w-3.5" />
-                    Show occupied slots
-                  </>
-                )}
+                {mode}
               </Button>
-            )}
+            ))}
+          </div>
+        }
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={goToday}>
+            Today
+          </Button>
+          <div className="flex items-center gap-1">
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              onClick={toggleSummary}
-              className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goPrev}
             >
-              {showSummary ? (
-                <>
-                  <EyeOff className="h-3.5 w-3.5" />
-                  Hide summary
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3.5 w-3.5" />
-                  Show summary
-                </>
-              )}
+              ‹
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goNext}
+            >
+              ›
             </Button>
           </div>
+          <span className="text-sm font-medium">{rangeLabel}</span>
         </div>
-      )}
+
+        {(view === "day" || view === "week") && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleOccupancyOverlay}
+            className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+          >
+            {showOccupancyOverlay ? (
+              <>
+                <EyeOff className="h-3.5 w-3.5" />
+                Hide occupied slots
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5" />
+                Show occupied slots
+              </>
+            )}
+          </Button>
+        )}
+      </div>
 
       {showOccupancyOverlay && (view === "day" || view === "week") && (
         <div className="flex flex-wrap items-center gap-2">
@@ -709,95 +705,19 @@ export function TimesheetPage() {
             <Clock className="h-3 w-3" />
             Timer
           </span>
+          {isActiveTimer(activeTimer) && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+              Live timer
+            </span>
+          )}
         </div>
       )}
 
       {error && !dialogOpen && <p className="text-sm text-destructive">{error}</p>}
 
-      {showSummary && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <MyWeekSummary />
-          {submissions.map((sub) => (
-            <TimesheetStatusCard
-              key={`${sub.projectId}:${sub.periodStart}`}
-              statusInfo={sub}
-              onSubmitted={refreshSubmissions}
-              anchorDate={anchor}
-            />
-          ))}
-          <TimesheetExport
-            defaultFrom={visibleRange ? toDateInputValue(visibleRange.from) : undefined}
-            defaultTo={
-              visibleRange ? toDateInputValue(new Date(visibleRange.to.getTime() - 1)) : undefined
-            }
-          />
-        </div>
-      )}
-
-      {view === "list" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>All entries</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {logs.length === 0 ? (
-              <EmptyState
-                title="No time entries logged"
-                description="No entries yet. Use the day or week calendar views to log time."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Start</TableHead>
-                    <TableHead>End</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Billable</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="max-w-[240px]">
-                        <span className="flex items-center gap-2 truncate">
-                          <ProjectColorDot color={entryColor(log.taskId)} />
-                          <span className="truncate">{taskLabel(log.taskId)}</span>
-                        </span>
-                      </TableCell>
-                      <TableCell>{new Date(log.startTime).toLocaleString()}</TableCell>
-                      <TableCell>{new Date(log.endTime).toLocaleString()}</TableCell>
-                      <TableCell>{formatDuration(log.durationSec)}</TableCell>
-                      <TableCell>{log.isBillable ? "Yes" : "No"}</TableCell>
-                      <TableCell>{log.source}</TableCell>
-                      <TableCell className="space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditEntry(log)}
-                          disabled={isEntryLocked(log)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => void deleteEntry(log)}
-                          disabled={isEntryLocked(log)}
-                        >
-                          Delete
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+      {calendarLoading ? (
+        <CenteredLoader label="Loading timesheet…" />
       ) : view === "month" ? (
         <TimesheetMonth
           month={monthStart}
@@ -815,7 +735,10 @@ export function TimesheetPage() {
           workspaceId={ws}
           showOccupancyOverlay={showOccupancyOverlay}
           taskName={(id) => taskLabel(id)}
+          taskInfo={taskInfo}
           entryColor={entryColor}
+          activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
+          liveElapsedSec={liveElapsedSec}
           isEntryLocked={isEntryLocked}
           isTimerEntry={isTimerEntry}
           overlapConflictMessage={overlapConflictMessage}
@@ -827,7 +750,7 @@ export function TimesheetPage() {
           onEntryDuplicate={duplicateEntry}
           readOnly={false}
           timezone={timezone}
-          showSummary={showSummary}
+          displayFormat={displayFormat ?? undefined}
         />
       )}
 
@@ -853,8 +776,8 @@ export function TimesheetPage() {
 
       <ConfirmDialog
         open={confirmDeleteLog !== null}
-        title="Delete time entry?"
-        description="This action cannot be undone. The time entry will be permanently removed."
+        title="Delete this entry?"
+        description="This can't be undone."
         confirmLabel="Delete"
         cancelLabel="Keep it"
         destructive

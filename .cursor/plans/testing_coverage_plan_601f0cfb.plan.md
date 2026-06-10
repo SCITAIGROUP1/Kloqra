@@ -1,6 +1,6 @@
 ---
 name: Testing coverage plan
-overview: ChronoMint has partial unit tests (API export/reporting, contracts) and minimal integration/e2e (one API health check, one client Playwright smoke). Admin and frontends lack real tests; CI runs only unit tests with no artifacts. This plan fills the pyramid, wires run+log in CI, and phases toward full client+admin e2e with coverage thresholds after a baseline.
+overview: Kloqra has partial unit tests (API export/reporting, contracts) and minimal integration/e2e (one API health check, one client Playwright smoke). Admin and frontends lack real tests; CI runs only unit tests with no artifacts. This plan fills the pyramid, wires run+log in CI, and phases toward full client+admin e2e with coverage thresholds after a baseline.
 todos:
   - id: phase1-reporters-ci
     content: Add Vitest JUnit/coverage reporters, Playwright junit/html, split CI jobs with artifact upload, create docs/development/TESTING.md
@@ -20,7 +20,7 @@ todos:
 isProject: false
 ---
 
-# ChronoMint testing: current state and completion plan
+# Kloqra testing: current state and completion plan
 
 ## Answer: are tests written?
 
@@ -79,9 +79,9 @@ Add `@vitest/coverage-v8` at workspace root (or api) and extend configs:
 Root scripts (additive):
 
 ```json
-"test:unit": "pnpm -r --filter '!@chronomint/ui' test",
-"test:integration": "pnpm --filter @chronomint/api test:e2e",
-"test:coverage": "pnpm --filter @chronomint/api test -- --coverage && pnpm --filter @chronomint/contracts test -- --coverage"
+"test:unit": "pnpm -r --filter '!@kloqra/ui' test",
+"test:integration": "pnpm --filter @kloqra/api test:e2e",
+"test:coverage": "pnpm --filter @kloqra/api test -- --coverage && pnpm --filter @kloqra/contracts test -- --coverage"
 ```
 
 Remove `--passWithNoTests` from [apps/client/package.json](apps/client/package.json) and [apps/admin/package.json](apps/admin/package.json) once at least one spec exists per app (Phase 2).
@@ -100,7 +100,7 @@ Refactor [.github/workflows/ci.yml](.github/workflows/ci.yml) into jobs (same Po
 | ------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
 | `lint-build`  | lint + build                                                              | —                                               |
 | `unit`        | `pnpm test` (workspace unit)                                              | `**/test-results/*-junit.xml`, `**/coverage/**` |
-| `integration` | `pnpm --filter @chronomint/api test:e2e`                                  | integration JUnit                               |
+| `integration` | `pnpm --filter @kloqra/api test:e2e`                                      | integration JUnit                               |
 | `e2e`         | `pnpm exec playwright install --with-deps` then client + admin `test:e2e` | Playwright HTML + JUnit + traces                |
 
 E2E job must start **API** (port 3001 or whatever [apps/api](apps/api) uses) + seed/migrate, then Playwright `webServer` for each app—or use a composite `scripts/test-e2e.sh` that boots api + client + admin in order. Inspect [scripts/serve.sh](scripts/serve.sh) for reuse.
