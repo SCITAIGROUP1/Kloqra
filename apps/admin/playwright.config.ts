@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
+const e2ePath = `${process.cwd()}/../../scripts/bin:${process.env.PATH ?? ""}`;
+
 export default defineConfig({
   testDir: "./e2e",
   workers: 1,
@@ -32,16 +34,23 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm --filter @kloqra/api dev",
+      command: "bash ../../scripts/pnpm-wrap.sh --filter @kloqra/api dev",
       url: "http://localhost:3001/api/docs",
       reuseExistingServer: true,
-      timeout: 180_000
+      timeout: 180_000,
+      env: {
+        PATH: e2ePath,
+        E2E_DISABLE_AUTH_THROTTLE: "1"
+      }
     },
     {
-      command: "pnpm dev",
+      command: "bash ../../scripts/pnpm-wrap.sh dev",
       url: "http://localhost:3002/login",
       reuseExistingServer: true,
-      timeout: 180_000
+      timeout: 180_000,
+      env: {
+        PATH: e2ePath
+      }
     }
   ]
 });

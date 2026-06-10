@@ -54,14 +54,23 @@ describe("Timesheets E2E", () => {
   });
 
   it("member submit → admin pending → approve", async () => {
-    // Far-future week avoids seeded APPROVED periods and prior e2e runs on the same DB.
-    const date = "2030-06-12T12:00:00.000Z";
+    // Far-future weeks avoid seeded periods; retry on 403 when a prior run already approved that week.
+    let submitRes: Awaited<ReturnType<ReturnType<typeof authedAgent>["post"]>> | undefined;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const salt = Date.now() + attempt * 7919;
+      const year = 2100 + (salt % 50);
+      const month = Math.floor(salt / 50) % 12;
+      const day = 1 + (Math.floor(salt / 600) % 28);
+      const date = new Date(Date.UTC(year, month, day, 12, 0, 0)).toISOString();
 
-    const submitRes = await authedAgent(app, memberSession)
-      .post("/timesheets/submit")
-      .send({ projectId: approvalProjectId, date, note: "E2E submission" });
-    expect(submitRes.status).toBe(201);
-    expect(submitRes.body.status).toBe("SUBMITTED");
+      submitRes = await authedAgent(app, memberSession)
+        .post("/timesheets/submit")
+        .send({ projectId: approvalProjectId, date, note: "E2E submission" });
+      if (submitRes.status !== 403) break;
+    }
+    expect(submitRes).toBeDefined();
+    expect(submitRes!.status).toBe(201);
+    expect(submitRes!.body.status).toBe("SUBMITTED");
 
     const pendingRes = await authedAgent(app, adminSession).get("/timesheets/pending");
     expect(pendingRes.status).toBe(200);

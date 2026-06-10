@@ -2,11 +2,6 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Time Tracker", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/login");
-    await page.fill("#email", "member@kloqra.dev");
-    await page.fill("#password", "password123");
-    await page.click("button[type='submit']");
-    await page.waitForURL("**/timer");
     await page.goto("/time-tracker");
     await expect(page.getByRole("heading", { name: "Time Tracker", exact: true })).toBeVisible();
   });

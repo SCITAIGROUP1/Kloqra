@@ -20,6 +20,7 @@
     "test:integration": "pnpm --filter @kloqra/api test:e2e",
     "test:e2e": "bash scripts/test-prepush.sh",
     "test:prepush": "bash scripts/test-prepush.sh",
+    "test:prepr": "bash scripts/test-prepr.sh",
     "prisma:generate": "pnpm --filter @kloqra/api prisma:generate",
     "prisma:migrate": "pnpm --filter @kloqra/api prisma:migrate",
     "prisma:seed": "pnpm --filter @kloqra/api prisma:seed",

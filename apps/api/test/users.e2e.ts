@@ -16,6 +16,9 @@ describe("Users E2E", () => {
     await app.init();
 
     session = await loginAs(app, "member@kloqra.dev");
+    await authedAgent(app, session)
+      .patch("/users/me/preferences")
+      .send({ dateFormat: "MDY", theme: "system" });
   });
 
   afterAll(async () => {

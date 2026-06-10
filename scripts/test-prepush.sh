@@ -6,10 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-PNPM="${PNPM:-pnpm}"
-if ! command -v pnpm >/dev/null 2>&1; then
-  PNPM="corepack pnpm"
-fi
+PNPM="${PNPM:-bash "$ROOT/scripts/pnpm-wrap.sh"}"
 
 export NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}"
 

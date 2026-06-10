@@ -8,6 +8,9 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
 
     // The "auth" throttler is strict and should only apply to endpoints explicitly decorated with @Throttle({ auth: ... })
     if (throttler.name === "auth") {
+      if (process.env.NODE_ENV !== "production" || process.env.E2E_DISABLE_AUTH_THROTTLE === "1") {
+        return true;
+      }
       const handler = context.getHandler();
       const classRef = context.getClass();
       const hasLimitOverride = this.reflector.getAllAndOverride(

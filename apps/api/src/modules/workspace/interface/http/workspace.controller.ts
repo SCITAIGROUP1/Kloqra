@@ -50,12 +50,6 @@ export class WorkspaceController {
     return this.workspace.listForUser(user.userId);
   }
 
-  @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
-  members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
-    return this.workspace.listMembers(id);
-  }
-
   @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.MEMBERS_OVERVIEW(":id"))
   membersOverview(
@@ -65,6 +59,12 @@ export class WorkspaceController {
   ) {
     if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.overviewService.getOverview(id, query);
+  }
+
+  @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
+  members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.listMembers(id);
   }
 
   @Roles("ADMIN")

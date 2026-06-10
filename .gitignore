@@ -12,6 +12,7 @@ test-results/
 apps/client/test-results/
 apps/admin/test-results/
 apps/admin/e2e/.auth/
+apps/client/e2e/.auth/
 playwright-report/
 apps/admin/playwright-report/
 apps/client/playwright-report/
