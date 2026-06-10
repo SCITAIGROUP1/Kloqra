@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { listItems } from "./helpers/pagination";
 
 describe("Timesheets E2E", () => {
   let app: INestApplication;
@@ -29,7 +30,7 @@ describe("Timesheets E2E", () => {
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
-    const approvalProject = projectsRes.body.find(
+    const approvalProject = listItems(projectsRes.body).find(
       (p: { timesheetApprovalEnabled?: boolean }) => p.timesheetApprovalEnabled
     );
     expect(approvalProject?.id).toBeTruthy();
@@ -52,7 +53,8 @@ describe("Timesheets E2E", () => {
   });
 
   it("member submit → admin pending → approve", async () => {
-    const date = new Date().toISOString();
+    // Far-future week avoids seeded APPROVED periods and prior e2e runs on the same DB.
+    const date = "2030-06-12T12:00:00.000Z";
 
     const submitRes = await authedAgent(app, memberSession)
       .post("/timesheets/submit")

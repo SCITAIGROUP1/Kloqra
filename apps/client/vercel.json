@@ -2,6 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile --prod=false",
-  "buildCommand": "pnpm --filter @kloqra/client... build",
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ]; then exit 1; else exit 0; fi"
+  "buildCommand": "pnpm --filter @kloqra/client... build"
 }

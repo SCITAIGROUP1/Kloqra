@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { listItems } from "./helpers/pagination";
 
 describe("Projects E2E", () => {
   let app: INestApplication;
@@ -27,10 +28,10 @@ describe("Projects E2E", () => {
   it("GET /projects returns seeded projects scoped to workspace", async () => {
     const res = await authedAgent(app, adminSession).get("/projects");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThan(0);
+    const items = listItems(res.body);
+    expect(items.length).toBeGreaterThan(0);
     expect(
-      res.body.every((p: { workspaceId: string }) => p.workspaceId === adminSession.workspaceId)
+      items.every((p: { workspaceId: string }) => p.workspaceId === adminSession.workspaceId)
     ).toBe(true);
   });
 
@@ -58,9 +59,11 @@ describe("Projects E2E", () => {
     expect(adminRes.status).toBe(200);
     expect(memberRes.status).toBe(200);
 
-    const memberIds = new Set(memberRes.body.map((p: { id: string }) => p.id));
-    expect(adminRes.body.length).toBeGreaterThanOrEqual(memberRes.body.length);
-    expect(memberRes.body.length).toBeGreaterThan(0);
-    expect(memberRes.body.every((p: { id: string }) => memberIds.has(p.id))).toBe(true);
+    const adminItems = listItems(adminRes.body);
+    const memberItems = listItems(memberRes.body);
+    const memberIds = new Set(memberItems.map((p: { id: string }) => p.id));
+    expect(adminItems.length).toBeGreaterThanOrEqual(memberItems.length);
+    expect(memberItems.length).toBeGreaterThan(0);
+    expect(memberItems.every((p: { id: string }) => memberIds.has(p.id))).toBe(true);
   });
 });

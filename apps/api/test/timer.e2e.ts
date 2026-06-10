@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { listItems } from "./helpers/pagination";
 
 describe("Timer E2E", () => {
   let app: INestApplication;
@@ -20,12 +21,12 @@ describe("Timer E2E", () => {
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
-    const projectId = projectsRes.body[0]?.id;
+    const projectId = listItems(projectsRes.body)[0]?.id;
     expect(projectId).toBeTruthy();
 
     const tasksRes = await authedAgent(app, memberSession).get("/tasks").query({ projectId });
     expect(tasksRes.status).toBe(200);
-    taskId = tasksRes.body[0]?.id;
+    taskId = listItems(tasksRes.body)[0]?.id;
     expect(taskId).toBeTruthy();
   });
 

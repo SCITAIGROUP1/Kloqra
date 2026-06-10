@@ -3,7 +3,12 @@ export { logoutSession } from "./auth/logout";
 export { tryRefreshSession } from "./auth/refresh-session";
 export { getEffectiveWorkspaceId, isWorkspaceMismatchError } from "./auth/workspace-context";
 export { api, getApiBase, publicFetch } from "./api/client";
-export { fetchListItems, fetchPaginatedList } from "./api/fetch-list-items";
+export {
+  fetchListItems,
+  fetchPaginatedList,
+  normalizePaginatedListResponse
+} from "./api/fetch-list-items";
+export { coerceListItems } from "./utils/coerce-list-items";
 export { fetchProjectTeam } from "./api/fetch-project-team";
 export { appendListQuery, buildListQuery, buildTableQuery } from "./api/list-query";
 export { apiDownloadPost, saveDownloadResponse } from "./api/download";

@@ -50,9 +50,9 @@ export function usePaginatedList<T>({
         search: debouncedSearch,
         filters
       });
-      setItems(data.items);
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
+      setItems(data.items ?? []);
+      setTotal(data.total ?? data.items?.length ?? 0);
+      setTotalPages(data.totalPages ?? 0);
     } catch {
       setItems([]);
       setTotal(0);

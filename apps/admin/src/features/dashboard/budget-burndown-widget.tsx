@@ -1,17 +1,13 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, type ProjectDto } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@kloqra/ui";
+import { fetchListItems } from "@kloqra/web-shared";
 import { AlertTriangle, CheckCircle, TrendingUp, Info } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { budgetBarColor } from "./budget-burndown-utils";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
-
-function budgetBarColor(percentUsed: number): string {
-  if (percentUsed >= 100) return "bg-destructive";
-  if (percentUsed >= 50) return "bg-warning";
-  return "bg-success";
-}
 
 interface BudgetData {
   projectId: string;
@@ -57,7 +53,9 @@ export function BudgetBurnDownWidget({
         setAllProjectsData([]);
       } else {
         // Fetch budgets for all projects
-        const projects = await api<any[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws });
+        const projects = await fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
+          workspaceId: ws
+        });
         const budgetPromises = projects
           .filter((p) => p.budgetHours !== null)
           .map((p) =>

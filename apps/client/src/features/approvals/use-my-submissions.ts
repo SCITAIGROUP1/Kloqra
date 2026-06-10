@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, unwrapListItems } from "@kloqra/contracts";
 import type { ListTimesheetSubmissionsResponseDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
@@ -36,7 +36,7 @@ export function useMySubmissions(
         `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params}`,
         { workspaceId }
       );
-      setSubmissions(res.items);
+      setSubmissions(unwrapListItems(res));
     } catch {
       setSubmissions([]);
     } finally {

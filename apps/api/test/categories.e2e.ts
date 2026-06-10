@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { listItems } from "./helpers/pagination";
 
 describe("Categories E2E", () => {
   let app: INestApplication;
@@ -27,9 +28,9 @@ describe("Categories E2E", () => {
   it("GET /categories lists workspace categories for admin", async () => {
     const res = await authedAgent(app, adminSession).get("/categories");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThan(0);
-    expect(res.body[0]).toHaveProperty("name");
+    const items = listItems(res.body);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0]).toHaveProperty("name");
   });
 
   it("member cannot POST /categories", async () => {
@@ -59,7 +60,9 @@ describe("Categories E2E", () => {
 
   it("DELETE /categories returns 409 when tasks reference the category", async () => {
     const listRes = await authedAgent(app, adminSession).get("/categories");
-    const withTasks = listRes.body.find((c: { taskCount?: number }) => (c.taskCount ?? 0) > 0);
+    const withTasks = listItems(listRes.body).find(
+      (c: { taskCount?: number }) => (c.taskCount ?? 0) > 0
+    );
     expect(withTasks).toBeTruthy();
 
     const deleteRes = await authedAgent(app, adminSession).del(`/categories/${withTasks.id}`);
