@@ -29,6 +29,11 @@ export function buildProjectDetailNavItems(projectId: string): ProjectDetailNavI
   }));
 }
 
+/** Default landing route when opening a project from the workspace list. */
+export function projectListHref(projectId: string): string {
+  return `/projects/${projectId}/overview`;
+}
+
 export function resolveProjectDetailSection(pathname: string): ProjectDetailSectionId {
   if (pathname.includes("/team")) return "team";
   if (pathname.includes("/settings")) return "settings";

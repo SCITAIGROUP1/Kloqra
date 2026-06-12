@@ -29,6 +29,7 @@ import { ChevronRight, FolderPlus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { projectListHref } from "@/features/projects/project-detail-nav";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
@@ -140,26 +141,26 @@ export function ProjectsListPage() {
                   <TableRow key={p.id} className="group relative cursor-pointer hover:bg-muted/40">
                     <DataTableCell>
                       <Link
-                        href={`/projects/${p.id}/tasks`}
+                        href={projectListHref(p.id)}
                         className="block after:absolute after:inset-0"
                       >
                         <ProjectNameWithColor name={p.name} color={p.color} />
                       </Link>
                     </DataTableCell>
                     <DataTableCell className="text-muted-foreground">
-                      <Link href={`/projects/${p.id}/tasks`} className="block">
+                      <Link href={projectListHref(p.id)} className="block">
                         {p.clientName ?? "—"}
                       </Link>
                     </DataTableCell>
                     <DataTableCell>
-                      <Link href={`/projects/${p.id}/tasks`} className="block">
+                      <Link href={projectListHref(p.id)} className="block">
                         <Badge variant={p.isActive ? "default" : "secondary"}>
                           {p.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </Link>
                     </DataTableCell>
                     <DataTableCell className="text-muted-foreground">
-                      <Link href={`/projects/${p.id}/tasks`} className="inline-flex">
+                      <Link href={projectListHref(p.id)} className="inline-flex">
                         <ChevronRight
                           className="h-4 w-4 opacity-40 transition-opacity group-hover:opacity-100"
                           aria-hidden

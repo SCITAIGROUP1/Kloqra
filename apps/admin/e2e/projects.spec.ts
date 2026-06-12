@@ -27,6 +27,7 @@ test.describe("Admin projects", () => {
   });
 
   test("opens project overview tab from list", async ({ page }) => {
+    // Project list rows link to overview (default project section).
     await page.locator("table tbody tr").first().click();
     await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();

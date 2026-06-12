@@ -6,9 +6,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/lib/dev-bootstrap.sh"
 
 dev_bootstrap_root
-dev_bootstrap_resolve_pnpm
 
-echo "==> Kloqra local prep (no migrate/seed)"
-
-dev_bootstrap_prep
-dev_bootstrap_print_dev_terminals
+mode="$(dev_bootstrap_read_mode)"
+case "$mode" in
+  native) exec bash "$ROOT/scripts/local-native.sh" "$@" ;;
+  docker | *) exec bash "$ROOT/scripts/local-docker.sh" "$@" ;;
+esac

@@ -5,6 +5,7 @@ dist
 coverage
 .env
 .env.local
+.kloqra-deps-mode
 *.log
 .DS_Store
 apps/api/prisma/*.db

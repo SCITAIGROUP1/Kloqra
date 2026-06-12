@@ -9,6 +9,8 @@ dev_bootstrap_root
 
 mode="$(dev_bootstrap_read_mode)"
 case "$mode" in
-  native) exec bash "$ROOT/scripts/local-native.sh" --install "$@" ;;
-  docker | *) exec bash "$ROOT/scripts/local-docker.sh" --install "$@" ;;
+  native) script="local-native.sh" ;;
+  docker | *) script="local-docker.sh" ;;
 esac
+
+DEV_BOOTSTRAP_QUIET=1 exec bash "$ROOT/scripts/$script" --quiet

@@ -1,13 +1,50 @@
 # Local development troubleshooting
 
+## Automated local bootstrap
+
+Two dedicated setup scripts — pick the one that matches your machine:
+
+| Script | Command                                   | For                                                      |
+| ------ | ----------------------------------------- | -------------------------------------------------------- |
+| Docker | `pnpm local:docker` / `pnpm serve:docker` | Postgres + Redis via Docker Compose                      |
+| Native | `pnpm local:native` / `pnpm serve:native` | Postgres.app / local PostgreSQL (+ optional local Redis) |
+
+`pnpm local` and `pnpm serve` delegate to whichever mode you last ran (`.kloqra-deps-mode`). `pnpm dev:all` runs the same bootstrap via `predev:apps` before starting apps. `pnpm dev:split` (alias `pnpm local`) only preps infra — start `dev:shared` + `dev:api` + `dev:client` + `dev:admin` in separate terminals.
+
+Both paths: create env files, run `prisma migrate deploy`, seed when `users` is empty, generate Prisma client.
+
+**Docker path** also: starts Docker Desktop if needed, removes stale `chronomint_*` volumes, resets Docker Postgres if `kloqra` credentials fail.
+
+**Native path** also: starts Postgres.app if installed, runs `createdb kloqra`, auto-detects `DATABASE_URL` (password `kloqra` or macOS username), falls back to `REDIS_USE_MEMORY=true` when Redis is not running.
+
+## Docker Compose after Kloqra rename
+
+**Symptom:** `docker compose up` starts containers but Prisma login fails, or Postgres healthcheck errors after pulling the rebrand.
+
+**Cause:** Docker only initializes Postgres credentials on first volume creation. An old `chronomint` volume keeps the `chronomint` user even though `docker-compose.yml` now expects `kloqra`.
+
+**Fix (wipes local Docker DB data):**
+
+```bash
+pnpm docker:reset
+# update apps/api/.env:
+#   DATABASE_URL=postgresql://kloqra:kloqra@localhost:5432/kloqra
+#   REDIS_URL=redis://localhost:6379
+pnpm prisma:migrate && pnpm prisma:seed
+```
+
+**Port already allocated (5432 or 6379):** stop the conflicting service (Postgres.app, another Redis) or stop old containers: `docker compose down`. Only one process can bind each port.
+
+**Stale `chronomint_*` containers/volumes:** after `pnpm docker:up`, containers are named `kloqra-postgres-1` (project name `kloqra`). Remove leftovers: `docker rm -f chronomint-postgres-1 chronomint-redis-1 2>/dev/null; docker volume rm chronomint_pgdata 2>/dev/null`
+
 ## Database connection failed
 
 **Symptom:** API fails on startup with Prisma / PostgreSQL errors.
 
 **Fix:**
 
-1. Ensure PostgreSQL is running (Postgres.app or `docker compose up -d`).
-2. Create the database once: `createdb kloqra`
+1. Ensure PostgreSQL is running (Postgres.app, `pnpm docker:up`, or `pnpm local` which auto-starts Docker).
+2. Create the database once (Postgres.app only): `createdb kloqra`
 3. Set `DATABASE_URL` in `apps/api/.env`:
    - Postgres.app: `postgresql://YOUR_MAC_USERNAME@localhost:5432/kloqra`
    - Docker: `postgresql://kloqra:kloqra@localhost:5432/kloqra`

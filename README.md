@@ -8,49 +8,53 @@ Next-gen time analytics engine — contract-first monorepo with NestJS API, Next
 - **Client / Admin:** Next.js 15 (App Router), Zustand, Tailwind v4
 - **Shared:** `@kloqra/contracts` (Zod), `@kloqra/ui`, `@kloqra/web-shared`
 
-## Quick start (no Docker)
+## Quick start
 
-Requires [Postgres.app](https://postgresapp.com/) or local PostgreSQL on port 5432.
+Pick **one** setup path. Both scripts create env files, migrate, and seed when the database is empty. API, client, and admin always run locally.
 
-**Daily dev** (prep once, then one watcher per terminal — no migrate/seed):
+### Docker (Postgres + Redis in containers)
 
-```bash
-pnpm local          # prep: Postgres, env, prisma generate
-pnpm dev:shared     # terminal 1 — contracts + ui watch (start first)
-pnpm dev:api        # terminal 2 → :3001  (nest --watch)
-pnpm dev:client     # terminal 3 → :3000  (next dev)
-pnpm dev:admin      # terminal 4 → :3002  (next dev)
-```
-
-Or all apps in one terminal: `pnpm dev` (one-shot shared build via `predev`).
-
-**First-time / DB setup** (install, migrate, seed, then start):
-
-```bash
-pnpm serve
-# or: npx pnpm@9.15.0 serve
-```
-
-Manual steps if you prefer:
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
 pnpm install
-cp apps/api/.env.example apps/api/.env   # set DATABASE_URL user (Postgres.app = macOS username)
-createdb kloqra   # once
-pnpm prisma:migrate && pnpm prisma:seed
-pnpm local
+pnpm serve:docker   # first time: Docker up, env, migrate, seed
 ```
 
-`REDIS_USE_MEMORY=true` in `apps/api/.env` runs the timer without Redis/Docker.
+### Native (local Postgres + Redis)
 
-## Quick start (Docker)
+Requires PostgreSQL on port 5432 ([Postgres.app](https://postgresapp.com/) on Mac) and optionally Redis on 6379.
 
 ```bash
-docker compose up -d
-# Set DATABASE_URL=postgresql://kloqra:kloqra@localhost:5432/kloqra
-# Set REDIS_URL=redis://localhost:6379 and remove REDIS_USE_MEMORY
-pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev
+pnpm install
+pnpm serve:native   # first time: createdb kloqra, env, migrate, seed
 ```
+
+Without Redis, bootstrap sets `REDIS_USE_MEMORY=true` automatically.
+
+Deps mode (Docker vs native) is stored in `.kloqra-deps-mode`. Set it once with `pnpm local:docker` or `pnpm local:native`.
+
+### Daily dev — pick one workflow
+
+**Option 1 — all apps in one terminal** (bootstrap + build shared packages, then API, client, admin):
+
+```bash
+pnpm dev:all
+```
+
+**Option 2 — one app per terminal** (prep once, then open four terminals):
+
+```bash
+pnpm dev:split      # daily prep — Postgres, env, migrate (same as pnpm local)
+pnpm dev:shared     # terminal 1 — contracts + ui watch (start first)
+pnpm dev:api        # terminal 2 → :3001
+pnpm dev:client     # terminal 3 → :3000
+pnpm dev:admin      # terminal 4 → :3002
+```
+
+`pnpm dev` is an alias for `pnpm dev:all`. Split mode does not start apps — run the four `dev:*` commands above after `pnpm dev:split`.
+
+**Upgrading from ChronoMint:** Docker path auto-resets stale volumes. Native path rewrites `chronomint` → `kloqra` in `.env`. Wipe Docker data manually: `pnpm docker:reset`.
 
 | App    | URL                   |
 | ------ | --------------------- |
