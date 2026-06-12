@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 
 test.describe("Client dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/dashboard");
+    await dismissOnboardingIfVisible(page);
     await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
   });
 

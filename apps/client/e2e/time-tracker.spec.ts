@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 
 test.describe("Time Tracker", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/time-tracker");
+    await dismissOnboardingIfVisible(page);
     await expect(page.getByRole("heading", { name: "Time Tracker", exact: true })).toBeVisible();
   });
 

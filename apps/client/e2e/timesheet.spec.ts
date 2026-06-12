@@ -1,9 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 
 test.describe("Timesheet calendar", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/timesheet");
-    await expect(page.getByRole("heading", { name: /Timesheet/i })).toBeVisible();
+    await dismissOnboardingIfVisible(page);
+    await expect(page).toHaveURL(/\/timesheet/);
+    await expect(page.getByRole("button", { name: "week", exact: true })).toBeVisible();
   });
 
   test("shows mobile Time Tracker tip on a narrow viewport", async ({ page }) => {
