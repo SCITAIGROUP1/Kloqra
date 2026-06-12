@@ -2,16 +2,28 @@ import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
+import type { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { WorkspaceService } from "./workspace.service";
+
+vi.mock("../../../common/auth/password.util", () => ({
+  generateTempPassword: vi.fn().mockReturnValue("TempPass123!"),
+  hashPassword: vi.fn().mockResolvedValue("hashed-temp"),
+  deriveNameFromEmail: vi.fn().mockReturnValue("New User")
+}));
 
 describe("WorkspaceService", () => {
   let service: WorkspaceService;
   let mockPrisma: any;
+  let mockMailer: MemberProvisioningMailer;
 
   const workspaceId = "ws-1";
+  const inviterId = "admin-1";
 
   beforeEach(() => {
     mockPrisma = {
+      workspace: {
+        findUnique: vi.fn()
+      },
       workspaceMember: {
         findMany: vi.fn(),
         findUnique: vi.fn(),
@@ -22,10 +34,23 @@ describe("WorkspaceService", () => {
         count: vi.fn()
       },
       user: {
-        findUnique: vi.fn()
+        findUnique: vi.fn(),
+        create: vi.fn()
       }
     };
-    service = new WorkspaceService(mockPrisma);
+    mockMailer = {
+      sendNewMemberCredentials: vi.fn().mockResolvedValue({ sent: true }),
+      sendWorkspaceAdded: vi.fn().mockResolvedValue({ sent: true })
+    } as unknown as MemberProvisioningMailer;
+    service = new WorkspaceService(
+      mockPrisma,
+      mockMailer,
+      {
+        notify: vi.fn().mockResolvedValue(undefined),
+        notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+      } as never,
+      { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never
+    );
   });
 
   it("listMembers maps membership rows to DTOs", async () => {
@@ -53,51 +78,72 @@ describe("WorkspaceService", () => {
     ]);
   });
 
-  it("invite rejects unknown users", async () => {
-    mockPrisma.user.findUnique.mockResolvedValue(null);
+  it("invite creates user and membership for new email", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+    mockPrisma.user.create.mockResolvedValue({
+      id: "u-new",
+      email: "new@kloqra.dev",
+      name: "New User"
+    });
+    mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m-new",
+      workspaceId,
+      userId: "u-new",
+      role: "MEMBER",
+      user: { name: "New User", email: "new@kloqra.dev" }
+    });
 
-    await expect(
-      service.invite(workspaceId, { email: "missing@example.com", role: "MEMBER" })
-    ).rejects.toSatisfy(
-      (err: unknown) =>
-        err instanceof DomainException &&
-        err.code === ErrorCodes.NOT_FOUND &&
-        err.getStatus() === HttpStatus.NOT_FOUND
+    const result = await service.invite(
+      workspaceId,
+      { email: "new@kloqra.dev", role: "MEMBER" },
+      inviterId
     );
+
+    expect(mockPrisma.user.create).toHaveBeenCalled();
+    expect(mockMailer.sendNewMemberCredentials).toHaveBeenCalled();
+    expect(result.userCreated).toBe(true);
+    expect(result.emailSent).toBe(true);
+    expect(result.member.userEmail).toBe("new@kloqra.dev");
   });
 
   it("invite rejects duplicate members", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
     mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "member@kloqra.dev" });
     mockPrisma.workspaceMember.findUnique.mockResolvedValue({ id: "m-existing" });
 
     await expect(
-      service.invite(workspaceId, { email: "member@kloqra.dev", role: "MEMBER" })
+      service.invite(workspaceId, { email: "member@kloqra.dev", role: "MEMBER" }, inviterId)
     ).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException &&
-        err.code === ErrorCodes.VALIDATION_ERROR &&
+        err.code === ErrorCodes.MEMBER_ALREADY_EXISTS &&
         err.getStatus() === HttpStatus.CONFLICT
     );
   });
 
-  it("invite creates membership for registered user", async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "new@kloqra.dev" });
+  it("invite adds existing user and sends workspace-added email", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "member@kloqra.dev" });
     mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
     mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m2",
       workspaceId,
       userId: "u2",
-      role: "MEMBER"
+      role: "MEMBER",
+      user: { name: "Member User", email: "member@kloqra.dev" }
     });
 
-    const result = await service.invite(workspaceId, {
-      email: "new@kloqra.dev",
-      role: "MEMBER"
-    });
+    const result = await service.invite(
+      workspaceId,
+      { email: "member@kloqra.dev", role: "MEMBER" },
+      inviterId
+    );
 
-    expect(mockPrisma.workspaceMember.create).toHaveBeenCalledWith({
-      data: { workspaceId, userId: "u2", role: "MEMBER" }
-    });
-    expect(result.role).toBe("MEMBER");
+    expect(mockMailer.sendWorkspaceAdded).toHaveBeenCalled();
+    expect(result.userCreated).toBe(false);
+    expect(result.member.role).toBe("MEMBER");
   });
 
   it("updateMember changes role", async () => {

@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { TimeModule } from "../../common/time/time.module";
 import { AuthModule } from "../auth/auth.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { ReportingModule } from "../reporting/reporting.module";
 import { ExportPresetService } from "./application/export-preset.service";
@@ -13,7 +14,7 @@ import { ExportShareController } from "./interface/http/export-share.controller"
 import { ExportController } from "./interface/http/export.controller";
 
 @Module({
-  imports: [AuthModule, TimeModule, ReportingModule, ProjectsModule],
+  imports: [AuthModule, TimeModule, ReportingModule, ProjectsModule, NotificationsModule],
   controllers: [ExportController, ExportShareController],
   providers: [
     ExportService,

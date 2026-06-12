@@ -1,15 +1,25 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { AuthSessionDto, LoginRequires2faResponseDto } from "@kloqra/contracts";
+import type {
+  AuthSessionDto,
+  LoginRequires2faResponseDto,
+  LoginRequiresPasswordChangeResponseDto,
+  LoginRequiresEmailVerificationResponseDto
+} from "@kloqra/contracts";
 import { Button, Input, Label } from "@kloqra/ui";
 import { applyDefaultWorkspaceIfNeeded, AuthShell } from "@kloqra/web-shared";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
-type LoginResponse = (AuthSessionDto & { accessToken: string }) | LoginRequires2faResponseDto;
+type LoginResponse =
+  | (AuthSessionDto & { accessToken: string })
+  | LoginRequires2faResponseDto
+  | LoginRequiresPasswordChangeResponseDto
+  | LoginRequiresEmailVerificationResponseDto;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,6 +57,14 @@ export default function LoginPage() {
           ...(totpCode ? { totpCode } : {})
         })
       });
+      if ("requiresPasswordChange" in res && res.requiresPasswordChange) {
+        router.push(`/set-password?token=${encodeURIComponent(res.pendingToken)}`);
+        return;
+      }
+      if ("requiresEmailVerification" in res && res.requiresEmailVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(res.email)}`);
+        return;
+      }
       if ("requires2fa" in res && res.requires2fa) {
         setPendingToken(res.pendingToken);
         return;
@@ -101,6 +119,13 @@ export default function LoginPage() {
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit">{pendingToken ? "Verify" : "Sign in"}</Button>
+        {!pendingToken ? (
+          <p className="text-center text-sm">
+            <Link href="/forgot-password" className="text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+        ) : null}
       </form>
     </AuthShell>
   );

@@ -29,6 +29,9 @@ describe("TimesheetsService", () => {
       project: {
         findFirst: vi.fn().mockResolvedValue(projectRow)
       },
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ name: "Sam" })
+      },
       timeLog: {
         findMany: vi.fn().mockResolvedValue([{ task: { projectId } }])
       },
@@ -42,7 +45,10 @@ describe("TimesheetsService", () => {
         findFirst: vi.fn()
       }
     };
-    service = new TimesheetsService(mockPrisma);
+    service = new TimesheetsService(mockPrisma, {
+      notify: vi.fn().mockResolvedValue(undefined),
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+    } as never);
   });
 
   it("submit creates a SUBMITTED period", async () => {
@@ -101,7 +107,15 @@ describe("TimesheetsService", () => {
     mockPrisma.timesheetPeriod.findFirst.mockResolvedValue({
       id: "period-1",
       workspaceId,
-      status: "SUBMITTED"
+      userId,
+      projectId,
+      periodStart,
+      status: "SUBMITTED",
+      project: {
+        name: "Website",
+        timesheetApprovalPeriod: "weekly",
+        workspace: { settings: { weekStartsOn: "monday" } }
+      }
     });
     mockPrisma.timesheetPeriod.update.mockResolvedValue({
       id: "period-1",
@@ -147,7 +161,15 @@ describe("TimesheetsService", () => {
     mockPrisma.timesheetPeriod.findFirst.mockResolvedValue({
       id: "period-1",
       workspaceId,
-      status: "SUBMITTED"
+      userId,
+      projectId,
+      periodStart,
+      status: "SUBMITTED",
+      project: {
+        name: "Website",
+        timesheetApprovalPeriod: "weekly",
+        workspace: { settings: { weekStartsOn: "monday" } }
+      }
     });
     mockPrisma.timesheetPeriod.update.mockResolvedValue({
       id: "period-1",

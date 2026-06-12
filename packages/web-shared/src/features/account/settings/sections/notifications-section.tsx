@@ -1,58 +1,121 @@
 "use client";
 
 import {
+  adminNotificationKeys,
+  memberNotificationKeys,
   resolveEffectiveNotifications,
+  type AdminNotificationKey,
+  type MemberNotificationKey,
+  type NotificationChannels,
+  type NotificationPreferenceKey,
   type ResolvedUserNotifications,
   type UserProfileDto
 } from "@kloqra/contracts";
 import { Button } from "@kloqra/ui";
-import { Bell, Briefcase, CheckSquare, Clock, Link2, Timer } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  Briefcase,
+  CheckSquare,
+  ClipboardCheck,
+  Clock,
+  Download,
+  Link2,
+  Timer,
+  Users
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { NotificationChannelRow } from "../notification-channel-row";
 import { SettingsCard } from "../settings-card";
 import { SettingsSaveBar } from "../settings-save-bar";
 
-type NotificationTypeKey = keyof Omit<ResolvedUserNotifications, "enabled">;
+type SettingsVariant = "member" | "admin";
 
-const ROWS: {
-  key: NotificationTypeKey;
+const MEMBER_ROWS: {
+  key: MemberNotificationKey;
   title: string;
   description: string;
-  icon: typeof Bell;
+  icon: LucideIcon;
 }[] = [
+  {
+    key: "workspaceAdded",
+    title: "Workspace Access",
+    description: "When you are added to a workspace",
+    icon: Users
+  },
   {
     key: "projectAssignment",
     title: "Project Assignment",
-    description: "Email when you are assigned to a project",
+    description: "When you are assigned to a project",
     icon: Briefcase
   },
   {
     key: "taskAssignment",
     title: "Task Assignment",
-    description: "Email when you are assigned to a task",
+    description: "When you are assigned to a task",
     icon: CheckSquare
   },
   {
     key: "timesheetReminders",
     title: "Timesheet Reminders",
-    description: "Email reminders to submit timesheets",
+    description: "Reminders to submit timesheets",
     icon: Clock
+  },
+  {
+    key: "timesheetStatus",
+    title: "Timesheet Status",
+    description: "When your timesheet is approved or rejected",
+    icon: ClipboardCheck
   },
   {
     key: "idleTimerAlert",
     title: "Idle Timer Alert",
-    description: "Email when the idle timer is triggered",
+    description: "When the idle timer is triggered",
     icon: Timer
   },
   {
     key: "jiraSyncUpdates",
     title: "Jira Sync Updates",
-    description: "Email when Jira sync completes",
+    description: "When Jira sync completes",
     icon: Link2
   }
 ];
 
-function NotificationToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+const ADMIN_ROWS: {
+  key: AdminNotificationKey;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    key: "approvalRequest",
+    title: "Approval Requests",
+    description: "When a member submits a timesheet for review",
+    icon: ClipboardCheck
+  },
+  {
+    key: "memberChanges",
+    title: "Team Changes",
+    description: "When members join or leave the workspace",
+    icon: Users
+  },
+  {
+    key: "exportSchedule",
+    title: "Scheduled Exports",
+    description: "When a scheduled export completes or fails",
+    icon: Download
+  },
+  {
+    key: "budgetAlert",
+    title: "Budget Alerts",
+    description: "When a project approaches or exceeds budget",
+    icon: AlertTriangle
+  }
+];
+
+function MasterToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
     <Button type="button" size="sm" variant={enabled ? "default" : "outline"} onClick={onToggle}>
       {enabled ? "On" : "Off"}
@@ -60,46 +123,49 @@ function NotificationToggle({ enabled, onToggle }: { enabled: boolean; onToggle:
   );
 }
 
+function serializeNotifications(state: ResolvedUserNotifications) {
+  const keys = [
+    ...memberNotificationKeys(),
+    ...adminNotificationKeys()
+  ] as NotificationPreferenceKey[];
+  return {
+    enabled: state.enabled,
+    ...Object.fromEntries(keys.map((key) => [key, state[key]]))
+  };
+}
+
 export function NotificationsSection({
   profile,
-  onSavePreferences
+  onSavePreferences,
+  variant = "member"
 }: {
   profile: UserProfileDto;
   onSavePreferences: (prefs: Record<string, unknown>) => Promise<unknown>;
+  variant?: SettingsVariant;
 }) {
   const initial = resolveEffectiveNotifications(profile.preferences);
-  const [enabled, setEnabled] = useState(initial.enabled);
-  const [types, setTypes] = useState<ResolvedUserNotifications>(initial);
+  const [state, setState] = useState<ResolvedUserNotifications>(initial);
   const [snapshot, setSnapshot] = useState(JSON.stringify(initial));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const next = resolveEffectiveNotifications(profile.preferences);
-    setEnabled(next.enabled);
-    setTypes(next);
+    setState(next);
     setSnapshot(JSON.stringify(next));
   }, [profile]);
 
-  const isDirty = JSON.stringify({ ...types, enabled }) !== snapshot;
+  const isDirty = JSON.stringify(state) !== snapshot;
+  const rows = variant === "admin" ? ADMIN_ROWS : MEMBER_ROWS;
 
-  function toggleType(key: NotificationTypeKey) {
-    setTypes((prev) => ({ ...prev, [key]: !prev[key] }));
+  function updateKey(key: NotificationPreferenceKey, channels: NotificationChannels) {
+    setState((prev) => ({ ...prev, [key]: channels }));
   }
 
   async function handleSave() {
     setSaving(true);
     try {
-      await onSavePreferences({
-        notifications: {
-          enabled,
-          projectAssignment: types.projectAssignment,
-          taskAssignment: types.taskAssignment,
-          timesheetReminders: types.timesheetReminders,
-          idleTimerAlert: types.idleTimerAlert,
-          jiraSyncUpdates: types.jiraSyncUpdates
-        }
-      });
-      setSnapshot(JSON.stringify({ ...types, enabled }));
+      await onSavePreferences({ notifications: serializeNotifications(state) });
+      setSnapshot(JSON.stringify(state));
       toast.success("Notification preferences saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save notifications");
@@ -113,17 +179,28 @@ export function NotificationsSection({
       <SettingsCard
         icon={Bell}
         title="Notifications Enabled"
-        description="Master switch for all email notifications"
-        action={<NotificationToggle enabled={enabled} onToggle={() => setEnabled((v) => !v)} />}
+        description="Master switch for all notifications"
+        action={
+          <MasterToggle
+            enabled={state.enabled}
+            onToggle={() => setState((s) => ({ ...s, enabled: !s.enabled }))}
+          />
+        }
       />
 
-      {ROWS.map(({ key, title, description, icon: Icon }) => (
+      {rows.map(({ key, title, description, icon: Icon }) => (
         <SettingsCard
           key={key}
           icon={Icon}
           title={title}
           description={description}
-          action={<NotificationToggle enabled={types[key]} onToggle={() => toggleType(key)} />}
+          action={
+            <NotificationChannelRow
+              channels={state[key]}
+              disabled={!state.enabled}
+              onChange={(channels) => updateKey(key, channels)}
+            />
+          }
         />
       ))}
 

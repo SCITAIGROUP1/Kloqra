@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import type {
+  AddTeamMemberDto,
   CreateProjectDto,
   CreateTeamInviteDto,
   ListProjectsQuery,
@@ -16,12 +17,14 @@ import {
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private prisma: PrismaService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private notificationsDispatch: NotificationsDispatchService
   ) {}
 
   private clientOrigin() {
@@ -251,6 +254,55 @@ export class ProjectsService {
     };
   }
 
+  async addTeamMember(workspaceId: string, projectId: string, dto: AddTeamMemberDto) {
+    const project = await this.getAdmin(workspaceId, projectId);
+    const workspaceMember = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: dto.userId } }
+    });
+    if (!workspaceMember) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "User is not a member of this workspace",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    const team = await this.ensureTeam(projectId);
+    const existing = await this.prisma.teamMember.findUnique({
+      where: { teamId_userId: { teamId: team.id, userId: dto.userId } }
+    });
+    if (existing) {
+      throw new DomainException(
+        ErrorCodes.MEMBER_ALREADY_EXISTS,
+        "Already on this project team",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const created = await this.prisma.teamMember.create({
+      data: { teamId: team.id, userId: dto.userId },
+      include: { user: true }
+    });
+
+    void this.notificationsDispatch
+      .notify({
+        userId: dto.userId,
+        workspaceId,
+        templateId: "project.assigned",
+        context: { projectName: project.name, projectId }
+      })
+      .catch(() => undefined);
+
+    return {
+      id: created.id,
+      teamId: created.teamId,
+      userId: created.userId,
+      userName: created.user.name,
+      userEmail: created.user.email,
+      isActive: created.isActive ?? true
+    };
+  }
+
   async updateTeamMember(
     workspaceId: string,
     projectId: string,
@@ -416,6 +468,18 @@ export class ProjectsService {
         data: { acceptedAt: new Date() }
       })
     ]);
+
+    void this.notificationsDispatch
+      .notify({
+        userId,
+        workspaceId: invite.project.workspaceId,
+        templateId: "project.assigned",
+        context: {
+          projectName: invite.project.name,
+          projectId: invite.projectId
+        }
+      })
+      .catch(() => undefined);
 
     return {
       projectId: invite.projectId,

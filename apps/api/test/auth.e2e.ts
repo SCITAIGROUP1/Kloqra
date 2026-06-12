@@ -26,6 +26,19 @@ describe("Auth E2E", () => {
     await app.close();
   });
 
+  it("POST /auth/register returns 403", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/auth/register")
+      .set("X-Auth-Scope", "client")
+      .send({
+        email: "newuser@example.com",
+        password: "password123",
+        name: "New User"
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("SELF_REGISTRATION_DISABLED");
+  });
+
   it("POST /auth/login rejects invalid credentials", async () => {
     const res = await request(app.getHttpServer())
       .post("/auth/login")
@@ -95,5 +108,27 @@ describe("Auth E2E", () => {
       .set("Cookie", [`refresh_token_client=${rawRefresh}`]);
     expect(second.status).toBe(201);
     expect(second.body.accessToken).toBeTruthy();
+  });
+
+  it("POST /auth/forgot-password returns ok for known and unknown emails", async () => {
+    const known = await request(app.getHttpServer())
+      .post("/auth/forgot-password")
+      .send({ email: "member@kloqra.dev" });
+    expect(known.status).toBe(201);
+    expect(known.body.ok).toBe(true);
+
+    const unknown = await request(app.getHttpServer())
+      .post("/auth/forgot-password")
+      .send({ email: "nobody@example.com" });
+    expect(unknown.status).toBe(201);
+    expect(unknown.body.ok).toBe(true);
+  });
+
+  it("POST /auth/resend-verification returns ok", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/auth/resend-verification")
+      .send({ email: "member@kloqra.dev" });
+    expect(res.status).toBe(201);
+    expect(res.body.ok).toBe(true);
   });
 });

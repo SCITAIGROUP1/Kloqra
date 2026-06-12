@@ -20,6 +20,9 @@
     "prisma:seed": "prisma generate && tsx --tsconfig tsconfig.seed.json prisma/seed.ts",
     "prisma:validate": "prisma validate"
   },
+  "prisma": {
+    "seed": "tsx --tsconfig tsconfig.seed.json prisma/seed.ts"
+  },
   "dependencies": {
     "@kloqra/contracts": "workspace:*",
     "@nestjs/common": "^10.4.15",

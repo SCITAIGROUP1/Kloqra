@@ -15,6 +15,12 @@ Copy `apps/api/.env.example` to `apps/api/.env`.
 | `JWT_REFRESH_EXPIRES` | No                  | Default `7d`                                                                                                                                               |
 | `FRONTEND_ORIGIN`     | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                           |
 | `PORT`                | No                  | API listen port. Default `3001`                                                                                                                            |
+| `SMTP_HOST`           | Member emails       | SMTP host (e.g. Brevo `smtp-relay.brevo.com`). Omit locally — temp passwords log to the API console                                                        |
+| `SMTP_PORT`           | With SMTP           | Usually `587`                                                                                                                                              |
+| `SMTP_USER`           | With SMTP           | SMTP login                                                                                                                                                 |
+| `SMTP_PASS`           | With SMTP           | SMTP password or API key                                                                                                                                   |
+| `SMTP_FROM`           | With SMTP           | From address for outbound mail                                                                                                                             |
+| `PUBLIC_ADMIN_URL`    | No                  | Admin app URL for links in emails. Default dev: `http://localhost:3002`                                                                                    |
 
 ## Client (`apps/client`)
 

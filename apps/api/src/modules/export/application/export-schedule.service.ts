@@ -17,6 +17,7 @@ import {
 import { DomainException } from "../../../common/errors/domain.exception";
 import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 import { ExportService } from "./export.service";
 
 @Injectable()
@@ -27,7 +28,8 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private prisma: PrismaService,
     private exportService: ExportService,
-    private mailer: MailerService
+    private mailer: MailerService,
+    private notificationsDispatch: NotificationsDispatchService
   ) {}
 
   onModuleInit() {
@@ -180,6 +182,13 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
           nextRunAt: this.computeNextRun(schedule.frequency as ExportScheduleFrequency, new Date())
         }
       });
+
+      void this.notificationsDispatch
+        .notifyWorkspaceAdmins(schedule.workspaceId, {
+          templateId: "export.ready",
+          context: { scheduleName: schedule.name }
+        })
+        .catch(() => undefined);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Export failed";
       await this.prisma.exportSchedule.update({
@@ -191,6 +200,13 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
           nextRunAt: this.computeNextRun(schedule.frequency as ExportScheduleFrequency, new Date())
         }
       });
+
+      void this.notificationsDispatch
+        .notifyWorkspaceAdmins(schedule.workspaceId, {
+          templateId: "export.failed",
+          context: { scheduleName: schedule.name, errorMessage: message }
+        })
+        .catch(() => undefined);
     }
   }
 

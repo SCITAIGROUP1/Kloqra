@@ -24,7 +24,10 @@ describe("AuthService unit tests", () => {
       sign: vi.fn().mockReturnValue("mocked-token"),
       verify: vi.fn()
     } as any;
-    authService = new AuthService(mockPrisma, mockJwt);
+    authService = new AuthService(mockPrisma, mockJwt, {
+      sendPasswordReset: vi.fn().mockResolvedValue({ sent: true }),
+      sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
+    } as never);
   });
 
   afterEach(() => {
@@ -93,6 +96,10 @@ describe("AuthService unit tests", () => {
           firstName: "Avery",
           lastName: "Admin",
           passwordHash: "hash",
+          mustChangePassword: false,
+          emailVerifiedAt: new Date("2025-01-01"),
+          totpEnabledAt: null,
+          totpSecret: null,
           defaultHourlyRate: null,
           memberships: [
             {
@@ -125,6 +132,31 @@ describe("AuthService unit tests", () => {
           })
         })
       );
+    });
+
+    it("returns requiresPasswordChange when mustChangePassword is set", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "new@kloqra.dev",
+          passwordHash: "hash",
+          mustChangePassword: true,
+          memberships: []
+        })
+      };
+
+      const result = await authService.login({
+        email: "new@kloqra.dev",
+        password: "temp-pass"
+      });
+
+      expect(result).toEqual({
+        requiresPasswordChange: true,
+        pendingToken: "mocked-token"
+      });
     });
   });
 });

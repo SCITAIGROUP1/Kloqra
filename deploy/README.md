@@ -20,6 +20,8 @@ Scripts (from repo root):
 pnpm install                                     # includes @railway/cli and vercel
 pnpm deploy:secrets                              # JWT secrets
 pnpm deploy:migrate -- <DATABASE_URL>            # prisma migrate deploy
+pnpm deploy:seed -- <DATABASE_URL>               # migrate deploy + demo seed
+pnpm deploy:db -- <DATABASE_URL>                 # migrate deploy + seed (alias: pnpm prisma:deploy)
 pnpm deploy:smoke -- <API_URL>                   # GET /health
 bash scripts/deploy/wire-cors.sh <client> <admin>
 bash scripts/deploy/setup-railway.sh staging     # Interactive Railway bootstrap

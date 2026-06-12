@@ -1,70 +1,90 @@
 "use client";
 
+import type { NotificationDto, NotificationType } from "@kloqra/contracts";
 import { AppBarIconButton, cn } from "@kloqra/ui";
-import { Bell, Clock, FolderKanban } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  CheckSquare,
+  ClipboardCheck,
+  Clock,
+  Download,
+  FolderKanban,
+  Link2,
+  Timer,
+  Users
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import {
+  NotificationDetails,
+  notificationRowClass
+} from "../features/notifications/notification-ui";
+import {
+  formatNotificationTimeAgo,
+  markAllNotificationsRead,
+  markNotificationRead,
+  useNotificationUnreadCount,
+  useRecentNotifications
+} from "../hooks/use-notifications";
 
-type NotificationItem = {
-  id: string;
-  title: string;
-  description: string;
-  timeAgo: string;
-  read: boolean;
-  icon: "clock" | "folder" | "bell";
-};
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n1",
-    title: "Timesheet Approved",
-    description: "Your timesheet for Week 23 has been approved",
-    timeAgo: "5 min ago",
-    read: false,
-    icon: "clock"
-  },
-  {
-    id: "n2",
-    title: "New Project Assigned",
-    description: 'You have been added to "Website Redesign" project',
-    timeAgo: "1 hour ago",
-    read: false,
-    icon: "folder"
-  },
-  {
-    id: "n3",
-    title: "Time Entry Reminder",
-    description: "Please submit your timesheet for this week",
-    timeAgo: "3 hours ago",
-    read: true,
-    icon: "bell"
+function iconForType(type: NotificationType) {
+  switch (type) {
+    case "PROJECT_ASSIGNMENT":
+      return FolderKanban;
+    case "TASK_ASSIGNMENT":
+      return CheckSquare;
+    case "TIMESHEET_REMINDER":
+    case "TIMESHEET_STATUS":
+      return Clock;
+    case "IDLE_TIMER_ALERT":
+      return Timer;
+    case "JIRA_SYNC_UPDATE":
+      return Link2;
+    case "APPROVAL_REQUEST":
+      return ClipboardCheck;
+    case "MEMBER_CHANGE":
+    case "WORKSPACE_ADDED":
+      return Users;
+    case "EXPORT_SCHEDULE":
+      return Download;
+    case "BUDGET_ALERT":
+      return AlertTriangle;
+    default:
+      return Bell;
   }
-];
+}
 
-function NotificationIcon({ type }: { type: NotificationItem["icon"] }) {
-  const className = "size-4 shrink-0 text-primary";
-  if (type === "folder") return <FolderKanban className={className} aria-hidden />;
-  if (type === "bell") return <Bell className={className} aria-hidden />;
-  return <Clock className={className} aria-hidden />;
+function NotificationIcon({ type }: { type: NotificationType }) {
+  const Icon = iconForType(type);
+  return <Icon className="size-4 shrink-0 text-primary" aria-hidden />;
 }
 
 export type NotificationDropdownProps = {
-  settingsHref?: string;
+  workspaceId: string;
+  viewAllHref?: string;
   className?: string;
 };
 
 export function NotificationDropdown({
-  settingsHref = "/settings?section=notifications",
+  workspaceId,
+  viewAllHref = "/notifications",
   className
 }: NotificationDropdownProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const unreadCount = notifications.filter((item) => !item.read).length;
+  const { count: unreadCount, refresh: refreshUnread } = useNotificationUnreadCount(
+    workspaceId,
+    Boolean(workspaceId)
+  );
+  const { items: notifications, refresh, setItems } = useRecentNotifications(workspaceId);
 
   useEffect(() => {
     if (!open) return;
+    void refresh();
+    void refreshUnread();
     function handlePointerDown(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -72,16 +92,28 @@ export function NotificationDropdown({
     }
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
+  }, [open, refresh, refreshUnread]);
 
-  function markAllRead() {
-    setNotifications((items) => items.map((item) => ({ ...item, read: true })));
+  async function markAllRead() {
+    await markAllNotificationsRead(workspaceId);
+    setItems((items) => items.map((item) => ({ ...item, readAt: new Date().toISOString() })));
+    void refreshUnread();
   }
 
-  function markRead(id: string) {
-    setNotifications((items) =>
-      items.map((item) => (item.id === id ? { ...item, read: true } : item))
-    );
+  async function handleItemClick(item: NotificationDto) {
+    if (!item.readAt) {
+      await markNotificationRead(workspaceId, item.id, true);
+      setItems((items) =>
+        items.map((row) =>
+          row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row
+        )
+      );
+      void refreshUnread();
+    }
+    if (item.metadata?.href) {
+      setOpen(false);
+      router.push(item.metadata.href);
+    }
   }
 
   return (
@@ -120,7 +152,7 @@ export function NotificationDropdown({
               <button
                 type="button"
                 className="shrink-0 text-xs font-medium text-primary hover:underline"
-                onClick={markAllRead}
+                onClick={() => void markAllRead()}
               >
                 Mark all read
               </button>
@@ -128,43 +160,49 @@ export function NotificationDropdown({
           </div>
 
           <ul className="max-h-80 overflow-y-auto">
-            {notifications.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={cn(
-                    "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40",
-                    !item.read && "bg-primary/5"
-                  )}
-                  onClick={() => markRead(item.id)}
-                >
-                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <NotificationIcon type={item.icon} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground">{item.title}</p>
-                      {!item.read ? (
-                        <span
-                          className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
-                          aria-label="Unread"
-                        />
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                      {item.description}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{item.timeAgo}</p>
-                  </div>
-                </button>
+            {notifications.length === 0 ? (
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No notifications yet
               </li>
-            ))}
+            ) : (
+              notifications.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={notificationRowClass(item, "px-4 py-3")}
+                    onClick={() => void handleItemClick(item)}
+                  >
+                    <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <NotificationIcon type={item.type} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground">{item.title}</p>
+                        {!item.readAt ? (
+                          <span
+                            className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+                            aria-label="Unread"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                        {item.body}
+                      </p>
+                      <NotificationDetails details={item.metadata?.details} />
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatNotificationTimeAgo(item.createdAt)}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              ))
+            )}
           </ul>
 
           <div className="border-t border-border/70 px-4 py-3 text-center">
             <Link
-              href={settingsHref}
+              href={viewAllHref}
               className="text-sm font-medium text-primary hover:underline"
               onClick={() => setOpen(false)}
             >

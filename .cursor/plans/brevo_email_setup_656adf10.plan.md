@@ -1,6 +1,6 @@
 ---
 name: Brevo Email Setup
-overview: "End-to-end plan to enable transactional email for Kloqra via Brevo SMTP relay: prerequisites, domain authentication, Railway/local env configuration, and verification through scheduled export delivery."
+overview: "End-to-end plan to enable transactional email for Kloqra via Brevo SMTP relay: prerequisites, domain authentication, Railway/local env configuration, and verification through member provisioning and scheduled export delivery."
 todos:
   - id: prereqs
     content: Confirm domain ownership (kloqra.app), DNS admin access, Brevo account, and Railway API variable access
@@ -34,7 +34,8 @@ Email is already implemented — no application code changes are required for in
 
 - [`apps/api/src/common/mailer/mailer.service.ts`](apps/api/src/common/mailer/mailer.service.ts) — Nodemailer wrapper reading `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - [`apps/api/src/load-env.ts`](apps/api/src/load-env.ts) — optional SMTP vars validated at startup
-- [`apps/api/src/modules/export/application/export-schedule.service.ts`](apps/api/src/modules/export/application/export-schedule.service.ts) — only current consumer; sends scheduled export attachments with subject `[Kloqra] Scheduled export: {name}`
+- [`apps/api/src/modules/export/application/export-schedule.service.ts`](apps/api/src/modules/export/application/export-schedule.service.ts) — current consumer; sends scheduled export attachments with subject `[Kloqra] Scheduled export: {name}`
+- **Planned consumer (feature/brevo-mails):** member provisioning emails via [`admin_member_provisioning` plan](.cursor/plans/admin_member_provisioning_67318806.plan.md) — workspace invite sends temp password to new members
 - Default From address if unset: `Kloqra <noreply@kloqra.app>`
 
 Mail is sent from the **Railway API service only** — not Vercel client/admin. If `SMTP_HOST` is missing, the app logs a warning and skips send (no crash).
@@ -133,7 +134,14 @@ On API boot, confirm log line: `Mailer configured — SMTP host: smtp-relay.brev
 
 With `apps/api/.env` loaded, send a one-off test via Nodemailer to your personal inbox to confirm credentials before testing the product flow.
 
-### 4b. Product test — scheduled export (recommended)
+### 4b. Product test — member provisioning (recommended after feature/brevo-mails)
+
+1. Start API locally or use staging with `SMTP_*` set.
+2. **Admin → Team Management → Add team member** (new email address).
+3. Verify credentials email received; Brevo transactional logs show delivered.
+4. Complete login + forced password change flow.
+
+### 4c. Product test — scheduled export
 
 1. Start API locally or use staging admin.
 2. **Admin → Scheduled exports** — create a schedule:

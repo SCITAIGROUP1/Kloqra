@@ -17,8 +17,10 @@ import { NotificationDropdown } from "./notification-dropdown";
 import { ThemeToggle } from "./theme-toggle";
 
 export type ShellHeaderActionsProps = {
+  workspaceId?: string;
   profileHref?: string;
   settingsHref?: string;
+  notificationsHref?: string;
   /** @deprecated Use onShowOnboardingWizard / onShowOnboardingTour instead */
   onShowOnboarding?: () => void;
   onShowOnboardingWizard?: () => void;
@@ -29,8 +31,10 @@ export type ShellHeaderActionsProps = {
 
 /** Global app bar actions: notifications, appearance, profile avatar. */
 export function ShellHeaderActions({
+  workspaceId = "",
   profileHref = "/profile",
   settingsHref = "/settings",
+  notificationsHref = "/notifications",
   onShowOnboarding,
   onShowOnboardingWizard,
   onShowOnboardingTour,
@@ -98,7 +102,7 @@ export function ShellHeaderActions({
           </PopoverContent>
         </Popover>
       ) : null}
-      <NotificationDropdown settingsHref={`${settingsHref}?section=notifications`} />
+      <NotificationDropdown workspaceId={workspaceId} viewAllHref={notificationsHref} />
       <ThemeToggle variant="icon-menu" />
       <Link
         href={settingsHref}

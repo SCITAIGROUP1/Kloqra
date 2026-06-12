@@ -8,7 +8,12 @@ export const ROUTES = {
     ME: "/auth/me",
     SWITCH_WORKSPACE: "/auth/switch-workspace",
     IMPERSONATE: "/auth/impersonate",
-    STOP_IMPERSONATION: "/auth/stop-impersonation"
+    STOP_IMPERSONATION: "/auth/stop-impersonation",
+    SET_PASSWORD: "/auth/set-password",
+    FORGOT_PASSWORD: "/auth/forgot-password",
+    RESET_PASSWORD: "/auth/reset-password",
+    VERIFY_EMAIL: "/auth/verify-email",
+    RESEND_VERIFICATION: "/auth/resend-verification"
   },
   USERS: {
     ME: "/users/me",
@@ -38,6 +43,7 @@ export const ROUTES = {
     CREATE: "/projects",
     BY_ID: (id: string) => `/projects/${id}`,
     TEAM: (id: string) => `/projects/${id}/team`,
+    TEAM_MEMBERS: (id: string) => `/projects/${id}/team/members`,
     TEAM_MEMBER: (projectId: string, memberId: string) =>
       `/projects/${projectId}/team/members/${memberId}`,
     TEAM_INVITES: (id: string) => `/projects/${id}/team/invites`,
@@ -119,5 +125,11 @@ export const ROUTES = {
     LIST_PENDING: "/timesheets/pending",
     APPROVE: (id: string) => `/timesheets/${id}/approve`,
     REJECT: (id: string) => `/timesheets/${id}/reject`
+  },
+  NOTIFICATIONS: {
+    LIST: "/notifications",
+    UNREAD_COUNT: "/notifications/unread-count",
+    BY_ID: (id: string) => `/notifications/${id}`,
+    MARK_ALL_READ: "/notifications/mark-all-read"
   }
 } as const;

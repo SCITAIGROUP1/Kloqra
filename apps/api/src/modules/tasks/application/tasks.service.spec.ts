@@ -22,7 +22,8 @@ function makePrisma() {
       findMany: vi.fn() as AnyMock
     },
     project: {
-      findFirst: vi.fn() as AnyMock
+      findFirst: vi.fn() as AnyMock,
+      findUnique: vi.fn() as AnyMock
     },
     category: {
       findFirst: vi.fn() as AnyMock
@@ -46,7 +47,14 @@ describe("TasksService", () => {
   beforeEach(() => {
     prisma = makePrisma();
     access = makeAccess();
-    service = new TasksService(prisma as any, access as any);
+    service = new TasksService(
+      prisma as any,
+      access as any,
+      {
+        notify: vi.fn().mockResolvedValue(undefined),
+        notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+      } as never
+    );
   });
 
   describe("list", () => {
@@ -148,6 +156,11 @@ describe("TasksService", () => {
 
     it("creates a task when project and category both belong to the workspace", async () => {
       prisma.project.findFirst.mockResolvedValue({ id: "p1" });
+      prisma.project.findUnique.mockResolvedValue({
+        id: "p1",
+        name: "Website",
+        workspaceId: "w1"
+      });
       prisma.category.findFirst.mockResolvedValue({ id: "c1" });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>

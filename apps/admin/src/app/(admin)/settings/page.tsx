@@ -4,7 +4,7 @@ import { Suspense } from "react";
 export default function Page() {
   return (
     <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
-      <AccountSettingsPage />
+      <AccountSettingsPage notificationsVariant="admin" />
     </Suspense>
   );
 }

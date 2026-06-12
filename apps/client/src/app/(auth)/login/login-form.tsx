@@ -4,16 +4,23 @@ import { ROUTES } from "@kloqra/contracts";
 import type {
   AuthSessionDto,
   LoginRequires2faResponseDto,
+  LoginRequiresPasswordChangeResponseDto,
+  LoginRequiresEmailVerificationResponseDto,
   StartupPagePreference
 } from "@kloqra/contracts";
 import { Button, Input, Label } from "@kloqra/ui";
 import { applyDefaultWorkspaceIfNeeded, AuthShell, resolveStartupPath } from "@kloqra/web-shared";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
-type LoginResponse = (AuthSessionDto & { accessToken: string }) | LoginRequires2faResponseDto;
+type LoginResponse =
+  | (AuthSessionDto & { accessToken: string })
+  | LoginRequires2faResponseDto
+  | LoginRequiresPasswordChangeResponseDto
+  | LoginRequiresEmailVerificationResponseDto;
 
 export function LoginForm() {
   const router = useRouter();
@@ -54,6 +61,14 @@ export function LoginForm() {
           ...(totpCode ? { totpCode } : {})
         })
       });
+      if ("requiresPasswordChange" in res && res.requiresPasswordChange) {
+        router.push(`/set-password?token=${encodeURIComponent(res.pendingToken)}`);
+        return;
+      }
+      if ("requiresEmailVerification" in res && res.requiresEmailVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(res.email)}`);
+        return;
+      }
       if ("requires2fa" in res && res.requires2fa) {
         setPendingToken(res.pendingToken);
         return;
@@ -67,16 +82,7 @@ export function LoginForm() {
   }
 
   return (
-    <AuthShell
-      title="Sign in"
-      footer={
-        <p className="text-center text-sm text-muted-foreground">
-          <a href="/register" className="text-primary hover:underline">
-            Create account
-          </a>
-        </p>
-      }
-    >
+    <AuthShell title="Sign in">
       <form onSubmit={submit} className="flex flex-col gap-4">
         {!pendingToken ? (
           <>
@@ -117,6 +123,13 @@ export function LoginForm() {
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit">{pendingToken ? "Verify" : "Sign in"}</Button>
+        {!pendingToken ? (
+          <p className="text-center text-sm">
+            <Link href="/forgot-password" className="text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+        ) : null}
       </form>
     </AuthShell>
   );

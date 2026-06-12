@@ -9,6 +9,7 @@ import {
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 
 type TaskWithRelations = {
   id: string;
@@ -24,7 +25,8 @@ type TaskWithRelations = {
 export class TasksService {
   constructor(
     private prisma: PrismaService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private notificationsDispatch: NotificationsDispatchService
   ) {}
 
   toDto(t: TaskWithRelations) {
@@ -121,6 +123,28 @@ export class TasksService {
         include: this.taskInclude()
       });
     });
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: dto.projectId },
+      select: { name: true, workspaceId: true }
+    });
+    if (project) {
+      for (const assigneeUserId of dto.assigneeUserIds) {
+        void this.notificationsDispatch
+          .notify({
+            userId: assigneeUserId,
+            workspaceId: project.workspaceId,
+            templateId: "task.assigned",
+            context: {
+              taskName: dto.taskName,
+              projectName: project.name,
+              taskId: t.id,
+              projectId: dto.projectId
+            }
+          })
+          .catch(() => undefined);
+      }
+    }
 
     return this.toDto(t);
   }

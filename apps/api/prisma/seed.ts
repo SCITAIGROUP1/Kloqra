@@ -16,6 +16,7 @@ import {
   DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
   SEED_CATEGORIES,
+  SEED_NOTIFICATIONS,
   SEED_PASSWORD,
   SEED_USERS,
   SEED_WORKSPACES,
@@ -78,6 +79,29 @@ function rollupRepo() {
       count: (args: { where: { assignees: { none: Record<string, never> } } }) => Promise<number>;
     };
   };
+}
+
+/** Notification delegate — typed at boundary for stale IDE Prisma clients (run `prisma generate`). */
+function notificationRepo() {
+  return (
+    prisma as unknown as {
+      notification: {
+        deleteMany: () => Promise<{ count: number }>;
+        create: (args: {
+          data: {
+            userId: string;
+            workspaceId: string;
+            type: string;
+            title: string;
+            body: string;
+            metadata: Prisma.InputJsonValue;
+            readAt: Date | null;
+            createdAt: Date;
+          };
+        }) => Promise<unknown>;
+      };
+    }
+  ).notification;
 }
 
 async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<string, SeedCategory>> {
@@ -159,6 +183,9 @@ async function main() {
   const dashboardLayoutCount = await seedDashboardLayouts(users, workspaces);
   console.log(`  dashboard layouts: ${dashboardLayoutCount} user/workspace assignments`);
 
+  const notificationCount = await seedNotifications(workspaces, users, allProjectCtx);
+  console.log(`  notifications: ${notificationCount}`);
+
   printCredentials();
   await printSummary(workspaces, users);
 }
@@ -181,6 +208,7 @@ async function resetDatabase() {
   await prisma.project.deleteMany();
   await categoryRepo().deleteMany();
   await prisma.refreshToken.deleteMany();
+  await notificationRepo().deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
   await prisma.user.deleteMany();
@@ -230,6 +258,8 @@ async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
         firstName,
         lastName: lastName || null,
         defaultHourlyRate: spec.defaultHourlyRate,
+        mustChangePassword: spec.mustChangePassword ?? false,
+        emailVerifiedAt: spec.emailVerified === false ? null : new Date(),
         preferences: (spec.preferences ?? {}) as Prisma.InputJsonValue
       } as Prisma.UserUncheckedCreateInput
     });
@@ -388,6 +418,50 @@ async function categoryTaskCounts(workspaceId: string): Promise<string> {
     orderBy: { name: "asc" }
   });
   return rows.map((r: CategoryWithCount) => `${r.name}=${r._count.tasks}`).join(", ");
+}
+
+async function seedNotifications(
+  workspaces: Workspace[],
+  users: Map<string, User>,
+  allProjectCtx: ProjectCtx[]
+): Promise<number> {
+  const workspaceBySlug = new Map(workspaces.map((workspace) => [workspace.slug, workspace]));
+  const projectByKey = new Map(
+    allProjectCtx.map((ctx) => [`${ctx.workspaceId}:${ctx.project.name}`, ctx.project])
+  );
+
+  let created = 0;
+  for (const spec of SEED_NOTIFICATIONS) {
+    const user = users.get(spec.recipientEmail);
+    const workspace = workspaceBySlug.get(spec.workspaceSlug);
+    if (!user || !workspace) continue;
+
+    const metadata: Record<string, unknown> = { ...(spec.metadata ?? {}) };
+    if (spec.projectName) {
+      const project = projectByKey.get(`${workspace.id}:${spec.projectName}`);
+      if (project) {
+        metadata.projectId = project.id;
+        metadata.href = metadata.href ?? `/projects/${project.id}`;
+      }
+    }
+
+    const ageMs = spec.read ? 2 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+    await notificationRepo().create({
+      data: {
+        userId: user.id,
+        workspaceId: workspace.id,
+        type: spec.type,
+        title: spec.title,
+        body: spec.body,
+        metadata: metadata as Prisma.InputJsonValue,
+        readAt: spec.read ? new Date(Date.now() - ageMs) : null,
+        createdAt: new Date(Date.now() - ageMs)
+      }
+    });
+    created++;
+  }
+
+  return created;
 }
 
 async function seedSampleInvite(projectCtx: ProjectCtx[], admin: User) {
@@ -757,10 +831,18 @@ function printCredentials() {
     console.log(`    ${u.email.padEnd(28)} ${u.name}`);
   }
 
-  console.log("\n  Members (11):");
+  console.log("\n  Members (12):");
   for (const u of members) {
     const range = `${u.historyDays}d history · intensity ${Math.round(u.intensity * 100)}%`;
     console.log(`    ${u.email.padEnd(28)} ${u.name.padEnd(18)} (${range})`);
+  }
+
+  const pending = SEED_USERS.find((u) => u.email === "pending@kloqra.dev");
+  if (pending) {
+    console.log("\n  Email verification demo:");
+    console.log(
+      `    ${pending.email.padEnd(28)} ${pending.name} (unverified — use /verify-email after login)`
+    );
   }
 
   console.log("\n  Workspaces:");

@@ -103,7 +103,11 @@ export class WorkspaceController {
     @CurrentUser() user: RequestUser
   ) {
     if (id !== user.workspaceId) throw new Error("Forbidden");
-    return this.workspace.invite(id, body as Parameters<WorkspaceService["invite"]>[1]);
+    return this.workspace.invite(
+      id,
+      body as Parameters<WorkspaceService["invite"]>[1],
+      user.userId
+    );
   }
 
   @Roles("ADMIN")

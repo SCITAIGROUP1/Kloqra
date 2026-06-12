@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { TeamMemberOverviewDto } from "@kloqra/contracts";
+import type { InviteMemberResponseDto, TeamMemberOverviewDto } from "@kloqra/contracts";
 import {
   AppModal,
   AppBar,
@@ -73,6 +73,7 @@ export function TeamManagementPage() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
@@ -86,18 +87,32 @@ export function TeamManagementPage() {
     setInviteError(null);
     setInviting(true);
     try {
-      await api(ROUTES.WORKSPACES.INVITE(ws), {
+      const res = await api<InviteMemberResponseDto>(ROUTES.WORKSPACES.INVITE(ws), {
         method: "POST",
         workspaceId: ws,
-        body: JSON.stringify({ email: email.trim(), role })
+        body: JSON.stringify({
+          email: email.trim(),
+          role,
+          ...(name.trim() ? { name: name.trim() } : {})
+        })
       });
       setEmail("");
+      setName("");
       setRole("MEMBER");
       setInviteOpen(false);
-      toast.success("Member added to workspace.");
+      if (res.userCreated && res.emailSent) {
+        toast.success("Account created and email sent.");
+      } else if (res.userCreated && !res.emailSent) {
+        toast.success("Member added. Email not sent — check mail configuration.");
+      } else {
+        toast.success("Existing user added to workspace.");
+      }
       await reload();
-    } catch {
-      const message = "User must register first, or is already a member.";
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Could not add member. They may already be in the workspace.";
       setInviteError(message);
       toast.error(message);
     } finally {
@@ -382,7 +397,7 @@ export function TeamManagementPage() {
           if (!open) setInviteError(null);
         }}
         title="Add team member"
-        description="Invite a registered user to this workspace by email."
+        description="Add a workspace member. New users receive sign-in credentials by email."
         icon={<UserPlus className="size-5" />}
         footer={
           <>
@@ -416,14 +431,25 @@ export function TeamManagementPage() {
             />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="invite-name">Name (optional)</Label>
+            <Input
+              id="invite-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Defaults from email if blank"
+            />
+          </div>
+          <div className="space-y-2">
             <Label>Role</Label>
             <Select value={role} onValueChange={(v) => setRole(v as "MEMBER" | "ADMIN")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MEMBER">Member</SelectItem>
-                <SelectItem value="ADMIN">Admin</SelectItem>
+                <SelectItem value="MEMBER">Member — track time on assigned projects</SelectItem>
+                <SelectItem value="ADMIN">
+                  Admin — manage workspace, projects, and members
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

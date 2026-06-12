@@ -1,4 +1,5 @@
 import {
+  addTeamMemberSchema,
   createProjectSchema,
   listProjectsQuerySchema,
   listProjectTeamQuerySchema,
@@ -85,6 +86,20 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(listProjectTeamQuerySchema)) query: ListProjectTeamQuery
   ) {
     return this.projects.getTeam(user.workspaceId, id, query);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.PROJECTS.TEAM_MEMBERS(":id"))
+  addTeamMember(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(addTeamMemberSchema)) body: unknown
+  ) {
+    return this.projects.addTeamMember(
+      user.workspaceId,
+      id,
+      body as Parameters<ProjectsService["addTeamMember"]>[2]
+    );
   }
 
   @Roles("ADMIN")

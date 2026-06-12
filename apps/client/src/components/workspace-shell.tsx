@@ -7,9 +7,11 @@ import {
   BrandMark,
   logoutSession,
   ShellHeaderActions,
+  useNotificationUnreadCount,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
 import {
+  Bell,
   CalendarDays,
   ClipboardCheck,
   Clock,
@@ -32,6 +34,7 @@ const baseNav: readonly SidebarNavItem[] = [
   { href: "/time-tracker", label: "Time Tracker", Icon: Clock, tourId: "nav-time-tracker" },
   { href: "/timesheet", label: "Timesheet", Icon: CalendarDays },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck, tourId: "nav-approvals" },
+  { href: "/notifications", label: "Notifications", Icon: Bell },
   { href: "/projects", label: "My projects", Icon: FolderKanban, tourId: "nav-projects" }
 ];
 
@@ -42,6 +45,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const [anchorDate] = useState(() => new Date());
   const wsId = session?.workspaceId ?? "";
   const { actionableCount } = useMySubmissions(wsId, anchorDate, "assigned", Boolean(wsId));
+  const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, Boolean(wsId));
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
@@ -94,10 +98,12 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   }
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
-    return baseNav.map((item) =>
-      item.href === "/approvals" ? { ...item, badge: actionableCount } : item
-    );
-  }, [actionableCount]);
+    return baseNav.map((item) => {
+      if (item.href === "/approvals") return { ...item, badge: actionableCount };
+      if (item.href === "/notifications") return { ...item, badge: notificationUnreadCount };
+      return item;
+    });
+  }, [actionableCount, notificationUnreadCount]);
 
   if (!session) {
     return (
@@ -119,8 +125,10 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       logoLinkHref="/dashboard"
       shellToolbar={
         <ShellHeaderActions
+          workspaceId={wsId}
           profileHref="/profile"
           settingsHref="/settings"
+          notificationsHref="/notifications"
           onShowOnboardingWizard={() => openOnboarding({ replay: true })}
           onShowOnboardingTour={() => openTour({ replay: true })}
         />

@@ -15,6 +15,10 @@ export const updateTeamMemberSchema = z.object({
   isActive: z.boolean()
 });
 
+export const addTeamMemberSchema = z.object({
+  userId: uuidSchema
+});
+
 export const teamSchema = z.object({
   id: uuidSchema,
   projectId: uuidSchema,
@@ -60,6 +64,7 @@ export const projectTeamResponseSchema = z.object({
 
 export type TeamMemberDto = z.infer<typeof teamMemberSchema>;
 export type UpdateTeamMemberDto = z.infer<typeof updateTeamMemberSchema>;
+export type AddTeamMemberDto = z.infer<typeof addTeamMemberSchema>;
 export type TeamDto = z.infer<typeof teamSchema>;
 export type ListProjectTeamQuery = z.infer<typeof listProjectTeamQuerySchema>;
 export type ProjectTeamResponseDto = z.infer<typeof projectTeamResponseSchema>;

@@ -28,7 +28,10 @@ describe("ProjectsService", () => {
       accessibleProjectIds: vi.fn(),
       assertCanAccessProject: vi.fn()
     };
-    service = new ProjectsService(mockPrisma, mockAccess);
+    service = new ProjectsService(mockPrisma, mockAccess, {
+      notify: vi.fn().mockResolvedValue(undefined),
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+    } as never);
   });
 
   it("list returns empty paginated result when user has no accessible projects", async () => {

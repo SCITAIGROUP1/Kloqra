@@ -105,14 +105,22 @@ describe("contracts", () => {
       {}
     );
     const notifications = resolveEffectiveNotifications(merged);
-    expect(notifications.timesheetReminders).toBe(true);
-    expect(notifications.projectAssignment).toBe(false);
+    expect(notifications.timesheetReminders.email).toBe(true);
+    expect(notifications.timesheetReminders.inApp).toBe(false);
+    expect(notifications.projectAssignment.email).toBe(false);
   });
 
   it("normalizes legacy notification channel objects to email booleans", () => {
     expect(normalizeNotificationPreference({ inApp: true, email: false }, false)).toBe(false);
     expect(normalizeNotificationPreference({ inApp: false, email: true }, false)).toBe(true);
     expect(normalizeNotificationPreference(true, false)).toBe(true);
+  });
+
+  it("exposes notification routes and resolves dual-channel preferences", () => {
+    expect(ROUTES.NOTIFICATIONS.LIST).toBe("/notifications");
+    const resolved = resolveEffectiveNotifications({});
+    expect(resolved.approvalRequest).toEqual({ inApp: true, email: true });
+    expect(resolved.timesheetStatus.email).toBe(true);
   });
 
   it("formats user date time from preferences", () => {

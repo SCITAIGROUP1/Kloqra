@@ -12,51 +12,131 @@ export const startupPagePreferenceSchema = z.enum([
   "time-tracker"
 ]);
 
-/** Email on/off for a single notification type. Legacy `{ inApp, email }` objects are normalized on read. */
+export const notificationChannelSchema = z.object({
+  inApp: z.boolean(),
+  email: z.boolean()
+});
+
+export type NotificationChannels = z.infer<typeof notificationChannelSchema>;
+
+/** Per-type channel prefs. Legacy boolean or `{ inApp?, email? }` normalized on read. */
 export const notificationPreferenceSchema = z.union([
   z.boolean(),
+  notificationChannelSchema.partial(),
   z.object({
     inApp: z.boolean().optional(),
     email: z.boolean().optional()
   })
 ]);
 
+export const memberNotificationKeySchema = z.enum([
+  "workspaceAdded",
+  "projectAssignment",
+  "taskAssignment",
+  "timesheetReminders",
+  "idleTimerAlert",
+  "jiraSyncUpdates",
+  "timesheetStatus"
+]);
+
+export const adminNotificationKeySchema = z.enum([
+  "approvalRequest",
+  "memberChanges",
+  "exportSchedule",
+  "budgetAlert"
+]);
+
+export const notificationPreferenceKeySchema = z.union([
+  memberNotificationKeySchema,
+  adminNotificationKeySchema
+]);
+
+export type MemberNotificationKey = z.infer<typeof memberNotificationKeySchema>;
+export type AdminNotificationKey = z.infer<typeof adminNotificationKeySchema>;
+export type NotificationPreferenceKey = z.infer<typeof notificationPreferenceKeySchema>;
+
 export const userNotificationsSchema = z.object({
   enabled: z.boolean(),
+  workspaceAdded: notificationPreferenceSchema,
   projectAssignment: notificationPreferenceSchema,
   taskAssignment: notificationPreferenceSchema,
   timesheetReminders: notificationPreferenceSchema,
   idleTimerAlert: notificationPreferenceSchema,
-  jiraSyncUpdates: notificationPreferenceSchema
+  jiraSyncUpdates: notificationPreferenceSchema,
+  timesheetStatus: notificationPreferenceSchema,
+  approvalRequest: notificationPreferenceSchema,
+  memberChanges: notificationPreferenceSchema,
+  exportSchedule: notificationPreferenceSchema,
+  budgetAlert: notificationPreferenceSchema
 });
 
 export type ResolvedUserNotifications = {
   enabled: boolean;
-  projectAssignment: boolean;
-  taskAssignment: boolean;
-  timesheetReminders: boolean;
-  idleTimerAlert: boolean;
-  jiraSyncUpdates: boolean;
+  workspaceAdded: NotificationChannels;
+  projectAssignment: NotificationChannels;
+  taskAssignment: NotificationChannels;
+  timesheetReminders: NotificationChannels;
+  idleTimerAlert: NotificationChannels;
+  jiraSyncUpdates: NotificationChannels;
+  timesheetStatus: NotificationChannels;
+  approvalRequest: NotificationChannels;
+  memberChanges: NotificationChannels;
+  exportSchedule: NotificationChannels;
+  budgetAlert: NotificationChannels;
+};
+
+const memberChannelDefaults: Record<MemberNotificationKey, NotificationChannels> = {
+  workspaceAdded: { inApp: true, email: false },
+  projectAssignment: { inApp: true, email: false },
+  taskAssignment: { inApp: true, email: false },
+  timesheetReminders: { inApp: true, email: true },
+  idleTimerAlert: { inApp: true, email: false },
+  jiraSyncUpdates: { inApp: true, email: false },
+  timesheetStatus: { inApp: true, email: true }
+};
+
+const adminChannelDefaults: Record<AdminNotificationKey, NotificationChannels> = {
+  approvalRequest: { inApp: true, email: true },
+  memberChanges: { inApp: true, email: false },
+  exportSchedule: { inApp: true, email: true },
+  budgetAlert: { inApp: true, email: false }
 };
 
 export const DEFAULT_USER_NOTIFICATIONS: ResolvedUserNotifications = {
   enabled: true,
-  projectAssignment: false,
-  taskAssignment: false,
-  timesheetReminders: true,
-  idleTimerAlert: false,
-  jiraSyncUpdates: false
+  ...memberChannelDefaults,
+  ...adminChannelDefaults
 };
 
-/** Maps stored preference (boolean or legacy channel object) to email enabled. */
-export function normalizeNotificationPreference(value: unknown, fallback: boolean): boolean {
-  if (typeof value === "boolean") return value;
+export function memberNotificationKeys(): MemberNotificationKey[] {
+  return memberNotificationKeySchema.options;
+}
+
+export function adminNotificationKeys(): AdminNotificationKey[] {
+  return adminNotificationKeySchema.options;
+}
+
+/** Maps stored preference (boolean or legacy channel object) to channel pair. */
+export function normalizeNotificationChannels(
+  value: unknown,
+  fallback: NotificationChannels
+): NotificationChannels {
+  if (typeof value === "boolean") {
+    return { inApp: true, email: value };
+  }
   if (value && typeof value === "object") {
     const legacy = value as { inApp?: boolean; email?: boolean };
-    if (typeof legacy.email === "boolean") return legacy.email;
-    if (typeof legacy.inApp === "boolean") return legacy.inApp;
+    return {
+      inApp: typeof legacy.inApp === "boolean" ? legacy.inApp : fallback.inApp,
+      email: typeof legacy.email === "boolean" ? legacy.email : fallback.email
+    };
   }
   return fallback;
+}
+
+/** @deprecated Use normalizeNotificationChannels — email channel only. */
+export function normalizeNotificationPreference(value: unknown, fallback: boolean): boolean {
+  return normalizeNotificationChannels(value, { inApp: true, email: fallback }).email;
 }
 
 export const userPreferencesSchema = z
@@ -96,6 +176,14 @@ export function parseUserPreferences(raw: unknown): UserPreferences {
   return parsed.success ? parsed.data : {};
 }
 
+function mergeNotificationKey(
+  current: Partial<UserNotifications> | undefined,
+  partial: Partial<UserNotifications> | undefined,
+  key: NotificationPreferenceKey
+) {
+  return partial?.[key] ?? current?.[key] ?? DEFAULT_USER_NOTIFICATIONS[key];
+}
+
 export function mergeUserPreferences(
   current: UserPreferences,
   partial: Partial<UserPreferences>
@@ -105,31 +193,21 @@ export function mergeUserPreferences(
     delete merged.timezone;
   }
   if (partial.notifications) {
+    const cur = current.notifications;
+    const part = partial.notifications;
     merged.notifications = {
-      enabled:
-        partial.notifications.enabled ??
-        current.notifications?.enabled ??
-        DEFAULT_USER_NOTIFICATIONS.enabled,
-      projectAssignment:
-        partial.notifications.projectAssignment ??
-        current.notifications?.projectAssignment ??
-        DEFAULT_USER_NOTIFICATIONS.projectAssignment,
-      taskAssignment:
-        partial.notifications.taskAssignment ??
-        current.notifications?.taskAssignment ??
-        DEFAULT_USER_NOTIFICATIONS.taskAssignment,
-      timesheetReminders:
-        partial.notifications.timesheetReminders ??
-        current.notifications?.timesheetReminders ??
-        DEFAULT_USER_NOTIFICATIONS.timesheetReminders,
-      idleTimerAlert:
-        partial.notifications.idleTimerAlert ??
-        current.notifications?.idleTimerAlert ??
-        DEFAULT_USER_NOTIFICATIONS.idleTimerAlert,
-      jiraSyncUpdates:
-        partial.notifications.jiraSyncUpdates ??
-        current.notifications?.jiraSyncUpdates ??
-        DEFAULT_USER_NOTIFICATIONS.jiraSyncUpdates
+      enabled: part.enabled ?? cur?.enabled ?? DEFAULT_USER_NOTIFICATIONS.enabled,
+      workspaceAdded: mergeNotificationKey(cur, part, "workspaceAdded"),
+      projectAssignment: mergeNotificationKey(cur, part, "projectAssignment"),
+      taskAssignment: mergeNotificationKey(cur, part, "taskAssignment"),
+      timesheetReminders: mergeNotificationKey(cur, part, "timesheetReminders"),
+      idleTimerAlert: mergeNotificationKey(cur, part, "idleTimerAlert"),
+      jiraSyncUpdates: mergeNotificationKey(cur, part, "jiraSyncUpdates"),
+      timesheetStatus: mergeNotificationKey(cur, part, "timesheetStatus"),
+      approvalRequest: mergeNotificationKey(cur, part, "approvalRequest"),
+      memberChanges: mergeNotificationKey(cur, part, "memberChanges"),
+      exportSchedule: mergeNotificationKey(cur, part, "exportSchedule"),
+      budgetAlert: mergeNotificationKey(cur, part, "budgetAlert")
     };
   }
   return merged;
@@ -184,30 +262,35 @@ export function resolveEffectiveStartupPage(
 export function resolveEffectiveNotifications(
   userPreferences: UserPreferences
 ): ResolvedUserNotifications {
-  const partial = userPreferences.notifications ?? {};
+  const partial: Partial<UserNotifications> = userPreferences.notifications ?? {};
+  const resolve = (key: NotificationPreferenceKey) =>
+    normalizeNotificationChannels(partial[key], DEFAULT_USER_NOTIFICATIONS[key]);
+
   return {
     enabled: partial.enabled ?? DEFAULT_USER_NOTIFICATIONS.enabled,
-    projectAssignment: normalizeNotificationPreference(
-      partial.projectAssignment,
-      DEFAULT_USER_NOTIFICATIONS.projectAssignment
-    ),
-    taskAssignment: normalizeNotificationPreference(
-      partial.taskAssignment,
-      DEFAULT_USER_NOTIFICATIONS.taskAssignment
-    ),
-    timesheetReminders: normalizeNotificationPreference(
-      partial.timesheetReminders,
-      DEFAULT_USER_NOTIFICATIONS.timesheetReminders
-    ),
-    idleTimerAlert: normalizeNotificationPreference(
-      partial.idleTimerAlert,
-      DEFAULT_USER_NOTIFICATIONS.idleTimerAlert
-    ),
-    jiraSyncUpdates: normalizeNotificationPreference(
-      partial.jiraSyncUpdates,
-      DEFAULT_USER_NOTIFICATIONS.jiraSyncUpdates
-    )
+    workspaceAdded: resolve("workspaceAdded"),
+    projectAssignment: resolve("projectAssignment"),
+    taskAssignment: resolve("taskAssignment"),
+    timesheetReminders: resolve("timesheetReminders"),
+    idleTimerAlert: resolve("idleTimerAlert"),
+    jiraSyncUpdates: resolve("jiraSyncUpdates"),
+    timesheetStatus: resolve("timesheetStatus"),
+    approvalRequest: resolve("approvalRequest"),
+    memberChanges: resolve("memberChanges"),
+    exportSchedule: resolve("exportSchedule"),
+    budgetAlert: resolve("budgetAlert")
   };
+}
+
+export function resolveNotificationChannels(
+  userPreferences: UserPreferences,
+  key: NotificationPreferenceKey
+): NotificationChannels {
+  const resolved = resolveEffectiveNotifications(userPreferences);
+  if (!resolved.enabled) {
+    return { inApp: false, email: false };
+  }
+  return resolved[key];
 }
 
 export function formatUserDate(

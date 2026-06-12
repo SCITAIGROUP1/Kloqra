@@ -35,7 +35,17 @@ export const createWorkspaceSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   email: z.string().email(),
-  role: workspaceRoleSchema.default("MEMBER")
+  role: workspaceRoleSchema.default("MEMBER"),
+  name: z.string().min(1).max(120).optional()
+});
+
+export const emailSkipReasonSchema = z.enum(["smtp_unconfigured", "send_failed"]);
+
+export const inviteMemberResponseSchema = z.object({
+  member: workspaceMemberSchema,
+  userCreated: z.boolean(),
+  emailSent: z.boolean(),
+  emailSkipReason: emailSkipReasonSchema.optional()
 });
 
 export const updateWorkspaceMemberSchema = z.object({
@@ -89,6 +99,8 @@ export type TeamMembersOverviewSummaryDto = z.infer<typeof teamMembersOverviewSu
 export type TeamMembersOverviewDto = z.infer<typeof teamMembersOverviewSchema>;
 export type TeamMembersOverviewQuery = z.infer<typeof teamMembersOverviewQuerySchema>;
 export type InviteMemberDto = z.infer<typeof inviteMemberSchema>;
+export type InviteMemberResponseDto = z.infer<typeof inviteMemberResponseSchema>;
+export type EmailSkipReason = z.infer<typeof emailSkipReasonSchema>;
 export type UpdateWorkspaceMemberDto = z.infer<typeof updateWorkspaceMemberSchema>;
 export type SwitchWorkspaceDto = z.infer<typeof switchWorkspaceSchema>;
 export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;

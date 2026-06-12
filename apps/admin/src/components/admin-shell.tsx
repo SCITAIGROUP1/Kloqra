@@ -8,10 +8,12 @@ import {
   BrandMark,
   logoutSession,
   ShellHeaderActions,
+  useNotificationUnreadCount,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
 import {
   Activity,
+  Bell,
   Building2,
   ClipboardCheck,
   CreditCard,
@@ -34,6 +36,7 @@ const baseNav = [
   { href: "/categories", label: "Categories", Icon: Tags },
   { href: "/team", label: "Team Live", Icon: Activity },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
+  { href: "/notifications", label: "Notifications", Icon: Bell },
   { href: "/billing", label: "Billing", Icon: CreditCard },
   { href: "/exports", label: "Exports", Icon: Download },
   { href: "/workspace", label: "Workspace", Icon: Building2 }
@@ -44,6 +47,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const session = useSessionStore((s) => s.session);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const [pendingCount, setPendingCount] = useState(0);
+  const wsId = session?.workspaceId ?? "";
+  const { count: notificationUnreadCount } = useNotificationUnreadCount(
+    wsId,
+    Boolean(wsId && session?.workspaceRole === "ADMIN")
+  );
 
   useEffect(() => {
     if (session) {
@@ -79,10 +87,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, [session?.workspaceId, session?.workspaceRole]);
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
-    return baseNav.map((item) =>
-      item.href === "/approvals" ? { ...item, badge: pendingCount } : item
-    );
-  }, [pendingCount]);
+    return baseNav.map((item) => {
+      if (item.href === "/approvals") return { ...item, badge: pendingCount };
+      if (item.href === "/notifications") return { ...item, badge: notificationUnreadCount };
+      return item;
+    });
+  }, [pendingCount, notificationUnreadCount]);
 
   if (!session) {
     return (
@@ -102,7 +112,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       logoTitle={BRAND_NAME}
       logoSubtitle="Admin Portal"
       logoLinkHref="/dashboard"
-      shellToolbar={<ShellHeaderActions profileHref="/profile" settingsHref="/settings" />}
+      shellToolbar={
+        <ShellHeaderActions
+          workspaceId={wsId}
+          profileHref="/profile"
+          settingsHref="/settings"
+          notificationsHref="/notifications"
+        />
+      }
       workspaceSwitcher={(collapsed) => (
         <WorkspaceSwitcher filterRole="ADMIN" defaultRedirect="/dashboard" collapsed={collapsed} />
       )}

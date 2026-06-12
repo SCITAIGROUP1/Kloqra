@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 
 const ADMIN_BASE_URL = process.env.ADMIN_BASE_URL ?? "http://localhost:3002";
 
@@ -11,6 +12,7 @@ test("admin impersonation redirects to client dashboard", async ({ page }) => {
   await page.getByRole("menuitem", { name: "View As Member" }).click();
 
   await page.waitForURL("**/dashboard**");
+  await dismissOnboardingIfVisible(page);
   await expect(page.getByText("Total Hours")).toBeVisible();
   await expect(page.getByText(/Viewing workspace as/)).toBeVisible({ timeout: 15_000 });
 

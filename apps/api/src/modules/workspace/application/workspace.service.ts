@@ -1,12 +1,31 @@
 import { ErrorCodes } from "@kloqra/contracts";
-import type { InviteMemberDto, UpdateWorkspaceMemberDto } from "@kloqra/contracts";
+import type {
+  InviteMemberDto,
+  InviteMemberResponseDto,
+  UpdateWorkspaceMemberDto
+} from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import {
+  deriveNameFromEmail,
+  generateTempPassword,
+  hashPassword
+} from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+// eslint-disable-next-line no-restricted-imports
+import { AuthService } from "../../auth/application/auth.service";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
+import { splitDisplayName } from "../../users/application/user-name.util";
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private memberMailer: MemberProvisioningMailer,
+    private notificationsDispatch: NotificationsDispatchService,
+    private auth: AuthService
+  ) {}
 
   async listForUser(userId: string) {
     const memberships = await this.prisma.workspaceMember.findMany({
@@ -80,32 +99,137 @@ export class WorkspaceService {
       }
     }
 
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
     await this.prisma.workspaceMember.delete({ where: { id: memberId } });
+
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actingUserId },
+      select: { name: true }
+    });
+    void this.notificationsDispatch
+      .notifyWorkspaceAdmins(workspaceId, {
+        templateId: "member.removed",
+        context: {
+          memberName: member.user.name,
+          workspaceName: workspace?.name ?? "the workspace",
+          actorName: actor?.name
+        },
+        excludeUserId: actingUserId
+      })
+      .catch(() => undefined);
+
     return { ok: true as const };
   }
 
-  async invite(workspaceId: string, dto: InviteMemberDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!user) {
-      throw new DomainException(
-        ErrorCodes.NOT_FOUND,
-        "User must register first",
-        HttpStatus.NOT_FOUND
-      );
+  async invite(
+    workspaceId: string,
+    dto: InviteMemberDto,
+    invitedByUserId: string
+  ): Promise<InviteMemberResponseDto> {
+    const email = dto.email.trim().toLowerCase();
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
+
+    const inviter = await this.prisma.user.findUnique({ where: { id: invitedByUserId } });
+    const inviterName = inviter?.name;
+
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    let userCreated = false;
+    let temporaryPassword: string | undefined;
+
+    if (!user) {
+      const displayName = dto.name?.trim() || deriveNameFromEmail(email);
+      const { firstName, lastName } = splitDisplayName(displayName);
+      temporaryPassword = generateTempPassword();
+      const passwordHash = await hashPassword(temporaryPassword);
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          name: displayName,
+          firstName,
+          lastName,
+          mustChangePassword: true,
+          emailVerifiedAt: null
+        }
+      });
+      userCreated = true;
+    }
+
     const existing = await this.prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: user.id } }
     });
     if (existing) {
       throw new DomainException(
-        ErrorCodes.VALIDATION_ERROR,
-        "Already a member",
+        ErrorCodes.MEMBER_ALREADY_EXISTS,
+        "Already a member of this workspace",
         HttpStatus.CONFLICT
       );
     }
-    return this.prisma.workspaceMember.create({
-      data: { workspaceId, userId: user.id, role: dto.role }
+
+    const membership = await this.prisma.workspaceMember.create({
+      data: { workspaceId, userId: user.id, role: dto.role },
+      include: { user: true }
     });
+
+    let emailSent = false;
+    let emailSkipReason: "smtp_unconfigured" | "send_failed" | undefined;
+
+    if (userCreated && temporaryPassword) {
+      const mailResult = await this.memberMailer.sendNewMemberCredentials({
+        to: email,
+        workspaceName: workspace.name,
+        inviterName,
+        temporaryPassword
+      });
+      emailSent = mailResult.sent;
+      emailSkipReason = mapEmailSkipReason(mailResult.reason);
+    } else {
+      const mailResult = await this.memberMailer.sendWorkspaceAdded({
+        to: email,
+        workspaceName: workspace.name,
+        inviterName
+      });
+      emailSent = mailResult.sent;
+      emailSkipReason = mapEmailSkipReason(mailResult.reason);
+    }
+
+    void this.notificationsDispatch
+      .notifyWorkspaceAdmins(workspaceId, {
+        templateId: "member.joined",
+        context: {
+          memberName: membership.user.name,
+          workspaceName: workspace.name,
+          inviterName: inviterName
+        },
+        excludeUserId: invitedByUserId
+      })
+      .catch(() => undefined);
+
+    void this.notificationsDispatch
+      .notify({
+        userId: user.id,
+        workspaceId,
+        templateId: "workspace.added",
+        context: {
+          workspaceName: workspace.name,
+          inviterName
+        }
+      })
+      .catch(() => undefined);
+
+    if (userCreated) {
+      void this.auth.sendEmailVerification(user.id).catch(() => undefined);
+    }
+
+    return {
+      member: this.toMemberDto(membership),
+      userCreated,
+      emailSent,
+      ...(emailSkipReason ? { emailSkipReason } : {})
+    };
   }
 
   async update(id: string, dto: { name?: string; settings?: any }) {
@@ -208,9 +332,17 @@ export class WorkspaceService {
       id: member.id,
       workspaceId: member.workspaceId,
       userId: member.userId,
-      role: member.role,
+      role: member.role as "ADMIN" | "MEMBER",
       userName: member.user.name,
       userEmail: member.user.email
     };
   }
+}
+
+function mapEmailSkipReason(
+  reason?: "unconfigured" | "failed"
+): "smtp_unconfigured" | "send_failed" | undefined {
+  if (reason === "unconfigured") return "smtp_unconfigured";
+  if (reason === "failed") return "send_failed";
+  return undefined;
 }

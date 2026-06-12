@@ -58,6 +58,14 @@ export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
 export { usePaginatedList } from "./hooks/use-paginated-list";
+export {
+  formatNotificationTimeAgo,
+  markAllNotificationsRead,
+  markNotificationRead,
+  useNotificationUnreadCount,
+  usePaginatedNotifications,
+  useRecentNotifications
+} from "./hooks/use-notifications";
 export { useClientTablePagination } from "./hooks/use-client-table-pagination";
 export {
   applyDashboardPeriodPreset,
@@ -80,7 +88,12 @@ export {
   ProjectOverviewStats,
   type ProjectOverviewStatsProps
 } from "./components/project-overview-stats";
+export { SetPasswordForm } from "./features/account/set-password-form";
+export { ForgotPasswordForm } from "./features/auth/forgot-password-form";
+export { ResetPasswordForm } from "./features/auth/reset-password-form";
+export { VerifyEmailPageContent } from "./features/auth/verify-email-page-content";
 export { AccountSettingsPage } from "./features/account/account-settings-page";
+export { NotificationsPage } from "./features/notifications/notifications-page";
 export { ProfilePage } from "./features/account/profile-page";
 export { useUserProfile } from "./features/account/use-user-profile";
 export { SettingsCard } from "./features/account/settings/settings-card";

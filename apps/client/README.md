@@ -21,19 +21,19 @@ NEXT_PUBLIC_AUTH_SCOPE=client
 
 ## Routes
 
-| Path                  | Purpose                                      |
-| --------------------- | -------------------------------------------- |
-| `/login`, `/register` | Authentication                               |
-| `/timer`              | Start/stop timer; daily goal widget          |
-| `/timesheet`          | Calendar week/day/month view; manual entries |
-| `/time-tracker`       | Week-grouped log list with edit/delete       |
-| `/dashboard`          | Member dashboard widgets                     |
-| `/approvals`          | Submit timesheets for project approval       |
-| `/tasks`              | Task list (paginated, filter by project)     |
-| `/projects`           | Assigned projects                            |
-| `/profile`            | User profile                                 |
-| `/settings`           | Account preferences and security             |
-| `/invite/[token]`     | Accept project team invite                   |
+| Path                      | Purpose                                      |
+| ------------------------- | -------------------------------------------- |
+| `/login`, `/set-password` | Authentication                               |
+| `/timer`                  | Start/stop timer; daily goal widget          |
+| `/timesheet`              | Calendar week/day/month view; manual entries |
+| `/time-tracker`           | Week-grouped log list with edit/delete       |
+| `/dashboard`              | Member dashboard widgets                     |
+| `/approvals`              | Submit timesheets for project approval       |
+| `/tasks`                  | Task list (paginated, filter by project)     |
+| `/projects`               | Assigned projects                            |
+| `/profile`                | User profile                                 |
+| `/settings`               | Account preferences and security             |
+| `/invite/[token]`         | Accept project team invite                   |
 
 Default URL: http://localhost:3000
 

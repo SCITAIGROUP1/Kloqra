@@ -34,7 +34,11 @@ function parseSection(value: string | null): SettingsSectionId {
   return "appearance";
 }
 
-export function AccountSettingsPage() {
+export function AccountSettingsPage({
+  notificationsVariant = "member"
+}: {
+  notificationsVariant?: "member" | "admin";
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeSection = useMemo(() => parseSection(searchParams.get("section")), [searchParams]);
@@ -95,7 +99,11 @@ export function AccountSettingsPage() {
         <TimeSettingsSection profile={profile} onSavePreferences={updatePreferences} />
       ) : null}
       {activeSection === "notifications" ? (
-        <NotificationsSection profile={profile} onSavePreferences={updatePreferences} />
+        <NotificationsSection
+          profile={profile}
+          onSavePreferences={updatePreferences}
+          variant={notificationsVariant}
+        />
       ) : null}
       {activeSection === "security" ? (
         <SecuritySection

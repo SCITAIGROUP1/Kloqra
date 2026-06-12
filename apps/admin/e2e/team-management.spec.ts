@@ -13,4 +13,12 @@ test.describe("Team Management", () => {
     await expect(page.getByRole("columnheader", { name: "Member" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add Team Member" })).toBeVisible();
   });
+
+  test("opens add team member modal with email field", async ({ page }) => {
+    await page.goto("/team-management");
+    await page.getByRole("button", { name: "Add Team Member" }).click();
+    await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByText("New users receive sign-in credentials by email.")).toBeVisible();
+  });
 });

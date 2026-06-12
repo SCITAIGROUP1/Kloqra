@@ -1,26 +1,27 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { ErrorCodes } from "@kloqra/contracts";
 import type {
   LoginDto,
-  RegisterDto,
   AuthSessionDto,
-  LoginRequires2faResponseDto
+  LoginRequires2faResponseDto,
+  LoginRequiresPasswordChangeResponseDto,
+  LoginRequiresEmailVerificationResponseDto,
+  SetInitialPasswordDto,
+  OkResponseDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { verify as verifyTotp } from "otplib";
+import { hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
+import {
+  AuthMailer,
+  buildPasswordResetUrl,
+  buildVerifyEmailUrl
+} from "../../../common/mailer/auth.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 64);
-}
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -30,51 +31,9 @@ function hashToken(raw: string): string {
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private jwt: JwtService
+    private jwt: JwtService,
+    private authMailer: AuthMailer
   ) {}
-
-  async register(dto: RegisterDto): Promise<AuthSessionDto> {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existing) {
-      throw new DomainException(
-        ErrorCodes.EMAIL_EXISTS,
-        "Email already registered",
-        HttpStatus.CONFLICT
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const wsName = dto.workspaceName ?? `${dto.name}'s Workspace`;
-    let slug = slugify(wsName);
-    const slugTaken = await this.prisma.workspace.findUnique({ where: { slug } });
-    if (slugTaken) slug = `${slug}-${Date.now()}`;
-
-    const { firstName, lastName } = splitDisplayName(dto.name);
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        name: dto.name,
-        firstName,
-        lastName,
-        memberships: {
-          create: {
-            role: "ADMIN",
-            workspace: { create: { name: wsName, slug } }
-          }
-        }
-      },
-      include: { memberships: { include: { workspace: true } } }
-    });
-
-    const membership = user.memberships[0]!;
-    return this.buildSession(
-      user,
-      membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name
-    );
-  }
 
   async switchWorkspace(userId: string, workspaceId: string): Promise<AuthSessionDto> {
     const membership = await this.prisma.workspaceMember.findUnique({
@@ -96,7 +55,14 @@ export class AuthService {
     );
   }
 
-  async login(dto: LoginDto): Promise<AuthSessionDto | LoginRequires2faResponseDto> {
+  async login(
+    dto: LoginDto
+  ): Promise<
+    | AuthSessionDto
+    | LoginRequires2faResponseDto
+    | LoginRequiresPasswordChangeResponseDto
+    | LoginRequiresEmailVerificationResponseDto
+  > {
     let userId: string | undefined;
 
     if (dto.pendingToken) {
@@ -141,6 +107,17 @@ export class AuthService {
           HttpStatus.UNAUTHORIZED
         );
       }
+
+      if (user.mustChangePassword) {
+        return {
+          requiresPasswordChange: true,
+          pendingToken: this.signPendingPasswordChangeToken(user.id)
+        };
+      }
+    }
+
+    if (!user.emailVerifiedAt) {
+      return { requiresEmailVerification: true, email: user.email };
     }
 
     if (user.totpEnabledAt && user.totpSecret) {
@@ -176,6 +153,218 @@ export class AuthService {
     );
   }
 
+  async setInitialPassword(
+    dto: SetInitialPasswordDto
+  ): Promise<
+    AuthSessionDto | LoginRequires2faResponseDto | LoginRequiresEmailVerificationResponseDto
+  > {
+    const userId = this.verifyPendingPasswordChangeToken(dto.pendingToken);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        memberships: {
+          include: { workspace: true },
+          orderBy: { createdAt: "asc" },
+          take: 1
+        }
+      }
+    });
+
+    if (!user?.mustChangePassword) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Password change session expired — sign in again",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const passwordHash = await hashPassword(dto.newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false }
+    });
+    await this.revokeAllRefreshTokens(userId);
+
+    const membership = user.memberships[0];
+    if (!membership) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "No workspace membership",
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    if (!user.emailVerifiedAt) {
+      return { requiresEmailVerification: true, email: user.email };
+    }
+
+    if (user.totpEnabledAt && user.totpSecret) {
+      return {
+        requires2fa: true,
+        pendingToken: this.signPending2faToken(userId)
+      };
+    }
+
+    return this.buildSession(
+      user,
+      membership.workspaceId,
+      membership.role as "ADMIN" | "MEMBER",
+      membership.workspace.name
+    );
+  }
+
+  async forgotPassword(email: string): Promise<OkResponseDto> {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    if (!user) {
+      return { ok: true };
+    }
+
+    const raw = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetTokenHash: hashToken(raw),
+        passwordResetExpiresAt: expiresAt
+      }
+    });
+
+    void this.authMailer
+      .sendPasswordReset({ to: user.email, resetUrl: buildPasswordResetUrl(raw) })
+      .catch(() => undefined);
+
+    return { ok: true };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<OkResponseDto> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetTokenHash: hashToken(token),
+        passwordResetExpiresAt: { gt: new Date() }
+      }
+    });
+    if (!user) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Password reset link is invalid or expired",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null
+      }
+    });
+    await this.revokeAllRefreshTokens(user.id);
+    return { ok: true };
+  }
+
+  async sendEmailVerification(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.emailVerifiedAt) return;
+
+    const raw = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationTokenHash: hashToken(raw),
+        emailVerificationExpiresAt: expiresAt
+      }
+    });
+
+    void this.authMailer
+      .sendEmailVerification({ to: user.email, verifyUrl: buildVerifyEmailUrl(raw) })
+      .catch(() => undefined);
+  }
+
+  async resendVerification(email: string): Promise<OkResponseDto> {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    if (!user || user.emailVerifiedAt) {
+      return { ok: true };
+    }
+    await this.sendEmailVerification(user.id);
+    return { ok: true };
+  }
+
+  async verifyEmail(
+    token: string
+  ): Promise<
+    AuthSessionDto | LoginRequires2faResponseDto | LoginRequiresPasswordChangeResponseDto
+  > {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        emailVerificationTokenHash: hashToken(token),
+        emailVerificationExpiresAt: { gt: new Date() }
+      },
+      include: {
+        memberships: {
+          include: { workspace: true },
+          orderBy: { createdAt: "asc" },
+          take: 1
+        }
+      }
+    });
+
+    if (!user) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Verification link is invalid or expired",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerifiedAt: new Date(),
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null
+      }
+    });
+
+    const verifiedUser = { ...user, emailVerifiedAt: new Date() };
+
+    if (verifiedUser.mustChangePassword) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Set your password before verifying email",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    const membership = verifiedUser.memberships[0];
+    if (!membership) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "No workspace membership",
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    if (verifiedUser.totpEnabledAt && verifiedUser.totpSecret) {
+      return {
+        requires2fa: true,
+        pendingToken: this.signPending2faToken(verifiedUser.id)
+      };
+    }
+
+    return this.buildSession(
+      verifiedUser,
+      membership.workspaceId,
+      membership.role as "ADMIN" | "MEMBER",
+      membership.workspace.name
+    );
+  }
+
   private signPending2faToken(userId: string): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
@@ -183,20 +372,41 @@ export class AuthService {
   }
 
   private verifyPending2faToken(token: string): string {
+    return this.verifyPendingToken(
+      token,
+      "2fa-pending",
+      "Two-factor session expired — sign in again"
+    );
+  }
+
+  private signPendingPasswordChangeToken(userId: string): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    return this.jwt.sign(
+      { sub: userId, purpose: "password-change-pending" },
+      { secret, expiresIn: "5m" }
+    );
+  }
+
+  private verifyPendingPasswordChangeToken(token: string): string {
+    return this.verifyPendingToken(
+      token,
+      "password-change-pending",
+      "Password change session expired — sign in again"
+    );
+  }
+
+  private verifyPendingToken(token: string, purpose: string, expiredMessage: string): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
     try {
       const payload = this.jwt.verify(token, { secret }) as { sub: string; purpose?: string };
-      if (payload.purpose !== "2fa-pending") {
+      if (payload.purpose !== purpose) {
         throw new Error("invalid purpose");
       }
       return payload.sub;
     } catch {
-      throw new DomainException(
-        ErrorCodes.UNAUTHORIZED,
-        "Two-factor session expired — sign in again",
-        HttpStatus.UNAUTHORIZED
-      );
+      throw new DomainException(ErrorCodes.UNAUTHORIZED, expiredMessage, HttpStatus.UNAUTHORIZED);
     }
   }
 

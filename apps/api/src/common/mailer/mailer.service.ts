@@ -16,6 +16,11 @@ export interface SendMailOptions {
   attachments?: MailAttachment[];
 }
 
+export type SendMailResult = {
+  sent: boolean;
+  reason?: "unconfigured" | "failed";
+};
+
 /**
  * Thin Nodemailer wrapper.
  * Reads SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM from env.
@@ -56,27 +61,36 @@ export class MailerService {
     return this.transporter !== null;
   }
 
-  async send(opts: SendMailOptions): Promise<void> {
+  async send(opts: SendMailOptions): Promise<SendMailResult> {
     if (!this.transporter) {
       this.logger.warn(
         `Email not sent (SMTP unconfigured): to=${opts.to.join(", ")} subject="${opts.subject}"`
       );
-      return;
+      return { sent: false, reason: "unconfigured" };
     }
 
-    await this.transporter.sendMail({
-      from: this.from,
-      to: opts.to.join(", "),
-      subject: opts.subject,
-      html: opts.html,
-      text: opts.text,
-      attachments: opts.attachments?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType
-      }))
-    });
+    try {
+      await this.transporter.sendMail({
+        from: this.from,
+        to: opts.to.join(", "),
+        subject: opts.subject,
+        html: opts.html,
+        text: opts.text,
+        attachments: opts.attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType
+        }))
+      });
 
-    this.logger.log(`Email sent: to=${opts.to.join(", ")} subject="${opts.subject}"`);
+      this.logger.log(`Email sent: to=${opts.to.join(", ")} subject="${opts.subject}"`);
+      return { sent: true };
+    } catch (err) {
+      this.logger.error(
+        `Email send failed: to=${opts.to.join(", ")} subject="${opts.subject}"`,
+        err instanceof Error ? err.stack : String(err)
+      );
+      return { sent: false, reason: "failed" };
+    }
   }
 }

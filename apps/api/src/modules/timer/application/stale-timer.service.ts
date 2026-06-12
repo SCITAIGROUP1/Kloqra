@@ -2,6 +2,7 @@ import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
 
@@ -25,7 +26,8 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    private audit: TimelogAuditService
+    private audit: TimelogAuditService,
+    private notificationsDispatch: NotificationsDispatchService
   ) {}
 
   onModuleInit() {
@@ -128,6 +130,19 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
           `presence:${state.workspaceId}`,
           JSON.stringify({ type: "stop", userId: state.userId })
         );
+
+      void this.notificationsDispatch
+        .notify({
+          userId: state.userId,
+          workspaceId: state.workspaceId,
+          templateId: "timer.autostopped",
+          context: {
+            hours: HARD_AUTO_STOP_HOURS,
+            taskName: task.taskName,
+            taskId: state.taskId
+          }
+        })
+        .catch(() => undefined);
 
       this.logger.warn(
         `Auto-stopped stale timer for user ${state.userId} in workspace ${state.workspaceId} after ${capSec}s`

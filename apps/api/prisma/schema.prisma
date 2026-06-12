@@ -23,6 +23,12 @@ model User {
   workStartDate         DateTime?         @map("work_start_date") @db.Date
   totpSecret            String?           @map("totp_secret")
   totpEnabledAt         DateTime?         @map("totp_enabled_at")
+  mustChangePassword    Boolean           @default(false) @map("must_change_password")
+  emailVerifiedAt       DateTime?         @map("email_verified_at")
+  emailVerificationTokenHash String?      @map("email_verification_token_hash")
+  emailVerificationExpiresAt DateTime?     @map("email_verification_expires_at")
+  passwordResetTokenHash String?          @map("password_reset_token_hash")
+  passwordResetExpiresAt DateTime?        @map("password_reset_expires_at")
   defaultHourlyRate     Decimal?          @map("default_hourly_rate") @db.Decimal(10, 2)
   preferences           Json              @default("{}")
   createdAt             DateTime          @default(now()) @map("created_at")
@@ -36,6 +42,7 @@ model User {
   timesheetPeriods      TimesheetPeriod[]
   taskAssignees         TaskAssignee[]
   projectColors         UserProjectColor[]
+  notifications         Notification[]
 
   @@map("users")
 }
@@ -54,8 +61,28 @@ model Workspace {
   exportPresets   ExportPreset[]
   exportSchedules ExportSchedule[]
   reportShares    ReportShare[]
+  notifications   Notification[]
 
   @@map("workspaces")
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  workspaceId String    @map("workspace_id")
+  type        String
+  title       String
+  body        String
+  metadata    Json      @default("{}")
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, workspaceId, createdAt(sort: Desc)])
+  @@index([userId, workspaceId, readAt])
+  @@map("notifications")
 }
 
 /// Workspace-scoped category that groups tasks (e.g. "Software Development",

@@ -1,6 +1,10 @@
 import {
   loginSchema,
-  registerSchema,
+  setInitialPasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
   switchWorkspaceSchema,
   impersonateSchema,
   ROUTES,
@@ -60,15 +64,12 @@ export class AuthController {
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.REGISTER)
-  async register(
-    @Body(new ZodValidationPipe(registerSchema)) body: unknown,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    guardCookieAuthRequest(req);
-    const session = await this.auth.register(body as Parameters<AuthService["register"]>[0]);
-    const accessToken = await this.setCookies(req, res, session);
-    return { ...session, accessToken };
+  register() {
+    throw new DomainException(
+      ErrorCodes.SELF_REGISTRATION_DISABLED,
+      "Self-registration is disabled. Contact your workspace administrator.",
+      HttpStatus.FORBIDDEN
+    );
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -83,9 +84,79 @@ export class AuthController {
     if ("requires2fa" in result && result.requires2fa) {
       return result;
     }
+    if ("requiresPasswordChange" in result && result.requiresPasswordChange) {
+      return result;
+    }
+    if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
+      return result;
+    }
     const session = result as AuthSessionDto;
     const accessToken = await this.setCookies(req, res, session);
     return { ...session, accessToken };
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.SET_PASSWORD)
+  async setPassword(
+    @Body(new ZodValidationPipe(setInitialPasswordSchema)) body: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    guardCookieAuthRequest(req);
+    const result = await this.auth.setInitialPassword(
+      body as Parameters<AuthService["setInitialPassword"]>[0]
+    );
+    if ("requires2fa" in result && result.requires2fa) {
+      return result;
+    }
+    if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
+      return result;
+    }
+    const session = result as AuthSessionDto;
+    const accessToken = await this.setCookies(req, res, session);
+    return { ...session, accessToken };
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.FORGOT_PASSWORD)
+  async forgotPassword(@Body(new ZodValidationPipe(forgotPasswordSchema)) body: { email: string }) {
+    return this.auth.forgotPassword(body.email);
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.RESET_PASSWORD)
+  async resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: { token: string; newPassword: string }
+  ) {
+    return this.auth.resetPassword(body.token, body.newPassword);
+  }
+
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.VERIFY_EMAIL)
+  async verifyEmail(
+    @Body(new ZodValidationPipe(verifyEmailSchema)) body: { token: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    guardCookieAuthRequest(req);
+    const result = await this.auth.verifyEmail(body.token);
+    if ("requires2fa" in result && result.requires2fa) {
+      return result;
+    }
+    if ("requiresPasswordChange" in result && result.requiresPasswordChange) {
+      return result;
+    }
+    const session = result as AuthSessionDto;
+    const accessToken = await this.setCookies(req, res, session);
+    return { ...session, accessToken };
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.RESEND_VERIFICATION)
+  async resendVerification(
+    @Body(new ZodValidationPipe(resendVerificationSchema)) body: { email: string }
+  ) {
+    return this.auth.resendVerification(body.email);
   }
 
   @Throttle({ default: { limit: 30, ttl: 60_000 } })

@@ -34,6 +34,10 @@ export type SeedUserSpec = {
   preferences?: { dailyTargetHours?: number; timezone?: string };
   /** Skews which categories this person logs time against */
   categoryBias?: CategoryBias;
+  /** Default true — set false to demo email verification gate */
+  emailVerified?: boolean;
+  /** Default false — set true to demo forced password change */
+  mustChangePassword?: boolean;
 };
 
 export type SeedTaskSpec = {
@@ -73,7 +77,7 @@ export type SeedWorkspaceSpec = {
 
 export const SEED_PASSWORD = "password123";
 
-/** 2 admins + 11 members = 13 accounts */
+/** 2 admins + 12 members = 14 accounts (includes pending@ for verify-email demo) */
 export const SEED_USERS: SeedUserSpec[] = [
   {
     email: "admin@kloqra.dev",
@@ -194,6 +198,16 @@ export const SEED_USERS: SeedUserSpec[] = [
     intensity: 0.35,
     preferences: { dailyTargetHours: 6 },
     categoryBias: { Meetings: 2.0, Documentation: 1.4 }
+  },
+  {
+    email: "pending@kloqra.dev",
+    name: "Parker Pending",
+    role: "MEMBER",
+    defaultHourlyRate: 95,
+    historyDays: 0,
+    intensity: 0,
+    emailVerified: false,
+    mustChangePassword: false
   }
 ];
 
@@ -215,14 +229,14 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       exportFooterNote: "Acme Corporation — Kloqra confidential billing export"
     },
     memberEmails: wsMembers(
+      "pending@kloqra.dev",
       "member@kloqra.dev",
       "alex@kloqra.dev",
       "jordan@kloqra.dev",
       "taylor@kloqra.dev",
       "riley@kloqra.dev",
       "casey@kloqra.dev",
-      "drew@kloqra.dev",
-      "sage@kloqra.dev"
+      "drew@kloqra.dev"
     ),
     projects: [
       {
@@ -833,4 +847,79 @@ export const LOG_DESCRIPTIONS = [
   "Workshop facilitation",
   "Data migration",
   "Contract review"
+];
+
+export type SeedNotificationSpec = {
+  recipientEmail: string;
+  workspaceSlug: string;
+  type:
+    | "PROJECT_ASSIGNMENT"
+    | "TASK_ASSIGNMENT"
+    | "TIMESHEET_STATUS"
+    | "APPROVAL_REQUEST"
+    | "MEMBER_CHANGE"
+    | "WORKSPACE_ADDED";
+  title: string;
+  body: string;
+  read?: boolean;
+  projectName?: string;
+  metadata?: Record<string, unknown>;
+};
+
+/** Sample inbox rows for demo accounts (resolved to workspace/project IDs at seed time). */
+export const SEED_NOTIFICATIONS: SeedNotificationSpec[] = [
+  {
+    recipientEmail: "member@kloqra.dev",
+    workspaceSlug: "acme",
+    type: "WORKSPACE_ADDED",
+    title: "Welcome to Acme Corporation",
+    body: "You were added to the Acme Corporation workspace.",
+    read: true,
+    metadata: { variant: "info", href: "/workspace" }
+  },
+  {
+    recipientEmail: "member@kloqra.dev",
+    workspaceSlug: "acme",
+    type: "PROJECT_ASSIGNMENT",
+    projectName: "Client Portal Redesign",
+    title: "Added to Client Portal Redesign",
+    body: "You have been assigned to the Client Portal Redesign project.",
+    metadata: { variant: "info", ctaLabel: "View project" }
+  },
+  {
+    recipientEmail: "member@kloqra.dev",
+    workspaceSlug: "acme",
+    type: "TASK_ASSIGNMENT",
+    projectName: "Client Portal Redesign",
+    title: "Assigned to UX research",
+    body: "You were assigned to the UX research task on Client Portal Redesign.",
+    metadata: { variant: "info", ctaLabel: "Open task" }
+  },
+  {
+    recipientEmail: "member@kloqra.dev",
+    workspaceSlug: "acme",
+    type: "TIMESHEET_STATUS",
+    projectName: "Client Portal Redesign",
+    title: "Timesheet approved",
+    body: "Your timesheet for Client Portal Redesign was approved.",
+    read: true,
+    metadata: { variant: "success" }
+  },
+  {
+    recipientEmail: "admin@kloqra.dev",
+    workspaceSlug: "acme",
+    type: "APPROVAL_REQUEST",
+    projectName: "Client Portal Redesign",
+    title: "Timesheet pending approval",
+    body: "Sam Rivera submitted a timesheet for Client Portal Redesign.",
+    metadata: { variant: "attention", ctaLabel: "Review" }
+  },
+  {
+    recipientEmail: "pending@kloqra.dev",
+    workspaceSlug: "acme",
+    type: "WORKSPACE_ADDED",
+    title: "Welcome to Acme Corporation",
+    body: "You were added to the Acme Corporation workspace. Verify your email to finish setup.",
+    metadata: { variant: "info", href: "/verify-email" }
+  }
 ];

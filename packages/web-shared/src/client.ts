@@ -15,3 +15,7 @@ export {
   type ReportScopeFilterValues,
   type ScopeMember
 } from "./components/report-scope-filters";
+export { SetPasswordForm } from "./features/account/set-password-form";
+export { ForgotPasswordForm } from "./features/auth/forgot-password-form";
+export { ResetPasswordForm } from "./features/auth/reset-password-form";
+export { VerifyEmailPageContent } from "./features/auth/verify-email-page-content";

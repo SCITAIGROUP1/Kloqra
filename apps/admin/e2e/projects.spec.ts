@@ -41,4 +41,11 @@ test.describe("Admin projects", () => {
     await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/tasks$/);
   });
+
+  test("shows add team member action on project team tab", async ({ page }) => {
+    await page.locator("table tbody tr").first().click();
+    await page.getByRole("link", { name: "Team" }).click();
+    await expect(page).toHaveURL(/\/projects\/[^/]+\/team$/);
+    await expect(page.getByRole("button", { name: "Add team member" })).toBeVisible();
+  });
 });

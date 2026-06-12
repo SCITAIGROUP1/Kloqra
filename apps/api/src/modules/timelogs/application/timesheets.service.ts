@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, formatTimesheetPeriodLabel } from "@kloqra/contracts";
 import type { TimesheetPeriodDto } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -8,10 +8,14 @@ import {
   parseWorkspaceSettingsFromRaw,
   resolveApprovalPeriod
 } from "../../../common/time/approval-period.util";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 
 @Injectable()
 export class TimesheetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsDispatch: NotificationsDispatchService
+  ) {}
 
   private toPeriodDto(
     period: {
@@ -228,6 +232,25 @@ export class TimesheetsService {
       ? await this.prisma.timesheetPeriod.update({ where: { id: existing.id }, data })
       : await this.prisma.timesheetPeriod.create({ data });
 
+    const submitter = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true }
+    });
+    const periodLabel = formatTimesheetPeriodLabel(saved.periodStart, approvalPeriod);
+    void this.notificationsDispatch
+      .notifyWorkspaceAdmins(workspaceId, {
+        templateId: "timesheet.submitted",
+        context: {
+          submitterName: submitter?.name ?? "A member",
+          projectName: project.name,
+          periodLabel,
+          periodId: saved.id,
+          projectId
+        },
+        excludeUserId: userId
+      })
+      .catch(() => undefined);
+
     return this.toPeriodDto(saved, project.name, approvalPeriod);
   }
 
@@ -298,7 +321,16 @@ export class TimesheetsService {
 
   async approve(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
     const period = await this.prisma.timesheetPeriod.findFirst({
-      where: { id, workspaceId }
+      where: { id, workspaceId },
+      include: {
+        project: {
+          select: {
+            name: true,
+            timesheetApprovalPeriod: true,
+            workspace: { select: { settings: true } }
+          }
+        }
+      }
     });
 
     if (!period) {
@@ -309,7 +341,7 @@ export class TimesheetsService {
       );
     }
 
-    return this.prisma.timesheetPeriod.update({
+    const updated = await this.prisma.timesheetPeriod.update({
       where: { id },
       data: {
         status: "APPROVED",
@@ -318,11 +350,47 @@ export class TimesheetsService {
         reviewedAt: new Date()
       }
     });
+
+    const workspaceSettings = parseWorkspaceSettingsFromRaw(period.project.workspace.settings);
+    const approvalPeriod = resolveApprovalPeriod(
+      period.project.timesheetApprovalPeriod,
+      workspaceSettings
+    );
+    const reviewer = await this.prisma.user.findUnique({
+      where: { id: adminUserId },
+      select: { name: true }
+    });
+
+    void this.notificationsDispatch
+      .notify({
+        userId: period.userId,
+        workspaceId,
+        templateId: "timesheet.approved",
+        context: {
+          projectName: period.project.name,
+          periodLabel: formatTimesheetPeriodLabel(period.periodStart, approvalPeriod),
+          periodId: id,
+          projectId: period.projectId,
+          reviewerName: reviewer?.name
+        }
+      })
+      .catch(() => undefined);
+
+    return updated;
   }
 
   async reject(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
     const period = await this.prisma.timesheetPeriod.findFirst({
-      where: { id, workspaceId }
+      where: { id, workspaceId },
+      include: {
+        project: {
+          select: {
+            name: true,
+            timesheetApprovalPeriod: true,
+            workspace: { select: { settings: true } }
+          }
+        }
+      }
     });
 
     if (!period) {
@@ -333,7 +401,7 @@ export class TimesheetsService {
       );
     }
 
-    return this.prisma.timesheetPeriod.update({
+    const updated = await this.prisma.timesheetPeriod.update({
       where: { id },
       data: {
         status: "REJECTED",
@@ -342,5 +410,33 @@ export class TimesheetsService {
         reviewedAt: new Date()
       }
     });
+
+    const workspaceSettings = parseWorkspaceSettingsFromRaw(period.project.workspace.settings);
+    const approvalPeriod = resolveApprovalPeriod(
+      period.project.timesheetApprovalPeriod,
+      workspaceSettings
+    );
+    const reviewer = await this.prisma.user.findUnique({
+      where: { id: adminUserId },
+      select: { name: true }
+    });
+
+    void this.notificationsDispatch
+      .notify({
+        userId: period.userId,
+        workspaceId,
+        templateId: "timesheet.rejected",
+        context: {
+          projectName: period.project.name,
+          periodLabel: formatTimesheetPeriodLabel(period.periodStart, approvalPeriod),
+          periodId: id,
+          projectId: period.projectId,
+          reviewerName: reviewer?.name,
+          reviewNote: reviewNote || undefined
+        }
+      })
+      .catch(() => undefined);
+
+    return updated;
   }
 }
