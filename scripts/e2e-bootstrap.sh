@@ -6,6 +6,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib/dev-bootstrap.sh
 source "$ROOT/scripts/lib/dev-bootstrap.sh"
 
+if [[ "${CI:-}" == "true" ]] || [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  # GitHub Actions e2e job provides Postgres/Redis services and runs migrate + seed.
+  exit 0
+fi
+
 dev_bootstrap_root
 dev_bootstrap_resolve_pnpm
 

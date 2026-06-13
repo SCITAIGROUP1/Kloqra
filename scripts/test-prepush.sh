@@ -14,7 +14,7 @@ echo "→ API integration"
 $PNPM --filter @kloqra/api test:e2e
 
 echo "→ Build workspace packages for browser e2e"
-$PNPM --filter @kloqra/contracts --filter @kloqra/ui build
+$PNPM --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared build
 
 echo "→ Admin Playwright e2e (NEXT_PUBLIC_AUTH_SCOPE=admin)"
 NEXT_PUBLIC_AUTH_SCOPE=admin $PNPM --filter @kloqra/admin test:e2e

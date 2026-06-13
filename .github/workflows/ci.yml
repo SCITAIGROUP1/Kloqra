@@ -200,7 +200,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @kloqra/api exec prisma migrate deploy
-      - run: pnpm --filter @kloqra/contracts --filter @kloqra/ui build
+      - run: pnpm --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared build
       - run: pnpm prisma:seed
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
