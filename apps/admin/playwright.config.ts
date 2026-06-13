@@ -44,12 +44,14 @@ export default defineConfig({
       }
     },
     {
-      command: "bash ../../scripts/pnpm-wrap.sh dev",
+      command: "bash ../../scripts/pnpm-wrap.sh --filter @kloqra/admin dev",
       url: "http://localhost:3002/login",
       reuseExistingServer: true,
       timeout: 180_000,
       env: {
-        PATH: e2ePath
+        PATH: e2ePath,
+        NEXT_PUBLIC_AUTH_SCOPE: "admin",
+        NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
       }
     }
   ]

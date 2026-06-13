@@ -86,7 +86,7 @@ export default defineConfig({
       }
     },
     {
-      command: "bash ../../scripts/pnpm-wrap.sh dev",
+      command: "bash ../../scripts/pnpm-wrap.sh --filter @kloqra/client dev",
       url: "http://localhost:3000",
       reuseExistingServer: true,
       timeout: 180_000,

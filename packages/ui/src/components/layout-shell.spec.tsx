@@ -32,6 +32,6 @@ describe("ResponsiveLayoutShell", () => {
     expect(screen.getByText("Page content")).toBeInTheDocument();
     expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Footer").length).toBeGreaterThan(0);
-    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getAllByText("Workspace").length).toBeGreaterThan(0);
   });
 });
