@@ -6,10 +6,10 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface ActiveTimersWidgetProps {
+export type ActiveTimersWidgetProps = {
   projectFilterName?: string;
   userId?: string;
-}
+};
 
 export function ActiveTimersWidget({ projectFilterName, userId }: ActiveTimersWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";

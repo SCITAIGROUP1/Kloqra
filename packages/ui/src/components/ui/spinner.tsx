@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "../../lib/utils.js";
 
 const sizeClass = {
@@ -45,5 +46,26 @@ export function CenteredLoader({
       <Loader2 className="size-8 animate-spin text-primary/80" aria-hidden />
       <p className="text-sm">{label}</p>
     </div>
+  );
+}
+
+/** Swaps loader/content without exit-wait — avoids ~400ms delay after fast fetches. */
+export function LoadingCrossfade({
+  loading,
+  loaderLabel = "Loading…",
+  children,
+  className
+}: {
+  loading: boolean;
+  loaderLabel?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  if (loading) {
+    return <CenteredLoader label={loaderLabel} className={className} />;
+  }
+
+  return (
+    <div className={cn("animate-fade-in motion-reduce:animate-none", className)}>{children}</div>
   );
 }

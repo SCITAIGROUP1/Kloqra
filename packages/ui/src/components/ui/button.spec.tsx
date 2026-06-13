@@ -12,8 +12,8 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("applies variant classes", () => {
-    render(<Button variant="destructive">Delete</Button>);
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("bg-destructive");
+  it("applies size classes", () => {
+    render(<Button size="sm">Small</Button>);
+    expect(screen.getByRole("button", { name: "Small" })).toHaveClass("h-8");
   });
 });

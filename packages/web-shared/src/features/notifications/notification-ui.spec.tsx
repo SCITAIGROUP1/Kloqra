@@ -1,7 +1,12 @@
 /** @vitest-environment jsdom */
 import { render, screen } from "@testing-library/react";
+import { ClipboardCheck, Clock } from "lucide-react";
 import { describe, expect, it } from "vitest";
-import { NotificationDetails, notificationVariantClass } from "./notification-ui";
+import {
+  NotificationDetails,
+  iconForNotificationType,
+  notificationVariantClass
+} from "./notification-ui";
 
 describe("notification-ui", () => {
   it("maps variant metadata to utility classes", () => {
@@ -20,5 +25,12 @@ describe("notification-ui", () => {
     );
     expect(screen.getByText(/Project:/)).toBeTruthy();
     expect(screen.getByText(/Week 23/)).toBeTruthy();
+  });
+
+  it("maps notification types to icons", () => {
+    expect(iconForNotificationType("TIMESHEET_REMINDER")).toBe(Clock);
+    expect(iconForNotificationType("TIMESHEET_STATUS", "Timesheet amendment approved")).toBe(
+      ClipboardCheck
+    );
   });
 });

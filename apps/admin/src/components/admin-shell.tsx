@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
-import type { PendingTimesheetDto } from "@kloqra/contracts";
+import type { ListPendingTimesheetsResponseDto } from "@kloqra/contracts";
 import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
   bootstrapSession,
@@ -74,10 +74,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (!session?.workspaceId || session.workspaceRole !== "ADMIN") return;
 
     const loadPendingCount = () => {
-      void api<PendingTimesheetDto[]>(ROUTES.TIMESHEETS.LIST_PENDING, {
+      void api<ListPendingTimesheetsResponseDto>(ROUTES.TIMESHEETS.LIST_PENDING, {
         workspaceId: session.workspaceId
       })
-        .then((items) => setPendingCount(items.length))
+        .then((res) => setPendingCount((res.items ?? []).length))
         .catch(() => setPendingCount(0));
     };
 

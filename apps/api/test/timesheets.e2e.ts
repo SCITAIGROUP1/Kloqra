@@ -63,18 +63,21 @@ describe("Timesheets E2E", () => {
       const day = 1 + (Math.floor(salt / 600) % 28);
       const date = new Date(Date.UTC(year, month, day, 12, 0, 0)).toISOString();
 
-      submitRes = await authedAgent(app, memberSession)
-        .post("/timesheets/submit")
-        .send({ projectId: approvalProjectId, date, note: "E2E submission" });
+      submitRes = await authedAgent(app, memberSession).post("/timesheets/submit").send({
+        projectId: approvalProjectId,
+        date,
+        note: "E2E submission",
+        confirmCascade: true
+      });
       if (submitRes.status !== 403) break;
     }
     expect(submitRes).toBeDefined();
     expect(submitRes!.status).toBe(201);
-    expect(submitRes!.body.status).toBe("SUBMITTED");
+    expect(submitRes!.body.period.status).toBe("SUBMITTED");
 
     const pendingRes = await authedAgent(app, adminSession).get("/timesheets/pending");
     expect(pendingRes.status).toBe(200);
-    const pending = pendingRes.body.find(
+    const pending = pendingRes.body.items.find(
       (p: { projectId: string; userId: string }) =>
         p.projectId === approvalProjectId && p.userId === memberSession.userId
     );

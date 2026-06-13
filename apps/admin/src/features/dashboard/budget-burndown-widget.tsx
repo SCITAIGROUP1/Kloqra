@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES, type ProjectDto } from "@kloqra/contracts";
-import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@kloqra/ui";
+import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot, Skeleton } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import { AlertTriangle, CheckCircle, TrendingUp, Info } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -80,10 +80,10 @@ export function BudgetBurnDownWidget({
             data.status === "no_budget"
               ? "text-muted-foreground bg-muted border-muted-foreground/15"
               : data.status === "on_track"
-                ? "text-green-700 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30"
+                ? "text-status-success-fg bg-status-success-bg border-status-success-border"
                 : data.status === "near_budget"
-                  ? "text-amber-700 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30"
-                  : "text-red-700 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30"
+                  ? "text-status-warning-fg bg-status-warning-bg border-status-warning-border"
+                  : "text-status-danger-fg bg-status-danger-bg border-status-danger-border"
           }`}
         >
           {data.status === "on_track"
@@ -133,18 +133,19 @@ export function BudgetBurnDownWidget({
   }
 
   if (loading) {
+    const loadingBody = (
+      <div className="flex flex-col items-center justify-center gap-3 py-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-32" />
+        <p className="text-sm text-muted-foreground">Loading budget data…</p>
+      </div>
+    );
     if (cardless) {
-      return (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-          Loading budget data...
-        </div>
-      );
+      return loadingBody;
     }
     return (
       <Card>
-        <CardContent className="py-6 text-center text-sm text-muted-foreground animate-pulse">
-          Loading budget data...
-        </CardContent>
+        <CardContent>{loadingBody}</CardContent>
       </Card>
     );
   }
@@ -185,19 +186,17 @@ export function BudgetBurnDownWidget({
       },
       on_track: {
         label: "On Track",
-        color:
-          "text-green-700 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30",
+        color: "text-status-success-fg bg-status-success-bg border-status-success-border",
         icon: CheckCircle
       },
       near_budget: {
         label: "Near Budget (>90%)",
-        color:
-          "text-amber-700 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30",
+        color: "text-status-warning-fg bg-status-warning-bg border-status-warning-border",
         icon: AlertTriangle
       },
       over_budget: {
         label: "Over Budget",
-        color: "text-red-700 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30",
+        color: "text-status-danger-fg bg-status-danger-bg border-status-danger-border",
         icon: AlertTriangle
       }
     };
@@ -222,7 +221,7 @@ export function BudgetBurnDownWidget({
             </div>
             {percentUsed !== null && (
               <span
-                className={`text-lg font-bold ${status === "over_budget" ? "text-destructive" : status === "near_budget" ? "text-amber-500" : "text-primary"}`}
+                className={`text-lg font-bold ${status === "over_budget" ? "text-destructive" : status === "near_budget" ? "text-status-warning-fg" : "text-primary"}`}
               >
                 {percentUsed}%
               </span>
@@ -278,7 +277,7 @@ export function BudgetBurnDownWidget({
             </div>
             {percentUsed !== null && (
               <span
-                className={`text-xl font-bold ${status === "over_budget" ? "text-destructive" : status === "near_budget" ? "text-amber-500" : "text-primary"}`}
+                className={`text-xl font-bold ${status === "over_budget" ? "text-destructive" : status === "near_budget" ? "text-status-warning-fg" : "text-primary"}`}
               >
                 {percentUsed}%
               </span>

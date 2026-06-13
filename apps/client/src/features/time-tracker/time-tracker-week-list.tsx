@@ -18,7 +18,7 @@ import { formatHoursCompact, formatWeekSectionLabel } from "./group-logs-by-week
 import { TimeTrackerEntryRow } from "./time-tracker-entry-row";
 import { formatProjectLabel } from "@/lib/project-labels";
 
-type TimeTrackerWeekListProps = {
+export type TimeTrackerWeekListProps = {
   groups: WeekLogGroup[];
   tasks: TaskDto[];
   projects: ProjectDto[];

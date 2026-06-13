@@ -13,14 +13,14 @@ import {
 } from "@kloqra/ui";
 import { Clock, Square, Trash2 } from "lucide-react";
 
-interface StaleTimerDialogProps {
+export type StaleTimerDialogProps = {
   open: boolean;
   elapsedHours: number;
   thresholdHours: number;
   onKeepRunning: () => void;
   onStopAndSave: () => void;
   onDiscard: () => void;
-}
+};
 
 export function StaleTimerDialog({
   open,

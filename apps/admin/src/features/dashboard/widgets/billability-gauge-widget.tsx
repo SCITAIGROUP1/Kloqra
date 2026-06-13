@@ -4,9 +4,9 @@ import type { DashboardReportDto } from "@kloqra/contracts";
 import React from "react";
 import { RadialBarChart, RadialBar, ResponsiveContainer } from "recharts";
 
-interface BillabilityGaugeWidgetProps {
+export type BillabilityGaugeWidgetProps = {
   report: DashboardReportDto;
-}
+};
 
 export function BillabilityGaugeWidget({ report }: BillabilityGaugeWidgetProps) {
   const pct = report.workspace.billablePercent;

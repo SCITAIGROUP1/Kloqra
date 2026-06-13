@@ -13,7 +13,7 @@ import type {
   TimesheetPeriodDto,
   UserProfileDto
 } from "@kloqra/contracts";
-import { AppBar, Button, ConfirmDialog, Badge, CenteredLoader } from "@kloqra/ui";
+import { AppBar, Button, ConfirmDialog, Badge, LoadingCrossfade } from "@kloqra/ui";
 import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -45,16 +45,18 @@ import {
   type TimesheetDisplayFormat
 } from "./display-format";
 import {
-  TimeEntryDialog,
   canSaveTaskDraft,
   draftFromLog,
   draftFromSlot,
   draftFromSlotRange,
   draftToIsoRange,
   type TimeEntryDraft
-} from "./time-entry-dialog";
-import { TimesheetCalendar } from "./timesheet-calendar";
-import { TimesheetMonth } from "./timesheet-month";
+} from "./time-entry-draft";
+import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
+import {
+  countActionableSubmissions,
+  useMySubmissions
+} from "@/features/submissions/use-my-submissions";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -116,6 +118,11 @@ export function TimesheetPage() {
   const [mobileBannerDismissed, setMobileBannerDismissed] = useState(true);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
+  const { submissions: submissionNavItems } = useMySubmissions(ws, anchor, "assigned", Boolean(ws));
+  const actionableSubmissionCount = useMemo(
+    () => countActionableSubmissions(submissionNavItems),
+    [submissionNavItems]
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
@@ -403,7 +410,16 @@ export function TimesheetPage() {
 
   function openDraft(next: TimeEntryDraft, log: TimeLogDto | null = null) {
     if (log && isEntryLocked(log)) {
-      setError("This entry is locked (submitted or approved) and cannot be edited.");
+      const msg = "This entry is locked (submitted or approved) and cannot be edited.";
+      setError(msg);
+      toast.error(msg, {
+        action: {
+          label: "Go to Submissions",
+          onClick: () => {
+            window.location.href = "/submissions";
+          }
+        }
+      });
       return;
     }
     setEditingLog(log);
@@ -669,6 +685,18 @@ export function TimesheetPage() {
         }
       />
 
+      {actionableSubmissionCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+          <p>
+            {actionableSubmissionCount} period{actionableSubmissionCount === 1 ? "" : "s"} ready to
+            submit for review.
+          </p>
+          <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
+            <Link href="/submissions">Go to Submissions</Link>
+          </Button>
+        </div>
+      ) : null}
+
       {isMobile && !mobileBannerDismissed ? (
         <div className="flex items-start justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm md:hidden">
           <p className="text-foreground">
@@ -775,43 +803,43 @@ export function TimesheetPage() {
 
       {error && !dialogOpen && <p className="text-sm text-destructive">{error}</p>}
 
-      {calendarLoading ? (
-        <CenteredLoader label="Loading timesheet…" />
-      ) : view === "month" ? (
-        <TimesheetMonth
-          month={monthStart}
-          logs={logs}
-          entryColor={entryColor}
-          onDayClick={onMonthDayClick}
-          timezone={timezone}
-        />
-      ) : (
-        <TimesheetCalendar
-          view={view}
-          days={calendarDays}
-          logs={logs}
-          occupancy={occupancy}
-          workspaceId={ws}
-          showOccupancyOverlay={showOccupancyOverlay}
-          taskName={(id) => taskLabel(id)}
-          taskInfo={taskInfo}
-          entryColor={entryColor}
-          activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
-          liveElapsedSec={liveElapsedSec}
-          isEntryLocked={isEntryLocked}
-          isTimerEntry={isTimerEntry}
-          overlapConflictMessage={overlapConflictMessage}
-          onSlotClick={openCreateSlot}
-          onSlotRangeSelect={openCreateRange}
-          onEntryClick={openEditEntry}
-          onEntryResize={resizeEntry}
-          onEntryMove={moveEntry}
-          onEntryDuplicate={duplicateEntry}
-          readOnly={false}
-          timezone={timezone}
-          displayFormat={displayFormat ?? undefined}
-        />
-      )}
+      <LoadingCrossfade loading={calendarLoading} loaderLabel="Loading timesheet…">
+        {view === "month" ? (
+          <TimesheetMonth
+            month={monthStart}
+            logs={logs}
+            entryColor={entryColor}
+            onDayClick={onMonthDayClick}
+            timezone={timezone}
+          />
+        ) : (
+          <TimesheetCalendar
+            view={view}
+            days={calendarDays}
+            logs={logs}
+            occupancy={occupancy}
+            workspaceId={ws}
+            showOccupancyOverlay={showOccupancyOverlay}
+            taskName={(id) => taskLabel(id)}
+            taskInfo={taskInfo}
+            entryColor={entryColor}
+            activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
+            liveElapsedSec={liveElapsedSec}
+            isEntryLocked={isEntryLocked}
+            isTimerEntry={isTimerEntry}
+            overlapConflictMessage={overlapConflictMessage}
+            onSlotClick={openCreateSlot}
+            onSlotRangeSelect={openCreateRange}
+            onEntryClick={openEditEntry}
+            onEntryResize={resizeEntry}
+            onEntryMove={moveEntry}
+            onEntryDuplicate={duplicateEntry}
+            readOnly={false}
+            timezone={timezone}
+            displayFormat={displayFormat ?? undefined}
+          />
+        )}
+      </LoadingCrossfade>
 
       <TimeEntryDialog
         open={dialogOpen}

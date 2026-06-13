@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@kloqra/ui";
+import { Card, CardContent, CrossfadePresence, LoadingCrossfade, Skeleton } from "@kloqra/ui";
 import { Bell, Clock, Monitor, Shield, UserCog } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -34,6 +34,15 @@ function parseSection(value: string | null): SettingsSectionId {
   return "appearance";
 }
 
+function SettingsLoadingSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <Skeleton className="h-16 rounded-lg" />
+      <Skeleton className="h-[28rem] rounded-xl" />
+    </div>
+  );
+}
+
 export function AccountSettingsPage({
   notificationsVariant = "member"
 }: {
@@ -65,16 +74,7 @@ export function AccountSettingsPage({
     router.replace(`/settings?section=${section}`, { scroll: false });
   }
 
-  if (loading) {
-    return (
-      <div className="mx-auto w-full max-w-5xl space-y-6">
-        <div className="h-16 animate-pulse rounded-lg bg-muted" />
-        <div className="h-[28rem] animate-pulse rounded-xl bg-muted" />
-      </div>
-    );
-  }
-
-  if (error || !profile) {
+  if (error || (!loading && !profile)) {
     return (
       <div className="mx-auto w-full max-w-5xl">
         <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
@@ -87,38 +87,46 @@ export function AccountSettingsPage({
   }
 
   return (
-    <SettingsShell
-      navItems={visibleNav}
-      activeSection={activeSection}
-      onSectionChange={handleSectionChange}
-    >
-      {activeSection === "appearance" ? (
-        <AppearanceSection profile={profile} onSavePreferences={updatePreferences} />
-      ) : null}
-      {activeSection === "time" ? (
-        <TimeSettingsSection profile={profile} onSavePreferences={updatePreferences} />
-      ) : null}
-      {activeSection === "notifications" ? (
-        <NotificationsSection
-          profile={profile}
-          onSavePreferences={updatePreferences}
-          variant={notificationsVariant}
-        />
-      ) : null}
-      {activeSection === "security" ? (
-        <SecuritySection
-          profile={profile}
-          onChangePassword={changePassword}
-          onEnable2fa={enable2fa}
-          onVerify2fa={(code) => verify2fa({ code })}
-          onDisable2fa={(currentPassword, code) => disable2fa({ currentPassword, code })}
-          onListSessions={listSessions}
-          onRevokeSession={revokeSession}
-        />
-      ) : null}
-      {activeSection === "account" ? (
-        <AccountPreferencesSection profile={profile} onSavePreferences={updatePreferences} />
-      ) : null}
-    </SettingsShell>
+    <LoadingCrossfade loading={loading} loaderLabel="Loading settings…">
+      {profile ? (
+        <SettingsShell
+          navItems={visibleNav}
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+        >
+          <CrossfadePresence presenceKey={activeSection} duration={0.12}>
+            {activeSection === "appearance" ? (
+              <AppearanceSection profile={profile} onSavePreferences={updatePreferences} />
+            ) : null}
+            {activeSection === "time" ? (
+              <TimeSettingsSection profile={profile} onSavePreferences={updatePreferences} />
+            ) : null}
+            {activeSection === "notifications" ? (
+              <NotificationsSection
+                profile={profile}
+                onSavePreferences={updatePreferences}
+                variant={notificationsVariant}
+              />
+            ) : null}
+            {activeSection === "security" ? (
+              <SecuritySection
+                profile={profile}
+                onChangePassword={changePassword}
+                onEnable2fa={enable2fa}
+                onVerify2fa={(code) => verify2fa({ code })}
+                onDisable2fa={(currentPassword, code) => disable2fa({ currentPassword, code })}
+                onListSessions={listSessions}
+                onRevokeSession={revokeSession}
+              />
+            ) : null}
+            {activeSection === "account" ? (
+              <AccountPreferencesSection profile={profile} onSavePreferences={updatePreferences} />
+            ) : null}
+          </CrossfadePresence>
+        </SettingsShell>
+      ) : (
+        <SettingsLoadingSkeleton />
+      )}
+    </LoadingCrossfade>
   );
 }

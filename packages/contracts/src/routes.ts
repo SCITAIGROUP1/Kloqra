@@ -121,8 +121,15 @@ export const ROUTES = {
   TIMESHEETS: {
     MY_STATUS: "/timesheets/status",
     MY_SUBMISSIONS: "/timesheets/submissions",
+    SUBMIT_PREVIEW: "/timesheets/submit-preview",
     SUBMIT: "/timesheets/submit",
     LIST_PENDING: "/timesheets/pending",
+    LIST_MISSING: "/timesheets/missing",
+    REMIND: "/timesheets/remind",
+    LIST_AMENDMENTS: "/timesheets/amendments/pending",
+    CREATE_AMENDMENT: (periodId: string) => `/timesheets/${periodId}/amendments`,
+    APPROVE_AMENDMENT: (id: string) => `/timesheets/amendments/${id}/approve`,
+    DENY_AMENDMENT: (id: string) => `/timesheets/amendments/${id}/deny`,
     APPROVE: (id: string) => `/timesheets/${id}/approve`,
     REJECT: (id: string) => `/timesheets/${id}/reject`
   },

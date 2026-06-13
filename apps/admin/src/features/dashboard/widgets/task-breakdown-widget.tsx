@@ -2,6 +2,7 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { TaskBreakdownResponseDto } from "@kloqra/contracts";
+import { Skeleton } from "@kloqra/ui";
 import {
   ChartContainer,
   ChartTooltip,
@@ -14,14 +15,14 @@ import { formatDurationClock } from "@/components/report-charts";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface TaskBreakdownWidgetProps {
+export type TaskBreakdownWidgetProps = {
   from: string;
   to: string;
   projectId?: string;
   userId?: string;
   categoryId?: string;
   taskId?: string;
-}
+};
 
 const CHART_PALETTE = [
   "hsl(221 83% 53%)",
@@ -88,8 +89,9 @@ export function TaskBreakdownWidget({
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-        Aggregating tasks...
+      <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
+        <Skeleton className="size-32 rounded-full" />
+        <p className="text-sm text-muted-foreground">Aggregating tasks…</p>
       </div>
     );
   }

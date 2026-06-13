@@ -4,8 +4,6 @@ import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
 import { inter } from "@/lib/font";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +18,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <SentryInitializer />
           {children}
-          <Toaster richColors closeButton position="top-right" />
+          <Toaster
+            richColors
+            closeButton
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              classNames: {
+                toast: "sonner-toast-motion"
+              }
+            }}
+          />
         </Providers>
       </body>
     </html>

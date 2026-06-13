@@ -17,6 +17,7 @@ export type { ButtonProps } from "./components/ui/button.js";
 
 export { Input } from "./components/ui/input.js";
 export { Label } from "./components/ui/label.js";
+export { Skeleton, SkeletonText } from "./components/ui/skeleton.js";
 
 export { Popover, PopoverTrigger, PopoverAnchor, PopoverContent } from "./components/ui/popover.js";
 
@@ -52,6 +53,15 @@ export {
   TimesheetApprovalStatusBadge,
   type TimesheetApprovalStatus
 } from "./components/timesheet-approval-status-badge.js";
+export {
+  SubmitCascadeDialog,
+  type SubmitCascadeDialogProps
+} from "./components/submit-cascade-dialog.js";
+export {
+  AmendmentRequestDialog,
+  type AmendmentRequestDialogProps
+} from "./components/amendment-request-dialog.js";
+export { formatSubmissionPeriodLabel } from "./components/submission-period-label.js";
 
 export {
   DashboardStatCard,
@@ -87,7 +97,25 @@ export {
 
 export { TableLoadingRows, TableLoadingState } from "./components/data-table/table-loading.js";
 
-export { Spinner, CenteredLoader, type SpinnerSize } from "./components/ui/spinner.js";
+export {
+  Spinner,
+  CenteredLoader,
+  LoadingCrossfade,
+  type SpinnerSize
+} from "./components/ui/spinner.js";
+
+export {
+  MotionReveal,
+  StaggerList,
+  StaggerItem,
+  CrossfadePresence,
+  DismissableList,
+  type MotionRevealProps,
+  type StaggerListProps,
+  type StaggerItemProps,
+  type CrossfadePresenceProps,
+  type DismissableListProps
+} from "./components/motion/index.js";
 
 export {
   Select,

@@ -2,18 +2,19 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { CategoryProjectHeatmapResponseDto } from "@kloqra/contracts";
+import { Skeleton } from "@kloqra/ui";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface CategoryProjectHeatmapWidgetProps {
+export type CategoryProjectHeatmapWidgetProps = {
   from: string;
   to: string;
   projectId?: string;
   userId?: string;
   categoryId?: string;
   taskId?: string;
-}
+};
 
 function rangeQuery(
   start: string,
@@ -87,8 +88,9 @@ export function CategoryProjectHeatmapWidget({
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-        Building category matrix...
+      <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
+        <Skeleton className="h-32 w-full max-w-md rounded-lg" />
+        <p className="text-sm text-muted-foreground">Building category matrix…</p>
       </div>
     );
   }

@@ -49,15 +49,17 @@ import { useWidgetLayout } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
 import { WidgetShell } from "./widget-shell";
-import { CategorySplitWidget } from "./widgets/category-split-widget";
-import { ProjectSplitWidget } from "./widgets/project-split-widget";
-import { TimesheetSubmissionsWidget } from "./widgets/timesheet-submissions-widget";
-import { TodayLogsWidget } from "./widgets/today-logs-widget";
-import { WeeklyProgressWidget } from "./widgets/weekly-progress-widget";
-import { DailyGoalWidget } from "@/features/timer/daily-goal-widget";
-import { QuickActions } from "@/features/timer/quick-actions";
+import {
+  CategorySplitWidget,
+  DailyGoalWidget,
+  ProjectSplitWidget,
+  QuickActions,
+  TimesheetSubmissionsWidget,
+  TodayLogsWidget,
+  WeeklyProgressWidget
+} from "./widgets-lazy";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
-import { suggestBillableFromTask } from "@/features/timesheet/time-entry-dialog";
+import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";

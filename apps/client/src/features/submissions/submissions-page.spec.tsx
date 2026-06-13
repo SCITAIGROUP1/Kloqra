@@ -1,14 +1,14 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { TimesheetStatusCard } from "@/features/timesheet/timesheet-status-card";
+import { SubmissionStatusCard } from "@/features/timesheet/submission-status-card";
 
-describe("Approvals send CTA", () => {
-  it("renders Send to Approvals button for draft periods", () => {
+describe("SubmissionStatusCard", () => {
+  it("renders Submit for review button for draft periods", () => {
     const html = renderToStaticMarkup(
-      <TimesheetStatusCard
+      <SubmissionStatusCard
         statusInfo={{
-          id: "",
+          id: "period-1",
           userId: "user-1",
           workspaceId: "ws-1",
           projectId: "proj-1",
@@ -28,6 +28,6 @@ describe("Approvals send CTA", () => {
       />
     );
 
-    expect(html).toContain("Send to Approvals");
+    expect(html).toContain("Submit for review");
   });
 });

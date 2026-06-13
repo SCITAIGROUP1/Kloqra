@@ -21,29 +21,42 @@ describe("TimesheetsService", () => {
     workspaceId,
     timesheetApprovalEnabled: true,
     timesheetApprovalPeriod: "weekly" as const,
-    workspace: { settings: { weekStartsOn: "monday" } }
+    workspace: { name: "Acme", settings: { weekStart: "monday" } }
   };
 
   beforeEach(() => {
     mockPrisma = {
       project: {
-        findFirst: vi.fn().mockResolvedValue(projectRow)
+        findFirst: vi.fn().mockResolvedValue(projectRow),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(projectRow)
       },
       user: {
         findUnique: vi.fn().mockResolvedValue({ name: "Sam" })
       },
       timeLog: {
-        findMany: vi.fn().mockResolvedValue([{ task: { projectId } }])
+        findMany: vi.fn().mockResolvedValue([{ task: { projectId } }]),
+        findFirst: vi.fn().mockResolvedValue(null),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { durationSec: 3600 } })
       },
       teamMember: {
         findMany: vi.fn().mockResolvedValue([{ team: { projectId } }])
       },
       timesheetPeriod: {
         findUnique: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        findFirst: vi.fn()
-      }
+        updateMany: vi.fn(),
+        findFirst: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      timesheetAmendmentRequest: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      notification: {
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(mockPrisma))
     };
     service = new TimesheetsService(mockPrisma, {
       notify: vi.fn().mockResolvedValue(undefined),
@@ -68,10 +81,17 @@ describe("TimesheetsService", () => {
       reviewedAt: null
     });
 
-    const result = await service.submit(workspaceId, userId, projectId, "2025-06-05", "Week done");
+    const result = await service.submit(
+      workspaceId,
+      userId,
+      projectId,
+      "2025-06-05",
+      "Week done",
+      true
+    );
 
-    expect(result.status).toBe("SUBMITTED");
-    expect(result.projectName).toBe("Website");
+    expect(result.period.status).toBe("SUBMITTED");
+    expect(result.period.projectName).toBe("Website");
     expect(mockPrisma.timesheetPeriod.create).toHaveBeenCalled();
   });
 
@@ -81,7 +101,9 @@ describe("TimesheetsService", () => {
       timesheetApprovalEnabled: false
     });
 
-    await expect(service.submit(workspaceId, userId, projectId, "2025-06-05")).rejects.toSatisfy(
+    await expect(
+      service.submit(workspaceId, userId, projectId, "2025-06-05", undefined, true)
+    ).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException &&
         err.code === ErrorCodes.VALIDATION_ERROR &&
@@ -95,7 +117,9 @@ describe("TimesheetsService", () => {
       status: "APPROVED"
     });
 
-    await expect(service.submit(workspaceId, userId, projectId, "2025-06-05")).rejects.toSatisfy(
+    await expect(
+      service.submit(workspaceId, userId, projectId, "2025-06-05", undefined, true)
+    ).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException &&
         err.code === ErrorCodes.FORBIDDEN &&
@@ -111,21 +135,23 @@ describe("TimesheetsService", () => {
       projectId,
       periodStart,
       status: "SUBMITTED",
+      amendments: [],
       project: {
         name: "Website",
         timesheetApprovalPeriod: "weekly",
-        workspace: { settings: { weekStartsOn: "monday" } }
+        workspace: { settings: { weekStart: "monday" } }
       }
     });
-    mockPrisma.timesheetPeriod.update.mockResolvedValue({
+    mockPrisma.timesheetPeriod.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.timesheetPeriod.findUniqueOrThrow.mockResolvedValue({
       id: "period-1",
       status: "APPROVED"
     });
 
     const result = await service.approve(workspaceId, "period-1", adminUserId, "Looks good");
 
-    expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalledWith({
-      where: { id: "period-1" },
+    expect(mockPrisma.timesheetPeriod.updateMany).toHaveBeenCalledWith({
+      where: { id: "period-1", status: "SUBMITTED" },
       data: expect.objectContaining({
         status: "APPROVED",
         reviewedBy: adminUserId,
@@ -165,13 +191,15 @@ describe("TimesheetsService", () => {
       projectId,
       periodStart,
       status: "SUBMITTED",
+      amendments: [],
       project: {
         name: "Website",
         timesheetApprovalPeriod: "weekly",
-        workspace: { settings: { weekStartsOn: "monday" } }
+        workspace: { settings: { weekStart: "monday" } }
       }
     });
-    mockPrisma.timesheetPeriod.update.mockResolvedValue({
+    mockPrisma.timesheetPeriod.updateMany.mockResolvedValue({ count: 1 });
+    mockPrisma.timesheetPeriod.findUniqueOrThrow.mockResolvedValue({
       id: "period-1",
       status: "REJECTED"
     });
@@ -179,5 +207,35 @@ describe("TimesheetsService", () => {
     const result = await service.reject(workspaceId, "period-1", adminUserId, "Missing notes");
 
     expect(result.status).toBe("REJECTED");
+  });
+
+  it("listPending returns items wrapper", async () => {
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    const result = await service.listPending(workspaceId);
+    expect(result).toEqual({ items: [] });
+    expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ workspaceId, status: "SUBMITTED" })
+      })
+    );
+  });
+
+  it("listPending applies project and member filters", async () => {
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    await service.listPending(workspaceId, {
+      projectId: "proj-1",
+      userId: "user-1",
+      from: "2026-03-01",
+      to: "2026-03-31"
+    });
+    expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: "proj-1",
+          userId: "user-1",
+          periodStart: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) })
+        })
+      })
+    );
   });
 });

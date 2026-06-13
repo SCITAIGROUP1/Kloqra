@@ -15,9 +15,14 @@ export const notificationTemplateIdSchema = z.enum([
   "project.assigned",
   "task.assigned",
   "timesheet.submitted",
+  "timesheet.submitted.batch",
   "timesheet.approved",
   "timesheet.rejected",
   "timesheet.reminder",
+  "timesheet.reminder.manual",
+  "timesheet.amendment.requested",
+  "timesheet.amendment.approved",
+  "timesheet.amendment.denied",
   "timer.autostopped",
   "member.joined",
   "member.removed",
@@ -48,26 +53,48 @@ export const taskAssignedContextSchema = z.object({
 
 export const timesheetSubmittedContextSchema = z.object({
   submitterName: z.string().min(1).max(120),
+  workspaceName: z.string().min(1).max(120),
   projectName: z.string().min(1).max(120),
   periodLabel: z.string().min(1).max(120),
   periodId: uuidSchema,
   projectId: uuidSchema,
-  totalHours: z.number().positive().optional()
+  periodStart: z.string().datetime(),
+  totalHours: z.number().positive().optional(),
+  cascadedCount: z.number().int().positive().optional(),
+  cascadedPeriodLabels: z.array(z.string().max(120)).optional()
 });
 
 export const timesheetReviewedContextSchema = z.object({
+  workspaceName: z.string().min(1).max(120).optional(),
   projectName: z.string().min(1).max(120),
   periodLabel: z.string().min(1).max(120),
   periodId: uuidSchema,
   projectId: uuidSchema,
+  periodStart: z.string().datetime(),
   reviewerName: optionalName,
-  reviewNote: z.string().max(500).optional()
+  reviewNote: z.string().max(500).optional(),
+  adminNote: z.string().max(500).optional()
 });
 
 export const timesheetReminderContextSchema = z.object({
+  workspaceName: z.string().min(1).max(120),
+  projectName: z.string().min(1).max(120),
+  projectId: uuidSchema,
   periodLabel: z.string().min(1).max(120),
   dueLabel: z.string().max(120).optional(),
-  periodStart: z.string().datetime()
+  periodStart: z.string().datetime(),
+  adminMessage: z.string().max(300).optional()
+});
+
+export const timesheetAmendmentRequestedContextSchema = z.object({
+  memberName: z.string().min(1).max(120),
+  workspaceName: z.string().min(1).max(120),
+  projectName: z.string().min(1).max(120),
+  periodLabel: z.string().min(1).max(120),
+  periodId: uuidSchema,
+  projectId: uuidSchema,
+  amendmentId: uuidSchema,
+  reason: z.string().min(1).max(500)
 });
 
 export const timerAutostoppedContextSchema = z.object({
@@ -114,9 +141,14 @@ const TEMPLATE_CONTEXT_SCHEMAS = {
   "project.assigned": projectAssignedContextSchema,
   "task.assigned": taskAssignedContextSchema,
   "timesheet.submitted": timesheetSubmittedContextSchema,
+  "timesheet.submitted.batch": timesheetSubmittedContextSchema,
   "timesheet.approved": timesheetReviewedContextSchema,
   "timesheet.rejected": timesheetReviewedContextSchema,
   "timesheet.reminder": timesheetReminderContextSchema,
+  "timesheet.reminder.manual": timesheetReminderContextSchema,
+  "timesheet.amendment.requested": timesheetAmendmentRequestedContextSchema,
+  "timesheet.amendment.approved": timesheetReviewedContextSchema,
+  "timesheet.amendment.denied": timesheetReviewedContextSchema,
   "timer.autostopped": timerAutostoppedContextSchema,
   "member.joined": memberJoinedContextSchema,
   "member.removed": memberRemovedContextSchema,
@@ -149,9 +181,14 @@ const TEMPLATE_META: Record<
   "project.assigned": { type: "PROJECT_ASSIGNMENT", preferenceKey: "projectAssignment" },
   "task.assigned": { type: "TASK_ASSIGNMENT", preferenceKey: "taskAssignment" },
   "timesheet.submitted": { type: "APPROVAL_REQUEST", preferenceKey: "approvalRequest" },
+  "timesheet.submitted.batch": { type: "APPROVAL_REQUEST", preferenceKey: "approvalRequest" },
   "timesheet.approved": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
   "timesheet.rejected": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
   "timesheet.reminder": { type: "TIMESHEET_REMINDER", preferenceKey: "timesheetReminders" },
+  "timesheet.reminder.manual": { type: "TIMESHEET_REMINDER", preferenceKey: "timesheetReminders" },
+  "timesheet.amendment.requested": { type: "APPROVAL_REQUEST", preferenceKey: "approvalRequest" },
+  "timesheet.amendment.approved": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
+  "timesheet.amendment.denied": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
   "timer.autostopped": { type: "IDLE_TIMER_ALERT", preferenceKey: "idleTimerAlert" },
   "member.joined": { type: "MEMBER_CHANGE", preferenceKey: "memberChanges" },
   "member.removed": { type: "MEMBER_CHANGE", preferenceKey: "memberChanges" },
@@ -191,6 +228,77 @@ export function formatTimesheetPeriodLabel(
 
 function subjectPrefix(text: string): string {
   return `[${BRAND_NAME}] ${text}`;
+}
+
+function memberSubmissionsHref(projectId: string, periodStart: string, highlight?: string): string {
+  const parts = [
+    `projectId=${encodeURIComponent(projectId)}`,
+    `periodStart=${encodeURIComponent(periodStart)}`
+  ];
+  if (highlight) parts.push(`highlight=${encodeURIComponent(highlight)}`);
+  return `/submissions?${parts.join("&")}`;
+}
+
+function adminApprovalsHref(query: Record<string, string>): string {
+  const parts = Object.entries(query).map(
+    ([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+  );
+  return `/approvals?${parts.join("&")}`;
+}
+
+function timesheetDetailRows(
+  workspaceName: string,
+  projectName: string,
+  periodLabel: string,
+  extra: { label: string; value: string }[] = []
+) {
+  return [
+    { label: "Workspace", value: workspaceName },
+    { label: "Project", value: projectName },
+    { label: "Period", value: periodLabel },
+    ...extra
+  ];
+}
+
+function renderTimesheetSubmitted(
+  c: NotificationTemplateContextMap["timesheet.submitted"],
+  batch: boolean
+): RenderedNotification {
+  const { type, preferenceKey } =
+    TEMPLATE_META[batch ? "timesheet.submitted.batch" : "timesheet.submitted"];
+  const hoursLine =
+    typeof c.totalHours === "number" ? `${c.totalHours.toFixed(1)} hours logged` : undefined;
+  const batchNote =
+    batch && c.cascadedCount && c.cascadedCount > 1
+      ? ` (${c.cascadedCount} periods including earlier logged time)`
+      : "";
+  const href = batch
+    ? adminApprovalsHref({ tab: "review", batch: c.periodId })
+    : adminApprovalsHref({ tab: "review", periodId: c.periodId });
+
+  return {
+    type,
+    preferenceKey,
+    title: batch ? "Timesheets to review (batch)" : "Timesheet to review",
+    body: `${c.submitterName} submitted ${c.periodLabel} for ${c.projectName}${batchNote}.`,
+    emailSubject: subjectPrefix(`Review timesheet — ${c.projectName}`),
+    preheader: `${c.submitterName} is waiting for your approval.`,
+    metadata: {
+      href,
+      periodId: c.periodId,
+      projectId: c.projectId,
+      periodStart: c.periodStart,
+      variant: "attention",
+      ctaLabel: "Review timesheet",
+      details: timesheetDetailRows(c.workspaceName, c.projectName, c.periodLabel, [
+        { label: "Member", value: c.submitterName },
+        ...(hoursLine ? [{ label: "Hours", value: hoursLine }] : []),
+        ...(c.cascadedPeriodLabels?.length
+          ? [{ label: "Also submitted", value: c.cascadedPeriodLabels.join(", ") }]
+          : [])
+      ])
+    }
+  };
 }
 
 function renderTemplate(
@@ -243,29 +351,11 @@ function renderTemplate(
     }
     case "timesheet.submitted": {
       const c = context as NotificationTemplateContextMap["timesheet.submitted"];
-      const hoursLine =
-        typeof c.totalHours === "number" ? `${c.totalHours.toFixed(1)} hours logged` : undefined;
-      return {
-        type,
-        preferenceKey,
-        title: "Timesheet to review",
-        body: `${c.submitterName} submitted ${c.periodLabel} for ${c.projectName}.`,
-        emailSubject: subjectPrefix(`Review timesheet — ${c.projectName}`),
-        preheader: `${c.submitterName} is waiting for your approval.`,
-        metadata: {
-          href: "/approvals",
-          periodId: c.periodId,
-          projectId: c.projectId,
-          variant: "attention",
-          ctaLabel: "Review timesheet",
-          details: [
-            { label: "Member", value: c.submitterName },
-            { label: "Project", value: c.projectName },
-            { label: "Period", value: c.periodLabel },
-            ...(hoursLine ? [{ label: "Hours", value: hoursLine }] : [])
-          ]
-        }
-      };
+      return renderTimesheetSubmitted(c, false);
+    }
+    case "timesheet.submitted.batch": {
+      const c = context as NotificationTemplateContextMap["timesheet.submitted.batch"];
+      return renderTimesheetSubmitted(c, true);
     }
     case "timesheet.approved": {
       const c = context as NotificationTemplateContextMap["timesheet.approved"];
@@ -277,16 +367,18 @@ function renderTemplate(
         emailSubject: subjectPrefix(`Timesheet approved — ${c.projectName}`),
         preheader: `Your ${c.periodLabel} timesheet is approved.`,
         metadata: {
-          href: "/timesheet",
+          href: memberSubmissionsHref(c.projectId, c.periodStart),
           periodId: c.periodId,
           projectId: c.projectId,
+          periodStart: c.periodStart,
           variant: "success",
-          ctaLabel: "View timesheet",
-          details: [
-            { label: "Project", value: c.projectName },
-            { label: "Period", value: c.periodLabel },
-            ...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : [])
-          ]
+          ctaLabel: "View submission",
+          details: timesheetDetailRows(
+            c.workspaceName ?? c.projectName,
+            c.projectName,
+            c.periodLabel,
+            [...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : [])]
+          )
         }
       };
     }
@@ -302,37 +394,122 @@ function renderTemplate(
         emailSubject: subjectPrefix(`Timesheet rejected — ${c.projectName}`),
         preheader: `Action needed on your ${c.periodLabel} timesheet.`,
         metadata: {
-          href: "/timesheet",
+          href: memberSubmissionsHref(c.projectId, c.periodStart, "rejected"),
           periodId: c.periodId,
           projectId: c.projectId,
+          periodStart: c.periodStart,
           variant: "warning",
-          ctaLabel: "Update timesheet",
-          details: [
-            { label: "Project", value: c.projectName },
-            { label: "Period", value: c.periodLabel },
-            ...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : []),
-            ...(c.reviewNote ? [{ label: "Note", value: c.reviewNote }] : [])
-          ]
+          ctaLabel: "Fix and resubmit",
+          details: timesheetDetailRows(
+            c.workspaceName ?? c.projectName,
+            c.projectName,
+            c.periodLabel,
+            [
+              ...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : []),
+              ...(c.reviewNote ? [{ label: "Note", value: c.reviewNote }] : [])
+            ]
+          )
         }
       };
     }
-    case "timesheet.reminder": {
+    case "timesheet.reminder":
+    case "timesheet.reminder.manual": {
       const c = context as NotificationTemplateContextMap["timesheet.reminder"];
+      const isManual = templateId === "timesheet.reminder.manual";
+      const messagePart = isManual && c.adminMessage ? ` Message: ${c.adminMessage}` : "";
       return {
         type,
         preferenceKey,
-        title: "Submit your timesheet",
+        title: isManual ? "Timesheet submission reminder" : "Submit your timesheet",
         body: c.dueLabel
-          ? `Please submit your timesheet for ${c.periodLabel} by ${c.dueLabel}.`
-          : `Please submit your timesheet for ${c.periodLabel}.`,
-        emailSubject: subjectPrefix(`Timesheet reminder — ${c.periodLabel}`),
+          ? `Please submit ${c.projectName} (${c.periodLabel}) by ${c.dueLabel}.${messagePart}`
+          : `Please submit ${c.projectName} for ${c.periodLabel}.${messagePart}`,
+        emailSubject: subjectPrefix(`Timesheet reminder — ${c.projectName}`),
         preheader: "Your timesheet is due for submission.",
         metadata: {
-          href: "/timesheet",
-          variant: "attention",
-          ctaLabel: "Open timesheet",
+          href: memberSubmissionsHref(c.projectId, c.periodStart, isManual ? "remind" : undefined),
+          projectId: c.projectId,
           periodStart: c.periodStart,
-          details: [{ label: "Period", value: c.periodLabel }]
+          variant: "attention",
+          ctaLabel: "Open submissions",
+          details: timesheetDetailRows(c.workspaceName, c.projectName, c.periodLabel, [
+            ...(c.dueLabel ? [{ label: "Due", value: c.dueLabel }] : []),
+            ...(isManual && c.adminMessage ? [{ label: "Message", value: c.adminMessage }] : [])
+          ])
+        }
+      };
+    }
+    case "timesheet.amendment.requested": {
+      const c = context as NotificationTemplateContextMap["timesheet.amendment.requested"];
+      return {
+        type,
+        preferenceKey,
+        title: "Edit request submitted",
+        body: `${c.memberName} requested to edit ${c.periodLabel} on ${c.projectName}.`,
+        emailSubject: subjectPrefix(`Timesheet edit request — ${c.projectName}`),
+        preheader: "A member requested to unlock a submitted timesheet.",
+        metadata: {
+          href: adminApprovalsHref({ tab: "amendments", amendmentId: c.amendmentId }),
+          periodId: c.periodId,
+          projectId: c.projectId,
+          amendmentId: c.amendmentId,
+          variant: "attention",
+          ctaLabel: "Review request",
+          details: timesheetDetailRows(c.workspaceName, c.projectName, c.periodLabel, [
+            { label: "Member", value: c.memberName },
+            { label: "Reason", value: c.reason }
+          ])
+        }
+      };
+    }
+    case "timesheet.amendment.approved": {
+      const c = context as NotificationTemplateContextMap["timesheet.amendment.approved"];
+      return {
+        type,
+        preferenceKey,
+        title: "Edit request approved",
+        body: `You can now edit ${c.periodLabel} on ${c.projectName}. Make changes and submit again.`,
+        emailSubject: subjectPrefix(`Edit approved — ${c.projectName}`),
+        preheader: "Your timesheet period was unlocked for editing.",
+        metadata: {
+          href: memberSubmissionsHref(c.projectId, c.periodStart, "amendment-approved"),
+          periodId: c.periodId,
+          projectId: c.projectId,
+          periodStart: c.periodStart,
+          variant: "success",
+          ctaLabel: "Edit and resubmit",
+          details: timesheetDetailRows(
+            c.workspaceName ?? c.projectName,
+            c.projectName,
+            c.periodLabel
+          )
+        }
+      };
+    }
+    case "timesheet.amendment.denied": {
+      const c = context as NotificationTemplateContextMap["timesheet.amendment.denied"];
+      return {
+        type,
+        preferenceKey,
+        title: "Edit request denied",
+        body: `Your request to edit ${c.periodLabel} on ${c.projectName} was denied.${
+          c.adminNote ? ` Note: ${c.adminNote}` : ""
+        }`,
+        emailSubject: subjectPrefix(`Edit request denied — ${c.projectName}`),
+        preheader: "Your edit request was not approved.",
+        metadata: {
+          href: memberSubmissionsHref(c.projectId, c.periodStart),
+          periodId: c.periodId,
+          projectId: c.projectId,
+          periodStart: c.periodStart,
+          variant: "warning",
+          ctaLabel: "View submission",
+          details: timesheetDetailRows(
+            c.workspaceName ?? c.projectName,
+            c.projectName,
+            c.periodLabel,
+            [...(c.adminNote ? [{ label: "Note", value: c.adminNote }] : [])]
+          )
         }
       };
     }

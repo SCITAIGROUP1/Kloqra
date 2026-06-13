@@ -98,3 +98,15 @@ export { ProfilePage } from "./features/account/profile-page";
 export { useUserProfile } from "./features/account/use-user-profile";
 export { SettingsCard } from "./features/account/settings/settings-card";
 export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";
+export {
+  appendApprovalsFilterSearch,
+  buildAdminApprovalsHref,
+  buildApprovalsFilterQueryString,
+  buildMemberSubmissionsHref,
+  hasActiveApprovalsFilter,
+  parseAdminApprovalsSearch,
+  parseApprovalsFilterSearch,
+  parseMemberSubmissionsSearch,
+  type AdminApprovalsDeepLink,
+  type MemberSubmissionsDeepLink
+} from "./features/submissions/submission-deep-link";

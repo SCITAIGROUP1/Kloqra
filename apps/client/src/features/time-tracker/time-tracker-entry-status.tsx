@@ -10,17 +10,17 @@ const APPROVAL_STYLES: Partial<
   SUBMITTED: {
     label: "pending",
     className:
-      "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 normal-case tracking-normal"
+      "border-status-warning-border bg-status-warning-bg text-status-warning-fg normal-case tracking-normal"
   },
   APPROVED: {
     label: "approved",
     className:
-      "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 normal-case tracking-normal"
+      "border-status-success-border bg-status-success-bg text-status-success-fg normal-case tracking-normal"
   },
   REJECTED: {
     label: "rejected",
     className:
-      "border-destructive/30 bg-destructive/10 text-destructive normal-case tracking-normal"
+      "border-status-danger-border bg-status-danger-bg text-status-danger-fg normal-case tracking-normal"
   }
 };
 

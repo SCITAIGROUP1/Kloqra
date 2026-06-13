@@ -15,13 +15,16 @@ import { NotificationsDispatchService } from "../../notifications/application/no
 
 const TICK_MS = 60_000;
 
-type PeriodBucket = {
+type ReminderTarget = {
   workspaceId: string;
+  workspaceName: string;
+  userId: string;
+  projectId: string;
+  projectName: string;
   periodStart: Date;
   periodEnd: Date;
   approvalPeriod: TimesheetApprovalPeriod;
   timeZone: string;
-  projectIds: string[];
 };
 
 @Injectable()
@@ -56,13 +59,12 @@ export class TimesheetReminderService implements OnModuleInit, OnModuleDestroy {
       where: { timesheetApprovalEnabled: true, isActive: true },
       select: {
         id: true,
+        name: true,
         workspaceId: true,
         timesheetApprovalPeriod: true,
-        workspace: { select: { settings: true } }
+        workspace: { select: { name: true, settings: true } }
       }
     });
-
-    const buckets = new Map<string, PeriodBucket>();
 
     for (const project of projects) {
       const settings = parseWorkspaceSettingsFromRaw(project.workspace.settings);
@@ -74,77 +76,74 @@ export class TimesheetReminderService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
 
-      const key = `${project.workspaceId}:${periodStart.toISOString()}:${approvalPeriod}`;
-      const existing = buckets.get(key);
-      if (existing) {
-        existing.projectIds.push(project.id);
-        continue;
-      }
-
-      buckets.set(key, {
-        workspaceId: project.workspaceId,
+      const candidateUserIds = await this.collectCandidateUserIds(
+        project.id,
         periodStart,
-        periodEnd,
-        approvalPeriod,
-        timeZone,
-        projectIds: [project.id]
-      });
-    }
+        periodEnd
+      );
 
-    for (const bucket of buckets.values()) {
-      await this.processBucket(bucket);
+      for (const userId of candidateUserIds) {
+        const needsReminder = await this.userNeedsReminder(userId, project.id, periodStart);
+        if (!needsReminder) continue;
+
+        const alreadySent = await this.prisma.notification.findFirst({
+          where: {
+            userId,
+            workspaceId: project.workspaceId,
+            type: "TIMESHEET_REMINDER",
+            metadata: {
+              path: ["projectId"],
+              equals: project.id
+            },
+            AND: {
+              metadata: {
+                path: ["periodStart"],
+                equals: periodStart.toISOString()
+              }
+            }
+          },
+          select: { id: true }
+        });
+        if (alreadySent) continue;
+
+        await this.sendReminder({
+          workspaceId: project.workspaceId,
+          workspaceName: project.workspace.name,
+          userId,
+          projectId: project.id,
+          projectName: project.name,
+          periodStart,
+          periodEnd,
+          approvalPeriod,
+          timeZone
+        });
+      }
     }
   }
 
-  private async processBucket(bucket: PeriodBucket) {
-    const candidateUserIds = await this.collectCandidateUserIds(
-      bucket.projectIds,
-      bucket.periodStart,
-      bucket.periodEnd
-    );
+  private async sendReminder(target: ReminderTarget) {
+    const periodLabel = formatTimesheetPeriodLabel(target.periodStart, target.approvalPeriod);
+    const dueLabel = formatReminderDueLabel(target.periodEnd, target.timeZone);
 
-    for (const userId of candidateUserIds) {
-      const needsReminder = await this.userNeedsReminder(
-        userId,
-        bucket.projectIds,
-        bucket.periodStart
-      );
-      if (!needsReminder) continue;
-
-      const alreadySent = await this.prisma.notification.findFirst({
-        where: {
-          userId,
-          workspaceId: bucket.workspaceId,
-          type: "TIMESHEET_REMINDER",
-          metadata: {
-            path: ["periodStart"],
-            equals: bucket.periodStart.toISOString()
-          }
-        },
-        select: { id: true }
-      });
-      if (alreadySent) continue;
-
-      const periodLabel = formatTimesheetPeriodLabel(bucket.periodStart, bucket.approvalPeriod);
-      const dueLabel = formatReminderDueLabel(bucket.periodEnd, bucket.timeZone);
-
-      void this.notificationsDispatch
-        .notify({
-          userId,
-          workspaceId: bucket.workspaceId,
-          templateId: "timesheet.reminder",
-          context: {
-            periodLabel,
-            dueLabel,
-            periodStart: bucket.periodStart.toISOString()
-          }
-        })
-        .catch(() => undefined);
-    }
+    void this.notificationsDispatch
+      .notify({
+        userId: target.userId,
+        workspaceId: target.workspaceId,
+        templateId: "timesheet.reminder",
+        context: {
+          workspaceName: target.workspaceName,
+          projectName: target.projectName,
+          projectId: target.projectId,
+          periodLabel,
+          dueLabel,
+          periodStart: target.periodStart.toISOString()
+        }
+      })
+      .catch(() => undefined);
   }
 
   private async collectCandidateUserIds(
-    projectIds: string[],
+    projectId: string,
     periodStart: Date,
     periodEnd: Date
   ): Promise<string[]> {
@@ -152,13 +151,13 @@ export class TimesheetReminderService implements OnModuleInit, OnModuleDestroy {
       this.prisma.teamMember.findMany({
         where: {
           isActive: true,
-          team: { projectId: { in: projectIds } }
+          team: { projectId }
         },
         select: { userId: true }
       }),
       this.prisma.timeLog.findMany({
         where: {
-          task: { projectId: { in: projectIds } },
+          task: { projectId },
           startTime: { gte: periodStart, lte: periodEnd }
         },
         select: { userId: true },
@@ -173,22 +172,16 @@ export class TimesheetReminderService implements OnModuleInit, OnModuleDestroy {
 
   private async userNeedsReminder(
     userId: string,
-    projectIds: string[],
+    projectId: string,
     periodStart: Date
   ): Promise<boolean> {
-    for (const projectId of projectIds) {
-      const period = await this.prisma.timesheetPeriod.findUnique({
-        where: {
-          userId_projectId_periodStart: { userId, projectId, periodStart }
-        },
-        select: { status: true }
-      });
+    const period = await this.prisma.timesheetPeriod.findUnique({
+      where: {
+        userId_projectId_periodStart: { userId, projectId, periodStart }
+      },
+      select: { status: true }
+    });
 
-      if (!period || period.status === "DRAFT" || period.status === "REJECTED") {
-        return true;
-      }
-    }
-
-    return false;
+    return !period || period.status === "DRAFT" || period.status === "REJECTED";
   }
 }

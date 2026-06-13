@@ -132,19 +132,17 @@ export function TeamUtilizationWidget({
   const statusConfigs = {
     on_track: {
       label: "On Track",
-      color:
-        "text-green-700 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30",
+      color: "text-status-success-fg bg-status-success-bg border-status-success-border",
       icon: CheckCircle2
     },
     low: {
       label: "Low",
-      color:
-        "text-amber-700 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30",
+      color: "text-status-warning-fg bg-status-warning-bg border-status-warning-border",
       icon: AlertCircle
     },
     critical: {
       label: "Critical",
-      color: "text-red-700 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30",
+      color: "text-status-danger-fg bg-status-danger-bg border-status-danger-border",
       icon: AlertCircle
     }
   };

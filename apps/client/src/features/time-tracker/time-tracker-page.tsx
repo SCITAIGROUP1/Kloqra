@@ -17,15 +17,15 @@ import { toast } from "sonner";
 import { todayInZone } from "../timesheet/calendar-utils";
 import type { TimesheetDisplayFormat } from "../timesheet/display-format";
 import {
-  TimeEntryDialog,
   canSaveTaskDraft,
   draftFromLog,
   draftFromSlot,
   draftToIsoRange,
   type TimeEntryDraft
-} from "../timesheet/time-entry-dialog";
+} from "../timesheet/time-entry-draft";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
+import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
 import {
   inclusiveDateKeysFromPeriod,
   matchTimeTrackerPeriod,
@@ -36,7 +36,6 @@ import {
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
-import { TimeTrackerWeekList } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -254,7 +253,16 @@ export function TimeTrackerPage() {
 
   function openDraft(next: TimeEntryDraft, log: TimeLogDto | null = null) {
     if (log && isEntryLocked(log)) {
-      setError("This entry is locked (submitted or approved) and cannot be edited.");
+      const msg = "This entry is locked (submitted or approved) and cannot be edited.";
+      setError(msg);
+      toast.error(msg, {
+        action: {
+          label: "Go to Submissions",
+          onClick: () => {
+            window.location.href = "/submissions";
+          }
+        }
+      });
       return;
     }
     setEditingLog(log);

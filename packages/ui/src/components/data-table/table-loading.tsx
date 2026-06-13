@@ -16,12 +16,12 @@ export function TableLoadingRows({
   return (
     <TableBody className={className}>
       {Array.from({ length: rows }).map((_, rowIndex) => (
-        <TableRow key={rowIndex} className="animate-pulse pointer-events-none">
+        <TableRow key={rowIndex} className="pointer-events-none">
           {Array.from({ length: columns }).map((__, colIndex) => (
             <TableCell key={colIndex} className={dataTableCellClass}>
               <div
                 className={cn(
-                  "h-4 rounded-md bg-muted/70",
+                  "h-4 rounded-md animate-shimmer",
                   colIndex === columns - 1 ? "ml-auto w-16" : "w-full max-w-[180px]"
                 )}
               />

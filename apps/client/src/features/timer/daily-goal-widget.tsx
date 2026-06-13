@@ -11,10 +11,10 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 const dailyTargetStorageKey = (userId: string) => `kloqra:daily-target-hours:${userId}`;
 
-interface DailyGoalWidgetProps {
+export type DailyGoalWidgetProps = {
   totalSeconds: number;
   cardless?: boolean;
-}
+};
 
 export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";

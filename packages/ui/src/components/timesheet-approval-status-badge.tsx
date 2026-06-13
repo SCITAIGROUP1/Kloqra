@@ -10,25 +10,43 @@ const STATUS_CONFIG: Record<TimesheetApprovalStatus, { label: string; className:
   },
   SUBMITTED: {
     label: "Pending",
-    className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/25"
+    className: "bg-status-warning-bg text-status-warning-fg border-status-warning-border"
   },
   APPROVED: {
     label: "Approved",
-    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25"
+    className: "bg-status-success-bg text-status-success-fg border-status-success-border"
   },
   REJECTED: {
     label: "Rejected",
-    className: "bg-destructive/10 text-destructive border-destructive/25"
+    className: "bg-status-danger-bg text-status-danger-fg border-status-danger-border"
   }
 };
 
 export function TimesheetApprovalStatusBadge({
   status,
+  amendmentPending = false,
   className
 }: {
   status: TimesheetApprovalStatus;
+  amendmentPending?: boolean;
   className?: string;
 }) {
+  if (amendmentPending) {
+    return (
+      <Badge
+        variant="outline"
+        className={cn(
+          "font-medium text-[10px] uppercase tracking-wider py-0.5 px-2",
+          "bg-status-info-bg text-status-info-fg border-status-info-border",
+          "transition-[background-color,border-color,color] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
+          className
+        )}
+      >
+        Edit pending
+      </Badge>
+    );
+  }
+
   const config = STATUS_CONFIG[status];
   return (
     <Badge
@@ -36,6 +54,7 @@ export function TimesheetApprovalStatusBadge({
       className={cn(
         "font-medium text-[10px] uppercase tracking-wider py-0.5 px-2",
         config.className,
+        "transition-[background-color,border-color,color] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
         className
       )}
     >

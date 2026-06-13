@@ -300,7 +300,8 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
             weight: 0.8,
             assigneeEmails: []
           }
-        ]
+        ],
+        timesheetApproval: true
       },
       {
         name: "Brand Campaign Q2",
@@ -903,7 +904,7 @@ export const SEED_NOTIFICATIONS: SeedNotificationSpec[] = [
     title: "Timesheet approved",
     body: "Your timesheet for Client Portal Redesign was approved.",
     read: true,
-    metadata: { variant: "success" }
+    metadata: { variant: "success", ctaLabel: "View submission" }
   },
   {
     recipientEmail: "admin@kloqra.dev",
@@ -912,7 +913,7 @@ export const SEED_NOTIFICATIONS: SeedNotificationSpec[] = [
     projectName: "Client Portal Redesign",
     title: "Timesheet pending approval",
     body: "Sam Rivera submitted a timesheet for Client Portal Redesign.",
-    metadata: { variant: "attention", ctaLabel: "Review" }
+    metadata: { variant: "attention", ctaLabel: "Review", href: "/approvals?tab=review" }
   },
   {
     recipientEmail: "pending@kloqra.dev",

@@ -41,24 +41,26 @@ import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
-import { BudgetBurnDownWidget } from "./budget-burndown-widget";
-import { TeamUtilizationWidget } from "./team-utilization-widget";
 import { useWidgetLayout } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
-import { ActiveTimersWidget } from "./widgets/active-timers-widget";
-import { BillabilityGaugeWidget } from "./widgets/billability-gauge-widget";
-import { BillableSplitDonutWidget } from "./widgets/billable-split-donut-widget";
-import { CategoryProjectHeatmapWidget } from "./widgets/category-project-heatmap-widget";
-import { HeatmapWidget } from "./widgets/heatmap-widget";
-import { HourlyRatesWidget } from "./widgets/hourly-rates-widget";
-import { LivePresenceWidget } from "./widgets/live-presence-widget";
-import { MemberLeaderboardWidget } from "./widgets/member-leaderboard-widget";
-import { PendingTimesheetsWidget } from "./widgets/pending-timesheets-widget";
-import { ProjectHealthWidget } from "./widgets/project-health-widget";
-import { RateEfficiencyWidget } from "./widgets/rate-efficiency-widget";
-import { RevenueTrendWidget } from "./widgets/revenue-trend-widget";
-import { TaskBreakdownWidget } from "./widgets/task-breakdown-widget";
+import {
+  ActiveTimersWidget,
+  BillabilityGaugeWidget,
+  BillableSplitDonutWidget,
+  BudgetBurnDownWidget,
+  CategoryProjectHeatmapWidget,
+  HeatmapWidget,
+  HourlyRatesWidget,
+  LivePresenceWidget,
+  MemberLeaderboardWidget,
+  PendingTimesheetsWidget,
+  ProjectHealthWidget,
+  RateEfficiencyWidget,
+  RevenueTrendWidget,
+  TaskBreakdownWidget,
+  TeamUtilizationWidget
+} from "./widgets-lazy";
 import { DashboardSkeleton, EmptyState } from "@/components/admin-page";
 import {
   DailyStackedBarChart,

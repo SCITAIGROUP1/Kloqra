@@ -30,11 +30,11 @@ export const ONBOARDING_TOUR_STEPS: SpotlightTourStep[] = [
     mobileHint: "Find My projects in the navigation menu."
   },
   {
-    target: '[data-tour="nav-approvals"]',
-    title: "Approvals",
+    target: '[data-tour="nav-submissions"]',
+    title: "Submissions",
     body: "Submit timesheets for review when your workspace requires approval before billing.",
     placement: "right",
-    mobileHint: "Find Approvals in the navigation menu."
+    mobileHint: "Find Submissions in the navigation menu."
   },
   {
     target: '[data-tour="onboarding-replay"]',

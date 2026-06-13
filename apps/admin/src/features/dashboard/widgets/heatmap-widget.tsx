@@ -6,14 +6,14 @@ import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface HeatmapWidgetProps {
+export type HeatmapWidgetProps = {
   from: string;
   to: string;
   projectId?: string;
   userId?: string;
   categoryId?: string;
   taskId?: string;
-}
+};
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS_LABELS = ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm"];

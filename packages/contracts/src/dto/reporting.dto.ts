@@ -214,6 +214,13 @@ export const projectSummaryCategoryHoursSchema = z.object({
   billableHours: z.number().nonnegative()
 });
 
+export const projectSummaryMemberHoursSchema = z.object({
+  userId: uuidSchema,
+  userName: z.string(),
+  totalHours: z.number().nonnegative(),
+  billableHours: z.number().nonnegative()
+});
+
 export const projectSummarySchema = z.object({
   projectId: uuidSchema,
   projectName: z.string(),
@@ -226,7 +233,8 @@ export const projectSummarySchema = z.object({
   nonBillableHours: z.number().nonnegative(),
   entryCount: z.number().int().nonnegative(),
   byTask: z.array(taskBreakdownItemSchema),
-  byCategory: z.array(projectSummaryCategoryHoursSchema)
+  byCategory: z.array(projectSummaryCategoryHoursSchema),
+  byMember: z.array(projectSummaryMemberHoursSchema)
 });
 
 export type ProjectSummaryQueryDto = z.infer<typeof projectSummaryQuerySchema>;

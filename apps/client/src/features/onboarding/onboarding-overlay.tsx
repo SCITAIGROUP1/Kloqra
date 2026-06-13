@@ -4,6 +4,7 @@ import { PROJECT_COLORS, ROUTES } from "@kloqra/contracts";
 import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import {
   Button,
+  CrossfadePresence,
   Dialog,
   DialogBody,
   DialogContent,
@@ -211,20 +212,22 @@ export function OnboardingOverlay({
           </div>
 
           <div className="flex flex-1 flex-col justify-center">
-            <StepContent
-              stepId={stepId}
-              userName={userName}
-              isAdmin={isAdmin}
-              projects={projects}
-              projectName={projectName}
-              setProjectName={setProjectName}
-              clientName={clientName}
-              setClientName={setClientName}
-              selectedColor={selectedColor}
-              setSelectedColor={setSelectedColor}
-              creating={creating}
-              onCreateProject={handleCreateProject}
-            />
+            <CrossfadePresence presenceKey={stepId}>
+              <StepContent
+                stepId={stepId}
+                userName={userName}
+                isAdmin={isAdmin}
+                projects={projects}
+                projectName={projectName}
+                setProjectName={setProjectName}
+                clientName={clientName}
+                setClientName={setClientName}
+                selectedColor={selectedColor}
+                setSelectedColor={setSelectedColor}
+                creating={creating}
+                onCreateProject={handleCreateProject}
+              />
+            </CrossfadePresence>
           </div>
 
           <div className="mt-8 flex items-center justify-between border-t border-border pt-4">
@@ -322,7 +325,7 @@ function StepContent({
   switch (stepId) {
     case "welcome":
       return (
-        <div className="animate-fade-in-up space-y-4">
+        <div className="space-y-4">
           <div className="inline-flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Sparkles className="size-6" />
           </div>
@@ -342,7 +345,7 @@ function StepContent({
 
     case "workspace":
       return (
-        <div className="animate-fade-in-up space-y-4">
+        <div className="space-y-4">
           {isAdmin ? (
             <>
               <div className="space-y-1">
@@ -442,7 +445,7 @@ function StepContent({
 
     case "track-time":
       return (
-        <div className="animate-fade-in-up space-y-4">
+        <div className="space-y-4">
           <div className="space-y-1">
             <h2 className="text-xl font-bold tracking-tight">Three ways to track time</h2>
             <p className="text-xs text-muted-foreground">
@@ -460,7 +463,7 @@ function StepContent({
 
     case "projects-dashboard":
       return (
-        <div className="animate-fade-in-up space-y-4">
+        <div className="space-y-4">
           <div className="space-y-1">
             <h2 className="text-xl font-bold tracking-tight">Projects & dashboard</h2>
             <p className="text-xs text-muted-foreground">
@@ -477,7 +480,7 @@ function StepContent({
 
     case "finish":
       return (
-        <div className="animate-fade-in-up space-y-4">
+        <div className="space-y-4">
           <div className="inline-flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
             <Clock className="size-6 animate-pulse" />
           </div>

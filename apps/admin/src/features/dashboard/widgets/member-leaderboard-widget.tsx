@@ -10,9 +10,9 @@ import {
 import React from "react";
 import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from "recharts";
 
-interface MemberLeaderboardWidgetProps {
+export type MemberLeaderboardWidgetProps = {
   report: DashboardReportDto;
-}
+};
 
 const chartConfig = {
   billableHours: { label: "Billable", color: "hsl(142 76% 36%)" },

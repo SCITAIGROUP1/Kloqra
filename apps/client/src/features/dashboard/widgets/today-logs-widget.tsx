@@ -6,13 +6,13 @@ import { Play, Trash2, Clock } from "lucide-react";
 import React, { useMemo } from "react";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 
-interface TodayLogsWidgetProps {
+export type TodayLogsWidgetProps = {
   logs: TimeLogDto[];
   projects: ProjectDto[];
   tasks: TaskDto[];
   onDeleteLog: (id: string) => Promise<void>;
   onResumeTask: (taskId: string) => Promise<void>;
-}
+};
 
 export function TodayLogsWidget({
   logs,

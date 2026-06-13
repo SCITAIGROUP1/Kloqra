@@ -11,9 +11,9 @@ import React from "react";
 import { Cell, Legend, Pie, PieChart } from "recharts";
 import { formatDurationClock } from "@/components/report-charts";
 
-interface BillableSplitDonutWidgetProps {
+export type BillableSplitDonutWidgetProps = {
   report: DashboardReportDto;
-}
+};
 
 const chartConfig = {
   billable: { label: "Billable Hours", color: "hsl(142 76% 36%)" },

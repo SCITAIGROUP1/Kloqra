@@ -40,6 +40,7 @@ model User {
   projectInvitesCreated ProjectInvite[]   @relation("ProjectInvitesCreated")
   refreshTokens         RefreshToken[]
   timesheetPeriods      TimesheetPeriod[]
+  timesheetAmendments   TimesheetAmendmentRequest[]
   taskAssignees         TaskAssignee[]
   projectColors         UserProjectColor[]
   notifications         Notification[]
@@ -352,12 +353,33 @@ model TimesheetPeriod {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amendments  TimesheetAmendmentRequest[]
 
   @@unique([userId, projectId, periodStart])
   @@index([workspaceId, status])
   @@index([periodStart])
   @@index([projectId])
   @@map("timesheet_periods")
+}
+
+model TimesheetAmendmentRequest {
+  id          String    @id @default(uuid())
+  periodId    String    @map("period_id")
+  userId      String    @map("user_id")
+  workspaceId String    @map("workspace_id")
+  reason      String
+  status      String    @default("PENDING") // PENDING | APPROVED | DENIED
+  adminNote   String?   @map("admin_note")
+  reviewedBy  String?   @map("reviewed_by")
+  reviewedAt  DateTime? @map("reviewed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  period      TimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([periodId, status])
+  @@map("timesheet_amendment_requests")
 }
 
 model TimeLogAuditEvent {

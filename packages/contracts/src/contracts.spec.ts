@@ -54,6 +54,11 @@ describe("contracts", () => {
 
   it("exposes timesheet submissions route", () => {
     expect(ROUTES.TIMESHEETS.MY_SUBMISSIONS).toBe("/timesheets/submissions");
+    expect(ROUTES.TIMESHEETS.SUBMIT_PREVIEW).toBe("/timesheets/submit-preview");
+    expect(ROUTES.TIMESHEETS.LIST_MISSING).toBe("/timesheets/missing");
+    expect(ROUTES.TIMESHEETS.REMIND).toBe("/timesheets/remind");
+    expect(ROUTES.TIMESHEETS.LIST_AMENDMENTS).toBe("/timesheets/amendments/pending");
+    expect(ROUTES.TIMESHEETS.CREATE_AMENDMENT(UUID)).toBe(`/timesheets/${UUID}/amendments`);
   });
 
   it("validates timesheet submissions query with scope default", () => {
@@ -389,7 +394,8 @@ describe("contracts", () => {
       nonBillableHours: 2,
       entryCount: 5,
       byTask: [],
-      byCategory: []
+      byCategory: [],
+      byMember: []
     });
     expect(r.success).toBe(true);
   });

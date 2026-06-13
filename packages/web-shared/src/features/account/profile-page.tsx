@@ -1,6 +1,6 @@
 "use client";
 
-import { AppBar, Card, CardContent, SegmentedControl } from "@kloqra/ui";
+import { AppBar, Card, CardContent, SegmentedControl, Skeleton } from "@kloqra/ui";
 import Link from "next/link";
 import { useState } from "react";
 import { PersonalInfoSection } from "./profile/personal-info-section";
@@ -17,8 +17,8 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-4xl space-y-6">
-        <div className="h-28 animate-pulse rounded-xl bg-muted" />
-        <div className="h-[24rem] animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-[24rem] rounded-xl" />
       </div>
     );
   }

@@ -16,7 +16,8 @@ import {
   CardHeader,
   CardTitle,
   Input,
-  TimeEntryAuditTrail
+  TimeEntryAuditTrail,
+  cn
 } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import { Calendar, Check, MessageSquare, X } from "lucide-react";
@@ -80,29 +81,36 @@ function PendingActivity({
       >
         {open ? "Hide entry activity" : "View entry activity"}
       </Button>
-      {open && (
-        <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-          {logIds.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No entries in this period.</p>
-          ) : (
-            logIds.slice(0, 8).map((id) => (
-              <div key={id} className="rounded-md border border-border/60 p-2">
-                <TimeEntryAuditTrail
-                  tasks={tasks}
-                  projects={projects}
-                  fetchEvents={async () => {
-                    const res = await api<ListTimelogAuditEventsResponseDto>(
-                      ROUTES.TIMELOGS.AUDIT_EVENTS(id),
-                      { workspaceId }
-                    );
-                    return res.items;
-                  }}
-                />
-              </div>
-            ))
-          )}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-[var(--motion-base)] ease-[var(--motion-ease-out)] motion-reduce:transition-none",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-3 max-h-48 overflow-y-auto pr-1 pt-2">
+            {logIds.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No entries in this period.</p>
+            ) : (
+              logIds.slice(0, 8).map((id) => (
+                <div key={id} className="rounded-md border border-border/60 p-2">
+                  <TimeEntryAuditTrail
+                    tasks={tasks}
+                    projects={projects}
+                    fetchEvents={async () => {
+                      const res = await api<ListTimelogAuditEventsResponseDto>(
+                        ROUTES.TIMELOGS.AUDIT_EVENTS(id),
+                        { workspaceId }
+                      );
+                      return res.items;
+                    }}
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -114,6 +122,7 @@ export interface PendingTimesheetCardProps {
   onReviewNoteChange: (value: string) => void;
   onReview: (action: "approve" | "reject") => void;
   actioning: boolean;
+  highlighted?: boolean;
 }
 
 export function PendingTimesheetCard({
@@ -122,10 +131,25 @@ export function PendingTimesheetCard({
   reviewNote,
   onReviewNoteChange,
   onReview,
-  actioning
+  actioning,
+  highlighted = false
 }: PendingTimesheetCardProps) {
+  const blockedByAmendment = Boolean(item.amendmentPending);
+  const batchLabel =
+    item.cascadedCount && item.cascadedCount > 0
+      ? `Part of batch submit (+${item.cascadedCount})`
+      : null;
+
   return (
-    <Card className="border-primary/10 hover:shadow-md transition-all flex flex-col justify-between">
+    <Card
+      id={`pending-${item.id}`}
+      interactive
+      className={cn(
+        "border-primary/10 flex flex-col justify-between",
+        highlighted &&
+          "ring-2 ring-primary/40 ring-offset-2 ring-offset-background animate-highlight-pulse"
+      )}
+    >
       <CardHeader className="pb-3 border-b border-border/40">
         <div className="flex items-start justify-between">
           <div>
@@ -146,6 +170,18 @@ export function PendingTimesheetCard({
             <Calendar className="size-4 text-muted-foreground" />
             <span>{periodHeading(item)}</span>
           </div>
+
+          {batchLabel ? (
+            <Badge variant="outline" className="text-[10px] w-fit">
+              {batchLabel}
+            </Badge>
+          ) : null}
+
+          {blockedByAmendment ? (
+            <p className="text-xs text-status-warning-fg bg-status-warning-bg border border-status-warning-border rounded-md px-2 py-1.5">
+              Resolve the open edit request before approving or rejecting this period.
+            </p>
+          ) : null}
 
           {item.note && (
             <div className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed flex gap-2">
@@ -186,7 +222,8 @@ export function PendingTimesheetCard({
               size="sm"
               className="w-1/2 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
               onClick={() => onReview("reject")}
-              disabled={actioning}
+              disabled={actioning || blockedByAmendment}
+              title={blockedByAmendment ? "Resolve amendment request first" : undefined}
             >
               <X className="size-3.5 mr-1" />
               <span>Reject</span>
@@ -195,7 +232,8 @@ export function PendingTimesheetCard({
               size="sm"
               className="w-1/2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={() => onReview("approve")}
-              disabled={actioning}
+              disabled={actioning || blockedByAmendment}
+              title={blockedByAmendment ? "Resolve amendment request first" : undefined}
             >
               <Check className="size-3.5 mr-1" />
               <span>Approve</span>

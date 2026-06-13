@@ -9,13 +9,13 @@ import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface QuickActionsProps {
+export type QuickActionsProps = {
   onSelect: (projectId: string, taskId: string) => void;
   currentProjectId?: string;
   currentTaskId?: string;
   filterProjectId?: string;
   mode?: "favorites" | "recents" | "all";
-}
+};
 
 interface FavoriteItem {
   projectId: string;

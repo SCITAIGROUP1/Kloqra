@@ -13,5 +13,6 @@ describe("Card", () => {
     );
     expect(screen.getByText("Summary")).toBeInTheDocument();
     expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(screen.getByText("Summary").closest("[class*='rounded']")).toBeTruthy();
   });
 });

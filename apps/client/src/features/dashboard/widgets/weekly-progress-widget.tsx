@@ -11,11 +11,11 @@ import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 
-interface WeeklyProgressWidgetProps {
+export type WeeklyProgressWidgetProps = {
   logs: TimeLogDto[];
   startDate: string;
   endDate: string;
-}
+};
 
 const chartConfig = {
   billable: { label: "Billable Hours", color: "var(--chart-1)" },

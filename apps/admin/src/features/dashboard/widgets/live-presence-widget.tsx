@@ -2,17 +2,17 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { PresenceSnapshotDto, ProjectDto } from "@kloqra/contracts";
-import { ProjectColorDot } from "@kloqra/ui";
+import { ProjectColorDot, Skeleton } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import { Play } from "lucide-react";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface LivePresenceWidgetProps {
+export type LivePresenceWidgetProps = {
   projectId?: string;
   userId?: string;
-}
+};
 
 export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
@@ -69,8 +69,9 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-        Connecting to presence snapshot...
+      <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
+        <Skeleton className="h-24 w-full max-w-xs rounded-lg" />
+        <p className="text-sm text-muted-foreground">Connecting to presence snapshot…</p>
       </div>
     );
   }
@@ -119,7 +120,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
                 key={m.userId}
                 className={`flex items-center justify-between p-2.5 rounded-lg border hover:bg-background/80 transition-all duration-200 ${
                   m.isPaused
-                    ? "border-amber-500/20 bg-amber-500/5 opacity-80"
+                    ? "border-status-warning-border bg-status-warning-bg opacity-80"
                     : "border-border/40 bg-background/40"
                 }`}
               >
@@ -127,11 +128,11 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="relative flex size-2 shrink-0">
                       {m.isPaused ? (
-                        <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
+                        <span className="relative inline-flex size-2 rounded-full bg-warning" />
                       ) : (
                         <>
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                          <span className="relative inline-flex size-2 rounded-full bg-success" />
                         </>
                       )}
                     </span>
@@ -139,7 +140,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
                       {m.userName}
                     </span>
                     {m.isPaused && (
-                      <span className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.2 rounded-full font-medium shrink-0">
+                      <span className="text-[9px] bg-status-warning-bg text-status-warning-fg px-1.5 py-0.2 rounded-full font-medium shrink-0">
                         Break
                       </span>
                     )}
@@ -158,7 +159,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
                 <div
                   className={`flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-md border ${
                     m.isPaused
-                      ? "bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400"
+                      ? "bg-status-warning-bg border-status-warning-border text-status-warning-fg"
                       : "bg-primary/5 border-primary/10 text-primary"
                   }`}
                 >

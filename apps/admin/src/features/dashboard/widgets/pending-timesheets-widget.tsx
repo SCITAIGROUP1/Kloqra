@@ -1,17 +1,17 @@
 "use client";
 
-import { Button } from "@kloqra/ui";
+import { Button, Skeleton } from "@kloqra/ui";
 import { Check, X, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useMemo } from "react";
 import { usePendingTimesheets } from "@/features/approvals/use-pending-timesheets";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface PendingTimesheetsWidgetProps {
+export type PendingTimesheetsWidgetProps = {
   onHeaderActions?: (actions: React.ReactNode) => void;
   projectId?: string;
   userId?: string;
-}
+};
 
 export function PendingTimesheetsWidget({
   onHeaderActions,
@@ -19,7 +19,7 @@ export function PendingTimesheetsWidget({
   userId
 }: PendingTimesheetsWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { pending, loading, actioningId, handleReview } = usePendingTimesheets(ws);
+  const { pending, loading, actioningId, handleReview } = usePendingTimesheets(ws, {});
 
   const filteredTimesheets = useMemo(() => {
     return pending.filter((sheet) => {
@@ -57,8 +57,9 @@ export function PendingTimesheetsWidget({
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-        Loading pending queue...
+      <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
+        <Skeleton className="h-20 w-full max-w-xs rounded-lg" />
+        <p className="text-sm text-muted-foreground">Loading pending queue…</p>
       </div>
     );
   }
@@ -137,7 +138,7 @@ export function PendingTimesheetsWidget({
       </div>
       <div className="pt-2 border-t border-border/40 mt-2">
         <Button variant="ghost" size="sm" className="w-full h-7 text-[10px]" asChild>
-          <Link href="/approvals">Open Approvals</Link>
+          <Link href="/approvals?tab=review">Open Approvals</Link>
         </Button>
       </div>
     </div>

@@ -25,23 +25,28 @@ function currentPath(page: Page) {
   return `${url.pathname}${url.search}`;
 }
 
+function onboardingDialog(page: Page) {
+  return page.getByRole("dialog").filter({ hasText: "Getting Started" });
+}
+
 export async function dismissOnboardingIfVisible(page: Page) {
-  const welcome = page.getByRole("heading", { level: 1, name: /Welcome to Kloqra/i });
-  if (!(await welcome.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    await ensureOnboardingDone(page);
+  await ensureOnboardingDone(page);
+
+  const dialog = onboardingDialog(page);
+  if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await dialog.getByRole("button", { name: "Skip onboarding" }).click();
+    await expect(dialog).toBeHidden({ timeout: 10_000 });
     return;
   }
 
   const returnPath = currentPath(page);
-  await ensureOnboardingDone(page);
   await page.reload();
-  if (!(await welcome.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    return;
-  }
+  await page.waitForLoadState("domcontentloaded");
 
-  const dialog = page.getByRole("dialog").filter({ hasText: "Getting Started" });
-  await dialog.getByRole("button", { name: "Skip onboarding" }).click();
-  await expect(welcome).not.toBeVisible({ timeout: 10_000 });
+  if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await dialog.getByRole("button", { name: "Skip onboarding" }).click();
+    await expect(dialog).toBeHidden({ timeout: 10_000 });
+  }
 
   if (currentPath(page) !== returnPath) {
     await page.goto(returnPath);

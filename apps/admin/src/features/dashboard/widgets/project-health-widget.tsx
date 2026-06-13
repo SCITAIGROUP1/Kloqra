@@ -8,9 +8,9 @@ import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface ProjectHealthWidgetProps {
+export type ProjectHealthWidgetProps = {
   report: DashboardReportDto;
-}
+};
 
 interface ProjectHealthData {
   projectId: string;

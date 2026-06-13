@@ -17,10 +17,10 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface HourlyRatesWidgetProps {
+export type HourlyRatesWidgetProps = {
   projectId?: string;
   userId?: string;
-}
+};
 
 const WIDGET_PAGE_SIZE = 5;
 

@@ -138,7 +138,7 @@ export const sidebarCollapsedLogoutButtonClass =
 
 /** Dashboard widget shell */
 export const widgetShellVariants = cva(
-  "widget-shell relative flex h-full w-full flex-col overflow-hidden border border-border/80 bg-card/90 backdrop-blur-sm transition-all duration-300 animate-in fade-in zoom-in-95",
+  "widget-shell relative flex h-full w-full flex-col overflow-hidden border border-border/80 bg-card/90 backdrop-blur-sm transition-shadow duration-[var(--motion-base)]",
   {
     variants: {
       editing: {

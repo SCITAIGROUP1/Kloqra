@@ -1,5 +1,11 @@
 import { ErrorCodes, formatTimesheetPeriodLabel } from "@kloqra/contracts";
-import type { TimesheetPeriodDto } from "@kloqra/contracts";
+import type {
+  MissingTimesheetDto,
+  SubmitTimesheetResponseDto,
+  TimesheetApprovalsFilterQuery,
+  TimesheetPeriodDto,
+  TimesheetSubmitPreviewDto
+} from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -8,6 +14,15 @@ import {
   parseWorkspaceSettingsFromRaw,
   resolveApprovalPeriod
 } from "../../../common/time/approval-period.util";
+import {
+  buildPeriodStartRange,
+  matchesPeriodStartFilter
+} from "../../../common/time/timesheet-approvals-filter.util";
+import {
+  assertNoPendingAmendment,
+  buildCascadePlan,
+  type CascadePeriodPreview
+} from "../../../common/time/timesheet-cascade.util";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 
 @Injectable()
@@ -16,6 +31,15 @@ export class TimesheetsService {
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService
   ) {}
+
+  private async amendmentPendingForPeriod(periodId: string | undefined): Promise<boolean> {
+    if (!periodId) return false;
+    const row = await this.prisma.timesheetAmendmentRequest.findFirst({
+      where: { periodId, status: "PENDING" },
+      select: { id: true }
+    });
+    return Boolean(row);
+  }
 
   private toPeriodDto(
     period: {
@@ -33,7 +57,8 @@ export class TimesheetsService {
       reviewedAt: Date | null;
     },
     projectName: string,
-    approvalPeriod: "daily" | "weekly" | "monthly"
+    approvalPeriod: "daily" | "weekly" | "monthly",
+    amendmentPending?: boolean
   ): TimesheetPeriodDto {
     return {
       id: period.id,
@@ -49,7 +74,8 @@ export class TimesheetsService {
       reviewNote: period.reviewNote,
       reviewedBy: period.reviewedBy,
       submittedAt: period.submittedAt?.toISOString() ?? null,
-      reviewedAt: period.reviewedAt?.toISOString() ?? null
+      reviewedAt: period.reviewedAt?.toISOString() ?? null,
+      amendmentPending
     };
   }
 
@@ -76,14 +102,15 @@ export class TimesheetsService {
       reviewNote: null,
       reviewedBy: null,
       submittedAt: null,
-      reviewedAt: null
+      reviewedAt: null,
+      amendmentPending: false
     };
   }
 
   private async loadProject(workspaceId: string, projectId: string) {
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, workspaceId },
-      include: { workspace: { select: { settings: true } } }
+      include: { workspace: { select: { name: true, settings: true } } }
     });
     if (!project) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
@@ -93,7 +120,17 @@ export class TimesheetsService {
       project.timesheetApprovalPeriod,
       workspaceSettings
     );
-    return { project, workspaceSettings, approvalPeriod };
+    return { project, workspaceSettings, approvalPeriod, workspaceName: project.workspace.name };
+  }
+
+  private cascadePreviewToDto(row: CascadePeriodPreview) {
+    return {
+      periodStart: row.periodStart.toISOString(),
+      periodEnd: row.periodEnd.toISOString(),
+      approvalPeriod: row.approvalPeriod,
+      periodLabel: row.periodLabel,
+      totalHours: row.totalHours
+    };
   }
 
   async getStatus(workspaceId: string, userId: string, projectId: string, dateStr: string) {
@@ -125,7 +162,8 @@ export class TimesheetsService {
       );
     }
 
-    return this.toPeriodDto(period, project.name, approvalPeriod);
+    const amendmentPending = await this.amendmentPendingForPeriod(period.id);
+    return this.toPeriodDto(period, project.name, approvalPeriod, amendmentPending);
   }
 
   async listSubmissions(
@@ -174,13 +212,12 @@ export class TimesheetsService {
     return { items };
   }
 
-  async submit(
+  async getSubmitPreview(
     workspaceId: string,
     userId: string,
     projectId: string,
-    dateStr: string,
-    note?: string
-  ) {
+    dateStr: string
+  ): Promise<TimesheetSubmitPreviewDto> {
     const { project, workspaceSettings, approvalPeriod } = await this.loadProject(
       workspaceId,
       projectId
@@ -194,19 +231,80 @@ export class TimesheetsService {
       );
     }
 
-    const { periodStart, periodEnd } = getPeriodRange(dateStr, approvalPeriod, workspaceSettings);
+    const plan = await buildCascadePlan(
+      this.prisma,
+      userId,
+      projectId,
+      dateStr,
+      approvalPeriod,
+      workspaceSettings
+    );
 
-    const existing = await this.prisma.timesheetPeriod.findUnique({
+    const targetStatus = await this.getStatus(workspaceId, userId, projectId, dateStr);
+
+    return {
+      targetPeriod: targetStatus,
+      cascadedPeriods: plan.cascaded.map((c) => this.cascadePreviewToDto(c)),
+      blockedReason: plan.blockedReason,
+      blockedPeriodLabel: plan.blockedPeriodLabel
+    };
+  }
+
+  async submit(
+    workspaceId: string,
+    userId: string,
+    projectId: string,
+    dateStr: string,
+    note?: string,
+    confirmCascade?: boolean
+  ): Promise<SubmitTimesheetResponseDto> {
+    const { project, workspaceSettings, approvalPeriod, workspaceName } = await this.loadProject(
+      workspaceId,
+      projectId
+    );
+
+    if (!project.timesheetApprovalEnabled) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Timesheet approval is not enabled for this project",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const plan = await buildCascadePlan(
+      this.prisma,
+      userId,
+      projectId,
+      dateStr,
+      approvalPeriod,
+      workspaceSettings
+    );
+
+    if (plan.blockedReason) {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_BLOCKED_BY_REJECTED,
+        plan.blockedReason,
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    if (plan.cascaded.length > 0 && !confirmCascade) {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_CASCADE_REQUIRED,
+        "Confirm cascade submit to include earlier periods with logged time",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const { periodStart, periodEnd } = plan.target;
+
+    const existingTarget = await this.prisma.timesheetPeriod.findUnique({
       where: {
-        userId_projectId_periodStart: {
-          userId,
-          projectId,
-          periodStart
-        }
+        userId_projectId_periodStart: { userId, projectId, periodStart }
       }
     });
 
-    if (existing && existing.status === "APPROVED") {
+    if (existingTarget?.status === "APPROVED") {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Cannot submit a timesheet that has already been approved",
@@ -214,51 +312,138 @@ export class TimesheetsService {
       );
     }
 
-    const data = {
-      userId,
-      workspaceId,
-      projectId,
-      periodStart,
-      periodEnd,
-      status: "SUBMITTED",
-      note: note || null,
-      reviewNote: null,
-      reviewedBy: null,
-      submittedAt: new Date(),
-      reviewedAt: null
-    };
+    if (existingTarget?.status === "SUBMITTED") {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_INVALID_STATUS,
+        "Timesheet is already submitted",
+        HttpStatus.CONFLICT
+      );
+    }
 
-    const saved = existing
-      ? await this.prisma.timesheetPeriod.update({ where: { id: existing.id }, data })
-      : await this.prisma.timesheetPeriod.create({ data });
+    const submittedAt = new Date();
+    const cascadedPeriodIds: string[] = [];
+
+    const saved = await this.prisma.$transaction(async (tx) => {
+      for (const cascaded of plan.cascaded) {
+        const existing = await tx.timesheetPeriod.findUnique({
+          where: {
+            userId_projectId_periodStart: {
+              userId,
+              projectId,
+              periodStart: cascaded.periodStart
+            }
+          }
+        });
+        if (existing?.id) await assertNoPendingAmendment(this.prisma, [existing.id]);
+
+        const row = existing
+          ? await tx.timesheetPeriod.update({
+              where: { id: existing.id },
+              data: {
+                status: "SUBMITTED",
+                submittedAt,
+                reviewNote: null,
+                reviewedBy: null,
+                reviewedAt: null,
+                note: null
+              }
+            })
+          : await tx.timesheetPeriod.create({
+              data: {
+                userId,
+                workspaceId,
+                projectId,
+                periodStart: cascaded.periodStart,
+                periodEnd: cascaded.periodEnd,
+                status: "SUBMITTED",
+                note: null,
+                submittedAt
+              }
+            });
+        cascadedPeriodIds.push(row.id);
+      }
+
+      if (existingTarget?.id) await assertNoPendingAmendment(this.prisma, [existingTarget.id]);
+
+      const targetRow = existingTarget
+        ? await tx.timesheetPeriod.update({
+            where: { id: existingTarget.id },
+            data: {
+              status: "SUBMITTED",
+              note: note || null,
+              reviewNote: null,
+              reviewedBy: null,
+              submittedAt,
+              reviewedAt: null
+            }
+          })
+        : await tx.timesheetPeriod.create({
+            data: {
+              userId,
+              workspaceId,
+              projectId,
+              periodStart,
+              periodEnd,
+              status: "SUBMITTED",
+              note: note || null,
+              submittedAt
+            }
+          });
+
+      return targetRow;
+    });
 
     const submitter = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { name: true }
     });
     const periodLabel = formatTimesheetPeriodLabel(saved.periodStart, approvalPeriod);
+    const totalHours = await this.prisma.timeLog.aggregate({
+      where: {
+        userId,
+        task: { projectId },
+        startTime: { gte: saved.periodStart, lte: saved.periodEnd }
+      },
+      _sum: { durationSec: true }
+    });
+
+    const templateId =
+      plan.cascaded.length > 0 ? "timesheet.submitted.batch" : "timesheet.submitted";
     void this.notificationsDispatch
       .notifyWorkspaceAdmins(workspaceId, {
-        templateId: "timesheet.submitted",
+        templateId,
         context: {
           submitterName: submitter?.name ?? "A member",
+          workspaceName,
           projectName: project.name,
           periodLabel,
           periodId: saved.id,
-          projectId
+          projectId,
+          periodStart: saved.periodStart.toISOString(),
+          totalHours: (totalHours._sum?.durationSec ?? 0) / 3600,
+          cascadedCount: plan.cascaded.length + 1,
+          cascadedPeriodLabels: [...plan.cascaded.map((c) => c.periodLabel), periodLabel]
         },
         excludeUserId: userId
       })
       .catch(() => undefined);
 
-    return this.toPeriodDto(saved, project.name, approvalPeriod);
+    return {
+      period: this.toPeriodDto(saved, project.name, approvalPeriod, false),
+      cascadedPeriodIds,
+      cascadedCount: cascadedPeriodIds.length
+    };
   }
 
-  async listPending(workspaceId: string) {
+  async listPending(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
+    const periodStartRange = buildPeriodStartRange(filter);
     const periods = await this.prisma.timesheetPeriod.findMany({
       where: {
         workspaceId,
-        status: "SUBMITTED"
+        status: "SUBMITTED",
+        ...(filter.projectId ? { projectId: filter.projectId } : {}),
+        ...(filter.userId ? { userId: filter.userId } : {}),
+        ...(periodStartRange ? { periodStart: periodStartRange } : {})
       },
       include: {
         user: {
@@ -270,6 +455,10 @@ export class TimesheetsService {
         },
         project: {
           include: { workspace: { select: { settings: true } } }
+        },
+        amendments: {
+          where: { status: "PENDING" },
+          select: { id: true }
         }
       },
       orderBy: {
@@ -277,7 +466,14 @@ export class TimesheetsService {
       }
     });
 
-    return Promise.all(
+    const batchCounts = new Map<string, number>();
+    for (const p of periods) {
+      if (!p.submittedAt) continue;
+      const key = `${p.userId}:${p.projectId}:${p.submittedAt.toISOString()}`;
+      batchCounts.set(key, (batchCounts.get(key) ?? 0) + 1);
+    }
+
+    const items = await Promise.all(
       periods.map(async (p) => {
         const workspaceSettings = parseWorkspaceSettingsFromRaw(p.project.workspace.settings);
         const approvalPeriod = resolveApprovalPeriod(
@@ -299,6 +495,11 @@ export class TimesheetsService {
           }
         });
 
+        const batchKey = p.submittedAt
+          ? `${p.userId}:${p.projectId}:${p.submittedAt.toISOString()}`
+          : "";
+        const cascadedCount = batchKey ? (batchCounts.get(batchKey) ?? 1) : 1;
+
         const totalHours = (aggregation._sum?.durationSec ?? 0) / 3600;
         return {
           id: p.id,
@@ -313,26 +514,182 @@ export class TimesheetsService {
           status: p.status as TimesheetPeriodDto["status"],
           note: p.note,
           submittedAt: p.submittedAt?.toISOString() ?? null,
-          totalHours: Math.round(totalHours * 100) / 100
+          totalHours: Math.round(totalHours * 100) / 100,
+          cascadedCount: cascadedCount > 1 ? cascadedCount : undefined,
+          amendmentPending: p.amendments.length > 0
         };
       })
     );
+
+    return { items };
   }
 
-  async approve(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
-    const period = await this.prisma.timesheetPeriod.findFirst({
-      where: { id, workspaceId },
-      include: {
-        project: {
-          select: {
-            name: true,
-            timesheetApprovalPeriod: true,
-            workspace: { select: { settings: true } }
+  async listMissing(
+    workspaceId: string,
+    dateStr: string,
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
+    const date = dateStr || new Date().toISOString();
+    const projects = await this.prisma.project.findMany({
+      where: {
+        workspaceId,
+        timesheetApprovalEnabled: true,
+        isActive: true,
+        ...(filter.projectId ? { id: filter.projectId } : {})
+      },
+      include: { workspace: { select: { settings: true } } }
+    });
+
+    const items: MissingTimesheetDto[] = [];
+
+    for (const project of projects) {
+      const workspaceSettings = parseWorkspaceSettingsFromRaw(project.workspace.settings);
+      const approvalPeriod = resolveApprovalPeriod(
+        project.timesheetApprovalPeriod,
+        workspaceSettings
+      );
+      const { periodStart, periodEnd } = getPeriodRange(date, approvalPeriod, workspaceSettings);
+      const periodLabel = formatTimesheetPeriodLabel(periodStart, approvalPeriod);
+
+      const members = await this.prisma.teamMember.findMany({
+        where: { isActive: true, team: { projectId: project.id } },
+        include: { user: { select: { id: true, name: true, email: true } } }
+      });
+
+      for (const member of members) {
+        if (filter.userId && member.userId !== filter.userId) continue;
+
+        const period = await this.prisma.timesheetPeriod.findUnique({
+          where: {
+            userId_projectId_periodStart: {
+              userId: member.userId,
+              projectId: project.id,
+              periodStart
+            }
           }
+        });
+        const status = period?.status ?? "DRAFT";
+        if (status === "SUBMITTED" || status === "APPROVED") continue;
+
+        const aggregation = await this.prisma.timeLog.aggregate({
+          where: {
+            userId: member.userId,
+            task: { projectId: project.id },
+            startTime: { gte: periodStart, lte: periodEnd }
+          },
+          _sum: { durationSec: true }
+        });
+        const totalHours = Math.round(((aggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
+        if (totalHours <= 0) continue;
+
+        const periodStartIso = periodStart.toISOString();
+        if (!matchesPeriodStartFilter(periodStartIso, filter)) continue;
+
+        const lastRemind = await this.prisma.notification.findFirst({
+          where: {
+            userId: member.userId,
+            workspaceId,
+            type: "TIMESHEET_REMINDER",
+            metadata: {
+              path: ["periodStart"],
+              equals: periodStart.toISOString()
+            }
+          },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true }
+        });
+
+        items.push({
+          userId: member.userId,
+          userName: member.user.name,
+          userEmail: member.user.email,
+          projectId: project.id,
+          projectName: project.name,
+          periodStart: periodStartIso,
+          periodEnd: periodEnd.toISOString(),
+          approvalPeriod,
+          periodLabel,
+          totalHours,
+          lastRemindedAt: lastRemind?.createdAt.toISOString() ?? null
+        });
+      }
+    }
+
+    return { items };
+  }
+
+  async remindMember(
+    workspaceId: string,
+    adminUserId: string,
+    userId: string,
+    projectId: string,
+    dateStr: string,
+    message?: string
+  ) {
+    const { project, workspaceSettings, approvalPeriod, workspaceName } = await this.loadProject(
+      workspaceId,
+      projectId
+    );
+
+    if (!project.timesheetApprovalEnabled) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Timesheet approval is not enabled for this project",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const { periodStart, periodEnd } = getPeriodRange(dateStr, approvalPeriod, workspaceSettings);
+    const periodLabel = formatTimesheetPeriodLabel(periodStart, approvalPeriod);
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recent = await this.prisma.notification.findFirst({
+      where: {
+        userId,
+        workspaceId,
+        type: "TIMESHEET_REMINDER",
+        createdAt: { gte: since },
+        metadata: {
+          path: ["projectId"],
+          equals: projectId
         }
       }
     });
+    if (recent) {
+      throw new DomainException(
+        ErrorCodes.CONFLICT,
+        "A reminder was already sent for this member and project in the last 24 hours",
+        HttpStatus.CONFLICT
+      );
+    }
 
+    void this.notificationsDispatch
+      .notify({
+        userId,
+        workspaceId,
+        templateId: "timesheet.reminder.manual",
+        context: {
+          workspaceName,
+          projectName: project.name,
+          projectId,
+          periodLabel,
+          periodStart: periodStart.toISOString(),
+          dueLabel: periodEnd.toLocaleDateString("en-US"),
+          adminMessage: message
+        }
+      })
+      .catch(() => undefined);
+
+    return { ok: true as const, remindedBy: adminUserId };
+  }
+
+  private async assertReviewablePeriod(periodId: string, workspaceId: string) {
+    const period = await this.prisma.timesheetPeriod.findFirst({
+      where: { id: periodId, workspaceId },
+      include: {
+        amendments: { where: { status: "PENDING" }, select: { id: true } }
+      }
+    });
     if (!period) {
       throw new DomainException(
         ErrorCodes.NOT_FOUND,
@@ -340,9 +697,28 @@ export class TimesheetsService {
         HttpStatus.NOT_FOUND
       );
     }
+    if (period.status !== "SUBMITTED") {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_INVALID_STATUS,
+        "Only submitted timesheets can be reviewed",
+        HttpStatus.CONFLICT
+      );
+    }
+    if (period.amendments.length > 0) {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_AMENDMENT_PENDING,
+        "Resolve the pending edit request before reviewing",
+        HttpStatus.CONFLICT
+      );
+    }
+    return period;
+  }
 
-    const updated = await this.prisma.timesheetPeriod.update({
-      where: { id },
+  async approve(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
+    const period = await this.assertReviewablePeriod(id, workspaceId);
+
+    const result = await this.prisma.timesheetPeriod.updateMany({
+      where: { id, status: "SUBMITTED" },
       data: {
         status: "APPROVED",
         reviewNote: reviewNote || null,
@@ -351,9 +727,23 @@ export class TimesheetsService {
       }
     });
 
-    const workspaceSettings = parseWorkspaceSettingsFromRaw(period.project.workspace.settings);
+    if (result.count === 0) {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_INVALID_STATUS,
+        "Timesheet is no longer pending review",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const updated = await this.prisma.timesheetPeriod.findUniqueOrThrow({ where: { id } });
+
+    const project = await this.prisma.project.findUniqueOrThrow({
+      where: { id: period.projectId },
+      include: { workspace: { select: { name: true, settings: true } } }
+    });
+    const workspaceSettings = parseWorkspaceSettingsFromRaw(project.workspace.settings);
     const approvalPeriod = resolveApprovalPeriod(
-      period.project.timesheetApprovalPeriod,
+      project.timesheetApprovalPeriod,
       workspaceSettings
     );
     const reviewer = await this.prisma.user.findUnique({
@@ -367,10 +757,12 @@ export class TimesheetsService {
         workspaceId,
         templateId: "timesheet.approved",
         context: {
-          projectName: period.project.name,
+          workspaceName: project.workspace.name,
+          projectName: project.name,
           periodLabel: formatTimesheetPeriodLabel(period.periodStart, approvalPeriod),
           periodId: id,
           projectId: period.projectId,
+          periodStart: period.periodStart.toISOString(),
           reviewerName: reviewer?.name
         }
       })
@@ -380,29 +772,10 @@ export class TimesheetsService {
   }
 
   async reject(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
-    const period = await this.prisma.timesheetPeriod.findFirst({
-      where: { id, workspaceId },
-      include: {
-        project: {
-          select: {
-            name: true,
-            timesheetApprovalPeriod: true,
-            workspace: { select: { settings: true } }
-          }
-        }
-      }
-    });
+    const period = await this.assertReviewablePeriod(id, workspaceId);
 
-    if (!period) {
-      throw new DomainException(
-        ErrorCodes.NOT_FOUND,
-        "Timesheet period not found",
-        HttpStatus.NOT_FOUND
-      );
-    }
-
-    const updated = await this.prisma.timesheetPeriod.update({
-      where: { id },
+    const result = await this.prisma.timesheetPeriod.updateMany({
+      where: { id, status: "SUBMITTED" },
       data: {
         status: "REJECTED",
         reviewNote: reviewNote || null,
@@ -411,9 +784,23 @@ export class TimesheetsService {
       }
     });
 
-    const workspaceSettings = parseWorkspaceSettingsFromRaw(period.project.workspace.settings);
+    if (result.count === 0) {
+      throw new DomainException(
+        ErrorCodes.TIMESHEET_INVALID_STATUS,
+        "Timesheet is no longer pending review",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const updated = await this.prisma.timesheetPeriod.findUniqueOrThrow({ where: { id } });
+
+    const project = await this.prisma.project.findUniqueOrThrow({
+      where: { id: period.projectId },
+      include: { workspace: { select: { name: true, settings: true } } }
+    });
+    const workspaceSettings = parseWorkspaceSettingsFromRaw(project.workspace.settings);
     const approvalPeriod = resolveApprovalPeriod(
-      period.project.timesheetApprovalPeriod,
+      project.timesheetApprovalPeriod,
       workspaceSettings
     );
     const reviewer = await this.prisma.user.findUnique({
@@ -427,10 +814,12 @@ export class TimesheetsService {
         workspaceId,
         templateId: "timesheet.rejected",
         context: {
-          projectName: period.project.name,
+          workspaceName: project.workspace.name,
+          projectName: project.name,
           periodLabel: formatTimesheetPeriodLabel(period.periodStart, approvalPeriod),
           periodId: id,
           projectId: period.projectId,
+          periodStart: period.periodStart.toISOString(),
           reviewerName: reviewer?.name,
           reviewNote: reviewNote || undefined
         }

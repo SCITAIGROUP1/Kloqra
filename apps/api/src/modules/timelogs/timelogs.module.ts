@@ -4,6 +4,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { TimelogAuditService } from "./application/timelog-audit.service";
 import { TimelogsService } from "./application/timelogs.service";
+import { TimesheetAmendmentsService } from "./application/timesheet-amendments.service";
 import { TimesheetLockService } from "./application/timesheet-lock.service";
 import { TimesheetReminderService } from "./application/timesheet-reminder.service";
 import { TimesheetsService } from "./application/timesheets.service";
@@ -16,6 +17,7 @@ import { TimesheetsController } from "./interface/http/timesheets.controller";
   providers: [
     TimelogsService,
     TimesheetsService,
+    TimesheetAmendmentsService,
     TimesheetReminderService,
     TimelogAuditService,
     TimesheetLockService

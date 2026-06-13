@@ -76,6 +76,10 @@ export class ReportingService {
       string,
       { categoryId: string; categoryName: string; totalHours: number; billableHours: number }
     >();
+    const byMember = new Map<
+      string,
+      { userId: string; userName: string; totalHours: number; billableHours: number }
+    >();
 
     let totalHours = 0;
     let billableHours = 0;
@@ -84,6 +88,16 @@ export class ReportingService {
       const hours = log.durationSec / 3600;
       totalHours += hours;
       if (log.isBillable) billableHours += hours;
+
+      const memberEntry = byMember.get(log.userId) ?? {
+        userId: log.userId,
+        userName: log.user.name,
+        totalHours: 0,
+        billableHours: 0
+      };
+      memberEntry.totalHours += hours;
+      if (log.isBillable) memberEntry.billableHours += hours;
+      byMember.set(log.userId, memberEntry);
 
       const taskKey = log.taskId;
       const taskEntry = byTask.get(taskKey) ?? {
@@ -135,6 +149,14 @@ export class ReportingService {
           categoryName: c.categoryName,
           totalHours: roundExport(c.totalHours),
           billableHours: roundExport(c.billableHours)
+        }))
+        .sort((a, b) => b.totalHours - a.totalHours),
+      byMember: [...byMember.values()]
+        .map((m) => ({
+          userId: m.userId,
+          userName: m.userName,
+          totalHours: roundExport(m.totalHours),
+          billableHours: roundExport(m.billableHours)
         }))
         .sort((a, b) => b.totalHours - a.totalHours)
     };

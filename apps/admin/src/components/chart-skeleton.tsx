@@ -1,3 +1,5 @@
+import { Skeleton } from "@kloqra/ui";
+
 export function ChartSkeleton({
   className = "min-h-[280px]",
   style
@@ -5,5 +7,5 @@ export function ChartSkeleton({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  return <div style={style} className={`w-full animate-pulse rounded-md bg-muted ${className}`} />;
+  return <Skeleton style={style} className={`w-full rounded-md ${className}`} />;
 }

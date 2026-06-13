@@ -12,6 +12,13 @@ test.describe("Admin Approvals", () => {
     await expect(page.getByText(/review submitted timesheets/i)).toBeVisible();
   });
 
+  test("shows approvals filter controls", async ({ page }) => {
+    await page.goto("/approvals");
+    await expect(page.getByText("Project")).toBeVisible();
+    await expect(page.getByText("Member")).toBeVisible();
+    await expect(page.getByText("Period range")).toBeVisible();
+  });
+
   test("team page is live activity only", async ({ page }) => {
     await page.goto("/team");
     await expect(page.getByRole("heading", { name: "Team Live" })).toBeVisible();

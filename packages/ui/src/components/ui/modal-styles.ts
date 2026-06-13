@@ -40,8 +40,8 @@ export const modalIconWrapVariants = cva(
     variants: {
       tone: {
         default: "border-primary/15 bg-primary/10 text-primary",
-        warning: "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-        destructive: "border-destructive/25 bg-destructive/10 text-destructive"
+        warning: "border-status-warning-border bg-status-warning-bg text-status-warning-fg",
+        destructive: "border-status-danger-border bg-status-danger-bg text-status-danger-fg"
       }
     },
     defaultVariants: {

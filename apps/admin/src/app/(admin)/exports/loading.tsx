@@ -1,9 +1,11 @@
+import { Skeleton } from "@kloqra/ui";
+
 export default function Loading() {
   return (
     <div className="space-y-4 p-6">
-      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-      <div className="h-64 animate-pulse rounded-lg bg-muted" />
-      <div className="h-48 animate-pulse rounded-lg bg-muted" />
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-64 rounded-lg" />
+      <Skeleton className="h-48 rounded-lg" />
     </div>
   );
 }

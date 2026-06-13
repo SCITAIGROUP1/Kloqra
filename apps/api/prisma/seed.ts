@@ -186,6 +186,11 @@ async function main() {
   const notificationCount = await seedNotifications(workspaces, users, allProjectCtx);
   console.log(`  notifications: ${notificationCount}`);
 
+  const workflowDemo = await seedTimesheetWorkflowDemo(workspaces, users);
+  console.log(
+    `  timesheet workflow demo: ${workflowDemo.amendments} amendment(s), ${workflowDemo.notifications} notification(s)`
+  );
+
   printCredentials();
   await printSummary(workspaces, users);
 }
@@ -194,6 +199,7 @@ async function resetDatabase() {
   console.log("Resetting database…");
   await prisma.timeLogAuditEvent.deleteMany();
   await prisma.timeLog.deleteMany();
+  await prisma.timesheetAmendmentRequest.deleteMany();
   await prisma.timesheetPeriod.deleteMany();
   await prisma.projectInvite.deleteMany();
   await prisma.teamMember.deleteMany();
@@ -441,7 +447,15 @@ async function seedNotifications(
       const project = projectByKey.get(`${workspace.id}:${spec.projectName}`);
       if (project) {
         metadata.projectId = project.id;
-        metadata.href = metadata.href ?? `/projects/${project.id}`;
+        if (!metadata.href) {
+          if (spec.type === "APPROVAL_REQUEST") {
+            metadata.href = "/approvals?tab=review";
+          } else if (spec.type === "TIMESHEET_STATUS") {
+            metadata.href = `/submissions?projectId=${project.id}`;
+          } else {
+            metadata.href = `/projects/${project.id}`;
+          }
+        }
       }
     }
 
@@ -462,6 +476,158 @@ async function seedNotifications(
   }
 
   return created;
+}
+
+async function seedTimesheetWorkflowDemo(
+  workspaces: Workspace[],
+  users: Map<string, User>
+): Promise<{ amendments: number; notifications: number }> {
+  const acme = workspaces.find((workspace) => workspace.slug === "acme");
+  const member = users.get("member@kloqra.dev");
+  const admin = users.get("admin@kloqra.dev");
+  if (!acme || !member || !admin) {
+    return { amendments: 0, notifications: 0 };
+  }
+
+  let amendments = 0;
+  let notifications = 0;
+
+  const submitted = await prisma.timesheetPeriod.findFirst({
+    where: {
+      workspaceId: acme.id,
+      userId: member.id,
+      status: "SUBMITTED",
+      project: { name: "Client Portal Redesign" }
+    },
+    include: { project: true },
+    orderBy: { periodStart: "desc" }
+  });
+
+  const approved = await prisma.timesheetPeriod.findFirst({
+    where: {
+      workspaceId: acme.id,
+      userId: member.id,
+      status: "APPROVED",
+      project: { name: "Client Portal Redesign" }
+    },
+    include: { project: true },
+    orderBy: { periodStart: "desc" }
+  });
+
+  const rejected = await prisma.timesheetPeriod.findFirst({
+    where: {
+      workspaceId: acme.id,
+      userId: member.id,
+      status: "REJECTED",
+      project: { name: "Client Portal Redesign" }
+    },
+    include: { project: true },
+    orderBy: { periodStart: "desc" }
+  });
+
+  if (submitted) {
+    await notificationRepo().create({
+      data: {
+        userId: admin.id,
+        workspaceId: acme.id,
+        type: "APPROVAL_REQUEST",
+        title: "Timesheet submitted for review",
+        body: `Sam Rivera submitted ${submitted.project.name} for review.`,
+        metadata: {
+          variant: "attention",
+          ctaLabel: "Review",
+          projectId: submitted.projectId,
+          periodId: submitted.id,
+          href: `/approvals?tab=review&periodId=${submitted.id}`
+        } as Prisma.InputJsonValue,
+        readAt: null,
+        createdAt: new Date(Date.now() - 30 * 60 * 1000)
+      }
+    });
+    notifications++;
+  }
+
+  if (rejected) {
+    await notificationRepo().create({
+      data: {
+        userId: member.id,
+        workspaceId: acme.id,
+        type: "TIMESHEET_STATUS",
+        title: "Timesheet rejected",
+        body: `Your ${rejected.project.name} timesheet was rejected. Please fix and resubmit.`,
+        metadata: {
+          variant: "warning",
+          ctaLabel: "Fix & resubmit",
+          projectId: rejected.projectId,
+          periodStart: rejected.periodStart.toISOString(),
+          href: `/submissions?projectId=${rejected.projectId}&periodStart=${encodeURIComponent(rejected.periodStart.toISOString())}&highlight=rejected`,
+          details: [
+            { label: "Project", value: rejected.project.name },
+            { label: "Period", value: rejected.periodStart.toISOString().slice(0, 10) },
+            { label: "Reason", value: rejected.reviewNote ?? "See review note" }
+          ]
+        } as Prisma.InputJsonValue,
+        readAt: null,
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
+      }
+    });
+    notifications++;
+  }
+
+  if (approved) {
+    const amendment = await prisma.timesheetAmendmentRequest.create({
+      data: {
+        periodId: approved.id,
+        userId: member.id,
+        workspaceId: acme.id,
+        reason: "Need to correct billable hours on Tuesday entries before invoicing.",
+        status: "PENDING"
+      }
+    });
+    amendments++;
+
+    await notificationRepo().create({
+      data: {
+        userId: admin.id,
+        workspaceId: acme.id,
+        type: "APPROVAL_REQUEST",
+        title: "Timesheet edit request",
+        body: `Sam Rivera requested to edit an approved ${approved.project.name} timesheet.`,
+        metadata: {
+          variant: "attention",
+          ctaLabel: "Review request",
+          projectId: approved.projectId,
+          amendmentId: amendment.id,
+          href: `/approvals?tab=amendments&amendmentId=${amendment.id}`
+        } as Prisma.InputJsonValue,
+        readAt: null,
+        createdAt: new Date(Date.now() - 45 * 60 * 1000)
+      }
+    });
+    notifications++;
+
+    await notificationRepo().create({
+      data: {
+        userId: member.id,
+        workspaceId: acme.id,
+        type: "TIMESHEET_REMINDER",
+        title: "Submit your timesheet",
+        body: `Reminder to submit ${approved.project.name} when you are ready.`,
+        metadata: {
+          variant: "attention",
+          ctaLabel: "Open submissions",
+          projectId: approved.projectId,
+          periodStart: approved.periodStart.toISOString(),
+          href: `/submissions?projectId=${approved.projectId}&periodStart=${encodeURIComponent(approved.periodStart.toISOString())}&highlight=remind`
+        } as Prisma.InputJsonValue,
+        readAt: null,
+        createdAt: new Date(Date.now() - 20 * 60 * 1000)
+      }
+    });
+    notifications++;
+  }
+
+  return { amendments, notifications };
 }
 
 async function seedSampleInvite(projectCtx: ProjectCtx[], admin: User) {

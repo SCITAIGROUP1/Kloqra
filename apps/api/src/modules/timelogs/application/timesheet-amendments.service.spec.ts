@@ -1,0 +1,76 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { TimesheetAmendmentsService } from "./timesheet-amendments.service";
+
+describe("TimesheetAmendmentsService", () => {
+  let service: TimesheetAmendmentsService;
+  let mockPrisma: any;
+
+  const workspaceId = "ws-1";
+  const userId = "user-1";
+  const periodId = "period-1";
+
+  beforeEach(() => {
+    mockPrisma = {
+      timesheetPeriod: {
+        findFirst: vi.fn()
+      },
+      timesheetAmendmentRequest: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn(),
+        findUniqueOrThrow: vi.fn()
+      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(mockPrisma))
+    };
+    service = new TimesheetAmendmentsService(mockPrisma, {
+      notify: vi.fn().mockResolvedValue(undefined),
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+    } as never);
+  });
+
+  it("creates amendment for submitted period", async () => {
+    mockPrisma.timesheetPeriod.findFirst.mockResolvedValue({
+      id: periodId,
+      userId,
+      workspaceId,
+      projectId: "proj-1",
+      periodStart: new Date("2025-06-02T00:00:00.000Z"),
+      periodEnd: new Date("2025-06-08T23:59:59.999Z"),
+      status: "SUBMITTED",
+      project: {
+        name: "Website",
+        timesheetApprovalPeriod: "weekly",
+        workspace: { name: "Acme", settings: {} }
+      }
+    });
+    mockPrisma.timesheetAmendmentRequest.findFirst.mockResolvedValue(null);
+    mockPrisma.timesheetAmendmentRequest.create.mockResolvedValue({
+      id: "amend-1",
+      periodId,
+      userId,
+      workspaceId,
+      reason: "Missing entry",
+      status: "PENDING",
+      adminNote: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      createdAt: new Date(),
+      user: { name: "Sam", email: "sam@test.com" },
+      period: {
+        projectId: "proj-1",
+        periodStart: new Date("2025-06-02T00:00:00.000Z"),
+        periodEnd: new Date("2025-06-08T23:59:59.999Z"),
+        project: {
+          name: "Website",
+          timesheetApprovalPeriod: "weekly",
+          workspace: { name: "Acme", settings: {} }
+        }
+      }
+    });
+
+    const result = await service.create(workspaceId, userId, periodId, "Missing entry");
+    expect(result.status).toBe("PENDING");
+    expect(result.reason).toBe("Missing entry");
+  });
+});

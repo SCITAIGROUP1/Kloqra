@@ -1,24 +1,34 @@
 "use client";
 
 import type { ProjectSummaryDto } from "@kloqra/contracts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kloqra/ui";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
 } from "@kloqra/ui/chart";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, XAxis, YAxis } from "recharts";
 import {
-  buildProjectOverviewCategoryDonutData,
+  buildProjectOverviewDistributionDonutData,
   buildProjectOverviewTaskBarData,
-  formatOverviewHours
+  formatOverviewHours,
+  type ProjectOverviewDistributionGroupBy
 } from "./project-overview-chart-data";
 
 const taskBarConfig = {
   billableHours: { label: "Billable", color: "hsl(142 76% 36%)" },
   nonBillableHours: { label: "Non-billable", color: "hsl(215 16% 72%)" }
 } satisfies ChartConfig;
+
+const DISTRIBUTION_GROUP_LABELS: Record<ProjectOverviewDistributionGroupBy, string> = {
+  member: "Member",
+  project: "Project",
+  category: "Category"
+};
 
 type ProjectOverviewTaskBarChartProps = {
   rows: ProjectSummaryDto["byTask"];
@@ -74,25 +84,25 @@ export function ProjectOverviewTaskBarChart({ rows }: ProjectOverviewTaskBarChar
   );
 }
 
-type ProjectOverviewCategoryDonutChartProps = {
-  rows: ProjectSummaryDto["byCategory"];
-  totalHours: number;
+type ProjectOverviewDistributionDonutProps = {
+  summary: ProjectSummaryDto;
 };
 
-export function ProjectOverviewCategoryDonutChart({
-  rows,
-  totalHours
-}: ProjectOverviewCategoryDonutChartProps) {
+export function ProjectOverviewDistributionDonut({
+  summary
+}: ProjectOverviewDistributionDonutProps) {
+  const [groupBy, setGroupBy] = useState<ProjectOverviewDistributionGroupBy>("category");
+
   const { chartData, chartConfig } = useMemo(() => {
-    const data = buildProjectOverviewCategoryDonutData(rows);
+    const data = buildProjectOverviewDistributionDonutData(summary, groupBy);
     const config: ChartConfig = {};
     for (const row of data) {
       config[row.configKey] = { label: row.name, color: row.fill };
     }
     return { chartData: data, chartConfig: config };
-  }, [rows]);
+  }, [summary, groupBy]);
 
-  if (chartData.length === 0) {
+  if (summary.totalHours <= 0 || chartData.length === 0) {
     return (
       <p className="flex min-h-[220px] items-center justify-center text-sm text-muted-foreground">
         No time logged in this period.
@@ -101,29 +111,60 @@ export function ProjectOverviewCategoryDonutChart({
   }
 
   return (
-    <div className="relative flex min-h-[220px] w-full min-w-0 flex-col justify-center">
-      <ChartContainer config={chartConfig} className="mx-auto h-[220px] w-full">
-        <PieChart>
-          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-          <Pie
-            data={chartData}
-            dataKey="value"
-            nameKey="name"
-            innerRadius="60%"
-            outerRadius="85%"
-            strokeWidth={2}
-            paddingAngle={1}
-          >
-            {chartData.map((entry) => (
-              <Cell key={entry.configKey} fill={entry.fill} />
-            ))}
-          </Pie>
-          <Legend wrapperStyle={{ fontSize: 9 }} layout="horizontal" verticalAlign="bottom" />
-        </PieChart>
-      </ChartContainer>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-8 text-center">
-        <p className="text-xl font-bold tracking-tight">{formatOverviewHours(totalHours)}</p>
-        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Total</p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {DISTRIBUTION_GROUP_LABELS[groupBy]} split for logged time
+        </p>
+        <Select
+          value={groupBy}
+          onValueChange={(value) => setGroupBy(value as ProjectOverviewDistributionGroupBy)}
+        >
+          <SelectTrigger className="h-7 w-[7.5rem] text-[11px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="member" className="text-xs">
+              Member
+            </SelectItem>
+            <SelectItem value="project" className="text-xs">
+              Project
+            </SelectItem>
+            <SelectItem value="category" className="text-xs">
+              Category
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="relative mx-auto w-full min-w-0">
+        <ChartContainer config={chartConfig} className="mx-auto min-h-[220px] w-full">
+          <PieChart>
+            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="58%"
+              outerRadius="88%"
+              strokeWidth={2}
+              paddingAngle={1}
+            >
+              {chartData.map((entry) => (
+                <Cell key={entry.configKey} fill={entry.fill} />
+              ))}
+            </Pie>
+            <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+          </PieChart>
+        </ChartContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-8 text-center">
+          <p className="text-xl font-bold tabular-nums tracking-tight">
+            {formatOverviewHours(summary.totalHours)}
+          </p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            Total
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,14 @@
 "use client";
 
 import type { ProjectSummaryDto } from "@kloqra/contracts";
-import { DashboardStatCard, EmptyState, WidgetShell, cn, type DashboardStatTone } from "@kloqra/ui";
+import {
+  DashboardStatCard,
+  EmptyState,
+  Skeleton,
+  WidgetShell,
+  cn,
+  type DashboardStatTone
+} from "@kloqra/ui";
 import { Clock, DollarSign, ListTodo, Timer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -16,9 +23,9 @@ import {
 } from "./dashboard-period-filter";
 import { formatOverviewHours } from "./project-overview-chart-data";
 import {
-  ProjectOverviewCategoryDonutChart,
+  ProjectOverviewDistributionDonut,
   ProjectOverviewTaskBarChart
-} from "./project-overview-charts";
+} from "./project-overview-charts-lazy";
 
 const PERIOD_PRESETS: DashboardPeriodFilterOption[] = [
   { value: "today", label: "Today" },
@@ -142,12 +149,12 @@ export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOv
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-[120px] animate-pulse rounded-xl bg-muted/50" />
+              <Skeleton key={i} className="h-[120px] rounded-xl" />
             ))}
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-[280px] animate-pulse rounded-xl bg-muted/50" />
+              <Skeleton key={i} className="h-[280px] rounded-xl" />
             ))}
           </div>
         </div>
@@ -185,12 +192,8 @@ export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOv
               <ProjectOverviewTaskBarChart rows={summary.byTask} />
             </WidgetShell>
 
-            <WidgetShell id="project-chart-categories" label="By category" isEditing={false}>
-              <p className="mb-3 text-xs text-muted-foreground">Category split for logged time</p>
-              <ProjectOverviewCategoryDonutChart
-                rows={summary.byCategory}
-                totalHours={summary.totalHours}
-              />
+            <WidgetShell id="project-chart-distribution" label="Distribution" isEditing={false}>
+              <ProjectOverviewDistributionDonut summary={summary} />
             </WidgetShell>
           </div>
         </>

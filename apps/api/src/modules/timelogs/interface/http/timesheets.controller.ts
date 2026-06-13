@@ -2,7 +2,14 @@ import {
   ROUTES,
   submitTimesheetSchema,
   timesheetStatusQuerySchema,
-  timesheetSubmissionsQuerySchema
+  timesheetSubmissionsQuerySchema,
+  timesheetSubmitPreviewQuerySchema,
+  missingTimesheetQuerySchema,
+  pendingTimesheetQuerySchema,
+  amendmentListQuerySchema,
+  remindTimesheetSchema,
+  createAmendmentRequestSchema,
+  reviewAmendmentSchema
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { z } from "zod";
@@ -11,6 +18,7 @@ import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
+import { TimesheetAmendmentsService } from "../../application/timesheet-amendments.service";
 import { TimesheetsService } from "../../application/timesheets.service";
 
 const reviewTimesheetSchema = z.object({
@@ -20,7 +28,10 @@ const reviewTimesheetSchema = z.object({
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TimesheetsController {
-  constructor(private timesheets: TimesheetsService) {}
+  constructor(
+    private timesheets: TimesheetsService,
+    private amendments: TimesheetAmendmentsService
+  ) {}
 
   @Get(ROUTES.TIMESHEETS.MY_STATUS)
   async getStatus(
@@ -42,6 +53,21 @@ export class TimesheetsController {
     return this.timesheets.listSubmissions(user.workspaceId, user.userId, targetDate, query.scope);
   }
 
+  @Get(ROUTES.TIMESHEETS.SUBMIT_PREVIEW)
+  async getSubmitPreview(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(timesheetSubmitPreviewQuerySchema))
+    query: z.infer<typeof timesheetSubmitPreviewQuerySchema>
+  ) {
+    const targetDate = query.date || new Date().toISOString();
+    return this.timesheets.getSubmitPreview(
+      user.workspaceId,
+      user.userId,
+      query.projectId,
+      targetDate
+    );
+  }
+
   @Post(ROUTES.TIMESHEETS.SUBMIT)
   async submit(
     @CurrentUser() user: RequestUser,
@@ -52,14 +78,83 @@ export class TimesheetsController {
       user.userId,
       body.projectId,
       body.date,
-      body.note
+      body.note,
+      body.confirmCascade
     );
+  }
+
+  @Post(ROUTES.TIMESHEETS.CREATE_AMENDMENT(":periodId"))
+  async createAmendment(
+    @CurrentUser() user: RequestUser,
+    @Param("periodId") periodId: string,
+    @Body(new ZodValidationPipe(createAmendmentRequestSchema))
+    body: z.infer<typeof createAmendmentRequestSchema>
+  ) {
+    return this.amendments.create(user.workspaceId, user.userId, periodId, body.reason);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.TIMESHEETS.LIST_PENDING)
-  async listPending(@CurrentUser() user: RequestUser) {
-    return this.timesheets.listPending(user.workspaceId);
+  async listPending(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(pendingTimesheetQuerySchema))
+    query: z.infer<typeof pendingTimesheetQuerySchema>
+  ) {
+    return this.timesheets.listPending(user.workspaceId, query);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.TIMESHEETS.LIST_MISSING)
+  async listMissing(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(missingTimesheetQuerySchema))
+    query: z.infer<typeof missingTimesheetQuerySchema>
+  ) {
+    const targetDate = query.date || new Date().toISOString();
+    const { date: _date, ...filter } = query;
+    return this.timesheets.listMissing(user.workspaceId, targetDate, filter);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.TIMESHEETS.REMIND)
+  async remind(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(remindTimesheetSchema)) body: z.infer<typeof remindTimesheetSchema>
+  ) {
+    return this.timesheets.remindMember(
+      user.workspaceId,
+      user.userId,
+      body.userId,
+      body.projectId,
+      body.date,
+      body.message
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.TIMESHEETS.LIST_AMENDMENTS)
+  async listAmendments(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(amendmentListQuerySchema))
+    query: z.infer<typeof amendmentListQuerySchema>
+  ) {
+    return this.amendments.listPending(user.workspaceId, query);
+  }
+
+  @Roles("ADMIN")
+  @Patch(ROUTES.TIMESHEETS.APPROVE_AMENDMENT(":id"))
+  async approveAmendment(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.amendments.approve(user.workspaceId, id, user.userId);
+  }
+
+  @Roles("ADMIN")
+  @Patch(ROUTES.TIMESHEETS.DENY_AMENDMENT(":id"))
+  async denyAmendment(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(reviewAmendmentSchema)) body: z.infer<typeof reviewAmendmentSchema>
+  ) {
+    return this.amendments.deny(user.workspaceId, id, user.userId, body.adminNote);
   }
 
   @Roles("ADMIN")

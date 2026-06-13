@@ -14,7 +14,7 @@ import {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-type TimesheetMonthProps = {
+export type TimesheetMonthProps = {
   month: Date;
   logs: TimeLogDto[];
   entryColor: (taskId: string) => string;

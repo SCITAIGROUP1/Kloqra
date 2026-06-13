@@ -7,21 +7,10 @@ import {
   Button,
   EmptyState,
   SegmentedControl,
+  Skeleton,
   TablePagination,
   cn
 } from "@kloqra/ui";
-import {
-  AlertTriangle,
-  Bell,
-  CheckSquare,
-  ClipboardCheck,
-  Clock,
-  Download,
-  FolderKanban,
-  Link2,
-  Timer,
-  Users
-} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -31,33 +20,14 @@ import {
   useNotificationUnreadCount,
   usePaginatedNotifications
 } from "../../hooks/use-notifications";
-import { NotificationDetails, notificationVariantClass } from "./notification-ui";
+import {
+  NotificationDetails,
+  iconForNotificationType,
+  notificationVariantClass
+} from "./notification-ui";
 
-function iconForType(type: NotificationType) {
-  switch (type) {
-    case "PROJECT_ASSIGNMENT":
-      return FolderKanban;
-    case "TASK_ASSIGNMENT":
-      return CheckSquare;
-    case "TIMESHEET_REMINDER":
-    case "TIMESHEET_STATUS":
-      return Clock;
-    case "IDLE_TIMER_ALERT":
-      return Timer;
-    case "JIRA_SYNC_UPDATE":
-      return Link2;
-    case "APPROVAL_REQUEST":
-      return ClipboardCheck;
-    case "MEMBER_CHANGE":
-    case "WORKSPACE_ADDED":
-      return Users;
-    case "EXPORT_SCHEDULE":
-      return Download;
-    case "BUDGET_ALERT":
-      return AlertTriangle;
-    default:
-      return Bell;
-  }
+function iconForType(type: NotificationType, title?: string | null) {
+  return iconForNotificationType(type, title);
 }
 
 function NotificationRow({
@@ -69,7 +39,7 @@ function NotificationRow({
   workspaceId: string;
   onUpdated: () => void;
 }) {
-  const Icon = iconForType(item.type);
+  const Icon = iconForType(item.type, item.title);
   const isUnread = !item.readAt;
   const href = item.metadata?.href;
 
@@ -81,8 +51,10 @@ function NotificationRow({
   const content = (
     <div
       className={cn(
-        "flex items-start gap-4 rounded-xl border border-border bg-card p-4 transition-colors",
+        "flex items-start gap-4 rounded-xl border border-border bg-card p-4",
+        "transition-[background-color,border-color,opacity] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
         isUnread && "border-primary/30",
+        !isUnread && "opacity-90",
         notificationVariantClass(item.metadata)
       )}
     >
@@ -174,7 +146,7 @@ export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+            <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
       ) : items.length === 0 ? (
@@ -187,7 +159,7 @@ export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-fade-in motion-reduce:animate-none">
           {items.map((item) => (
             <NotificationRow
               key={item.id}

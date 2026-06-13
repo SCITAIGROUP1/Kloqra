@@ -10,11 +10,11 @@ import {
 import React, { useMemo } from "react";
 import { Cell, Legend, Pie, PieChart } from "recharts";
 
-interface ProjectSplitWidgetProps {
+export type ProjectSplitWidgetProps = {
   logs: TimeLogDto[];
   projects: ProjectDto[];
   tasks: TaskDto[];
-}
+};
 
 export function ProjectSplitWidget({ logs, projects, tasks }: ProjectSplitWidgetProps) {
   // Aggregate hours by project directly from logs props

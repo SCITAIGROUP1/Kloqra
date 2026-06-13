@@ -32,6 +32,7 @@ describe("PageHeader", () => {
 
     expect(screen.queryByRole("banner")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Section" })).toBeInTheDocument();
+    expect(screen.getByText("Details")).toBeInTheDocument();
   });
 });
 

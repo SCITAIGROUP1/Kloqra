@@ -15,6 +15,10 @@ export function countPendingReviewSubmissions(submissions: TimesheetPeriodDto[])
   return submissions.filter((s) => s.status === "SUBMITTED").length;
 }
 
+export function countAmendmentPendingSubmissions(submissions: TimesheetPeriodDto[]): number {
+  return submissions.filter((s) => s.amendmentPending).length;
+}
+
 export function useMySubmissions(
   workspaceId: string,
   anchorDate: Date,
@@ -55,12 +59,17 @@ export function useMySubmissions(
     () => countPendingReviewSubmissions(submissions),
     [submissions]
   );
+  const amendmentPendingCount = useMemo(
+    () => countAmendmentPendingSubmissions(submissions),
+    [submissions]
+  );
 
   return {
     submissions,
     loading,
     refresh,
     actionableCount,
-    pendingReviewCount
+    pendingReviewCount,
+    amendmentPendingCount
   };
 }

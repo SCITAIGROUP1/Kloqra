@@ -2,23 +2,13 @@
 
 import type { NotificationDto, NotificationType } from "@kloqra/contracts";
 import { AppBarIconButton, cn } from "@kloqra/ui";
-import {
-  AlertTriangle,
-  Bell,
-  CheckSquare,
-  ClipboardCheck,
-  Clock,
-  Download,
-  FolderKanban,
-  Link2,
-  Timer,
-  Users
-} from "lucide-react";
+import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   NotificationDetails,
+  iconForNotificationType,
   notificationRowClass
 } from "../features/notifications/notification-ui";
 import {
@@ -29,35 +19,8 @@ import {
   useRecentNotifications
 } from "../hooks/use-notifications";
 
-function iconForType(type: NotificationType) {
-  switch (type) {
-    case "PROJECT_ASSIGNMENT":
-      return FolderKanban;
-    case "TASK_ASSIGNMENT":
-      return CheckSquare;
-    case "TIMESHEET_REMINDER":
-    case "TIMESHEET_STATUS":
-      return Clock;
-    case "IDLE_TIMER_ALERT":
-      return Timer;
-    case "JIRA_SYNC_UPDATE":
-      return Link2;
-    case "APPROVAL_REQUEST":
-      return ClipboardCheck;
-    case "MEMBER_CHANGE":
-    case "WORKSPACE_ADDED":
-      return Users;
-    case "EXPORT_SCHEDULE":
-      return Download;
-    case "BUDGET_ALERT":
-      return AlertTriangle;
-    default:
-      return Bell;
-  }
-}
-
-function NotificationIcon({ type }: { type: NotificationType }) {
-  const Icon = iconForType(type);
+function NotificationIcon({ type, title }: { type: NotificationType; title?: string | null }) {
+  const Icon = iconForNotificationType(type, title);
   return <Icon className="size-4 shrink-0 text-primary" aria-hidden />;
 }
 
@@ -80,6 +43,18 @@ export function NotificationDropdown({
     Boolean(workspaceId)
   );
   const { items: notifications, refresh, setItems } = useRecentNotifications(workspaceId);
+  const prevUnreadRef = useRef(unreadCount);
+  const [unreadPop, setUnreadPop] = useState(false);
+
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current) {
+      setUnreadPop(true);
+      const timer = window.setTimeout(() => setUnreadPop(false), 150);
+      prevUnreadRef.current = unreadCount;
+      return () => window.clearTimeout(timer);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount]);
 
   useEffect(() => {
     if (!open) return;
@@ -129,7 +104,10 @@ export function NotificationDropdown({
         <Bell strokeWidth={1.5} aria-hidden />
         {unreadCount > 0 ? (
           <span
-            className="absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-background"
+            className={cn(
+              "absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-background",
+              unreadPop && "animate-unread-pop"
+            )}
             aria-hidden
           />
         ) : null}
@@ -174,7 +152,7 @@ export function NotificationDropdown({
                     onClick={() => void handleItemClick(item)}
                   >
                     <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <NotificationIcon type={item.type} />
+                      <NotificationIcon type={item.type} title={item.title} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">

@@ -12,10 +12,23 @@ describe("TimesheetApprovalStatusBadge", () => {
   it("renders submitted status as Pending", () => {
     const html = renderToStaticMarkup(<TimesheetApprovalStatusBadge status="SUBMITTED" />);
     expect(html).toContain("Pending");
+    expect(html).toContain("status-warning-bg");
+    expect(html).toContain("status-warning-fg");
+  });
+
+  it("renders edit pending overlay", () => {
+    const html = renderToStaticMarkup(
+      <TimesheetApprovalStatusBadge status="SUBMITTED" amendmentPending />
+    );
+    expect(html).toContain("Edit pending");
+    expect(html).toContain("status-info-bg");
+    expect(html).toContain("status-info-fg");
   });
 
   it("renders approved status", () => {
     const html = renderToStaticMarkup(<TimesheetApprovalStatusBadge status="APPROVED" />);
     expect(html).toContain("Approved");
+    expect(html).toContain("status-success-bg");
+    expect(html).toContain("status-success-fg");
   });
 });

@@ -8,7 +8,16 @@ const withBundleAnalyzer = bundleAnalyzer({
 const nextConfig: NextConfig = {
   transpilePackages: ["@kloqra/ui", "@kloqra/contracts", "@kloqra/web-shared"],
   experimental: {
-    optimizePackageImports: ["lucide-react"]
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-select",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-alert-dialog",
+      "motion/react",
+      "react-grid-layout"
+    ]
   }
 };
 

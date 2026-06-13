@@ -26,7 +26,7 @@ export default defineConfig({
         /auth\./,
         /smoke\.spec\.ts/,
         /impersonation\.spec\.ts/,
-        /approvals\.spec\.ts/,
+        /submissions\.spec\.ts/,
         /screenshot\.spec\.ts/
       ],
       dependencies: ["setup-member"],
@@ -35,8 +35,8 @@ export default defineConfig({
       }
     },
     {
-      name: "approvals",
-      testMatch: /approvals\.spec\.ts/,
+      name: "submissions",
+      testMatch: /submissions\.spec\.ts/,
       dependencies: ["setup-drew"],
       use: {
         storageState: "e2e/.auth/drew.json"

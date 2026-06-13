@@ -21,8 +21,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useMySubmissions } from "@/features/approvals/use-my-submissions";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
+import { useMySubmissions } from "@/features/submissions/use-my-submissions";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
@@ -33,7 +33,7 @@ const baseNav: readonly SidebarNavItem[] = [
   { href: "/timer", label: "Timer", Icon: TimerIcon, tourId: "nav-timer" },
   { href: "/time-tracker", label: "Time Tracker", Icon: Clock, tourId: "nav-time-tracker" },
   { href: "/timesheet", label: "Timesheet", Icon: CalendarDays },
-  { href: "/approvals", label: "Approvals", Icon: ClipboardCheck, tourId: "nav-approvals" },
+  { href: "/submissions", label: "Submissions", Icon: ClipboardCheck, tourId: "nav-submissions" },
   { href: "/notifications", label: "Notifications", Icon: Bell },
   { href: "/projects", label: "My projects", Icon: FolderKanban, tourId: "nav-projects" }
 ];
@@ -99,7 +99,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
     return baseNav.map((item) => {
-      if (item.href === "/approvals") return { ...item, badge: actionableCount };
+      if (item.href === "/submissions") return { ...item, badge: actionableCount };
       if (item.href === "/notifications") return { ...item, badge: notificationUnreadCount };
       return item;
     });
@@ -135,11 +135,11 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       }
       impersonationBanner={
         session.impersonatorId ? (
-          <div className="sticky top-0 z-50 flex items-center justify-between border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-xs text-amber-800 backdrop-blur-md dark:text-amber-300 lg:px-8">
+          <div className="sticky top-0 z-50 flex items-center justify-between border-b border-status-warning-border bg-status-warning-bg px-6 py-3 text-xs text-status-warning-fg backdrop-blur-md lg:px-8">
             <div className="flex items-center gap-2.5">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
               </span>
               <span>
                 Viewing workspace as <strong className="font-semibold">{session.user.name}</strong>{" "}
@@ -150,7 +150,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 border-amber-500/30 px-3 text-xs text-amber-900 transition-colors hover:bg-amber-500/20 dark:text-amber-200"
+              className="h-7 border-status-warning-border px-3 text-xs text-status-warning-fg transition-colors hover:bg-status-warning-bg/80"
               onClick={handleStopImpersonation}
             >
               Return to Admin

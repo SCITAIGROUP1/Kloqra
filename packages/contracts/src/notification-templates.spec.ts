@@ -8,6 +8,17 @@ import {
 } from "./notification-templates";
 
 const UUID = "00000000-0000-4000-8000-000000000001";
+const UUID_2 = "00000000-0000-4000-8000-000000000002";
+const PERIOD_START = "2026-06-09T00:00:00.000Z";
+
+const timesheetBase = {
+  workspaceName: "Acme Corp",
+  projectName: "Website Redesign",
+  periodLabel: "Week 23",
+  periodId: UUID,
+  projectId: UUID_2,
+  periodStart: PERIOD_START
+};
 
 describe("notification templates", () => {
   it("formats daily and monthly period labels", () => {
@@ -24,6 +35,9 @@ describe("notification templates", () => {
 
   it("parses template ids and notification types", () => {
     expect(parseNotificationTemplateId("timesheet.approved")).toBe("timesheet.approved");
+    expect(parseNotificationTemplateId("timesheet.amendment.requested")).toBe(
+      "timesheet.amendment.requested"
+    );
     expect(parseNotificationType("APPROVAL_REQUEST")).toBe("APPROVAL_REQUEST");
   });
 
@@ -59,64 +73,99 @@ describe("notification templates", () => {
     expect(rendered.metadata.taskId).toBe(UUID);
   });
 
-  it("renders timesheet approved template with success variant", () => {
+  it("renders timesheet approved template with submissions href", () => {
     const rendered = buildNotificationTemplate("timesheet.approved", {
-      projectName: "Website Redesign",
-      periodLabel: "Week 23",
-      periodId: UUID,
-      projectId: UUID,
+      ...timesheetBase,
       reviewerName: "Alex Admin"
     });
     expect(rendered.title).toBe("Timesheet approved");
     expect(rendered.metadata.variant).toBe("success");
-    expect(rendered.metadata.ctaLabel).toBe("View timesheet");
+    expect(rendered.metadata.href).toContain("/submissions");
+    expect(rendered.metadata.href).toContain(UUID_2);
     expect(rendered.emailSubject).toContain("Timesheet approved");
   });
 
-  it("renders timesheet submitted template for admins", () => {
+  it("renders timesheet submitted template for admins with deep link", () => {
     const rendered = buildNotificationTemplate("timesheet.submitted", {
       submitterName: "Sam Rivera",
-      projectName: "Website Redesign",
-      periodLabel: "Week 23",
-      periodId: UUID,
-      projectId: UUID,
+      ...timesheetBase,
       totalHours: 38.5
     });
     expect(rendered.preferenceKey).toBe("approvalRequest");
-    expect(rendered.metadata.href).toBe("/approvals");
+    expect(rendered.metadata.href).toContain("/approvals?tab=review");
+    expect(rendered.metadata.href).toContain(`periodId=${UUID}`);
     expect(rendered.metadata.variant).toBe("attention");
-    expect(rendered.metadata.details?.some((d) => d.label === "Hours")).toBe(true);
+    expect(rendered.metadata.details?.some((d) => d.label === "Workspace")).toBe(true);
   });
 
-  it("renders timesheet reminder template with period metadata", () => {
+  it("renders batch timesheet submitted template", () => {
+    const rendered = buildNotificationTemplate("timesheet.submitted.batch", {
+      submitterName: "Sam Rivera",
+      ...timesheetBase,
+      cascadedCount: 3,
+      cascadedPeriodLabels: ["Week 21", "Week 22", "Week 23"]
+    });
+    expect(rendered.title).toContain("batch");
+    expect(rendered.metadata.href).toContain("batch=");
+  });
+
+  it("renders timesheet reminder template with project context", () => {
     const rendered = buildNotificationTemplate("timesheet.reminder", {
+      workspaceName: "Acme Corp",
+      projectName: "Website Redesign",
+      projectId: UUID_2,
       periodLabel: "Week 23",
       dueLabel: "Friday, Jun 13",
-      periodStart: "2026-06-09T00:00:00.000Z"
+      periodStart: PERIOD_START
     });
-    expect(rendered.title).toBe("Submit your timesheet");
-    expect(rendered.metadata.variant).toBe("attention");
-    expect(rendered.metadata.periodStart).toBe("2026-06-09T00:00:00.000Z");
-    expect(rendered.body).toContain("Friday, Jun 13");
+    expect(rendered.metadata.href).toContain("/submissions");
+    expect(rendered.metadata.href).toContain(UUID_2);
+    expect(rendered.body).toContain("Website Redesign");
 
-    const withoutDue = buildNotificationTemplate("timesheet.reminder", {
+    const manual = buildNotificationTemplate("timesheet.reminder.manual", {
+      workspaceName: "Acme Corp",
+      projectName: "Website Redesign",
+      projectId: UUID_2,
       periodLabel: "Week 23",
-      periodStart: "2026-06-09T00:00:00.000Z"
+      periodStart: PERIOD_START,
+      adminMessage: "Please submit today"
     });
-    expect(withoutDue.body).not.toContain("by ");
+    expect(manual.metadata.href).toContain("highlight=remind");
+    expect(manual.body).toContain("Please submit today");
   });
 
   it("renders timesheet rejected template with review note", () => {
     const rendered = buildNotificationTemplate("timesheet.rejected", {
-      projectName: "Website Redesign",
-      periodLabel: "Week 23",
-      periodId: UUID,
-      projectId: UUID,
+      ...timesheetBase,
       reviewerName: "Alex Admin",
       reviewNote: "Missing Friday hours"
     });
     expect(rendered.metadata.variant).toBe("warning");
+    expect(rendered.metadata.href).toContain("highlight=rejected");
     expect(rendered.body).toContain("Missing Friday hours");
+  });
+
+  it("renders amendment templates", () => {
+    const requested = buildNotificationTemplate("timesheet.amendment.requested", {
+      memberName: "Sam Rivera",
+      workspaceName: "Acme Corp",
+      projectName: "Website Redesign",
+      periodLabel: "Week 23",
+      periodId: UUID,
+      projectId: UUID_2,
+      amendmentId: UUID_2,
+      reason: "Missing client meeting"
+    });
+    expect(requested.metadata.href).toContain("tab=amendments");
+
+    const approved = buildNotificationTemplate("timesheet.amendment.approved", timesheetBase);
+    expect(approved.metadata.href).toContain("amendment-approved");
+
+    const denied = buildNotificationTemplate("timesheet.amendment.denied", {
+      ...timesheetBase,
+      adminNote: "Not approved"
+    });
+    expect(denied.body).toContain("Not approved");
   });
 
   it("renders timer auto-stopped template", () => {

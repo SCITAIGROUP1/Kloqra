@@ -18,6 +18,14 @@ const badgeVariants = cva(
           "bg-warning text-warning-foreground focus-visible:ring-warning/20 [a&]:hover:bg-warning/90",
         premium:
           "bg-premium text-premium-foreground focus-visible:ring-premium/20 [a&]:hover:bg-premium/90",
+        "success-subtle":
+          "border-status-success-border bg-status-success-bg text-status-success-fg [a&]:hover:bg-status-success-bg/80",
+        "warning-subtle":
+          "border-status-warning-border bg-status-warning-bg text-status-warning-fg [a&]:hover:bg-status-warning-bg/80",
+        "info-subtle":
+          "border-status-info-border bg-status-info-bg text-status-info-fg [a&]:hover:bg-status-info-bg/80",
+        "danger-subtle":
+          "border-status-danger-border bg-status-danger-bg text-status-danger-fg [a&]:hover:bg-status-danger-bg/80",
         outline:
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",

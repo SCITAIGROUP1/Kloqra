@@ -10,9 +10,9 @@ import {
 import React from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-interface RevenueTrendWidgetProps {
+export type RevenueTrendWidgetProps = {
   report: DashboardReportDto;
-}
+};
 
 const chartConfig = {
   billableAmount: { label: "Revenue", color: "hsl(221 83% 53%)" }

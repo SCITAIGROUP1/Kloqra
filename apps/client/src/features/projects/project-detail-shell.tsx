@@ -1,6 +1,6 @@
 "use client";
 
-import { AppBar, Badge, Button, EmptyState, ProjectNameWithColor } from "@kloqra/ui";
+import { AppBar, Badge, Button, EmptyState, ProjectNameWithColor, Skeleton } from "@kloqra/ui";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
@@ -34,8 +34,8 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
       <div className="space-y-6">
         <AppBar title="Project" description="Loading project details…" />
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 lg:flex-row">
-          <div className="h-48 w-full animate-pulse rounded-xl bg-muted/50 lg:w-56" />
-          <div className="h-64 flex-1 animate-pulse rounded-xl bg-muted/50" />
+          <Skeleton className="h-48 w-full rounded-xl lg:w-56" />
+          <Skeleton className="h-64 flex-1 rounded-xl" />
         </div>
       </div>
     );

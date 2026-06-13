@@ -13,6 +13,10 @@ function wizardDialog(page: Page) {
   return page.getByRole("dialog").filter({ hasText: "Getting Started" });
 }
 
+function wizardStepTitle(page: Page, pattern: RegExp | string) {
+  return wizardDialog(page).locator("h2.text-xl").filter({ hasText: pattern });
+}
+
 async function clickWizardNext(page: Page) {
   await wizardDialog(page).getByRole("button", { name: "Next", exact: true }).click();
 }
@@ -34,18 +38,19 @@ test.describe("Onboarding first visit", () => {
   test("advances through wizard steps with Next", async ({ page }) => {
     await clickWizardNext(page);
     await expect(page.getByText("Step 2 of 5")).toBeVisible();
-    await expect(wizardDialog(page).locator("h2.text-xl")).toContainText("assigned projects");
+    await expect(wizardStepTitle(page, /assigned projects/i)).toBeVisible();
 
     await clickWizardNext(page);
-    await expect(wizardDialog(page).locator("h2.text-xl")).toContainText(
-      "Three ways to track time"
-    );
+    await expect(page.getByText("Step 3 of 5")).toBeVisible();
+    await expect(wizardStepTitle(page, /Three ways to track time/i)).toBeVisible();
 
     await clickWizardNext(page);
-    await expect(wizardDialog(page).locator("h2.text-xl")).toContainText("Projects & dashboard");
+    await expect(page.getByText("Step 4 of 5")).toBeVisible();
+    await expect(wizardStepTitle(page, /Projects & dashboard/i)).toBeVisible();
 
     await clickWizardNext(page);
-    await expect(wizardDialog(page).locator("h2.text-xl")).toContainText(/almost ready/i);
+    await expect(page.getByText("Step 5 of 5")).toBeVisible();
+    await expect(wizardStepTitle(page, /almost ready/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Take the quick tour" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Go to Timer" })).toBeVisible();
   });

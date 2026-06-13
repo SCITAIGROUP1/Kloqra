@@ -205,14 +205,14 @@ export function WorkspacePage() {
         }
       />
 
-      <Card className="max-w-2xl border-primary/10 shadow-lg animate-fade-in">
-        <CardHeader>
-          <CardTitle>Workspace Settings</CardTitle>
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader className="border-b border-border/60 bg-muted/20">
+          <CardTitle className="text-base">Workspace settings</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={saveSettings} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="workspaceName">Workspace Name</Label>
+        <CardContent className="pt-6">
+          <form onSubmit={saveSettings} className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="workspaceName">Workspace name</Label>
               <Input
                 id="workspaceName"
                 value={workspaceName}
@@ -222,9 +222,9 @@ export function WorkspacePage() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="timezone">Timezone</Label>
                   <button
                     type="button"
@@ -255,7 +255,7 @@ export function WorkspacePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="weekStart">Week Starts On</Label>
+                <Label htmlFor="weekStart">Week starts on</Label>
                 <Select
                   value={weekStart}
                   onValueChange={(v) => setWeekStart(v as "monday" | "sunday")}
@@ -269,8 +269,8 @@ export function WorkspacePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="timesheetApprovalPeriod">Default Timesheet Approval Period</Label>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                <Label htmlFor="timesheetApprovalPeriod">Default timesheet approval period</Label>
                 <Select
                   value={timesheetApprovalPeriod}
                   onValueChange={(v) =>
@@ -292,9 +292,9 @@ export function WorkspacePage() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
               <div className="space-y-2">
-                <Label htmlFor="expectedWeeklyHours">Expected Weekly Hours</Label>
+                <Label htmlFor="expectedWeeklyHours">Expected weekly hours</Label>
                 <Input
                   id="expectedWeeklyHours"
                   type="number"
@@ -307,7 +307,7 @@ export function WorkspacePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dailyTargetHours">Daily Target Hours</Label>
+                <Label htmlFor="dailyTargetHours">Daily target hours</Label>
                 <Input
                   id="dailyTargetHours"
                   type="number"
@@ -322,8 +322,8 @@ export function WorkspacePage() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="roundingMinutes">Time Rounding</Label>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                <Label htmlFor="roundingMinutes">Time rounding</Label>
                 <Select
                   value={String(roundingMinutes)}
                   onValueChange={(v) => setRoundingMinutes(Number(v))}
@@ -341,12 +341,18 @@ export function WorkspacePage() {
               </div>
             </div>
 
-            {settingsError && <p className="text-sm text-destructive">{settingsError}</p>}
-            {settingsSuccess && <p className="text-sm text-primary">{settingsSuccess}</p>}
+            {settingsError ? (
+              <p className="text-sm text-destructive lg:col-span-2">{settingsError}</p>
+            ) : null}
+            {settingsSuccess ? (
+              <p className="text-sm text-primary lg:col-span-2">{settingsSuccess}</p>
+            ) : null}
 
-            <Button type="submit" disabled={settingsLoading} className="w-full">
-              {settingsLoading ? "Saving settings..." : "Save Settings"}
-            </Button>
+            <div className="flex justify-end lg:col-span-2">
+              <Button type="submit" disabled={settingsLoading} className="min-w-[160px]">
+                {settingsLoading ? "Saving settings…" : "Save settings"}
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -1,5 +1,47 @@
-import type { NotificationDto } from "@kloqra/contracts";
+import type { NotificationDto, NotificationType } from "@kloqra/contracts";
 import { cn } from "@kloqra/ui";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  CheckSquare,
+  ClipboardCheck,
+  Clock,
+  Download,
+  FolderKanban,
+  Link2,
+  Timer,
+  Users
+} from "lucide-react";
+
+export function iconForNotificationType(type: NotificationType, title?: string | null): LucideIcon {
+  const lowerTitle = title?.toLowerCase() ?? "";
+  if (type === "APPROVAL_REQUEST" || lowerTitle.includes("amendment")) {
+    return ClipboardCheck;
+  }
+  switch (type) {
+    case "PROJECT_ASSIGNMENT":
+      return FolderKanban;
+    case "TASK_ASSIGNMENT":
+      return CheckSquare;
+    case "TIMESHEET_REMINDER":
+    case "TIMESHEET_STATUS":
+      return Clock;
+    case "IDLE_TIMER_ALERT":
+      return Timer;
+    case "JIRA_SYNC_UPDATE":
+      return Link2;
+    case "MEMBER_CHANGE":
+    case "WORKSPACE_ADDED":
+      return Users;
+    case "EXPORT_SCHEDULE":
+      return Download;
+    case "BUDGET_ALERT":
+      return AlertTriangle;
+    default:
+      return Bell;
+  }
+}
 
 export function notificationVariantClass(metadata?: NotificationDto["metadata"]): string {
   switch (metadata?.variant) {
@@ -18,8 +60,11 @@ export function notificationVariantClass(metadata?: NotificationDto["metadata"])
 
 export function notificationRowClass(item: NotificationDto, extra?: string): string {
   return cn(
-    "flex w-full items-start gap-3 text-left transition-colors hover:bg-muted/40",
+    "flex w-full items-start gap-3 text-left",
+    "transition-[background-color,opacity] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
+    "hover:bg-muted/40",
     !item.readAt && "bg-primary/5",
+    item.readAt && "opacity-90",
     notificationVariantClass(item.metadata),
     extra
   );

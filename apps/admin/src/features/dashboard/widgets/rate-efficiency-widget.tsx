@@ -2,6 +2,7 @@
 
 import type { DashboardReportDto, ProjectDto } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
+import { Skeleton } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import React, { useEffect, useState, useCallback } from "react";
 import {
@@ -17,9 +18,9 @@ import {
 } from "recharts";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-interface RateEfficiencyWidgetProps {
+export type RateEfficiencyWidgetProps = {
   report: DashboardReportDto;
-}
+};
 
 interface ScatterDataPoint {
   name: string;
@@ -76,8 +77,9 @@ export function RateEfficiencyWidget({ report }: RateEfficiencyWidgetProps) {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-        Calculating efficiency matrix...
+      <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
+        <Skeleton className="h-40 w-full max-w-sm rounded-lg" />
+        <p className="text-sm text-muted-foreground">Calculating efficiency matrix…</p>
       </div>
     );
   }

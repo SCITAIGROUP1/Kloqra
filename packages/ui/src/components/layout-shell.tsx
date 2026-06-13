@@ -46,7 +46,7 @@ function NavBadge({ badge, collapsed }: { badge: number | string; collapsed?: bo
   }
 
   return (
-    <span className="ml-auto shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 border border-amber-500/30">
+    <span className="ml-auto shrink-0 rounded-full border border-status-warning-border bg-status-warning-bg px-2 py-0.5 text-[10px] font-bold text-status-warning-fg">
       {showCount ? count : badge}
     </span>
   );
@@ -190,17 +190,17 @@ export function ResponsiveLayoutShell({
                   title={isCollapsed ? label : undefined}
                   data-tour={tourId}
                   className={cn(
-                    "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-300",
+                    "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
                     isCollapsed ? "h-9 w-9 shrink-0 justify-center p-0" : "gap-3 px-3 py-2.5",
                     active
-                      ? "bg-primary/12 text-primary"
+                      ? "bg-primary/12 text-primary shadow-sm"
                       : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                   )}
                 >
                   {active && (
                     <span
                       className={cn(
-                        "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full bg-primary transition-all duration-300",
+                        "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full bg-primary transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
                         isCollapsed ? "h-8 w-1" : "h-6 w-1"
                       )}
                       aria-hidden
@@ -315,15 +315,15 @@ export function ResponsiveLayoutShell({
                   data-tour={tourId}
                   onClick={() => setIsMobileOpen(false)}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
                     active
-                      ? "bg-primary/12 text-primary"
+                      ? "bg-primary/12 text-primary shadow-sm"
                       : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                   )}
                 >
                   {active && (
                     <span
-                      className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary"
+                      className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]"
                       aria-hidden
                     />
                   )}

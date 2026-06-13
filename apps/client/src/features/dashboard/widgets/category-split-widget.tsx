@@ -2,6 +2,7 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { MyWeekSummaryDto } from "@kloqra/contracts";
+import { Skeleton } from "@kloqra/ui";
 import {
   ChartContainer,
   ChartTooltip,
@@ -62,8 +63,9 @@ export function CategorySplitWidget() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center min-h-[200px] text-xs text-muted-foreground animate-pulse">
-        Loading categories...
+      <div className="flex h-full flex-col items-center justify-center gap-3 min-h-[200px]">
+        <Skeleton className="size-32 rounded-full" />
+        <p className="text-xs text-muted-foreground">Loading categories…</p>
       </div>
     );
   }

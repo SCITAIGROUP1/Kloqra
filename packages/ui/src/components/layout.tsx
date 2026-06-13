@@ -1,10 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "../lib/utils.js";
+import { MotionReveal } from "./motion/motion-reveal.js";
 import { AppBarToolbar } from "./shell/app-bar-toolbar.js";
 import { AppBar, type AppBarProps } from "./shell/app-bar.js";
 import { useShellToolbar } from "./shell-toolbar-context.js";
+import { Skeleton } from "./ui/skeleton.js";
 
 export type PageHeaderProps = {
   title: ReactNode;
@@ -97,10 +100,29 @@ export function SegmentedControl<T extends string | number>({
   size?: "sm" | "md";
   fullWidth?: boolean;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState({ left: 0, width: 0, height: 0, top: 0 });
+  const activeIndex = options.findIndex((opt) => opt.value === value);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || activeIndex < 0) return;
+    const buttons = container.querySelectorAll("button");
+    const activeBtn = buttons[activeIndex] as HTMLElement | undefined;
+    if (!activeBtn) return;
+    setHighlight({
+      left: activeBtn.offsetLeft,
+      width: activeBtn.offsetWidth,
+      height: activeBtn.offsetHeight,
+      top: activeBtn.offsetTop
+    });
+  }, [value, activeIndex, options, size, fullWidth]);
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "rounded-lg border border-border bg-muted/40",
+        "relative rounded-lg border border-border bg-muted/40",
         size === "md" ? "p-1.5" : "p-1",
         fullWidth ? "grid w-full gap-2" : "inline-flex w-full flex-wrap gap-2 sm:w-auto"
       )}
@@ -109,17 +131,29 @@ export function SegmentedControl<T extends string | number>({
       }
       role="group"
     >
+      {activeIndex >= 0 && highlight.width > 0 ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute rounded-md border border-border bg-background shadow-sm transition-[left,width,top,height] duration-[var(--motion-base)] ease-[var(--motion-ease-out)] motion-reduce:transition-none"
+          style={{
+            left: highlight.left,
+            top: highlight.top,
+            width: highlight.width,
+            height: highlight.height
+          }}
+        />
+      ) : null}
       {options.map((opt) => (
         <button
           key={String(opt.value)}
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            "rounded-md font-medium transition-colors",
+            "relative z-10 rounded-md font-medium transition-colors duration-[var(--motion-fast)]",
             fullWidth && "min-w-0 flex-1",
             size === "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm",
             value === opt.value
-              ? "bg-background text-foreground shadow-sm border border-border"
+              ? "text-foreground"
               : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
           )}
         >
@@ -186,7 +220,9 @@ export function PreviewBanner({
         "rounded-lg border px-4 py-3 text-sm",
         loading && "border-border bg-muted/30 text-muted-foreground animate-pulse",
         error && "border-destructive/40 bg-destructive/5 text-destructive",
-        empty && !error && "border-amber-500/30 bg-amber-500/5 text-amber-900 dark:text-amber-200",
+        empty &&
+          !error &&
+          "border-status-warning-border bg-status-warning-bg text-status-warning-fg",
         !loading && !empty && !error && "border-border bg-muted/20 text-foreground"
       )}
     >
@@ -222,17 +258,17 @@ export function ToggleChip({
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-20 rounded-xl bg-muted/60" />
+    <div className="space-y-6">
+      <Skeleton className="h-20 rounded-xl" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-muted/60" />
+          <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
-      <div className="h-80 rounded-xl bg-muted/60" />
+      <Skeleton className="h-80 rounded-xl" />
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="h-72 rounded-xl bg-muted/60 lg:col-span-3" />
-        <div className="h-72 rounded-xl bg-muted/60 lg:col-span-2" />
+        <Skeleton className="h-72 rounded-xl lg:col-span-3" />
+        <Skeleton className="h-72 rounded-xl lg:col-span-2" />
       </div>
     </div>
   );
@@ -248,10 +284,12 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
-      <p className="font-medium">{title}</p>
-      <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
-    </div>
+    <MotionReveal>
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+        <p className="font-medium">{title}</p>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
+        {action ? <div className="mt-4">{action}</div> : null}
+      </div>
+    </MotionReveal>
   );
 }

@@ -81,12 +81,9 @@ export function TimesheetStatusCard({
 
   const statusColors = {
     DRAFT: "bg-muted text-muted-foreground border-muted-foreground/20",
-    SUBMITTED:
-      "bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-900/50",
-    APPROVED:
-      "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900/50",
-    REJECTED:
-      "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900/50"
+    SUBMITTED: "bg-status-warning-bg text-status-warning-fg border-status-warning-border",
+    APPROVED: "bg-status-success-bg text-status-success-fg border-status-success-border",
+    REJECTED: "bg-status-danger-bg text-status-danger-fg border-status-danger-border"
   };
 
   const statusLabels = {
@@ -111,7 +108,7 @@ export function TimesheetStatusCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {status === "APPROVED" && (
-          <div className="text-sm border border-green-200 dark:border-green-900/50 bg-green-50/50 dark:bg-green-950/10 p-3 rounded-lg text-green-800 dark:text-green-200 space-y-1">
+          <div className="text-sm border border-status-success-border bg-status-success-bg p-3 rounded-lg text-status-success-fg space-y-1">
             <p className="font-medium text-xs">Approved</p>
             {reviewNote && <p className="text-xs italic">Note: &quot;{reviewNote}&quot;</p>}
             {reviewedAt && (
@@ -123,7 +120,7 @@ export function TimesheetStatusCard({
         )}
 
         {status === "REJECTED" && (
-          <div className="text-sm border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10 p-3 rounded-lg text-red-800 dark:text-red-200 space-y-1">
+          <div className="text-sm border border-status-danger-border bg-status-danger-bg p-3 rounded-lg text-status-danger-fg space-y-1">
             <p className="font-medium text-xs">Changes Requested</p>
             {reviewNote && <p className="text-xs italic">Reason: &quot;{reviewNote}&quot;</p>}
             {reviewedAt && (

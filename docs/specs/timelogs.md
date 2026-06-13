@@ -22,8 +22,15 @@
 | ------ | ------------------------------------- | --------------------------------------------------------------------- |
 | GET    | `/timesheets/status?projectId=&date=` | [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts) |
 | GET    | `/timesheets/submissions?date=`       | timesheet.dto                                                         |
-| POST   | `/timesheets/submit`                  | timesheet.dto                                                         |
-| GET    | `/timesheets/pending`                 | timesheet.dto (admin)                                                 |
+| GET    | `/timesheets/submit-preview`          | timesheet.dto (member)                                                |
+| POST   | `/timesheets/submit`                  | timesheet.dto (requires `confirmCascade` when cascade applies)        |
+| POST   | `/timesheets/:periodId/amendments`    | timesheet.dto (member)                                                |
+| GET    | `/timesheets/amendments/pending`      | timesheet.dto (admin)                                                 |
+| PATCH  | `/timesheets/amendments/:id/approve`  | timesheet.dto (admin)                                                 |
+| PATCH  | `/timesheets/amendments/:id/deny`     | timesheet.dto (admin)                                                 |
+| GET    | `/timesheets/missing`                 | timesheet.dto (admin)                                                 |
+| POST   | `/timesheets/remind`                  | timesheet.dto (admin)                                                 |
+| GET    | `/timesheets/pending`                 | timesheet.dto (admin, `{ items }`)                                    |
 
 Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts)
 
@@ -76,10 +83,16 @@ Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interfa
 
 **Given** a project with `timesheetApprovalEnabled: true`  
 **When** the member’s period for that project is `SUBMITTED` or `APPROVED`  
-**Then** create/update/delete on entries in that project and period returns `TIMELOG_NOT_EDITABLE`.
+**Then** create/update/delete on entries in that project and period returns `TIMELOG_NOT_EDITABLE` for **all roles** (including admins).
+
+**When** a member submits period N with `confirmCascade: true`  
+**Then** earlier DRAFT periods with logged time on the same project are also marked `SUBMITTED` in one transaction.
 
 **When** an admin rejects the period  
 **Then** entries become editable again.
+
+**When** a member requests an amendment on a locked period and an admin approves it  
+**Then** the period returns to `DRAFT` and entries become editable until resubmitted.
 
 **Given** a project with approval disabled  
 **Then** entries are never locked by the approval workflow (audit still applies).

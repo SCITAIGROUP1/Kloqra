@@ -56,7 +56,7 @@ function deferToParent(fn: () => void) {
   queueMicrotask(fn);
 }
 
-type TimesheetCalendarProps = {
+export type TimesheetCalendarProps = {
   view: "day" | "week";
   days: Date[];
   logs: TimeLogDto[];

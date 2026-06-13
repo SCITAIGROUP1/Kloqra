@@ -16,13 +16,13 @@ import {
 import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import { countActionableSubmissions } from "@/features/approvals/use-my-submissions";
+import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import { formatWeekRange } from "@/features/timesheet/calendar-utils";
 
-interface TimesheetSubmissionsWidgetProps {
+export type TimesheetSubmissionsWidgetProps = {
   submissions: TimesheetPeriodDto[];
   projects: ProjectDto[];
-}
+};
 
 export function TimesheetSubmissionsWidget({
   submissions,
@@ -41,7 +41,7 @@ export function TimesheetSubmissionsWidget({
         <ListTodo className="size-8 text-muted-foreground/45 mb-2" />
         <p className="text-xs text-muted-foreground">No timesheet submissions found.</p>
         <Button variant="link" size="sm" className="h-7 text-xs mt-2" asChild>
-          <Link href="/approvals">Go to Approvals</Link>
+          <Link href="/submissions">Go to Submissions</Link>
         </Button>
       </div>
     );
@@ -53,7 +53,7 @@ export function TimesheetSubmissionsWidget({
     <div className="flex flex-col h-full min-h-[200px]">
       {actionableCount > 0 && (
         <p className="text-[10px] text-amber-700 dark:text-amber-300 mb-2 px-1">
-          {actionableCount} period{actionableCount === 1 ? "" : "s"} ready to send
+          {actionableCount} period{actionableCount === 1 ? "" : "s"} ready to submit
         </p>
       )}
       <div className="w-full flex-1 overflow-x-auto">
@@ -93,7 +93,7 @@ export function TimesheetSubmissionsWidget({
       </div>
       <div className="pt-2 mt-2 border-t border-border/40">
         <Button variant="ghost" size="sm" className="w-full h-7 text-[10px]" asChild>
-          <Link href="/approvals">Go to Approvals</Link>
+          <Link href="/submissions">Go to Submissions</Link>
         </Button>
       </div>
     </div>
