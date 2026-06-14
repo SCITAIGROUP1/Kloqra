@@ -82,7 +82,11 @@ export function LoginForm() {
   }
 
   return (
-    <AuthShell title="Sign in">
+    <AuthShell
+      title="Sign in"
+      portalLabel="Member Portal"
+      description="Enter your email and password to access your account."
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
         {!pendingToken ? (
           <>
