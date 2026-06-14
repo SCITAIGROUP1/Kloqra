@@ -22,7 +22,9 @@ test.describe("Admin projects", () => {
     await page.locator("#client").fill(clientName);
     await page.getByRole("button", { name: "Create project" }).click();
 
-    await expect(page.getByRole("row", { name: new RegExp(projectName) })).toBeVisible();
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
     await expect(page.getByText(clientName).first()).toBeVisible();
   });
 
