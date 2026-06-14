@@ -78,7 +78,6 @@ describe("CategoriesService", () => {
         items: [
           {
             id: "c1",
-            workspaceId: "w1",
             name: "Design",
             description: null,
             taskCount: 2

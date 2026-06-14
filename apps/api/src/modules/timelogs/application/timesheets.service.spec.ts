@@ -158,7 +158,7 @@ describe("TimesheetsService", () => {
         reviewNote: "Looks good"
       })
     });
-    expect(result.status).toBe("APPROVED");
+    expect(result).toEqual({ ok: true });
   });
 
   it("listSubmissions with logged scope queries time logs", async () => {
@@ -206,7 +206,7 @@ describe("TimesheetsService", () => {
 
     const result = await service.reject(workspaceId, "period-1", adminUserId, "Missing notes");
 
-    expect(result.status).toBe("REJECTED");
+    expect(result).toEqual({ ok: true });
   });
 
   it("listPending returns items wrapper", async () => {

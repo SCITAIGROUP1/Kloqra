@@ -1,11 +1,9 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
-import type { UserProfileDto } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle } from "@kloqra/ui";
-import { api } from "@kloqra/web-shared";
+import { useUserProfile } from "@kloqra/web-shared";
 import { Pencil, Check, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -20,39 +18,38 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const userId = useSessionStore((s) => s.session?.user.id);
   const isImpersonating = Boolean(useSessionStore((s) => s.session?.impersonatorId));
+  const { profile, updatePreferences } = useUserProfile();
   const [targetHours, setTargetHours] = useState(8);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("8");
-
-  const loadProfile = useCallback(async () => {
-    if (!ws || !userId) return;
-    try {
-      let profile = await api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws });
-
-      const legacyKey = dailyTargetStorageKey(userId);
-      const legacyRaw = localStorage.getItem(legacyKey);
-      const legacyHours = legacyRaw ? parseFloat(legacyRaw) : NaN;
-      const hasServerPref = typeof profile.preferences.dailyTargetHours === "number";
-
-      if (!hasServerPref && !Number.isNaN(legacyHours) && legacyHours >= 0.5 && legacyHours <= 24) {
-        profile = await api<UserProfileDto>(ROUTES.USERS.PREFERENCES, {
-          method: "PATCH",
-          workspaceId: ws,
-          body: JSON.stringify({ dailyTargetHours: legacyHours })
-        });
-        localStorage.removeItem(legacyKey);
-      }
-
-      setTargetHours(profile.effectiveDailyTargetHours);
-      setEditValue(String(profile.effectiveDailyTargetHours));
-    } catch {
-      /* keep defaults */
-    }
-  }, [ws, userId]);
+  const legacyMigratedRef = useRef(false);
 
   useEffect(() => {
-    void loadProfile();
-  }, [loadProfile]);
+    if (!profile) return;
+
+    setTargetHours(profile.effectiveDailyTargetHours);
+    setEditValue(String(profile.effectiveDailyTargetHours));
+
+    if (!ws || !userId || legacyMigratedRef.current) return;
+
+    const legacyKey = dailyTargetStorageKey(userId);
+    const legacyRaw = localStorage.getItem(legacyKey);
+    const legacyHours = legacyRaw ? parseFloat(legacyRaw) : NaN;
+    const hasServerPref = typeof profile.preferences.dailyTargetHours === "number";
+
+    if (!hasServerPref && !Number.isNaN(legacyHours) && legacyHours >= 0.5 && legacyHours <= 24) {
+      legacyMigratedRef.current = true;
+      void updatePreferences({ dailyTargetHours: legacyHours })
+        .then((nextProfile) => {
+          setTargetHours(nextProfile.effectiveDailyTargetHours);
+          setEditValue(String(nextProfile.effectiveDailyTargetHours));
+          localStorage.removeItem(legacyKey);
+        })
+        .catch(() => {
+          legacyMigratedRef.current = false;
+        });
+    }
+  }, [profile, ws, userId, updatePreferences]);
 
   const targetSeconds = targetHours * 3600;
   const percentage = Math.min(100, Math.round((totalSeconds / targetSeconds) * 100));
@@ -74,18 +71,14 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
     }
     if (!ws) return;
     try {
-      const updated = await api<UserProfileDto>(ROUTES.USERS.PREFERENCES, {
-        method: "PATCH",
-        workspaceId: ws,
-        body: JSON.stringify({ dailyTargetHours: parsed })
-      });
+      const updated = await updatePreferences({ dailyTargetHours: parsed });
       setTargetHours(updated.effectiveDailyTargetHours);
       setEditing(false);
       toast.success(`Daily goal updated to ${parsed} hrs`);
     } catch {
       toast.error("Could not save daily goal");
     }
-  }, [ws, editValue]);
+  }, [editValue, updatePreferences]);
 
   const bodyContent = (
     <div className="flex flex-row items-center gap-6 py-2 w-full h-full min-w-0">

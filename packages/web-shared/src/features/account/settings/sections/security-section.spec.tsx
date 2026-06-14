@@ -5,14 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import { SecuritySection } from "./security-section";
 
 const profile: UserProfileDto = {
-  id: "550e8400-e29b-41d4-a716-446655440000",
   email: "member@kloqra.dev",
   name: "Sam Rivera",
   firstName: "Sam",
   lastName: "Rivera",
   phone: null,
   location: null,
-  avatarUrl: null,
   jobTitle: null,
   department: null,
   workStartDate: null,
@@ -24,8 +22,8 @@ const profile: UserProfileDto = {
   effectiveDateFormat: "MDY",
   effectiveTimeFormat: "12h",
   effectiveDailyTargetHours: 8,
-  activityStats: { totalHours: 0, projectCount: 0, memberSince: "2025-01-01T00:00:00.000Z" },
-  createdAt: "2025-01-01T00:00:00.000Z"
+  effectiveTimerStaleWarningHours: 8,
+  activityStats: { totalHours: 0, projectCount: 0, memberSince: "2025-01-01T00:00:00.000Z" }
 };
 
 vi.mock("../../change-password-section", () => ({

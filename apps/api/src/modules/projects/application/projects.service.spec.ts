@@ -74,6 +74,7 @@ describe("ProjectsService", () => {
     );
     expect(result.items).toHaveLength(1);
     expect(result.items[0]!.name).toBe("Alpha");
+    expect(result.items[0]).not.toHaveProperty("budgetHours");
   });
 
   it("create persists a project with default color", async () => {

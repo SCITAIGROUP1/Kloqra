@@ -1,6 +1,6 @@
 import {
+  DEFAULT_DROPDOWN_LIST_LIMIT,
   DEFAULT_TABLE_PAGE_SIZE,
-  MAX_LIST_LIMIT,
   buildPaginationMeta,
   type PaginatedResponse
 } from "@kloqra/contracts";
@@ -8,6 +8,28 @@ import { api } from "./client";
 import { appendListQuery, buildListQuery } from "./list-query";
 
 type ListApiResponse<T> = T[] | PaginatedResponse<T>;
+
+const LIST_CACHE_TTL_MS = 30_000;
+const listCache = new Map<string, { expiresAt: number; items: unknown[] }>();
+
+function buildListCacheKey(
+  path: string,
+  workspaceId: string,
+  filters: Record<string, string | undefined> | undefined,
+  limit: number
+) {
+  const filterKey = filters
+    ? Object.keys(filters)
+        .sort()
+        .map((key) => `${key}=${filters[key] ?? ""}`)
+        .join("&")
+    : "";
+  return `${workspaceId}:${path}:${limit}:${filterKey}`;
+}
+
+export function clearListItemsCache() {
+  listCache.clear();
+}
 
 export function normalizePaginatedListResponse<T>(
   data: ListApiResponse<T>,
@@ -37,7 +59,13 @@ export async function fetchListItems<T>(
     limit?: number;
   }
 ): Promise<T[]> {
-  const limit = options.limit ?? MAX_LIST_LIMIT;
+  const limit = options.limit ?? DEFAULT_DROPDOWN_LIST_LIMIT;
+  const cacheKey = buildListCacheKey(path, options.workspaceId, options.filters, limit);
+  const cached = listCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.items as T[];
+  }
+
   const query = buildListQuery({
     page: 1,
     limit,
@@ -46,7 +74,9 @@ export async function fetchListItems<T>(
   const res = await api<ListApiResponse<T>>(appendListQuery(path, query), {
     workspaceId: options.workspaceId
   });
-  return normalizePaginatedListResponse(res, 1, limit).items;
+  const items = normalizePaginatedListResponse(res, 1, limit).items;
+  listCache.set(cacheKey, { items, expiresAt: Date.now() + LIST_CACHE_TTL_MS });
+  return items;
 }
 
 export async function fetchPaginatedList<T>(

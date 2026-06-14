@@ -10,6 +10,8 @@ export const categorySchema = z.object({
   taskCount: z.number().int().nonnegative().optional()
 });
 
+export const categoryListItemSchema = categorySchema.omit({ workspaceId: true });
+
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional()
@@ -22,9 +24,11 @@ export const updateCategorySchema = z.object({
 
 export const listCategoriesQuerySchema = listPaginationQuerySchema;
 
-export const listCategoriesResponseSchema = createPaginatedListResponseSchema(categorySchema);
+export const listCategoriesResponseSchema =
+  createPaginatedListResponseSchema(categoryListItemSchema);
 
 export type CategoryDto = z.infer<typeof categorySchema>;
+export type CategoryListItemDto = z.infer<typeof categoryListItemSchema>;
 export type CreateCategoryDto = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;

@@ -91,6 +91,8 @@ function resolveInitialLayouts(
   return mergeLayoutsWithRegistry(defaultLayout, widgetRegistry, defaultLayout);
 }
 
+const initializePromises = new Map<string, Promise<void>>();
+
 export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions) {
   const { app, widgetRegistry, defaultLayout, legacyStorage } = options;
 
@@ -114,58 +116,78 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
     initialize: async (workspaceId: string) => {
       if (!workspaceId) return;
 
-      set((state) => ({
-        loadingByWorkspace: { ...state.loadingByWorkspace, [workspaceId]: true }
-      }));
+      if (get().layoutsByWorkspace[workspaceId]?.length) {
+        set({ initialized: true });
+        return;
+      }
 
-      try {
-        let remote = await fetchDashboardLayout(workspaceId, app);
-        const legacy = readLegacyLayouts(workspaceId, legacyStorage);
-        const needsMigration =
-          !remote.layout?.length &&
-          !remote.defaultLayout?.length &&
-          (legacy.layout?.length || legacy.defaultLayout?.length);
+      const inflight = initializePromises.get(workspaceId);
+      if (inflight) {
+        await inflight;
+        return;
+      }
 
-        if (needsMigration) {
-          await saveDashboardLayout(workspaceId, {
-            app,
-            ...(legacy.layout?.length ? { layout: legacy.layout } : {}),
-            ...(legacy.defaultLayout?.length ? { defaultLayout: legacy.defaultLayout } : {})
-          });
-          clearLegacyLayouts(workspaceId, legacyStorage);
-          remote = await fetchDashboardLayout(workspaceId, app);
+      const run = (async () => {
+        set((state) => ({
+          loadingByWorkspace: { ...state.loadingByWorkspace, [workspaceId]: true }
+        }));
+
+        try {
+          let remote = await fetchDashboardLayout(workspaceId, app);
+          const legacy = readLegacyLayouts(workspaceId, legacyStorage);
+          const needsMigration =
+            !remote.layout?.length &&
+            !remote.defaultLayout?.length &&
+            (legacy.layout?.length || legacy.defaultLayout?.length);
+
+          if (needsMigration) {
+            await saveDashboardLayout(workspaceId, {
+              app,
+              ...(legacy.layout?.length ? { layout: legacy.layout } : {}),
+              ...(legacy.defaultLayout?.length ? { defaultLayout: legacy.defaultLayout } : {})
+            });
+            clearLegacyLayouts(workspaceId, legacyStorage);
+            remote = await fetchDashboardLayout(workspaceId, app);
+          }
+
+          const finalLayouts = resolveInitialLayouts(
+            remote.layout,
+            remote.defaultLayout,
+            widgetRegistry,
+            defaultLayout
+          );
+
+          set((state) => ({
+            layoutsByWorkspace: {
+              ...state.layoutsByWorkspace,
+              [workspaceId]: finalLayouts
+            },
+            initialized: true,
+            loadingByWorkspace: { ...state.loadingByWorkspace, [workspaceId]: false }
+          }));
+        } catch (e) {
+          console.error("Failed to load dashboard layout", e);
+          const finalLayouts = mergeLayoutsWithRegistry(
+            defaultLayout.map((item) => ({ ...item })),
+            widgetRegistry,
+            defaultLayout
+          );
+          set((state) => ({
+            layoutsByWorkspace: {
+              ...state.layoutsByWorkspace,
+              [workspaceId]: finalLayouts
+            },
+            initialized: true,
+            loadingByWorkspace: { ...state.loadingByWorkspace, [workspaceId]: false }
+          }));
         }
+      })();
 
-        const finalLayouts = resolveInitialLayouts(
-          remote.layout,
-          remote.defaultLayout,
-          widgetRegistry,
-          defaultLayout
-        );
-
-        set((state) => ({
-          layoutsByWorkspace: {
-            ...state.layoutsByWorkspace,
-            [workspaceId]: finalLayouts
-          },
-          initialized: true,
-          loadingByWorkspace: { ...state.loadingByWorkspace, [workspaceId]: false }
-        }));
-      } catch (e) {
-        console.error("Failed to load dashboard layout", e);
-        const finalLayouts = mergeLayoutsWithRegistry(
-          defaultLayout.map((item) => ({ ...item })),
-          widgetRegistry,
-          defaultLayout
-        );
-        set((state) => ({
-          layoutsByWorkspace: {
-            ...state.layoutsByWorkspace,
-            [workspaceId]: finalLayouts
-          },
-          initialized: true,
-          loadingByWorkspace: { ...state.loadingByWorkspace, [workspaceId]: false }
-        }));
+      initializePromises.set(workspaceId, run);
+      try {
+        await run;
+      } finally {
+        initializePromises.delete(workspaceId);
       }
     },
 

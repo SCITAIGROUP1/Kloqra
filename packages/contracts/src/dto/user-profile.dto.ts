@@ -14,27 +14,26 @@ export const userActivityStatsSchema = z.object({
 });
 
 export const userProfileSchema = z.object({
-  id: uuidSchema,
   email: emailSchema,
   name: z.string().min(1).max(120),
   firstName: z.string().min(1).max(60),
   lastName: z.string().max(60),
   phone: z.string().max(40).nullable(),
   location: z.string().max(120).nullable(),
-  avatarUrl: z.string().url().nullable(),
   jobTitle: z.string().max(120).nullable(),
   department: z.string().max(120).nullable(),
   workStartDate: z.string().date().nullable(),
-  defaultHourlyRate: z.number().nonnegative().nullable(),
+  /** Admin workspace only — omitted for MEMBER role. */
+  defaultHourlyRate: z.number().nonnegative().nullable().optional(),
   preferences: userPreferencesSchema,
   effectiveDailyTargetHours: z.number().positive().max(24),
+  effectiveTimerStaleWarningHours: z.number().positive().max(24),
   effectiveTimezone: z.string(),
   effectiveDateFormat: dateFormatPreferenceSchema,
   effectiveTimeFormat: timeFormatPreferenceSchema,
   effectiveTheme: themePreferenceSchema,
   twoFactorEnabled: z.boolean(),
-  activityStats: userActivityStatsSchema,
-  createdAt: z.string().datetime()
+  activityStats: userActivityStatsSchema
 });
 
 export const updateUserProfileSchema = z

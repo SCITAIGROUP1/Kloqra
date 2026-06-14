@@ -9,6 +9,7 @@ import {
   resolveEffectiveDateFormat,
   resolveEffectiveTheme,
   resolveEffectiveTimeFormat,
+  resolveEffectiveTimerStaleWarningHours,
   resolveEffectiveTimezone,
   type ChangePasswordDto,
   type DashboardApp,
@@ -75,7 +76,11 @@ export class UsersService {
     private access: ProjectAccessService
   ) {}
 
-  async getProfile(userId: string, workspaceId: string): Promise<UserProfileDto> {
+  async getProfile(
+    userId: string,
+    workspaceId: string,
+    role: "ADMIN" | "MEMBER"
+  ): Promise<UserProfileDto> {
     const user = (await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: userProfileSelect as Prisma.UserSelect
@@ -84,10 +89,15 @@ export class UsersService {
       where: { id: workspaceId }
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
-    return this.toProfileDto(user, workspace.settings, activityStats);
+    return this.toProfileDto(user, workspace.settings, activityStats, role);
   }
 
-  async updateProfile(userId: string, workspaceId: string, dto: UpdateUserProfileDto) {
+  async updateProfile(
+    userId: string,
+    workspaceId: string,
+    dto: UpdateUserProfileDto,
+    role: "ADMIN" | "MEMBER"
+  ) {
     const existing = (await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: userProfileSelect as Prisma.UserSelect
@@ -120,13 +130,14 @@ export class UsersService {
       where: { id: workspaceId }
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
-    return this.toProfileDto(user, workspace.settings, activityStats);
+    return this.toProfileDto(user, workspace.settings, activityStats, role);
   }
 
   async updatePreferences(
     userId: string,
     workspaceId: string,
-    dto: UpdateUserPreferencesDto
+    dto: UpdateUserPreferencesDto,
+    role: "ADMIN" | "MEMBER"
   ): Promise<UserProfileDto> {
     const existing = (await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -144,7 +155,7 @@ export class UsersService {
       where: { id: workspaceId }
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
-    return this.toProfileDto(user, workspace.settings, activityStats);
+    return this.toProfileDto(user, workspace.settings, activityStats, role);
   }
 
   async getDashboardLayout(
@@ -262,37 +273,39 @@ export class UsersService {
   private toProfileDto(
     user: UserProfileRecord,
     workspaceSettingsRaw: unknown,
-    activityStats: UserProfileDto["activityStats"]
+    activityStats: UserProfileDto["activityStats"],
+    role: "ADMIN" | "MEMBER"
   ): UserProfileDto {
-    const preferences = parseUserPreferences(user.preferences);
+    const parsedPreferences = parseUserPreferences(user.preferences);
+    const { dashboardLayouts: _layouts, ...preferences } = parsedPreferences;
     const workspaceSettings = parseWorkspaceSettings(workspaceSettingsRaw);
     const names = this.resolveNames(user);
 
     return {
-      id: user.id,
       email: user.email,
       name: user.name,
       firstName: names.firstName,
       lastName: names.lastName,
       phone: user.phone,
       location: user.location,
-      avatarUrl: user.avatarUrl,
       jobTitle: user.jobTitle,
       department: user.department,
       workStartDate: user.workStartDate ? user.workStartDate.toISOString().slice(0, 10) : null,
-      defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null,
+      ...(role === "ADMIN"
+        ? { defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null }
+        : {}),
       preferences,
       effectiveDailyTargetHours: resolveEffectiveDailyTargetHours(
-        preferences,
+        parsedPreferences,
         workspaceSettings.dailyTargetHours
       ),
-      effectiveTimezone: resolveEffectiveTimezone(preferences),
-      effectiveDateFormat: resolveEffectiveDateFormat(preferences),
-      effectiveTimeFormat: resolveEffectiveTimeFormat(preferences),
-      effectiveTheme: resolveEffectiveTheme(preferences),
+      effectiveTimerStaleWarningHours: resolveEffectiveTimerStaleWarningHours(workspaceSettings),
+      effectiveTimezone: resolveEffectiveTimezone(parsedPreferences),
+      effectiveDateFormat: resolveEffectiveDateFormat(parsedPreferences),
+      effectiveTimeFormat: resolveEffectiveTimeFormat(parsedPreferences),
+      effectiveTheme: resolveEffectiveTheme(parsedPreferences),
       twoFactorEnabled: Boolean(user.totpEnabledAt),
-      activityStats,
-      createdAt: user.createdAt.toISOString()
+      activityStats
     };
   }
 }

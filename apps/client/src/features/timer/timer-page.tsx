@@ -157,13 +157,12 @@ export function TimerPage() {
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null);
   const [staleWarningHours, setStaleWarningHours] = useState(8);
 
-  // Load stale warning settings
+  // Load stale warning from profile effective setting (via daily goal / session bootstrap)
   useEffect(() => {
     if (!ws) return;
-    api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: ws })
-      .then((list) => {
-        const current = list.find((w) => w.id === ws);
-        const hours = current?.settings?.timerStaleWarningHours;
+    void api<{ effectiveTimerStaleWarningHours: number }>(ROUTES.USERS.ME, { workspaceId: ws })
+      .then((profile) => {
+        const hours = profile.effectiveTimerStaleWarningHours;
         if (typeof hours === "number" && hours > 0) {
           setStaleWarningHours(hours);
         }

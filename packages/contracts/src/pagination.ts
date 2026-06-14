@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const DEFAULT_TABLE_PAGE_SIZE = 20;
+export const DEFAULT_DROPDOWN_LIST_LIMIT = 100;
 export const MAX_LIST_LIMIT = 1000;
 
 export const listPaginationQuerySchema = z.object({

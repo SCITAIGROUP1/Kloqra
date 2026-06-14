@@ -224,20 +224,19 @@ describe("contracts", () => {
 
   it("validates extended user profile shape", () => {
     const r = userProfileSchema.safeParse({
-      id: UUID,
       email: "a@b.com",
       name: "Sam Rivera",
       firstName: "Sam",
       lastName: "Rivera",
       phone: null,
       location: null,
-      avatarUrl: null,
       jobTitle: null,
       department: null,
       workStartDate: null,
       defaultHourlyRate: 100,
       preferences: {},
       effectiveDailyTargetHours: 8,
+      effectiveTimerStaleWarningHours: 8,
       effectiveTimezone: "UTC",
       effectiveDateFormat: "MDY",
       effectiveTimeFormat: "12h",
@@ -247,8 +246,7 @@ describe("contracts", () => {
         totalHours: 10,
         projectCount: 2,
         memberSince: "2025-01-01T00:00:00.000Z"
-      },
-      createdAt: "2025-01-01T00:00:00.000Z"
+      }
     });
     expect(r.success).toBe(true);
   });
@@ -414,7 +412,6 @@ describe("contracts", () => {
       members: [
         {
           id: UUID,
-          workspaceId: UUID_2,
           userId: UUID,
           userName: "Sam Rivera",
           userEmail: "sam@kloqra.dev",
@@ -423,8 +420,7 @@ describe("contracts", () => {
           projectCount: 2,
           weekHours: 32.5,
           lastActiveAt: "2025-06-09T10:00:00.000Z",
-          isTrackingNow: false,
-          memberSince: "2025-01-01T00:00:00.000Z"
+          isTrackingNow: false
         }
       ],
       summary: {

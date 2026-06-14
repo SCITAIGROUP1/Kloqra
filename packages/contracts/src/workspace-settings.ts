@@ -27,6 +27,16 @@ export function parseWorkspaceSettings(raw: unknown): WorkspaceSettings {
   return parsed.success ? parsed.data : {};
 }
 
+export function resolveEffectiveTimerStaleWarningHours(
+  workspaceSettings: WorkspaceSettings
+): number {
+  const hours = workspaceSettings.timerStaleWarningHours;
+  if (typeof hours === "number" && hours > 0) {
+    return hours;
+  }
+  return DEFAULT_STALE_WARNING_HOURS;
+}
+
 export const DEFAULT_EXPECTED_WEEKLY_HOURS = 40;
 export const DEFAULT_STALE_WARNING_HOURS = 8;
 export const HARD_AUTO_STOP_HOURS = 14;

@@ -42,6 +42,7 @@ describe("NotificationsService", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.readAt).toBeNull();
     expect(result.total).toBe(1);
+    expect(result.items[0]).not.toHaveProperty("workspaceId");
   });
 
   it("returns unread count", async () => {

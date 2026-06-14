@@ -127,7 +127,6 @@ export class WorkspaceMembersOverviewService {
 
       return {
         id: m.id,
-        workspaceId: m.workspaceId,
         userId: m.userId,
         userName: m.user.name,
         userEmail: m.user.email,
@@ -136,8 +135,7 @@ export class WorkspaceMembersOverviewService {
         projectCount: projectCountByUser.get(m.userId) ?? 0,
         weekHours,
         lastActiveAt,
-        isTrackingNow,
-        memberSince: m.createdAt.toISOString()
+        isTrackingNow
       };
     });
 

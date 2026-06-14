@@ -1,7 +1,5 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
-import type { MyWeekSummaryDto } from "@kloqra/contracts";
 import { Skeleton } from "@kloqra/ui";
 import {
   ChartContainer,
@@ -9,9 +7,9 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from "@kloqra/ui/chart";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Cell, Legend, Pie, PieChart } from "recharts";
-import { api } from "@/lib/api";
+import { useMemberWeekSummary } from "@/hooks/use-member-week-summary";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 const CHART_PALETTE = [
@@ -26,17 +24,7 @@ const CHART_PALETTE = [
 
 export function CategorySplitWidget() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [summary, setSummary] = useState<MyWeekSummaryDto | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!ws) return;
-    setLoading(true);
-    api<MyWeekSummaryDto>(ROUTES.REPORTING.ME, { workspaceId: ws })
-      .then(setSummary)
-      .catch(() => setSummary(null))
-      .finally(() => setLoading(false));
-  }, [ws]);
+  const { summary, loading } = useMemberWeekSummary(ws, Boolean(ws));
 
   const { chartData, totalHours, chartConfig } = useMemo(() => {
     const byCategory = summary?.byCategory ?? [];

@@ -10,11 +10,13 @@ export const loginSchema = z.object({
 
 export const authUserSchema = z.object({
   id: uuidSchema,
-  email: emailSchema,
+  /** Omitted from session bootstrap — use GET /users/me when email is needed. */
+  email: emailSchema.optional(),
   name: z.string(),
   firstName: z.string().min(1).max(60).optional(),
   lastName: z.string().max(60).optional(),
-  defaultHourlyRate: z.number().nonnegative().nullable()
+  /** Admin session only — omitted for MEMBER role. */
+  defaultHourlyRate: z.number().nonnegative().nullable().optional()
 });
 
 export const authTokensSchema = z.object({
@@ -27,6 +29,8 @@ export const authSessionSchema = z.object({
   workspaceId: uuidSchema,
   workspaceName: z.string().min(1).max(120).optional(),
   workspaceRole: workspaceRoleSchema,
+  /** Preferred workspace from user preferences — avoids bootstrap GET /users/me. */
+  defaultWorkspaceId: uuidSchema.optional(),
   impersonatorId: uuidSchema.optional(),
   impersonatorName: z.string().optional()
 });

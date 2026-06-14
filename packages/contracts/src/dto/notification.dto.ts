@@ -36,7 +36,6 @@ export const notificationMetadataSchema = z
 
 export const notificationSchema = z.object({
   id: uuidSchema,
-  workspaceId: uuidSchema,
   type: notificationTypeSchema,
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(2000),

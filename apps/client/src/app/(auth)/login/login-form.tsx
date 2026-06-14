@@ -9,7 +9,12 @@ import type {
   StartupPagePreference
 } from "@kloqra/contracts";
 import { Button, Input, Label } from "@kloqra/ui";
-import { applyDefaultWorkspaceIfNeeded, AuthShell, resolveStartupPath } from "@kloqra/web-shared";
+import {
+  applyDefaultWorkspaceIfNeeded,
+  AuthShell,
+  fetchUserProfile,
+  resolveStartupPath
+} from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -39,11 +44,10 @@ export function LoginForm() {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     setSession(switched.session, switched.accessToken, res.refreshToken);
     try {
-      const profile = await api<{ preferences: { startupPage?: StartupPagePreference } }>(
-        ROUTES.USERS.ME,
-        { workspaceId: switched.session.workspaceId }
+      const profile = await fetchUserProfile(switched.session.workspaceId);
+      const startup = resolveStartupPath(
+        profile?.preferences.startupPage as StartupPagePreference | undefined
       );
-      const startup = resolveStartupPath(profile.preferences.startupPage);
       router.push(next && next.startsWith("/") ? next : startup);
     } catch {
       router.push(next && next.startsWith("/") ? next : "/timer");

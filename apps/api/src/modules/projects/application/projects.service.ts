@@ -40,6 +40,29 @@ export class ProjectsService {
     return team;
   }
 
+  toListItem(
+    p: {
+      id: string;
+      workspaceId: string;
+      name: string;
+      color: string;
+      clientName: string | null;
+      isActive: boolean;
+    },
+    workspaceName?: string,
+    myColor?: string | null
+  ) {
+    return {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      clientName: p.clientName,
+      isActive: p.isActive,
+      ...(workspaceName ? { workspaceId: p.workspaceId, workspaceName } : {}),
+      ...(myColor !== undefined ? { myColor } : {})
+    };
+  }
+
   toDto(
     p: {
       id: string;
@@ -129,9 +152,9 @@ export class ProjectsService {
 
     return toPaginatedResponse(
       rows.map((p) =>
-        this.toDto(
+        this.toListItem(
           p,
-          p.workspace.name,
+          role === "MEMBER" ? p.workspace.name : undefined,
           role === "MEMBER" ? (myColors!.get(p.id) ?? null) : undefined
         )
       ),

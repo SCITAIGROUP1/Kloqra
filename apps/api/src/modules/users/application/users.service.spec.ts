@@ -61,9 +61,10 @@ describe("UsersService", () => {
       settings: { dailyTargetHours: 8 }
     });
 
-    const profile = await service.getProfile("user-1", "ws-1");
+    const profile = await service.getProfile("user-1", "ws-1", "ADMIN");
 
     expect(profile.effectiveDailyTargetHours).toBe(6);
+    expect(profile.effectiveTimerStaleWarningHours).toBe(8);
     expect(profile.preferences.dailyTargetHours).toBe(6);
     expect(profile.defaultHourlyRate).toBe(100);
     expect(profile.firstName).toBe("Sam");
@@ -79,8 +80,20 @@ describe("UsersService", () => {
       settings: { dailyTargetHours: 7 }
     });
 
-    const profile = await service.getProfile("user-1", "ws-1");
+    const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
     expect(profile.effectiveDailyTargetHours).toBe(7);
+    expect(profile.defaultHourlyRate).toBeUndefined();
+  });
+
+  it("omits defaultHourlyRate for member profile", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      settings: {}
+    });
+
+    const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
+    expect(profile.defaultHourlyRate).toBeUndefined();
   });
 
   it("merges preferences on update", async () => {
@@ -94,10 +107,15 @@ describe("UsersService", () => {
       settings: {}
     });
 
-    const profile = await service.updatePreferences("user-1", "ws-1", {
-      timezone: "America/New_York",
-      theme: "light"
-    });
+    const profile = await service.updatePreferences(
+      "user-1",
+      "ws-1",
+      {
+        timezone: "America/New_York",
+        theme: "light"
+      },
+      "ADMIN"
+    );
 
     expect(mockPrisma.user.update).toHaveBeenCalled();
     expect(profile.preferences.timezone).toBe("America/New_York");
@@ -118,9 +136,14 @@ describe("UsersService", () => {
       settings: { timezone: "America/New_York" }
     });
 
-    const profile = await service.updatePreferences("user-1", "ws-1", {
-      timezone: null
-    });
+    const profile = await service.updatePreferences(
+      "user-1",
+      "ws-1",
+      {
+        timezone: null
+      },
+      "ADMIN"
+    );
 
     expect(profile.preferences.timezone).toBeUndefined();
     expect(profile.effectiveTimezone).toBe("UTC");
@@ -139,9 +162,14 @@ describe("UsersService", () => {
       settings: {}
     });
 
-    const profile = await service.updateProfile("user-1", "ws-1", {
-      firstName: "Samuel"
-    });
+    const profile = await service.updateProfile(
+      "user-1",
+      "ws-1",
+      {
+        firstName: "Samuel"
+      },
+      "ADMIN"
+    );
 
     expect(mockPrisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({

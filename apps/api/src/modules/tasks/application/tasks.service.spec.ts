@@ -98,9 +98,7 @@ describe("TasksService", () => {
             projectId: "p1",
             categoryId: "c1",
             categoryName: "Software Development",
-            taskName: "Frontend",
-            billableDefault: true,
-            assignees: []
+            taskName: "Frontend"
           }
         ],
         page: 1,

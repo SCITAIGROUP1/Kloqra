@@ -511,9 +511,7 @@ export class TimesheetsService {
           periodStart: p.periodStart.toISOString(),
           periodEnd: p.periodEnd.toISOString(),
           approvalPeriod,
-          status: p.status as TimesheetPeriodDto["status"],
           note: p.note,
-          submittedAt: p.submittedAt?.toISOString() ?? null,
           totalHours: Math.round(totalHours * 100) / 100,
           cascadedCount: cascadedCount > 1 ? cascadedCount : undefined,
           amendmentPending: p.amendments.length > 0
@@ -735,8 +733,6 @@ export class TimesheetsService {
       );
     }
 
-    const updated = await this.prisma.timesheetPeriod.findUniqueOrThrow({ where: { id } });
-
     const project = await this.prisma.project.findUniqueOrThrow({
       where: { id: period.projectId },
       include: { workspace: { select: { name: true, settings: true } } }
@@ -768,7 +764,7 @@ export class TimesheetsService {
       })
       .catch(() => undefined);
 
-    return updated;
+    return { ok: true as const };
   }
 
   async reject(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
@@ -791,8 +787,6 @@ export class TimesheetsService {
         HttpStatus.CONFLICT
       );
     }
-
-    const updated = await this.prisma.timesheetPeriod.findUniqueOrThrow({ where: { id } });
 
     const project = await this.prisma.project.findUniqueOrThrow({
       where: { id: period.projectId },
@@ -826,6 +820,6 @@ export class TimesheetsService {
       })
       .catch(() => undefined);
 
-    return updated;
+    return { ok: true as const };
   }
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
-import type { ListPendingTimesheetsResponseDto } from "@kloqra/contracts";
+import { BRAND_NAME } from "@kloqra/contracts";
 import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
   bootstrapSession,
@@ -24,8 +23,8 @@ import {
   Users
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { useEffect, useMemo } from "react";
+import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
@@ -46,9 +45,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const session = useSessionStore((s) => s.session);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
-  const [pendingCount, setPendingCount] = useState(0);
   const wsId = session?.workspaceId ?? "";
   const { count: notificationUnreadCount } = useNotificationUnreadCount(
+    wsId,
+    Boolean(wsId && session?.workspaceRole === "ADMIN")
+  );
+  const pendingCount = usePendingTimesheetsBadgeCount(
     wsId,
     Boolean(wsId && session?.workspaceRole === "ADMIN")
   );
@@ -69,22 +71,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       })
       .catch(() => router.replace("/login?error=admin"));
   }, [session, setWorkspaces, router]);
-
-  useEffect(() => {
-    if (!session?.workspaceId || session.workspaceRole !== "ADMIN") return;
-
-    const loadPendingCount = () => {
-      void api<ListPendingTimesheetsResponseDto>(ROUTES.TIMESHEETS.LIST_PENDING, {
-        workspaceId: session.workspaceId
-      })
-        .then((res) => setPendingCount((res.items ?? []).length))
-        .catch(() => setPendingCount(0));
-    };
-
-    loadPendingCount();
-    const interval = setInterval(loadPendingCount, 60_000);
-    return () => clearInterval(interval);
-  }, [session?.workspaceId, session?.workspaceRole]);
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
     return baseNav.map((item) => {

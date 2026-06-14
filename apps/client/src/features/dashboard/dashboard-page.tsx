@@ -5,7 +5,6 @@ import type {
   TimeLogDto,
   ProjectDto,
   TaskDto,
-  TimesheetPeriodDto,
   ActiveTimerDto,
   CategoryDto,
   WorkspaceMemberDto
@@ -44,7 +43,7 @@ import {
   fetchListItems
 } from "@kloqra/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
 import { useWidgetLayout } from "./use-widget-layout";
@@ -60,9 +59,12 @@ import {
   TodayLogsWidget,
   WeeklyProgressWidget
 } from "./widgets-lazy";
+import { useDashboardSubmissions } from "@/features/submissions/use-my-submissions";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
+import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { api } from "@/lib/api";
+import { useActiveTimerSessionStore } from "@/stores/member-data.store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
@@ -118,8 +120,9 @@ export function DashboardPage() {
   }
 
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
-  const [submissions, setSubmissions] = useState<TimesheetPeriodDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const { submissions } = useDashboardSubmissions(ws, Boolean(ws));
+  useActiveTimerSession(ws, Boolean(ws));
 
   // Layout customizing states
   const [mounted, setMounted] = useState(false);
@@ -219,26 +222,7 @@ export function DashboardPage() {
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
-    try {
-      const res = await api<ActiveTimerDto | null>(ROUTES.TIMER.ACTIVE, {
-        workspaceId: ws
-      });
-      setActive(res);
-    } catch {
-      // ignore
-    }
-  }, [ws, setActive]);
-
-  const fetchSubmissions = useCallback(async () => {
-    if (!ws) return;
-    try {
-      const res = await api<{ items: TimesheetPeriodDto[] }>(ROUTES.TIMESHEETS.MY_SUBMISSIONS, {
-        workspaceId: ws
-      });
-      setSubmissions(res.items || []);
-    } catch {
-      // ignore
-    }
+    await useActiveTimerSessionStore.getState().refreshActive(ws);
   }, [ws]);
 
   const loadAll = useCallback(async () => {
@@ -256,16 +240,14 @@ export function DashboardPage() {
               setWorkspaceMembers
             )
           : Promise.resolve(),
-        fetchLogs(),
-        fetchSubmissions(),
-        fetchActiveTimer()
+        fetchLogs()
       ]);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [ws, isAdmin, setProjects, setTasks, fetchLogs, fetchSubmissions, fetchActiveTimer]);
+  }, [ws, isAdmin, setProjects, setTasks, fetchLogs]);
 
   useEffect(() => {
     void loadAll();
@@ -320,12 +302,16 @@ export function DashboardPage() {
     [workspaceMembers]
   );
 
-  // Trigger fetchLogs when date range or scope filters change (after initial mount)
+  // Refetch logs when date range or scope filters change (skip the initial loadAll fetch).
+  const hasLoadedOnceRef = useRef(false);
   useEffect(() => {
-    if (!loading) {
-      setLogsLoading(true);
-      fetchLogs().finally(() => setLogsLoading(false));
+    if (loading) return;
+    if (!hasLoadedOnceRef.current) {
+      hasLoadedOnceRef.current = true;
+      return;
     }
+    setLogsLoading(true);
+    fetchLogs().finally(() => setLogsLoading(false));
   }, [startDate, endDate, filterUserId, filterTaskId, fetchLogs, loading]);
 
   // Keep timer ticking

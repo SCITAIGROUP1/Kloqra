@@ -47,6 +47,30 @@ describe("createWidgetLayoutStore", () => {
     expect(store.getState().layoutsByWorkspace[workspaceId]).toEqual(remoteLayout);
   });
 
+  it("dedupes concurrent initialize calls for the same workspace", async () => {
+    vi.mocked(fetchDashboardLayout).mockResolvedValue({
+      layout: defaultLayout,
+      defaultLayout: null
+    });
+
+    const store = createWidgetLayoutStore({
+      app: "admin",
+      widgetRegistry: registry,
+      defaultLayout,
+      legacyStorage: {
+        layoutKey: () => "layout",
+        defaultKey: () => "default"
+      }
+    });
+
+    await Promise.all([
+      store.getState().initialize(workspaceId),
+      store.getState().initialize(workspaceId)
+    ]);
+
+    expect(fetchDashboardLayout).toHaveBeenCalledTimes(1);
+  });
+
   it("persists layout updates to the API", async () => {
     vi.mocked(fetchDashboardLayout).mockResolvedValue({
       layout: defaultLayout,

@@ -5,7 +5,6 @@ import { TeamMemberActions } from "./team-member-actions";
 
 const member = {
   id: "m-1",
-  workspaceId: "ws-1",
   userId: "u-1",
   userName: "Sam Rivera",
   userEmail: "sam@kloqra.dev",
@@ -14,8 +13,7 @@ const member = {
   projectCount: 2,
   weekHours: 12,
   lastActiveAt: "2025-06-09T10:00:00.000Z",
-  isTrackingNow: false,
-  memberSince: "2025-01-01T00:00:00.000Z"
+  isTrackingNow: false
 };
 
 describe("TeamMemberActions", () => {

@@ -1,12 +1,11 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
-import type { PresenceSnapshotDto, ProjectDto } from "@kloqra/contracts";
+import { ROUTES, type PresenceSnapshotDto, type ProjectDto } from "@kloqra/contracts";
 import { ProjectColorDot, Skeleton } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import { Play } from "lucide-react";
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { api } from "@/lib/api";
+import React, { useEffect, useMemo, useState } from "react";
+import { usePresenceSnapshot } from "@/hooks/use-presence-snapshot";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export type LivePresenceWidgetProps = {
@@ -16,13 +15,28 @@ export type LivePresenceWidgetProps = {
 
 export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [members, setMembers] = useState<PresenceSnapshotDto["members"]>([]);
+  const { snapshot, loading } = usePresenceSnapshot(ws, Boolean(ws));
   const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const members = snapshot?.members ?? [];
+
+  useEffect(() => {
+    if (!ws) return;
+    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws })
+      .then((data) => {
+        setProjects(data);
+        setProjectsLoaded(true);
+      })
+      .catch(() => {
+        setProjects([]);
+        setProjectsLoaded(true);
+        setError("Failed to load presence feed");
+      });
+  }, [ws]);
 
   const filteredMembers = useMemo(() => {
-    return members.filter((m) => {
+    return members.filter((m: PresenceSnapshotDto["members"][number]) => {
       if (projectId) {
         const project = projects.find((p) => p.id === projectId);
         if (!project || m.projectName !== project.name) {
@@ -37,29 +51,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
   }, [members, projects, projectId, userId]);
   const [time, setTime] = useState(new Date());
 
-  const fetchPresence = useCallback(async () => {
-    if (!ws) return;
-    try {
-      const [snap, projectsData] = await Promise.all([
-        api<PresenceSnapshotDto>(ROUTES.PRESENCE.SNAPSHOT, { workspaceId: ws }),
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(() => [])
-      ]);
-      setMembers(snap.members);
-      setProjects(projectsData);
-    } catch {
-      setError("Failed to load presence feed");
-    } finally {
-      setLoading(false);
-    }
-  }, [ws]);
-
-  useEffect(() => {
-    void fetchPresence();
-    const pollInterval = setInterval(fetchPresence, 15_000); // Poll every 15s
-    return () => clearInterval(pollInterval);
-  }, [fetchPresence]);
-
-  // Live count-up ticker
+  const isLoading = loading || !projectsLoaded;
   useEffect(() => {
     const ticker = setInterval(() => {
       setTime(new Date());
@@ -67,7 +59,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
     return () => clearInterval(ticker);
   }, []);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
         <Skeleton className="h-24 w-full max-w-xs rounded-lg" />
@@ -111,7 +103,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {filteredMembers.map((m) => {
+          {filteredMembers.map((m: PresenceSnapshotDto["members"][number]) => {
             const project = projects.find((p) => p.name === m.projectName);
             const color = project?.color ?? "#94a3b8";
 

@@ -16,6 +16,15 @@ type CategoryRow = {
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
+  toListItem(c: CategoryRow, taskCount?: number) {
+    return {
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      ...(typeof taskCount === "number" ? { taskCount } : {})
+    };
+  }
+
   toDto(c: CategoryRow, taskCount?: number) {
     return {
       id: c.id,
@@ -50,7 +59,7 @@ export class CategoriesService {
     ]);
 
     return toPaginatedResponse(
-      rows.map((r) => this.toDto(r, r._count.tasks)),
+      rows.map((r) => this.toListItem(r, r._count.tasks)),
       total,
       query.page,
       query.limit

@@ -49,7 +49,7 @@ export class UsersController {
 
   @Get(ROUTES.USERS.ME)
   getMe(@CurrentUser() user: RequestUser) {
-    return this.users.getProfile(user.userId, user.workspaceId);
+    return this.users.getProfile(user.userId, user.workspaceId, user.role);
   }
 
   @Patch(ROUTES.USERS.ME)
@@ -61,7 +61,8 @@ export class UsersController {
     return this.users.updateProfile(
       user.userId,
       user.workspaceId,
-      body as Parameters<UsersService["updateProfile"]>[2]
+      body as Parameters<UsersService["updateProfile"]>[2],
+      user.role
     );
   }
 
@@ -95,7 +96,8 @@ export class UsersController {
     return this.users.updatePreferences(
       user.userId,
       user.workspaceId,
-      body as Parameters<UsersService["updatePreferences"]>[2]
+      body as Parameters<UsersService["updatePreferences"]>[2],
+      user.role
     );
   }
 
@@ -137,7 +139,7 @@ export class UsersController {
   enable2fa(@CurrentUser() user: RequestUser) {
     this.assertNotImpersonating(user);
     return this.users
-      .getProfile(user.userId, user.workspaceId)
+      .getProfile(user.userId, user.workspaceId, user.role)
       .then((profile) => this.twoFa.enable(user.userId, profile.email));
   }
 

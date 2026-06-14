@@ -10,7 +10,6 @@ import {
 
 const baseMember = {
   id: "m-1",
-  workspaceId: "ws-1",
   userId: "u-1",
   userName: "Alex Morgan",
   userEmail: "alex@example.com",
@@ -19,8 +18,7 @@ const baseMember = {
   projectCount: 2,
   weekHours: 12,
   lastActiveAt: "2026-06-10T10:00:00.000Z",
-  isTrackingNow: false,
-  memberSince: "2026-01-01T00:00:00.000Z"
+  isTrackingNow: false
 };
 
 describe("deriveTeamLiveStatus", () => {

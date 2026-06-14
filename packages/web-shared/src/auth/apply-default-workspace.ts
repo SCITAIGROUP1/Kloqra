@@ -1,5 +1,5 @@
 import { ROUTES } from "@kloqra/contracts";
-import type { AuthSessionDto, AuthSessionWithTokenDto, UserProfileDto } from "@kloqra/contracts";
+import type { AuthSessionDto, AuthSessionWithTokenDto } from "@kloqra/contracts";
 import { api } from "../api/client";
 
 /**
@@ -11,10 +11,7 @@ export async function applyDefaultWorkspaceIfNeeded(
   accessToken: string
 ): Promise<{ session: AuthSessionDto; accessToken: string }> {
   try {
-    const profile = await api<UserProfileDto>(ROUTES.USERS.ME, {
-      workspaceId: session.workspaceId
-    });
-    const defaultWorkspaceId = profile.preferences.defaultWorkspaceId;
+    const defaultWorkspaceId = session.defaultWorkspaceId;
     if (!defaultWorkspaceId || defaultWorkspaceId === session.workspaceId) {
       return { session, accessToken };
     }

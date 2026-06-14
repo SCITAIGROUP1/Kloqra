@@ -69,6 +69,7 @@ export {
   useRecentNotifications
 } from "./hooks/use-notifications";
 export { useClientTablePagination } from "./hooks/use-client-table-pagination";
+export { fetchUserProfile } from "./stores/user-profile.store";
 export {
   applyDashboardPeriodPreset,
   matchDashboardPeriodPreset,

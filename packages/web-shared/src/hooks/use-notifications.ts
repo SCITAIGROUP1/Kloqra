@@ -1,13 +1,16 @@
 "use client";
 
 import { ROUTES, type NotificationDto } from "@kloqra/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { api } from "../api/client";
+import { NOTIFICATIONS_UPDATED_EVENT, useNotificationsStore } from "../stores/notifications-store";
 import { usePaginatedList } from "./use-paginated-list";
 
-export const NOTIFICATIONS_UPDATED_EVENT = "kloqra:notifications-updated";
+export { NOTIFICATIONS_UPDATED_EVENT };
 
-/** Notify all `useNotificationUnreadCount` subscribers to refresh (e.g. after mark read). */
+const EMPTY_NOTIFICATIONS: NotificationDto[] = [];
+
+/** Notify all unread-count subscribers to refresh (e.g. after mark read). */
 export function dispatchNotificationsUpdated() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED_EVENT));
@@ -15,62 +18,54 @@ export function dispatchNotificationsUpdated() {
 }
 
 export function useNotificationUnreadCount(workspaceId: string, enabled = true) {
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    if (!enabled || !workspaceId) return;
-    setLoading(true);
-    try {
-      const res = await api<{ count: number }>(ROUTES.NOTIFICATIONS.UNREAD_COUNT, { workspaceId });
-      setCount(res.count);
-    } catch {
-      setCount(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [enabled, workspaceId]);
+  const count = useNotificationsStore((s) =>
+    enabled && workspaceId ? (s.unreadByWorkspace[workspaceId]?.count ?? 0) : 0
+  );
+  const loading = useNotificationsStore((s) =>
+    enabled && workspaceId ? (s.unreadByWorkspace[workspaceId]?.loading ?? false) : false
+  );
+  const subscribeUnread = useNotificationsStore((s) => s.subscribeUnread);
+  const refreshUnread = useNotificationsStore((s) => s.refreshUnread);
 
   useEffect(() => {
-    void refresh();
-    const onFocus = () => void refresh();
-    const onUpdated = () => void refresh();
-    window.addEventListener("focus", onFocus);
-    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdated);
-    const interval = setInterval(() => void refresh(), 60_000);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdated);
-      clearInterval(interval);
-    };
-  }, [refresh]);
+    if (!enabled || !workspaceId) return;
+    return subscribeUnread(workspaceId);
+  }, [enabled, workspaceId, subscribeUnread]);
+
+  const refresh = useCallback(() => refreshUnread(workspaceId), [workspaceId, refreshUnread]);
 
   return { count, loading, refresh };
 }
 
 export function useRecentNotifications(workspaceId: string, limit = 8, enabled = true) {
-  const [items, setItems] = useState<NotificationDto[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    if (!enabled || !workspaceId) return;
-    setLoading(true);
-    try {
-      const res = await api<{ items: NotificationDto[] }>(
-        `${ROUTES.NOTIFICATIONS.LIST}?page=1&limit=${limit}`,
-        { workspaceId }
-      );
-      setItems(res.items ?? []);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [enabled, workspaceId, limit]);
+  const key = enabled && workspaceId ? `${workspaceId}:${limit}` : "";
+  const items = useNotificationsStore((s) =>
+    key ? (s.recentByWorkspace[key]?.items ?? EMPTY_NOTIFICATIONS) : EMPTY_NOTIFICATIONS
+  );
+  const loading = useNotificationsStore((s) =>
+    key ? (s.recentByWorkspace[key]?.loading ?? false) : false
+  );
+  const subscribeRecent = useNotificationsStore((s) => s.subscribeRecent);
+  const refreshRecent = useNotificationsStore((s) => s.refreshRecent);
+  const setRecentItems = useNotificationsStore((s) => s.setRecentItems);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (!enabled || !workspaceId) return;
+    return subscribeRecent(workspaceId, limit);
+  }, [enabled, workspaceId, limit, subscribeRecent]);
+
+  const refresh = useCallback(
+    () => refreshRecent(workspaceId, limit),
+    [workspaceId, limit, refreshRecent]
+  );
+
+  const setItems = useCallback(
+    (updater: NotificationDto[] | ((prev: NotificationDto[]) => NotificationDto[])) => {
+      if (!workspaceId) return;
+      setRecentItems(workspaceId, limit, updater);
+    },
+    [workspaceId, limit, setRecentItems]
+  );
 
   return { items, loading, refresh, setItems };
 }

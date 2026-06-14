@@ -17,6 +17,8 @@ export const taskSchema = z.object({
   assignees: z.array(taskAssigneeSchema)
 });
 
+export const taskListItemSchema = taskSchema.omit({ assignees: true, billableDefault: true });
+
 export const createTaskSchema = z.object({
   projectId: uuidSchema,
   categoryId: uuidSchema,
@@ -37,10 +39,11 @@ export const listTasksQuerySchema = listPaginationQuerySchema.extend({
   categoryId: uuidSchema.optional()
 });
 
-export const listTasksResponseSchema = createPaginatedListResponseSchema(taskSchema);
+export const listTasksResponseSchema = createPaginatedListResponseSchema(taskListItemSchema);
 
 export type TaskAssigneeDto = z.infer<typeof taskAssigneeSchema>;
 export type TaskDto = z.infer<typeof taskSchema>;
+export type TaskListItemDto = z.infer<typeof taskListItemSchema>;
 export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;

@@ -79,9 +79,7 @@ export const pendingTimesheetSchema = z.object({
   periodStart: isoDatetimeSchema,
   periodEnd: isoDatetimeSchema,
   approvalPeriod: timesheetApprovalPeriodSchema,
-  status: timesheetPeriodStatusSchema,
   note: z.string().nullable(),
-  submittedAt: isoDatetimeSchema.nullable(),
   totalHours: z.number(),
   cascadedCount: z.number().int().nonnegative().optional(),
   amendmentPending: z.boolean().optional()

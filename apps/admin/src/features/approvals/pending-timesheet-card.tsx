@@ -5,8 +5,7 @@ import type {
   PendingTimesheetDto,
   ListTimeLogsResponseDto,
   ListTimelogAuditEventsResponseDto,
-  TaskDto,
-  ProjectDto,
+  TaskListItemDto,
   TimeLogDto
 } from "@kloqra/contracts";
 import {
@@ -25,7 +24,6 @@ import { fetchListItems } from "@kloqra/web-shared";
 import { Calendar, Check, MessageSquare, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  filterLogsForProject,
   formatEntryDuration,
   formatEntryTimeRange,
   mergeAuditEvents,
@@ -55,8 +53,7 @@ function PendingActivity({
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
   const [auditEvents, setAuditEvents] = useState<TimeEntryAuditEvent[]>([]);
-  const [tasks, setTasks] = useState<TaskDto[]>([]);
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [tasks, setTasks] = useState<TaskListItemDto[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -67,27 +64,28 @@ function PendingActivity({
 
     const params = new URLSearchParams({
       userId: item.userId,
+      projectId: item.projectId,
       from: item.periodStart,
       to: item.periodEnd
     });
 
     void Promise.all([
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId }),
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId }),
+      fetchListItems<TaskListItemDto>(ROUTES.TASKS.LIST, {
+        workspaceId,
+        filters: { projectId: item.projectId }
+      }),
       api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, { workspaceId })
     ])
-      .then(async ([fetchedTasks, fetchedProjects, res]) => {
+      .then(async ([fetchedTasks, res]) => {
         if (cancelled) return;
 
-        const periodLogs = sortLogsByStartDesc(
-          filterLogsForProject(res.items, item.projectId, fetchedTasks)
-        );
+        const periodLogs = sortLogsByStartDesc(res.items);
         setTasks(fetchedTasks);
-        setProjects(fetchedProjects);
         setLogs(periodLogs);
 
+        const visibleForAudit = periodLogs.slice(0, 8);
         const auditByLog = await Promise.all(
-          periodLogs.map((log) =>
+          visibleForAudit.map((log) =>
             api<ListTimelogAuditEventsResponseDto>(ROUTES.TIMELOGS.AUDIT_EVENTS(log.id), {
               workspaceId
             })
@@ -136,7 +134,11 @@ function PendingActivity({
             ) : logs.length === 0 ? (
               <p className="text-xs text-muted-foreground">No entries in this period.</p>
             ) : auditEvents.length > 0 ? (
-              <TimeEntryAuditEventList events={auditEvents} tasks={tasks} projects={projects} />
+              <TimeEntryAuditEventList
+                events={auditEvents}
+                tasks={tasks}
+                projects={[{ id: item.projectId, name: item.projectName }]}
+              />
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">Logged entries in this submission:</p>

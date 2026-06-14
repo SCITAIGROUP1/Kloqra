@@ -1,35 +1,21 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
 import type { PresenceSnapshotDto } from "@kloqra/contracts";
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { usePresenceSnapshot } from "@/hooks/use-presence-snapshot";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 /**
  * Shows a pulsing green indicator with "N tracking now" text.
- * Polls the snapshot endpoint every 30 s.
+ * Shares presence polling with LivePresenceWidget via presence store.
  */
 export function LivePresenceBadge() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [count, setCount] = useState<number | null>(null);
-  const [names, setNames] = useState<string[]>([]);
+  const { snapshot } = usePresenceSnapshot(ws, Boolean(ws));
 
-  const refresh = useCallback(() => {
-    if (!ws) return;
-    api<PresenceSnapshotDto>(ROUTES.PRESENCE.SNAPSHOT, { workspaceId: ws })
-      .then((snap) => {
-        setCount(snap.members.length);
-        setNames(snap.members.slice(0, 3).map((m) => m.userName));
-      })
-      .catch(() => {});
-  }, [ws]);
-
-  useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 30_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+  const count = snapshot?.members.length ?? null;
+  const names =
+    snapshot?.members.slice(0, 3).map((m: PresenceSnapshotDto["members"][number]) => m.userName) ??
+    [];
 
   if (count === null || count === 0) return null;
 
@@ -50,7 +36,7 @@ export function LivePresenceBadge() {
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
         <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
       </span>
-      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300 tabular-nums">
+      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
         {count} tracking now
       </span>
     </div>

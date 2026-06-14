@@ -8,6 +8,20 @@ export { getApiBase } from "./base";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
+/** Coalesce concurrent identical GET requests (e.g. React Strict Mode double-mount). */
+const inflightGetRequests = new Map<string, Promise<unknown>>();
+
+function buildInflightGetKey(method: string, path: string, workspaceId?: string | null): string {
+  return `${method}:${path}:${workspaceId ?? ""}`;
+}
+
+function isDedupeEligibleRequest(method: string, options: ApiOptions): boolean {
+  if (options._retry) return false;
+  if (method !== "GET") return false;
+  if (options.body != null) return false;
+  return true;
+}
+
 type ApiOptions = RequestInit & {
   workspaceId?: string;
   /** Internal: skip one 401 refresh retry */
@@ -82,13 +96,43 @@ function shouldAttemptRefresh(status: number, body: ApiErrorBody): boolean {
 }
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+  const ws = resolveApiWorkspaceId(options.workspaceId);
+  const dedupeKey = isDedupeEligibleRequest(method, options)
+    ? buildInflightGetKey(method, path, ws)
+    : null;
+
+  if (dedupeKey) {
+    const inflight = inflightGetRequests.get(dedupeKey);
+    if (inflight) return inflight as Promise<T>;
+  }
+
+  const requestPromise = executeApiRequest<T>(path, options, method, ws);
+
+  if (dedupeKey) {
+    inflightGetRequests.set(dedupeKey, requestPromise);
+    try {
+      return await requestPromise;
+    } finally {
+      inflightGetRequests.delete(dedupeKey);
+    }
+  }
+
+  return requestPromise;
+}
+
+async function executeApiRequest<T>(
+  path: string,
+  options: ApiOptions,
+  method: string,
+  ws: string | null | undefined
+): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Auth-Scope": AUTH_SCOPE,
     ...(options.headers as Record<string, string>)
   };
 
-  const ws = resolveApiWorkspaceId(options.workspaceId);
   if (ws) headers["X-Workspace-Id"] = ws;
 
   let token = typeof window !== "undefined" ? getAccessToken() : null;

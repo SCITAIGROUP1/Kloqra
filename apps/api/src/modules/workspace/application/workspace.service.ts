@@ -2,7 +2,11 @@ import { ErrorCodes } from "@kloqra/contracts";
 import type {
   InviteMemberDto,
   InviteMemberResponseDto,
-  UpdateWorkspaceMemberDto
+  UpdateWorkspaceMemberDto,
+  WorkspaceDto,
+  WorkspaceListItemDto,
+  WorkspaceMemberPickerDto,
+  WorkspaceWithRoleDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import {
@@ -27,23 +31,20 @@ export class WorkspaceService {
     private auth: AuthService
   ) {}
 
-  async listForUser(userId: string) {
+  async listForUser(userId: string): Promise<WorkspaceListItemDto[]> {
     const memberships = await this.prisma.workspaceMember.findMany({
       where: { userId },
       include: { workspace: true }
     });
-    return memberships.map((m) => ({
-      ...m.workspace,
-      role: m.role
-    }));
+    return memberships.map((m) => this.toListItem(m.workspace, m.role as "ADMIN" | "MEMBER"));
   }
 
-  async listMembers(workspaceId: string) {
+  async listMembers(workspaceId: string): Promise<WorkspaceMemberPickerDto[]> {
     const members = await this.prisma.workspaceMember.findMany({
       where: { workspaceId },
       include: { user: true }
     });
-    return members.map((m) => this.toMemberDto(m));
+    return members.map((m) => this.toMemberPickerDto(m));
   }
 
   async updateMember(
@@ -253,13 +254,18 @@ export class WorkspaceService {
         ...dto.settings
       };
     }
-    return this.prisma.workspace.update({
-      where: { id },
-      data
-    });
+    return this.toWorkspaceDto(
+      await this.prisma.workspace.update({
+        where: { id },
+        data
+      })
+    );
   }
 
-  async create(userId: string, dto: { name: string; slug?: string }) {
+  async create(
+    userId: string,
+    dto: { name: string; slug?: string }
+  ): Promise<WorkspaceWithRoleDto> {
     const slugify = (name: string) =>
       name
         .toLowerCase()
@@ -293,11 +299,53 @@ export class WorkspaceService {
         }
       });
 
-      return {
-        ...workspace,
-        role: "ADMIN"
-      };
+      return this.toWorkspaceWithRole(workspace, "ADMIN");
     });
+  }
+
+  private toListItem(
+    workspace: { id: string; name: string },
+    role: "ADMIN" | "MEMBER"
+  ): WorkspaceListItemDto {
+    return { id: workspace.id, name: workspace.name, role };
+  }
+
+  private toWorkspaceDto(workspace: {
+    id: string;
+    name: string;
+    slug: string;
+    settings: unknown;
+  }): WorkspaceDto {
+    const settings =
+      typeof workspace.settings === "object" && workspace.settings !== null
+        ? (workspace.settings as Record<string, unknown>)
+        : undefined;
+    return {
+      id: workspace.id,
+      name: workspace.name,
+      slug: workspace.slug,
+      ...(settings ? { settings } : {})
+    };
+  }
+
+  private toWorkspaceWithRole(
+    workspace: { id: string; name: string; slug: string; settings: unknown },
+    role: "ADMIN" | "MEMBER"
+  ): WorkspaceWithRoleDto {
+    return { ...this.toWorkspaceDto(workspace), role };
+  }
+
+  private toMemberPickerDto(member: {
+    id: string;
+    userId: string;
+    user: { name: string; email: string };
+  }): WorkspaceMemberPickerDto {
+    return {
+      id: member.id,
+      userId: member.userId,
+      userName: member.user.name,
+      userEmail: member.user.email
+    };
   }
 
   private async getMembership(workspaceId: string, memberId: string) {

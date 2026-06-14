@@ -122,7 +122,8 @@ describe("AuthService unit tests", () => {
 
       expect(result.workspaceId).toBe("ws-1");
       expect(result.workspaceRole).toBe("ADMIN");
-      expect(result.user.email).toBe("admin@kloqra.dev");
+      expect(result.user.email).toBeUndefined();
+      expect(result.user.defaultHourlyRate).toBeNull();
       expect(result.user.firstName).toBe("Avery");
       expect(result.user.lastName).toBe("Admin");
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
@@ -167,9 +168,7 @@ describe("AuthService unit tests", () => {
         session: {
           user: {
             id: "target-user",
-            email: "sam@kloqra.dev",
-            name: "Sam Rivera",
-            defaultHourlyRate: null
+            name: "Sam Rivera"
           },
           workspaceId: "ws-1",
           workspaceRole: "MEMBER" as const,

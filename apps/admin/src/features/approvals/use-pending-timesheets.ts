@@ -1,48 +1,41 @@
 "use client";
 
-import {
-  ROUTES,
-  type ListPendingTimesheetsResponseDto,
-  type PendingTimesheetDto,
-  type TimesheetApprovalsFilterQuery
-} from "@kloqra/contracts";
+import { ROUTES, type TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 import { buildApprovalsFilterQueryString } from "@kloqra/web-shared";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import {
+  usePendingTimesheetsListKey,
+  usePendingTimesheetsStore,
+  EMPTY_PENDING_TIMESHEETS
+} from "@/stores/pending-timesheets.store";
 
 export function usePendingTimesheets(
   workspaceId: string,
   filters: TimesheetApprovalsFilterQuery,
   enabled = true
 ) {
-  const [pending, setPending] = useState<PendingTimesheetDto[]>([]);
-  const [loading, setLoading] = useState(false);
+  const filterKey = buildApprovalsFilterQueryString(filters);
+  const listKey = usePendingTimesheetsListKey(workspaceId, filters);
+  const pending = usePendingTimesheetsStore(
+    (s) => s.byKey[listKey]?.items ?? EMPTY_PENDING_TIMESHEETS
+  );
+  const loading = usePendingTimesheetsStore((s) => s.byKey[listKey]?.loading ?? false);
+  const subscribe = usePendingTimesheetsStore((s) => s.subscribe);
+  const fetchPending = usePendingTimesheetsStore((s) => s.fetchPending);
+  const removeItem = usePendingTimesheetsStore((s) => s.removeItem);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
-  const filterKey = buildApprovalsFilterQueryString(filters);
-
-  const fetchPending = useCallback(async () => {
-    if (!workspaceId) return;
-    setLoading(true);
-    try {
-      const path = filterKey
-        ? `${ROUTES.TIMESHEETS.LIST_PENDING}?${filterKey}`
-        : ROUTES.TIMESHEETS.LIST_PENDING;
-      const data = await api<ListPendingTimesheetsResponseDto>(path, { workspaceId });
-      setPending(data.items ?? []);
-    } catch {
-      toast.error("Failed to load pending timesheets");
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId, filterKey]);
-
   useEffect(() => {
-    if (enabled && workspaceId) {
-      void fetchPending();
-    }
-  }, [enabled, workspaceId, fetchPending]);
+    if (!enabled || !workspaceId) return;
+    return subscribe(workspaceId, filterKey);
+  }, [enabled, workspaceId, filterKey, subscribe]);
+
+  const refreshPending = useCallback(async () => {
+    if (!workspaceId) return;
+    await fetchPending(workspaceId, filterKey);
+  }, [workspaceId, filterKey, fetchPending]);
 
   const handleReview = useCallback(
     async (id: string, action: "approve" | "reject", reviewNote = "") => {
@@ -57,22 +50,36 @@ export function usePendingTimesheets(
           body: JSON.stringify({ reviewNote })
         });
         toast.success(`Timesheet ${action === "approve" ? "approved" : "rejected"} successfully`);
-        setPending((prev) => prev.filter((item) => item.id !== id));
+        removeItem(workspaceId, filterKey, id);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to review timesheet");
       } finally {
         setActioningId(null);
       }
     },
-    [workspaceId, fetchPending]
+    [workspaceId, filterKey, removeItem]
   );
 
   return {
     pending,
     loading,
     actioningId,
-    fetchPending,
+    fetchPending: refreshPending,
     handleReview,
     pendingCount: pending.length
   };
+}
+
+export function usePendingTimesheetsBadgeCount(workspaceId: string, enabled = true) {
+  const filterKey = buildApprovalsFilterQueryString({});
+  const listKey = usePendingTimesheetsListKey(workspaceId, {});
+  const subscribe = usePendingTimesheetsStore((s) => s.subscribe);
+  const count = usePendingTimesheetsStore((s) => s.byKey[listKey]?.items.length ?? 0);
+
+  useEffect(() => {
+    if (!enabled || !workspaceId) return;
+    return subscribe(workspaceId, filterKey);
+  }, [enabled, workspaceId, filterKey, subscribe]);
+
+  return count;
 }

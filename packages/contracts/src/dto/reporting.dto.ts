@@ -22,7 +22,10 @@ export const hoursBreakdownSchema = z.object({
 export const timeByProjectSchema = hoursBreakdownSchema.extend({
   projectId: uuidSchema,
   projectName: z.string(),
-  billableAmount: z.number()
+  billableAmount: z.number(),
+  budgetHours: z.number().positive().nullable().optional(),
+  percentUsed: z.number().nullable().optional(),
+  budgetStatus: z.enum(["no_budget", "over_budget", "near_budget", "on_track"]).optional()
 });
 
 export const timeByUserSchema = hoursBreakdownSchema.extend({

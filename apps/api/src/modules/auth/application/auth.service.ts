@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, parseUserPreferences } from "@kloqra/contracts";
 import type {
   LoginDto,
   AuthSessionDto,
@@ -725,6 +725,7 @@ export class AuthService {
       firstName?: string | null;
       lastName?: string | null;
       defaultHourlyRate: { toNumber(): number } | null;
+      preferences?: unknown;
     },
     workspaceId: string,
     role: "ADMIN" | "MEMBER",
@@ -735,18 +736,24 @@ export class AuthService {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
       : splitDisplayName(user.name);
+    const preferences = parseUserPreferences(user.preferences);
+    const sessionUser: AuthSessionDto["user"] = {
+      id: user.id,
+      name: user.name,
+      firstName: names.firstName,
+      lastName: names.lastName
+    };
+    if (role === "ADMIN") {
+      sessionUser.defaultHourlyRate = user.defaultHourlyRate?.toNumber() ?? null;
+    }
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        firstName: names.firstName,
-        lastName: names.lastName,
-        defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null
-      },
+      user: sessionUser,
       workspaceId,
       workspaceName,
       workspaceRole: role,
+      ...(preferences.defaultWorkspaceId
+        ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
+        : {}),
       impersonatorId,
       impersonatorName
     };

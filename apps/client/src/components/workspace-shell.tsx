@@ -24,7 +24,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AssistantProvider, useAssistant } from "@/features/assistant/assistant-provider";
 import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
-import { useMySubmissions } from "@/features/submissions/use-my-submissions";
+import { useMySubmissionsBadgeCount } from "@/features/submissions/use-my-submissions";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
@@ -49,7 +49,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const session = useSessionStore((s) => s.session);
   const [anchorDate] = useState(() => new Date());
   const wsId = session?.workspaceId ?? "";
-  const { actionableCount } = useMySubmissions(wsId, anchorDate, "assigned", Boolean(wsId));
+  const actionableCount = useMySubmissionsBadgeCount(wsId, anchorDate, "assigned", Boolean(wsId));
   const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, Boolean(wsId));
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);

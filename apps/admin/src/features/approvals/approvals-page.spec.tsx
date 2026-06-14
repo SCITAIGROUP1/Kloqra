@@ -21,9 +21,7 @@ describe("PendingTimesheetCard", () => {
           periodStart: "2025-06-02T00:00:00.000Z",
           periodEnd: "2025-06-08T23:59:59.999Z",
           approvalPeriod: "weekly",
-          status: "SUBMITTED",
           note: "Week complete",
-          submittedAt: "2025-06-09T10:00:00.000Z",
           totalHours: 32.5
         }}
         workspaceId="ws-1"

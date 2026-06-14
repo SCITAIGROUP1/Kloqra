@@ -1,41 +1,45 @@
 /** @vitest-environment jsdom */
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  NOTIFICATIONS_UPDATED_EVENT,
-  dispatchNotificationsUpdated,
-  useNotificationUnreadCount
-} from "./use-notifications";
+import { NOTIFICATIONS_UPDATED_EVENT, useNotificationUnreadCount } from "./use-notifications";
 
-const mockApi = vi.fn();
+const mockRefreshUnread = vi.fn();
+const mockSubscribeUnread = vi.fn(() => () => {});
 
-vi.mock("../api/client", () => ({
-  api: (...args: unknown[]) => mockApi(...args)
+vi.mock("../stores/notifications-store", () => ({
+  NOTIFICATIONS_UPDATED_EVENT: "kloqra:notifications-updated",
+  useNotificationsStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      unreadByWorkspace: { ws1: { count: 3, loading: false } },
+      subscribeUnread: mockSubscribeUnread,
+      refreshUnread: mockRefreshUnread
+    })
 }));
 
 describe("useNotificationUnreadCount", () => {
   beforeEach(() => {
-    mockApi.mockResolvedValue({ count: 3 });
+    mockRefreshUnread.mockResolvedValue(undefined);
+    mockSubscribeUnread.mockImplementation(() => () => {});
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("refreshes when notifications are updated elsewhere", async () => {
+  it("subscribes once and exposes shared unread count", async () => {
     const { result } = renderHook(() => useNotificationUnreadCount("ws1"));
 
     await waitFor(() => expect(result.current.count).toBe(3));
-    expect(mockApi).toHaveBeenCalledTimes(1);
-
-    mockApi.mockResolvedValueOnce({ count: 1 });
-    dispatchNotificationsUpdated();
-
-    await waitFor(() => expect(result.current.count).toBe(1));
-    expect(mockApi).toHaveBeenCalledTimes(2);
+    expect(mockSubscribeUnread).toHaveBeenCalledWith("ws1");
   });
 
-  it("uses a shared update event name", () => {
+  it("dispatches a shared update event name", () => {
     expect(NOTIFICATIONS_UPDATED_EVENT).toBe("kloqra:notifications-updated");
+  });
+
+  it("refresh delegates to the store", async () => {
+    const { result } = renderHook(() => useNotificationUnreadCount("ws1"));
+    await result.current.refresh();
+    expect(mockRefreshUnread).toHaveBeenCalledWith("ws1");
   });
 });

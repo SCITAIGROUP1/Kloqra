@@ -320,6 +320,20 @@ export class ReportingService {
     const billablePercent =
       wsTotal > 0 ? roundExport((workspaceAgg.billableHours / wsTotal) * 100) : 0;
 
+    const projectIds = [...byProject.keys()];
+    const [budgetRows, cumulativeHoursByProject] = await Promise.all([
+      projectIds.length > 0
+        ? this.prisma.project.findMany({
+            where: { id: { in: projectIds }, workspaceId },
+            select: { id: true, budgetHours: true }
+          })
+        : Promise.resolve([]),
+      this.cumulativeHoursByProject(workspaceId, projectIds)
+    ]);
+    const budgetByProject = new Map(
+      budgetRows.map((p) => [p.id, p.budgetHours?.toNumber() ?? null])
+    );
+
     const topProjectIds = [...byProject.entries()]
       .sort((a, b) => b[1].totalHours - a[1].totalHours)
       .slice(0, 6)
@@ -375,7 +389,14 @@ export class ReportingService {
         billablePercent
       },
       timeByProject: [...byProject.entries()]
-        .map(([projectId, v]) => this.toBreakdown(projectId, v))
+        .map(([projectId, v]) => {
+          const budgetHours = budgetByProject.get(projectId) ?? null;
+          const totalLogged = cumulativeHoursByProject.get(projectId) ?? 0;
+          return {
+            ...this.toBreakdown(projectId, v),
+            ...this.computeBudgetFields(budgetHours, totalLogged)
+          };
+        })
         .sort((a, b) => b.totalHours - a.totalHours),
       timeByUser: [...byUser.entries()]
         .map(([userId, v]) => ({
@@ -408,6 +429,49 @@ export class ReportingService {
         .sort((a, b) => a.date.localeCompare(b.date)),
       dailyByProject
     };
+  }
+
+  private async cumulativeHoursByProject(workspaceId: string, projectIds: string[]) {
+    const totals = new Map<string, number>();
+    if (projectIds.length === 0) return totals;
+
+    const tasks = await this.prisma.task.findMany({
+      where: { projectId: { in: projectIds }, project: { workspaceId } },
+      select: { id: true, projectId: true }
+    });
+    if (tasks.length === 0) return totals;
+
+    const taskToProject = new Map(tasks.map((t) => [t.id, t.projectId]));
+    const grouped = await this.prisma.timeLog.groupBy({
+      by: ["taskId"],
+      where: { taskId: { in: tasks.map((t) => t.id) } },
+      _sum: { durationSec: true }
+    });
+
+    for (const row of grouped) {
+      const projectId = taskToProject.get(row.taskId);
+      if (!projectId) continue;
+      totals.set(projectId, (totals.get(projectId) ?? 0) + (row._sum.durationSec ?? 0) / 3600);
+    }
+    return totals;
+  }
+
+  private computeBudgetFields(budgetHours: number | null, totalLoggedHours: number) {
+    if (budgetHours === null) {
+      return {
+        budgetHours: null,
+        percentUsed: null,
+        budgetStatus: "no_budget" as const
+      };
+    }
+    const percentUsed = roundExport((totalLoggedHours / budgetHours) * 100);
+    const status =
+      totalLoggedHours >= budgetHours
+        ? ("over_budget" as const)
+        : totalLoggedHours >= budgetHours * 0.9
+          ? ("near_budget" as const)
+          : ("on_track" as const);
+    return { budgetHours, percentUsed, budgetStatus: status };
   }
 
   private addHours(agg: HoursAgg, hours: number, billable: boolean, amount: number) {

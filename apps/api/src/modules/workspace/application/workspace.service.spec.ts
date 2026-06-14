@@ -69,9 +69,7 @@ describe("WorkspaceService", () => {
     expect(members).toEqual([
       {
         id: "m1",
-        workspaceId,
         userId: "u1",
-        role: "ADMIN",
         userName: "Admin User",
         userEmail: "admin@kloqra.dev"
       }

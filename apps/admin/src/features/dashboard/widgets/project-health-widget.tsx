@@ -1,16 +1,15 @@
 "use client";
 
 import type { DashboardReportDto } from "@kloqra/contracts";
-import { ROUTES } from "@kloqra/contracts";
 import { ProjectColorDot } from "@kloqra/ui";
 import { AlertCircle, CheckCircle, Info, Flame } from "lucide-react";
-import React, { useEffect, useState, useCallback } from "react";
-import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import React, { useMemo } from "react";
 
 export type ProjectHealthWidgetProps = {
   report: DashboardReportDto;
 };
+
+type BudgetStatus = "no_budget" | "over_budget" | "near_budget" | "on_track";
 
 interface ProjectHealthData {
   projectId: string;
@@ -21,75 +20,25 @@ interface ProjectHealthData {
   revenue: number;
   budgetHours: number | null;
   percentUsed: number | null;
-  status: "no_budget" | "over_budget" | "near_budget" | "on_track";
+  status: BudgetStatus;
 }
 
 export function ProjectHealthWidget({ report }: ProjectHealthWidgetProps) {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [healthData, setHealthData] = useState<ProjectHealthData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const healthData = useMemo<ProjectHealthData[]>(() => {
+    if (!report.timeByProject?.length) return [];
 
-  const fetchProjectBudgets = useCallback(async () => {
-    if (!ws || !report.timeByProject || report.timeByProject.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const budgetPromises = report.timeByProject.map(async (p) => {
-        try {
-          const budgetRes = await api<{
-            budgetHours: number | null;
-            percentUsed: number | null;
-            status: "no_budget" | "over_budget" | "near_budget" | "on_track";
-          }>(ROUTES.REPORTING.BUDGET(p.projectId), { workspaceId: ws });
-
-          return {
-            projectId: p.projectId,
-            projectName: p.projectName,
-            projectColor: (p as any).projectColor || "#236bfe",
-            totalHours: p.totalHours,
-            billableHours: p.billableHours,
-            revenue: p.billableAmount,
-            budgetHours: budgetRes.budgetHours,
-            percentUsed: budgetRes.percentUsed,
-            status: budgetRes.status
-          };
-        } catch {
-          return {
-            projectId: p.projectId,
-            projectName: p.projectName,
-            projectColor: "#236bfe",
-            totalHours: p.totalHours,
-            billableHours: p.billableHours,
-            revenue: p.billableAmount,
-            budgetHours: null,
-            percentUsed: null,
-            status: "no_budget" as const
-          };
-        }
-      });
-
-      const results = await Promise.all(budgetPromises);
-      setHealthData(results);
-    } catch (e) {
-      console.error("Failed to load project health budgets", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [ws, report.timeByProject]);
-
-  useEffect(() => {
-    void fetchProjectBudgets();
-  }, [fetchProjectBudgets]);
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground animate-pulse py-6">
-        Calculating project health...
-      </div>
-    );
-  }
+    return report.timeByProject.map((p) => ({
+      projectId: p.projectId,
+      projectName: p.projectName,
+      projectColor: "#236bfe",
+      totalHours: p.totalHours,
+      billableHours: p.billableHours,
+      revenue: p.billableAmount,
+      budgetHours: p.budgetHours ?? null,
+      percentUsed: p.percentUsed ?? null,
+      status: (p.budgetStatus ?? "no_budget") as BudgetStatus
+    }));
+  }, [report.timeByProject]);
 
   if (healthData.length === 0) {
     return (

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { logoutSession } from "../../auth/logout";
 import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { useUserProfileStore } from "../../stores/user-profile.store";
 
 export function useUserProfile() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
@@ -19,27 +20,27 @@ export function useUserProfile() {
   const session = useSessionStore((s) => s.session);
   const accessToken = useSessionStore((s) => s.accessToken);
 
-  const [profile, setProfile] = useState<UserProfileDto | null>(null);
-  const [loading, setLoading] = useState(true);
+  const profile = useUserProfileStore((s) => (ws ? (s.byWorkspace[ws]?.profile ?? null) : null));
+  const loading = useUserProfileStore((s) => (ws ? (s.byWorkspace[ws]?.loading ?? false) : false));
+  const subscribe = useUserProfileStore((s) => s.subscribe);
+  const refresh = useUserProfileStore((s) => s.refresh);
+  const setProfile = useUserProfileStore((s) => s.setProfile);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ws) return;
+    return subscribe(ws);
+  }, [ws, subscribe]);
 
   const reload = useCallback(async () => {
     if (!ws) return;
-    setLoading(true);
     setError(null);
     try {
-      const data = await api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws });
-      setProfile(data);
+      await refresh(ws);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load profile");
-    } finally {
-      setLoading(false);
     }
-  }, [ws]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  }, [ws, refresh]);
 
   const updateProfile = useCallback(
     async (dto: UpdateUserProfileDto) => {
@@ -49,13 +50,13 @@ export function useUserProfile() {
         workspaceId: ws,
         body: JSON.stringify(dto)
       });
-      setProfile(updated);
+      setProfile(ws, updated);
       if (session && accessToken && updated.name) {
         setSession({ ...session, user: { ...session.user, name: updated.name } }, accessToken);
       }
       return updated;
     },
-    [ws, session, accessToken, setSession]
+    [ws, session, accessToken, setSession, setProfile]
   );
 
   const updateName = useCallback(async (name: string) => updateProfile({ name }), [updateProfile]);
@@ -68,10 +69,10 @@ export function useUserProfile() {
         workspaceId: ws,
         body: JSON.stringify(preferences)
       });
-      setProfile(updated);
+      setProfile(ws, updated);
       return updated;
     },
-    [ws]
+    [ws, setProfile]
   );
 
   const changePassword = useCallback(
@@ -154,6 +155,7 @@ export function useUserProfile() {
     updateProfile,
     updateName,
     updatePreferences,
+    setProfile: (next: UserProfileDto) => setProfile(ws, next),
     changePassword,
     listSessions,
     revokeSession,

@@ -48,7 +48,12 @@ describe("ReportingService myWeekSummary", () => {
       })
     };
 
-    service = new ReportingService(mockPrisma as never, mockAggregation as never, {} as never);
+    service = new ReportingService(
+      mockPrisma as never,
+      mockAggregation as never,
+      {} as never,
+      { assertCanAccessProject: vi.fn() } as never
+    );
   });
 
   it("aggregates week totals and byCategory from TimeAggregationService", async () => {
@@ -86,6 +91,11 @@ describe("ReportingService myWeekSummary", () => {
 
 describe("ReportingService dashboard", () => {
   let service: ReportingService;
+  let mockPrisma: {
+    project: { findMany: ReturnType<typeof vi.fn> };
+    task: { findMany: ReturnType<typeof vi.fn> };
+    timeLog: { groupBy: ReturnType<typeof vi.fn> };
+  };
   let mockAggregation: {
     fetchLogs: ReturnType<typeof vi.fn>;
     resolveRateMaps: ReturnType<typeof vi.fn>;
@@ -101,12 +111,34 @@ describe("ReportingService dashboard", () => {
   const taskId = "550e8400-e29b-41d4-a716-446655440000";
 
   beforeEach(() => {
+    mockPrisma = {
+      project: {
+        findMany: vi.fn().mockResolvedValue([{ id: "p1", budgetHours: { toNumber: () => 40 } }])
+      },
+      task: {
+        findMany: vi.fn().mockResolvedValue([{ id: "t1", projectId: "p1" }])
+      },
+      timeLog: {
+        groupBy: vi.fn().mockResolvedValue([{ taskId: "t1", _sum: { durationSec: 72000 } }])
+      }
+    };
     mockAggregation = {
-      fetchLogs: vi.fn().mockResolvedValue([]),
-      resolveRateMaps: vi.fn().mockResolvedValue({ resolveRate: () => 0 }),
+      fetchLogs: vi.fn().mockResolvedValue([
+        {
+          durationSec: 7200,
+          isBillable: true,
+          startTime: new Date("2025-06-01T12:00:00.000Z"),
+          userId: "u1",
+          task: { projectId: "p1", project: { name: "Website" } },
+          user: { defaultHourlyRate: { toNumber: () => 100 } }
+        }
+      ]),
+      resolveRateMaps: vi.fn().mockResolvedValue({ resolveRate: () => 100 }),
       buildAggregates: vi.fn().mockReturnValue({
-        workspaceAgg: { totalHours: 0, billableHours: 0, billableAmount: 0 },
-        byProject: new Map(),
+        workspaceAgg: { totalHours: 2, billableHours: 2, billableAmount: 200 },
+        byProject: new Map([
+          ["p1", { projectName: "Website", totalHours: 2, billableHours: 2, billableAmount: 200 }]
+        ]),
         byUser: new Map(),
         byCategory: new Map()
       })
@@ -116,7 +148,12 @@ describe("ReportingService dashboard", () => {
       getDashboard: vi.fn().mockResolvedValue(null),
       setDashboard: vi.fn().mockResolvedValue(undefined)
     };
-    service = new ReportingService({} as never, mockAggregation as never, mockReportCache as never);
+    service = new ReportingService(
+      mockPrisma as never,
+      mockAggregation as never,
+      mockReportCache as never,
+      { assertCanAccessProject: vi.fn() } as never
+    );
   });
 
   it("passes taskId filter to fetchLogs and cache key", async () => {
@@ -139,5 +176,19 @@ describe("ReportingService dashboard", () => {
       workspaceId,
       expect.objectContaining({ taskId })
     );
+  });
+
+  it("includes budget usage fields on timeByProject rows", async () => {
+    const report = await service.dashboard(workspaceId, {
+      from: "2025-06-01",
+      to: "2025-06-07"
+    });
+
+    expect(report.timeByProject[0]).toMatchObject({
+      projectId: "p1",
+      budgetHours: 40,
+      percentUsed: 50,
+      budgetStatus: "on_track"
+    });
   });
 });

@@ -15,6 +15,13 @@ export const workspaceWithRoleSchema = workspaceSchema.extend({
   role: workspaceRoleSchema
 });
 
+/** Slim workspace row for switcher — omits slug and settings blob. */
+export const workspaceListItemSchema = z.object({
+  id: uuidSchema,
+  name: z.string().min(1).max(120),
+  role: workspaceRoleSchema
+});
+
 export const switchWorkspaceSchema = z.object({
   workspaceId: uuidSchema
 });
@@ -24,6 +31,14 @@ export const workspaceMemberSchema = z.object({
   workspaceId: uuidSchema,
   userId: uuidSchema,
   role: workspaceRoleSchema,
+  userName: z.string(),
+  userEmail: z.string().email()
+});
+
+/** Slim member row for pickers — omits workspaceId and role. */
+export const workspaceMemberPickerSchema = z.object({
+  id: uuidSchema,
+  userId: uuidSchema,
   userName: z.string(),
   userEmail: z.string().email()
 });
@@ -59,7 +74,6 @@ export const updateWorkspaceSchema = z.object({
 
 export const teamMemberOverviewSchema = z.object({
   id: uuidSchema,
-  workspaceId: uuidSchema,
   userId: uuidSchema,
   userName: z.string(),
   userEmail: z.string().email(),
@@ -68,8 +82,7 @@ export const teamMemberOverviewSchema = z.object({
   projectCount: z.number().int().nonnegative(),
   weekHours: z.number(),
   lastActiveAt: isoDatetimeSchema.nullable(),
-  isTrackingNow: z.boolean(),
-  memberSince: isoDatetimeSchema
+  isTrackingNow: z.boolean()
 });
 
 export const teamMembersOverviewSummarySchema = z.object({
@@ -92,7 +105,9 @@ export const teamMembersOverviewSchema = z.object({
 
 export type WorkspaceDto = z.infer<typeof workspaceSchema>;
 export type WorkspaceWithRoleDto = z.infer<typeof workspaceWithRoleSchema>;
+export type WorkspaceListItemDto = z.infer<typeof workspaceListItemSchema>;
 export type WorkspaceMemberDto = z.infer<typeof workspaceMemberSchema>;
+export type WorkspaceMemberPickerDto = z.infer<typeof workspaceMemberPickerSchema>;
 export type TeamMemberStatus = z.infer<typeof teamMemberStatusSchema>;
 export type TeamMemberOverviewDto = z.infer<typeof teamMemberOverviewSchema>;
 export type TeamMembersOverviewSummaryDto = z.infer<typeof teamMembersOverviewSummarySchema>;

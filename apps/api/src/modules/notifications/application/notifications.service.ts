@@ -35,13 +35,21 @@ export class NotificationsService {
 
     return {
       id: row.id,
-      workspaceId: row.workspaceId,
       type: row.type as NotificationType,
       title: row.title,
       body: row.body,
       readAt: row.readAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
-      ...(metadata ? { metadata } : {})
+      ...(metadata ? { metadata: this.trimMetadata(metadata) } : {})
+    };
+  }
+
+  private trimMetadata(metadata: NotificationDto["metadata"]): NotificationDto["metadata"] {
+    if (!metadata) return undefined;
+    const { variant, details } = metadata;
+    return {
+      ...(variant ? { variant } : {}),
+      ...(details ? { details } : {})
     };
   }
 

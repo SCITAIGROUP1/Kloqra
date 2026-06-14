@@ -29,6 +29,16 @@ export class TasksService {
     private notificationsDispatch: NotificationsDispatchService
   ) {}
 
+  toListItem(t: TaskWithRelations) {
+    return {
+      id: t.id,
+      projectId: t.projectId,
+      categoryId: t.categoryId,
+      ...(t.category?.name ? { categoryName: t.category.name } : {}),
+      taskName: t.taskName
+    };
+  }
+
   toDto(t: TaskWithRelations) {
     return {
       id: t.id,
@@ -91,7 +101,7 @@ export class TasksService {
     ]);
 
     return toPaginatedResponse(
-      tasks.map((t) => this.toDto(t)),
+      tasks.map((t) => this.toListItem(t)),
       total,
       query.page,
       query.limit

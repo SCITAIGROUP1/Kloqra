@@ -31,6 +31,22 @@ export const projectSchema = z.object({
   timesheetApprovalPeriod: timesheetApprovalPeriodSchema.nullable()
 });
 
+/** Slim project row for lists and dropdowns. */
+export const projectListItemSchema = z.object({
+  id: uuidSchema,
+  name: z.string().min(1).max(200),
+  color: projectColorSchema,
+  clientName: z.string().max(200).nullable(),
+  isActive: z.boolean(),
+  workspaceId: uuidSchema.optional(),
+  workspaceName: z.string().min(1).max(120).optional(),
+  myColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional()
+});
+
 export const createProjectSchema = z.object({
   name: z.string().min(1).max(200),
   color: projectColorSchema.optional(),
@@ -47,9 +63,10 @@ export const listProjectsQuerySchema = listPaginationQuerySchema.extend({
   isActive: z.coerce.boolean().optional()
 });
 
-export const listProjectsResponseSchema = createPaginatedListResponseSchema(projectSchema);
+export const listProjectsResponseSchema = createPaginatedListResponseSchema(projectListItemSchema);
 
 export type ProjectDto = z.infer<typeof projectSchema>;
+export type ProjectListItemDto = z.infer<typeof projectListItemSchema>;
 export type CreateProjectDto = z.infer<typeof createProjectSchema>;
 export type UpdateProjectDto = z.infer<typeof updateProjectSchema>;
 export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>;

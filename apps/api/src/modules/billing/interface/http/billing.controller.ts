@@ -42,6 +42,7 @@ export class BillingController {
     );
   }
 
+  @Roles("ADMIN")
   @Get(ROUTES.BILLING.SUMMARY)
   summary(
     @CurrentUser() user: RequestUser,

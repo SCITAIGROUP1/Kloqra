@@ -34,4 +34,27 @@ describe("BillingService", () => {
       expect.objectContaining({ skip: 0, take: 20 })
     );
   });
+
+  it("summary aggregates billable totals from time logs", async () => {
+    const mockAggregation = {
+      fetchLogs: vi.fn().mockResolvedValue([]),
+      resolveRateMaps: vi.fn().mockResolvedValue({
+        resolveRate: () => 100
+      }),
+      buildAggregates: vi.fn().mockReturnValue({
+        workspaceAgg: { totalHours: 1, billableHours: 1, billableAmount: 100 }
+      })
+    };
+    const mockReportCache = {
+      billingKey: vi.fn().mockReturnValue("billing-key"),
+      getBilling: vi.fn().mockResolvedValue(null),
+      setBilling: vi.fn().mockResolvedValue(undefined)
+    };
+    service = new BillingService(mockPrisma, mockAggregation as never, mockReportCache as never);
+
+    const result = await service.summary("ws-1", { from: "2025-01-01", to: "2025-01-31" });
+
+    expect(result.totalHours).toBe(1);
+    expect(mockReportCache.setBilling).toHaveBeenCalled();
+  });
 });

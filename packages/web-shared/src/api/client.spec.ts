@@ -61,4 +61,13 @@ describe("api client auth refresh", () => {
       })
     );
   });
+
+  it("dedupes concurrent identical GET requests", async () => {
+    mockGetAccessToken.mockReturnValue("fresh-token");
+    const { api } = await import("./client");
+    const p1 = api("/projects?page=1&limit=100", { workspaceId: "ws-1" });
+    const p2 = api("/projects?page=1&limit=100", { workspaceId: "ws-1" });
+    await Promise.all([p1, p2]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
