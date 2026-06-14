@@ -9,7 +9,7 @@ import {
   appBarToolbarClass,
   cn
 } from "@kloqra/ui";
-import { BookOpen, Map, Settings, Sparkles } from "lucide-react";
+import { BookOpen, Map, MessageCircle, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useSessionStore } from "../stores/session.store";
@@ -25,6 +25,7 @@ export type ShellHeaderActionsProps = {
   onShowOnboarding?: () => void;
   onShowOnboardingWizard?: () => void;
   onShowOnboardingTour?: () => void;
+  onOpenAssistant?: () => void;
   onboardingReplayTourId?: string;
   className?: string;
 };
@@ -38,6 +39,7 @@ export function ShellHeaderActions({
   onShowOnboarding,
   onShowOnboardingWizard,
   onShowOnboardingTour,
+  onOpenAssistant,
   onboardingReplayTourId = "onboarding-replay",
   className
 }: ShellHeaderActionsProps) {
@@ -47,24 +49,41 @@ export function ShellHeaderActions({
 
   const showWizard = onShowOnboardingWizard ?? onShowOnboarding;
   const showTour = onShowOnboardingTour;
-  const hasOnboardingMenu = Boolean(showWizard || showTour);
+  const hasHelpMenu = Boolean(showWizard || showTour || onOpenAssistant);
 
   return (
     <div className={cn(appBarToolbarClass, className)}>
-      {hasOnboardingMenu ? (
+      {hasHelpMenu ? (
         <Popover open={menuOpen} onOpenChange={setMenuOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
               className={appBarIconButtonClass()}
-              title="Onboarding help"
-              aria-label="Onboarding help"
+              title="Help"
+              aria-label="Help menu"
               data-tour={onboardingReplayTourId}
             >
               <Sparkles strokeWidth={1.5} />
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-56 p-1.5">
+            {onOpenAssistant ? (
+              <button
+                type="button"
+                aria-label="Ask Kloqra"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent/80 transition-colors"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenAssistant();
+                }}
+              >
+                <MessageCircle className="size-4 shrink-0 text-primary" strokeWidth={1.5} />
+                <span>
+                  <span className="block font-medium">Ask Kloqra</span>
+                  <span className="block text-xs text-muted-foreground">Help assistant</span>
+                </span>
+              </button>
+            ) : null}
             {showWizard ? (
               <button
                 type="button"

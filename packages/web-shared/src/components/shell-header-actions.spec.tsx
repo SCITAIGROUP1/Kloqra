@@ -36,6 +36,18 @@ describe("ShellHeaderActions", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Onboarding help" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Help menu" })).toBeTruthy();
+  });
+
+  it("renders help menu when assistant callback is provided", () => {
+    render(
+      <ShellHeaderActions
+        profileHref="/profile"
+        settingsHref="/settings"
+        onOpenAssistant={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Help menu" })).toBeTruthy();
   });
 });

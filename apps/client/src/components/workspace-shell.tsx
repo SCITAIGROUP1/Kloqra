@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { AssistantProvider, useAssistant } from "@/features/assistant/assistant-provider";
+import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
 import { useMySubmissions } from "@/features/submissions/use-my-submissions";
 import { api } from "@/lib/api";
@@ -40,6 +42,7 @@ const baseNav: readonly SidebarNavItem[] = [
 
 function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const { openOnboarding, openTour } = useOnboarding();
+  const { openAssistant } = useAssistant();
   const router = useRouter();
   const session = useSessionStore((s) => s.session);
   const [anchorDate] = useState(() => new Date());
@@ -131,6 +134,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
           notificationsHref="/notifications"
           onShowOnboardingWizard={() => openOnboarding({ replay: true })}
           onShowOnboardingTour={() => openTour({ replay: true })}
+          onOpenAssistant={openAssistant}
         />
       }
       impersonationBanner={
@@ -182,6 +186,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       )}
     >
       {children}
+      <AssistantWidget />
     </ResponsiveLayoutShell>
   );
 }
@@ -189,7 +194,9 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   return (
     <OnboardingProvider>
-      <WorkspaceShellInner>{children}</WorkspaceShellInner>
+      <AssistantProvider>
+        <WorkspaceShellInner>{children}</WorkspaceShellInner>
+      </AssistantProvider>
     </OnboardingProvider>
   );
 }

@@ -138,5 +138,8 @@ export const ROUTES = {
     UNREAD_COUNT: "/notifications/unread-count",
     BY_ID: (id: string) => `/notifications/${id}`,
     MARK_ALL_READ: "/notifications/mark-all-read"
+  },
+  ASSISTANT: {
+    CHAT: "/assistant/chat"
   }
 } as const;

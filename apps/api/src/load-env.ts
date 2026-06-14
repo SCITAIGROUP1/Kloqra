@@ -108,7 +108,10 @@ const optionalEnvSchema = z.object({
   SMTP_PORT: z.string().regex(/^\d+$/, "SMTP_PORT must be a number").optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().optional()
+  SMTP_FROM: z.string().optional(),
+  ASSISTANT_SERVICE_URL: z.string().url().optional(),
+  ASSISTANT_INTERNAL_SECRET: z.string().optional(),
+  ASSISTANT_ENABLED: z.enum(["true", "false"]).optional()
 });
 
 export function validateRequiredEnv(): void {

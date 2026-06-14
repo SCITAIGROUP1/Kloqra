@@ -27,7 +27,7 @@ One active timer per user at a time.
 
 If your project requires approval:
 
-1. Go to **Approvals** (`/approvals`).
+1. Go to **Submissions** (`/submissions`).
 2. Review each project card for the current period.
 3. Add an optional note → **Send to Approvals**.
 

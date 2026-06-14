@@ -179,6 +179,50 @@ Run migrations **before** or **with** each API rollout. Railway auto-deploys on 
 
 ---
 
+## Assistant API service (optional)
+
+The member help assistant runs as a **second Railway service** (`apps/assistant-api`) on private networking. The NestJS API proxies `POST /assistant/chat` to it.
+
+### Add assistant service
+
+1. **+ New** → **GitHub Repo** → same monorepo.
+2. **Settings → Source:** Dockerfile path `apps/assistant-api/Dockerfile`.
+3. Enable **Private Networking** — do **not** assign a public domain.
+4. Health check: `GET /health`.
+
+### Variables
+
+**Assistant service:**
+
+| Variable                    | Value                                                |
+| --------------------------- | ---------------------------------------------------- |
+| `OPENAI_API_KEY`            | OpenAI API key                                       |
+| `OPENAI_MODEL`              | `gpt-4o-mini` (optional)                             |
+| `ASSISTANT_INTERNAL_SECRET` | Shared secret (generate with `openssl rand -hex 32`) |
+| `ASSISTANT_ENABLED`         | `true`                                               |
+
+**NestJS API service (add):**
+
+| Variable                    | Value                                                |
+| --------------------------- | ---------------------------------------------------- |
+| `ASSISTANT_SERVICE_URL`     | `http://<assistant-service>.railway.internal:<port>` |
+| `ASSISTANT_INTERNAL_SECRET` | Same secret as assistant service                     |
+| `ASSISTANT_ENABLED`         | `true`                                               |
+
+If assistant vars are omitted, `/assistant/chat` returns a static fallback (help links) without calling OpenAI.
+
+### Local dev
+
+```bash
+cd apps/assistant-api
+pip install -r requirements.txt -r requirements-dev.txt
+ASSISTANT_INTERNAL_SECRET=dev-secret uvicorn src.main:app --reload --port 3003
+```
+
+Set matching vars in `apps/api/.env`.
+
+---
+
 ## Alternatives
 
 | Platform | Config                                                            | Runbook                        |

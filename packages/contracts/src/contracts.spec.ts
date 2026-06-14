@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  assistantChatRequestSchema,
+  assistantChatResponseSchema,
   changePasswordSchema,
   createCategorySchema,
   createTaskSchema,
@@ -458,5 +460,22 @@ describe("contracts", () => {
       dailyByProject: []
     });
     expect(r.success).toBe(true);
+  });
+
+  it("exposes assistant chat route", () => {
+    expect(ROUTES.ASSISTANT.CHAT).toBe("/assistant/chat");
+  });
+
+  it("validates assistant chat request and response shapes", () => {
+    const req = assistantChatRequestSchema.safeParse({
+      messages: [{ role: "user", content: "How do I start a timer?" }]
+    });
+    expect(req.success).toBe(true);
+
+    const res = assistantChatResponseSchema.safeParse({
+      reply: "Open the Timer page and choose a project and task.",
+      links: [{ label: "Timer", href: "/timer" }]
+    });
+    expect(res.success).toBe(true);
   });
 });
