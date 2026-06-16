@@ -5,6 +5,12 @@ import { StaleTimerService } from "./stale-timer.service";
 function createRedisMock(keys: string[], values: Record<string, string>) {
   const client = {
     keys: vi.fn().mockResolvedValue(keys),
+    scan: vi.fn((cursor: string) => {
+      if (cursor === "0") {
+        return Promise.resolve(["0", keys]);
+      }
+      return Promise.resolve(["0", []]);
+    }),
     get: vi.fn((key: string) => Promise.resolve(values[key] ?? null)),
     del: vi.fn().mockResolvedValue(1),
     setex: vi.fn().mockResolvedValue("OK"),

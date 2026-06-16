@@ -119,6 +119,12 @@ describe("AuthService unit tests", () => {
       if ("requires2fa" in result) {
         expect.fail("expected session, got 2FA challenge");
       }
+      if ("requiresPasswordChange" in result) {
+        expect.fail("expected session, got password change challenge");
+      }
+      if ("requiresEmailVerification" in result) {
+        expect.fail("expected session, got email verification challenge");
+      }
 
       expect(result.workspaceId).toBe("ws-1");
       expect(result.workspaceRole).toBe("ADMIN");
@@ -210,6 +216,78 @@ describe("AuthService unit tests", () => {
       const consumed = await service.consumeImpersonationHandoff(handoffToken);
       expect(consumed).toEqual(impersonationResult);
       expect(service.impersonate).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("impersonate admin guard", () => {
+    it("throws forbidden if target user is an ADMIN", async () => {
+      mockPrisma.user = {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "admin-1", name: "Admin One" })
+      };
+      mockPrisma.workspaceMember = {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: "admin-2",
+          workspaceId: "ws-1",
+          role: "ADMIN",
+          user: { id: "admin-2", name: "Admin Two" },
+          workspace: { id: "ws-1", name: "Workspace" }
+        })
+      };
+
+      await expect(authService.impersonate("admin-1", "ws-1", "admin-2")).rejects.toMatchObject({
+        code: "FORBIDDEN"
+      });
+    });
+
+    it("succeeds if target user is a MEMBER", async () => {
+      process.env.JWT_REFRESH_SECRET = "ci-refresh-secret-min-32-chars-long";
+      process.env.JWT_ACCESS_SECRET = "ci-access-secret-min-32-chars-long";
+      mockPrisma.user = {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "admin-1", name: "Admin One" })
+      };
+      mockPrisma.workspaceMember = {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: "member-1",
+          workspaceId: "ws-1",
+          role: "MEMBER",
+          user: { id: "member-1", name: "Member One" },
+          workspace: { id: "ws-1", name: "Workspace" }
+        })
+      };
+      mockPrisma.refreshToken = {
+        create: vi.fn().mockResolvedValue({}),
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+      };
+
+      const result = await authService.impersonate("admin-1", "ws-1", "member-1");
+      expect(result.session.workspaceRole).toBe("MEMBER");
+      expect(result.session.impersonatorId).toBe("admin-1");
+    });
+  });
+
+  describe("JWT duration parsing", () => {
+    it("handles custom duration string like 30d", async () => {
+      process.env.JWT_REFRESH_SECRET = "ci-refresh-secret-min-32-chars-long";
+      process.env.JWT_REFRESH_EXPIRES = "30d";
+      mockPrisma.refreshToken = {
+        create: vi.fn().mockResolvedValue({}),
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+      };
+
+      const { family } = await authService.signAndStoreRefreshToken("user-1", "ws-1");
+      expect(family).toBeDefined();
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            expiresAt: expect.any(Date)
+          })
+        })
+      );
+      const callArgs = mockPrisma.refreshToken.create.mock.calls[0][0];
+      const expiresAt = callArgs.data.expiresAt.getTime();
+      const expectedDiff = 30 * 24 * 60 * 60 * 1000;
+      expect(expiresAt - Date.now()).toBeLessThanOrEqual(expectedDiff + 1000);
+      expect(expiresAt - Date.now()).toBeGreaterThanOrEqual(expectedDiff - 5000);
     });
   });
 });

@@ -477,6 +477,29 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("validates dashboard report with non-USD currency", () => {
+    const r = dashboardReportSchema.safeParse({
+      period: { from: "2025-01-01T00:00:00.000Z", to: "2025-01-31T23:59:59.000Z" },
+      workspace: {
+        totalHours: 10,
+        billableHours: 8,
+        nonBillableHours: 2,
+        totalAmount: 800,
+        currency: "EUR",
+        activeProjects: 1,
+        activeMembers: 2,
+        billablePercent: 80
+      },
+      timeByProject: [],
+      timeByUser: [],
+      timeByCategory: [],
+      weeklyHours: [],
+      dailyHours: [],
+      dailyByProject: []
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("exposes assistant chat route", () => {
     expect(ROUTES.ASSISTANT.CHAT).toBe("/assistant/chat");
   });

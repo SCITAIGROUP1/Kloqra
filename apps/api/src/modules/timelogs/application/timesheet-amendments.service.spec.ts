@@ -12,7 +12,8 @@ describe("TimesheetAmendmentsService", () => {
   beforeEach(() => {
     mockPrisma = {
       timesheetPeriod: {
-        findFirst: vi.fn()
+        findFirst: vi.fn(),
+        update: vi.fn()
       },
       timesheetAmendmentRequest: {
         findFirst: vi.fn(),
@@ -72,5 +73,56 @@ describe("TimesheetAmendmentsService", () => {
     const result = await service.create(workspaceId, userId, periodId, "Missing entry");
     expect(result.status).toBe("PENDING");
     expect(result.reason).toBe("Missing entry");
+  });
+
+  it("approve rolls back status on period update failure (transaction atomicity)", async () => {
+    const periodStart = new Date("2025-06-02T00:00:00.000Z");
+    const periodEnd = new Date("2025-06-08T23:59:59.999Z");
+    mockPrisma.timesheetAmendmentRequest.findFirst.mockResolvedValue({
+      id: "amend-1",
+      periodId: "period-1",
+      userId,
+      workspaceId,
+      status: "PENDING",
+      period: {
+        id: "period-1",
+        status: "APPROVED",
+        projectId: "proj-1",
+        periodStart,
+        periodEnd,
+        project: {
+          name: "Website",
+          timesheetApprovalPeriod: "weekly",
+          workspace: { name: "Acme", settings: {} }
+        }
+      }
+    });
+
+    mockPrisma.timesheetAmendmentRequest.updateMany.mockResolvedValue({ count: 1 });
+    // Make update throw an error to simulate database failure inside the transaction
+    mockPrisma.timesheetPeriod.update.mockRejectedValue(new Error("Database write failed"));
+
+    await expect(service.approve(workspaceId, "amend-1", "admin-1")).rejects.toThrow(
+      "Database write failed"
+    );
+
+    expect(mockPrisma.timesheetAmendmentRequest.updateMany).toHaveBeenCalled();
+    expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalled();
+  });
+
+  it("listPending enforces cross-workspace data isolation", async () => {
+    mockPrisma.timesheetAmendmentRequest.findMany.mockResolvedValue([]);
+
+    await service.listPending("workspace-target", { userId: "user-target" });
+
+    expect(mockPrisma.timesheetAmendmentRequest.findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: "workspace-target",
+        status: "PENDING",
+        userId: "user-target"
+      },
+      include: expect.any(Object),
+      orderBy: { createdAt: "desc" }
+    });
   });
 });

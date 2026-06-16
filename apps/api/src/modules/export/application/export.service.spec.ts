@@ -52,4 +52,29 @@ describe("ExportService loadContext", () => {
       expect.objectContaining({ taskId })
     );
   });
+
+  it("throws a validation error if the date range exceeds 12 months", async () => {
+    await expect(
+      service.loadContext(workspaceId, {
+        from: "2025-01-01",
+        to: "2026-02-01",
+        billable: "all"
+      })
+    ).rejects.toThrow(/exceed 12 months/);
+  });
+
+  it("generateMember enforces member data isolation by passing the authenticated userId to loadContext", async () => {
+    // We spy on loadContext or verify what mockAggregation.fetchLogs receives
+    await service.generateMember(workspaceId, "user-isolation-123", {
+      from: "2025-06-01",
+      to: "2025-06-07",
+      reportTypes: ["time_entries"],
+      format: "xlsx"
+    });
+
+    expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ userId: "user-isolation-123" })
+    );
+  });
 });

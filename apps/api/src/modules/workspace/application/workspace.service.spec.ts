@@ -21,6 +21,8 @@ describe("WorkspaceService", () => {
 
   beforeEach(() => {
     mockPrisma = {
+      $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
+      $queryRaw: vi.fn().mockResolvedValue([1]),
       workspace: {
         findUnique: vi.fn()
       },
@@ -36,6 +38,9 @@ describe("WorkspaceService", () => {
       user: {
         findUnique: vi.fn(),
         create: vi.fn()
+      },
+      teamMember: {
+        updateMany: vi.fn()
       }
     };
     mockMailer = {

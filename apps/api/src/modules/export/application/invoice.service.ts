@@ -70,7 +70,8 @@ export class InvoiceService {
       const rate = resolveRate(
         log.userId,
         dto.projectId,
-        log.user.defaultHourlyRate?.toNumber() ?? null
+        log.user.defaultHourlyRate?.toNumber() ?? null,
+        log.startTime
       );
       const key = `${log.taskId}-${log.userId}-${rate}`;
       const hours = log.durationSec / 3600;

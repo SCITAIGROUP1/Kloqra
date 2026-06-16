@@ -142,16 +142,15 @@ describe("TimesheetsService", () => {
         workspace: { settings: { weekStart: "monday" } }
       }
     });
-    mockPrisma.timesheetPeriod.updateMany.mockResolvedValue({ count: 1 });
-    mockPrisma.timesheetPeriod.findUniqueOrThrow.mockResolvedValue({
+    mockPrisma.timesheetPeriod.update.mockResolvedValue({
       id: "period-1",
       status: "APPROVED"
     });
 
     const result = await service.approve(workspaceId, "period-1", adminUserId, "Looks good");
 
-    expect(mockPrisma.timesheetPeriod.updateMany).toHaveBeenCalledWith({
-      where: { id: "period-1", status: "SUBMITTED" },
+    expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalledWith({
+      where: { id: "period-1" },
       data: expect.objectContaining({
         status: "APPROVED",
         reviewedBy: adminUserId,
@@ -198,14 +197,21 @@ describe("TimesheetsService", () => {
         workspace: { settings: { weekStart: "monday" } }
       }
     });
-    mockPrisma.timesheetPeriod.updateMany.mockResolvedValue({ count: 1 });
-    mockPrisma.timesheetPeriod.findUniqueOrThrow.mockResolvedValue({
+    mockPrisma.timesheetPeriod.update.mockResolvedValue({
       id: "period-1",
       status: "REJECTED"
     });
 
     const result = await service.reject(workspaceId, "period-1", adminUserId, "Missing notes");
 
+    expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalledWith({
+      where: { id: "period-1" },
+      data: expect.objectContaining({
+        status: "REJECTED",
+        reviewedBy: adminUserId,
+        reviewNote: "Missing notes"
+      })
+    });
     expect(result).toEqual({ ok: true });
   });
 

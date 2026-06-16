@@ -79,6 +79,7 @@ export const ROUTES = {
     CREATE: "/timelogs",
     BY_ID: (id: string) => `/timelogs/${id}`,
     AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,
+    AUDIT_EVENTS_WORKSPACE: "/timelogs/audit",
     YESTERDAY_SUMMARY: "/timelogs/yesterday-summary"
   },
   TIMER: {

@@ -1,8 +1,10 @@
 import type { CreateHourlyRateDto, ListHourlyRatesQuery, ReportQueryDto } from "@kloqra/contracts";
+import { resolveEffectiveCurrency } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { parseWorkspaceSettingsFromRaw } from "../../../common/time/approval-period.util";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
 
@@ -86,11 +88,18 @@ export class BillingService {
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const { workspaceAgg } = this.aggregation.buildAggregates(logs, resolveRate);
 
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { settings: true }
+    });
+    const settings = parseWorkspaceSettingsFromRaw(workspace?.settings);
+    const currency = resolveEffectiveCurrency(settings);
+
     const result = {
       totalHours: roundExport(workspaceAgg.totalHours),
       billableHours: roundExport(workspaceAgg.billableHours),
       totalAmount: roundExport(workspaceAgg.billableAmount),
-      currency: "USD" as const
+      currency
     };
 
     await this.reportCache.setBilling(cacheKey, workspaceId, result);

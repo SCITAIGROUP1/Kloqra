@@ -2,19 +2,29 @@ import { z } from "zod";
 import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
 import { uuidSchema } from "./common.dto";
 
-export const notificationTypeSchema = z.enum([
-  "PROJECT_ASSIGNMENT",
-  "TASK_ASSIGNMENT",
-  "TIMESHEET_REMINDER",
-  "IDLE_TIMER_ALERT",
-  "JIRA_SYNC_UPDATE",
-  "TIMESHEET_STATUS",
-  "APPROVAL_REQUEST",
-  "MEMBER_CHANGE",
-  "WORKSPACE_ADDED",
-  "EXPORT_SCHEDULE",
-  "BUDGET_ALERT"
-]);
+export const NotificationType = {
+  PROJECT_ASSIGNMENT: "PROJECT_ASSIGNMENT",
+  TASK_ASSIGNMENT: "TASK_ASSIGNMENT",
+  TIMESHEET_REMINDER: "TIMESHEET_REMINDER",
+  IDLE_TIMER_ALERT: "IDLE_TIMER_ALERT",
+  JIRA_SYNC_UPDATE: "JIRA_SYNC_UPDATE",
+  TIMESHEET_STATUS: "TIMESHEET_STATUS",
+  APPROVAL_REQUEST: "APPROVAL_REQUEST",
+  MEMBER_CHANGE: "MEMBER_CHANGE",
+  WORKSPACE_ADDED: "WORKSPACE_ADDED",
+  EXPORT_SCHEDULE: "EXPORT_SCHEDULE",
+  BUDGET_ALERT: "BUDGET_ALERT",
+  TIMESHEET_SUBMITTED: "TIMESHEET_SUBMITTED",
+  TIMESHEET_APPROVED: "TIMESHEET_APPROVED",
+  TIMESHEET_REJECTED: "TIMESHEET_REJECTED",
+  TIMESHEET_AMENDMENT_REQUESTED: "TIMESHEET_AMENDMENT_REQUESTED",
+  TIMESHEET_AMENDMENT_APPROVED: "TIMESHEET_AMENDMENT_APPROVED",
+  TIMESHEET_AMENDMENT_DENIED: "TIMESHEET_AMENDMENT_DENIED",
+  TIMER_AUTOSTOPPED: "TIMER_AUTOSTOPPED"
+} as const;
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
+
+export const notificationTypeSchema = z.nativeEnum(NotificationType);
 
 export const notificationDetailRowSchema = z.object({
   label: z.string().min(1).max(80),
@@ -70,7 +80,6 @@ export const markAllNotificationsReadResponseSchema = z.object({
   updated: z.number().int().nonnegative()
 });
 
-export type NotificationType = z.infer<typeof notificationTypeSchema>;
 export type NotificationDto = z.infer<typeof notificationSchema>;
 export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
 export type ListNotificationsResponse = z.infer<typeof listNotificationsResponseSchema>;

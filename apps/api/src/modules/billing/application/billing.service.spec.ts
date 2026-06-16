@@ -36,6 +36,9 @@ describe("BillingService", () => {
   });
 
   it("summary aggregates billable totals from time logs", async () => {
+    mockPrisma.workspace = {
+      findUnique: vi.fn().mockResolvedValue({ settings: { currency: "EUR" } })
+    };
     const mockAggregation = {
       fetchLogs: vi.fn().mockResolvedValue([]),
       resolveRateMaps: vi.fn().mockResolvedValue({
@@ -55,6 +58,7 @@ describe("BillingService", () => {
     const result = await service.summary("ws-1", { from: "2025-01-01", to: "2025-01-31" });
 
     expect(result.totalHours).toBe(1);
+    expect(result.currency).toBe("EUR");
     expect(mockReportCache.setBilling).toHaveBeenCalled();
   });
 });

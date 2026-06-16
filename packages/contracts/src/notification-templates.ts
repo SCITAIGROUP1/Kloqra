@@ -4,7 +4,7 @@ import { uuidSchema } from "./dto/common.dto";
 import {
   type notificationMetadataSchema,
   notificationTypeSchema,
-  type NotificationType
+  NotificationType
 } from "./dto/notification.dto";
 import type { NotificationPreferenceKey } from "./user-preferences";
 
@@ -178,26 +178,59 @@ const TEMPLATE_META: Record<
   NotificationTemplateId,
   { type: NotificationType; preferenceKey: NotificationPreferenceKey }
 > = {
-  "project.assigned": { type: "PROJECT_ASSIGNMENT", preferenceKey: "projectAssignment" },
-  "task.assigned": { type: "TASK_ASSIGNMENT", preferenceKey: "taskAssignment" },
-  "timesheet.submitted": { type: "APPROVAL_REQUEST", preferenceKey: "approvalRequest" },
-  "timesheet.submitted.batch": { type: "APPROVAL_REQUEST", preferenceKey: "approvalRequest" },
-  "timesheet.approved": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
-  "timesheet.rejected": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
-  "timesheet.reminder": { type: "TIMESHEET_REMINDER", preferenceKey: "timesheetReminders" },
-  "timesheet.reminder.manual": { type: "TIMESHEET_REMINDER", preferenceKey: "timesheetReminders" },
-  "timesheet.amendment.requested": { type: "APPROVAL_REQUEST", preferenceKey: "approvalRequest" },
-  "timesheet.amendment.approved": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
-  "timesheet.amendment.denied": { type: "TIMESHEET_STATUS", preferenceKey: "timesheetStatus" },
-  "timer.autostopped": { type: "IDLE_TIMER_ALERT", preferenceKey: "idleTimerAlert" },
-  "member.joined": { type: "MEMBER_CHANGE", preferenceKey: "memberChanges" },
-  "member.removed": { type: "MEMBER_CHANGE", preferenceKey: "memberChanges" },
-  "workspace.added": { type: "WORKSPACE_ADDED", preferenceKey: "workspaceAdded" },
-  "export.ready": { type: "EXPORT_SCHEDULE", preferenceKey: "exportSchedule" },
-  "export.failed": { type: "EXPORT_SCHEDULE", preferenceKey: "exportSchedule" },
-  "budget.near": { type: "BUDGET_ALERT", preferenceKey: "budgetAlert" },
-  "budget.over": { type: "BUDGET_ALERT", preferenceKey: "budgetAlert" },
-  "jira.synced": { type: "JIRA_SYNC_UPDATE", preferenceKey: "jiraSyncUpdates" }
+  "project.assigned": {
+    type: NotificationType.PROJECT_ASSIGNMENT,
+    preferenceKey: "projectAssignment"
+  },
+  "task.assigned": { type: NotificationType.TASK_ASSIGNMENT, preferenceKey: "taskAssignment" },
+  "timesheet.submitted": {
+    type: NotificationType.TIMESHEET_SUBMITTED,
+    preferenceKey: "approvalRequest"
+  },
+  "timesheet.submitted.batch": {
+    type: NotificationType.TIMESHEET_SUBMITTED,
+    preferenceKey: "approvalRequest"
+  },
+  "timesheet.approved": {
+    type: NotificationType.TIMESHEET_APPROVED,
+    preferenceKey: "timesheetStatus"
+  },
+  "timesheet.rejected": {
+    type: NotificationType.TIMESHEET_REJECTED,
+    preferenceKey: "timesheetStatus"
+  },
+  "timesheet.reminder": {
+    type: NotificationType.TIMESHEET_REMINDER,
+    preferenceKey: "timesheetReminders"
+  },
+  "timesheet.reminder.manual": {
+    type: NotificationType.TIMESHEET_REMINDER,
+    preferenceKey: "timesheetReminders"
+  },
+  "timesheet.amendment.requested": {
+    type: NotificationType.TIMESHEET_AMENDMENT_REQUESTED,
+    preferenceKey: "approvalRequest"
+  },
+  "timesheet.amendment.approved": {
+    type: NotificationType.TIMESHEET_AMENDMENT_APPROVED,
+    preferenceKey: "timesheetStatus"
+  },
+  "timesheet.amendment.denied": {
+    type: NotificationType.TIMESHEET_AMENDMENT_DENIED,
+    preferenceKey: "timesheetStatus"
+  },
+  "timer.autostopped": {
+    type: NotificationType.TIMER_AUTOSTOPPED,
+    preferenceKey: "idleTimerAlert"
+  },
+  "member.joined": { type: NotificationType.MEMBER_CHANGE, preferenceKey: "memberChanges" },
+  "member.removed": { type: NotificationType.MEMBER_CHANGE, preferenceKey: "memberChanges" },
+  "workspace.added": { type: NotificationType.WORKSPACE_ADDED, preferenceKey: "workspaceAdded" },
+  "export.ready": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
+  "export.failed": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
+  "budget.near": { type: NotificationType.BUDGET_ALERT, preferenceKey: "budgetAlert" },
+  "budget.over": { type: NotificationType.BUDGET_ALERT, preferenceKey: "budgetAlert" },
+  "jira.synced": { type: NotificationType.JIRA_SYNC_UPDATE, preferenceKey: "jiraSyncUpdates" }
 };
 
 /** ISO week number (1–53) for period labeling. */

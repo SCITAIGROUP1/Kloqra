@@ -8,12 +8,19 @@ import type {
   ReportQueryDto,
   UtilizationQueryDto
 } from "@kloqra/contracts";
-import { buildPaginationMeta, ErrorCodes } from "@kloqra/contracts";
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { buildPaginationMeta, ErrorCodes, resolveEffectiveCurrency } from "@kloqra/contracts";
+import {
+  HttpStatus,
+  Injectable,
+  Logger,
+  type OnModuleInit,
+  type OnModuleDestroy
+} from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { parseWorkspaceSettingsFromRaw } from "../../../common/time/approval-period.util";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
 import { getWeekStartDate, getWeekStartUtc } from "../../../common/time/week.util";
@@ -27,13 +34,52 @@ type HoursAgg = {
 const HEATMAP_OTHER_ID = "00000000-0000-0000-0000-000000000000";
 
 @Injectable()
-export class ReportingService {
+export class ReportingService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ReportingService.name);
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(
     private prisma: PrismaService,
     private aggregation: TimeAggregationService,
     private reportCache: ReportCacheService,
     private access: ProjectAccessService
   ) {}
+
+  onModuleInit() {
+    if (!process.env.DATABASE_URL?.trim()) {
+      return;
+    }
+    void this.cleanupExpiredShares().catch((err: unknown) => {
+      this.logger.error(
+        `Initial ReportShare cleanup failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    });
+    this.cleanupTimer = setInterval(
+      () => {
+        void this.cleanupExpiredShares().catch((err: unknown) => {
+          this.logger.error(
+            `ReportShare cleanup failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        });
+      },
+      24 * 60 * 60 * 1000
+    );
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+    }
+  }
+
+  async cleanupExpiredShares() {
+    const result = await this.prisma.reportShare.deleteMany({
+      where: { expiresAt: { lt: new Date() } }
+    });
+    if (result.count > 0) {
+      this.logger.log(`Cleaned up ${result.count} expired ReportShare records.`);
+    }
+  }
 
   async projectSummary(
     workspaceId: string,
@@ -54,6 +100,16 @@ export class ReportingService {
 
     const from = new Date(query.from);
     const to = new Date(query.to);
+    const diffMs = to.getTime() - from.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDays > 365) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Date range cannot exceed 365 days",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
@@ -167,8 +223,15 @@ export class ReportingService {
     userId: string,
     query?: MyWeekQueryDto
   ): Promise<MyWeekSummaryDto> {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { settings: true }
+    });
+    const settings = parseWorkspaceSettingsFromRaw(workspace?.settings);
+    const weekStartPref = settings.weekStart ?? "sunday";
+
     const now = new Date();
-    const weekStart = getWeekStartDate(now, "sunday");
+    const weekStart = getWeekStartDate(now, weekStartPref);
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     weekEnd.setUTCHours(23, 59, 59, 999);
@@ -262,6 +325,13 @@ export class ReportingService {
     workspaceId: string,
     query: ReportQueryDto
   ): Promise<DashboardReportDto> {
+    const workspaceRow = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { settings: true }
+    });
+    const settings = parseWorkspaceSettingsFromRaw(workspaceRow?.settings);
+    const currency = resolveEffectiveCurrency(settings);
+
     const from = new Date(query.from);
     const to = new Date(query.to);
 
@@ -293,7 +363,8 @@ export class ReportingService {
           resolveRate(
             log.userId,
             log.task.projectId,
-            log.user.defaultHourlyRate?.toNumber() ?? null
+            log.user.defaultHourlyRate?.toNumber() ?? null,
+            log.startTime
           )
         : 0;
 
@@ -383,7 +454,7 @@ export class ReportingService {
         billableHours: roundExport(workspaceAgg.billableHours),
         nonBillableHours: roundExport(wsTotal - workspaceAgg.billableHours),
         totalAmount: roundExport(workspaceAgg.billableAmount),
-        currency: "USD" as const,
+        currency,
         activeProjects: activeProjects.size,
         activeMembers: activeMembers.size,
         billablePercent

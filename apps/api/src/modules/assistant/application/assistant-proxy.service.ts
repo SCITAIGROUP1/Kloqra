@@ -5,9 +5,10 @@ import {
   type AssistantInternalChatRequestDto
 } from "@kloqra/contracts";
 import { Injectable, Logger } from "@nestjs/common";
+import { RedisService } from "../../../common/redis/redis.service";
 import { buildAssistantFallbackReply } from "./assistant-fallback";
 
-const PROXY_TIMEOUT_MS = 30_000;
+const PROXY_TIMEOUT_MS = Number(process.env.ASSISTANT_PROXY_TIMEOUT_MS ?? 12_000);
 const CIRCUIT_FAILURE_THRESHOLD = 3;
 const CIRCUIT_OPEN_MS = 60_000;
 
@@ -20,8 +21,10 @@ function isAssistantEnabled(): boolean {
 @Injectable()
 export class AssistantProxyService {
   private readonly logger = new Logger(AssistantProxyService.name);
-  private consecutiveFailures = 0;
-  private circuitOpenUntil = 0;
+  private readonly FAILURE_KEY = "assistant:circuit:failures";
+  private readonly OPEN_UNTIL_KEY = "assistant:circuit:open_until";
+
+  constructor(private redis: RedisService) {}
 
   private get serviceUrl(): string {
     return (process.env.ASSISTANT_SERVICE_URL ?? "http://localhost:3003").replace(/\/$/, "");
@@ -31,21 +34,25 @@ export class AssistantProxyService {
     return process.env.ASSISTANT_INTERNAL_SECRET?.trim() || undefined;
   }
 
-  private isCircuitOpen(): boolean {
-    return Date.now() < this.circuitOpenUntil;
+  private async isCircuitOpen(): Promise<boolean> {
+    const openUntil = await this.redis.getClient().get(this.OPEN_UNTIL_KEY);
+    return openUntil ? Date.now() < Number(openUntil) : false;
   }
 
-  private recordFailure(): void {
-    this.consecutiveFailures += 1;
-    if (this.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
-      this.circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
+  private async recordFailure(): Promise<void> {
+    const count = await this.redis.getClient().incr(this.FAILURE_KEY);
+    await this.redis.getClient().expire(this.FAILURE_KEY, 60); // 60s failure window
+    if (count >= CIRCUIT_FAILURE_THRESHOLD) {
+      await this.redis
+        .getClient()
+        .set(this.OPEN_UNTIL_KEY, String(Date.now() + CIRCUIT_OPEN_MS), "EX", 60);
       this.logger.warn("Assistant circuit breaker opened for 60s");
     }
   }
 
-  private recordSuccess(): void {
-    this.consecutiveFailures = 0;
-    this.circuitOpenUntil = 0;
+  private async recordSuccess(): Promise<void> {
+    await this.redis.getClient().del(this.FAILURE_KEY);
+    await this.redis.getClient().del(this.OPEN_UNTIL_KEY);
   }
 
   async chat(
@@ -56,7 +63,7 @@ export class AssistantProxyService {
       return buildAssistantFallbackReply();
     }
 
-    if (this.isCircuitOpen()) {
+    if (await this.isCircuitOpen()) {
       this.logger.debug("Assistant circuit open — returning fallback");
       return buildAssistantFallbackReply();
     }
@@ -92,7 +99,7 @@ export class AssistantProxyService {
 
       if (!res.ok) {
         this.logger.warn(`Assistant service responded ${res.status}`);
-        this.recordFailure();
+        await this.recordFailure();
         return buildAssistantFallbackReply();
       }
 
@@ -100,16 +107,16 @@ export class AssistantProxyService {
       const parsed = assistantChatResponseSchema.safeParse(json);
       if (!parsed.success) {
         this.logger.warn("Assistant response failed contract validation");
-        this.recordFailure();
+        await this.recordFailure();
         return buildAssistantFallbackReply();
       }
 
-      this.recordSuccess();
+      await this.recordSuccess();
       return parsed.data;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Assistant proxy error: ${message}`);
-      this.recordFailure();
+      await this.recordFailure();
       return buildAssistantFallbackReply();
     } finally {
       clearTimeout(timeout);

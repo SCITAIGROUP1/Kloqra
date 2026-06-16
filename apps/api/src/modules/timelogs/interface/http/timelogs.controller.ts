@@ -21,13 +21,15 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimelogAuditService } from "../../application/timelog-audit.service";
 import { TimelogsService } from "../../application/timelogs.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TimelogsController {
   constructor(
     private timelogs: TimelogsService,
@@ -62,6 +64,15 @@ export class TimelogsController {
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS(":id"))
   auditEvents(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.audit.listForTimeLog(user.workspaceId, user.userId, user.role, id);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.TIMELOGS.AUDIT_EVENTS_WORKSPACE)
+  workspaceAuditEvents(
+    @CurrentUser() user: RequestUser,
+    @Query() query: { from: string; to: string; entryUserId?: string }
+  ) {
+    return this.audit.listForWorkspace(user.workspaceId, query);
   }
 
   @Get(ROUTES.TIMELOGS.YESTERDAY_SUMMARY)

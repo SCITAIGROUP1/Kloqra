@@ -29,6 +29,25 @@ function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
 }
 
+function parseDuration(duration: string): number {
+  const match = duration.match(/^(\d+)([smhd])$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000;
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  switch (unit) {
+    case "s":
+      return value * 1000;
+    case "m":
+      return value * 60 * 1000;
+    case "h":
+      return value * 60 * 60 * 1000;
+    case "d":
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      return 7 * 24 * 60 * 60 * 1000;
+  }
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -468,7 +487,7 @@ export class AuthService {
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
     );
 
-    const expiresInMs = 7 * 24 * 60 * 60 * 1000;
+    const expiresInMs = parseDuration(process.env.JWT_REFRESH_EXPIRES ?? "7d");
     const expiresAt = new Date(Date.now() + expiresInMs);
 
     const now = new Date();
@@ -493,7 +512,10 @@ export class AuthService {
     return { raw, family: tokenFamily };
   }
 
-  /** Legacy signing for code paths that don't yet use DB rotation */
+  /**
+   * @deprecated Legacy signing for code paths that don't yet use DB rotation.
+   * REMOVE: All callers migrated to signAndStoreRefreshToken.
+   */
   signRefreshToken(userId: string, workspaceId: string): string {
     const secret = process.env.JWT_REFRESH_SECRET?.trim();
     if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
@@ -774,6 +796,14 @@ export class AuthService {
         ErrorCodes.NOT_FOUND,
         "Target user is not a member of this workspace",
         HttpStatus.NOT_FOUND
+      );
+    }
+
+    if (targetMembership.role === "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Admins cannot impersonate other admins",
+        HttpStatus.FORBIDDEN
       );
     }
 

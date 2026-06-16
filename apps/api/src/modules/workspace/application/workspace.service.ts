@@ -53,55 +53,109 @@ export class WorkspaceService {
     dto: UpdateWorkspaceMemberDto,
     _actingUserId: string
   ) {
-    const member = await this.getMembership(workspaceId, memberId);
+    return this.prisma.$transaction(async (tx) => {
+      // Acquire write-lock on the workspace row to prevent concurrent role changes/removals
+      await tx.$queryRaw`SELECT 1 FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`;
 
-    if (member.role === dto.role) {
-      return this.toMemberDto(member);
-    }
-
-    if (member.role === "ADMIN" && dto.role === "MEMBER") {
-      const adminCount = await this.countAdmins(workspaceId);
-      if (adminCount <= 1) {
+      const member = await tx.workspaceMember.findFirst({
+        where: { id: memberId, workspaceId },
+        include: { user: true }
+      });
+      if (!member) {
         throw new DomainException(
-          ErrorCodes.FORBIDDEN,
-          "Cannot demote the last workspace admin",
-          HttpStatus.FORBIDDEN
+          ErrorCodes.NOT_FOUND,
+          "Workspace member not found",
+          HttpStatus.NOT_FOUND
         );
       }
-    }
 
-    const updated = await this.prisma.workspaceMember.update({
-      where: { id: memberId },
-      data: { role: dto.role },
-      include: { user: true }
+      if (member.role === dto.role) {
+        return this.toMemberDto(member);
+      }
+
+      if (member.role === "ADMIN" && dto.role === "MEMBER") {
+        const adminCount = await tx.workspaceMember.count({
+          where: { workspaceId, role: "ADMIN" }
+        });
+        if (adminCount <= 1) {
+          throw new DomainException(
+            ErrorCodes.FORBIDDEN,
+            "Cannot demote the last workspace admin",
+            HttpStatus.FORBIDDEN
+          );
+        }
+      }
+
+      const updated = await tx.workspaceMember.update({
+        where: { id: memberId },
+        data: { role: dto.role },
+        include: { user: true }
+      });
+      return this.toMemberDto(updated);
     });
-    return this.toMemberDto(updated);
   }
 
   async removeMember(workspaceId: string, memberId: string, actingUserId: string) {
-    const member = await this.getMembership(workspaceId, memberId);
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Acquire write-lock on the workspace row to prevent concurrent role changes/removals
+      await tx.$queryRaw`SELECT 1 FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`;
 
-    if (member.userId === actingUserId) {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Cannot remove yourself from the workspace",
-        HttpStatus.FORBIDDEN
-      );
-    }
+      const member = await tx.workspaceMember.findFirst({
+        where: { id: memberId, workspaceId },
+        include: { user: true }
+      });
+      if (!member) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Workspace member not found",
+          HttpStatus.NOT_FOUND
+        );
+      }
 
-    if (member.role === "ADMIN") {
-      const adminCount = await this.countAdmins(workspaceId);
-      if (adminCount <= 1) {
+      if (member.userId === actingUserId) {
         throw new DomainException(
           ErrorCodes.FORBIDDEN,
-          "Cannot remove the last workspace admin",
+          "Cannot remove yourself from the workspace",
           HttpStatus.FORBIDDEN
         );
       }
-    }
 
-    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
-    await this.prisma.workspaceMember.delete({ where: { id: memberId } });
+      if (member.role === "ADMIN") {
+        const adminCount = await tx.workspaceMember.count({
+          where: { workspaceId, role: "ADMIN" }
+        });
+        if (adminCount <= 1) {
+          throw new DomainException(
+            ErrorCodes.FORBIDDEN,
+            "Cannot remove the last workspace admin",
+            HttpStatus.FORBIDDEN
+          );
+        }
+      }
+
+      const workspace = await tx.workspace.findUnique({ where: { id: workspaceId } });
+
+      // Deactivate TeamMember rows for the removed member in this workspace
+      await tx.teamMember.updateMany({
+        where: {
+          userId: member.userId,
+          team: {
+            project: {
+              workspaceId
+            }
+          }
+        },
+        data: {
+          isActive: false
+        }
+      });
+
+      await tx.workspaceMember.delete({ where: { id: memberId } });
+
+      return { member, workspace };
+    });
+
+    const { member, workspace } = result;
 
     const actor = await this.prisma.user.findUnique({
       where: { id: actingUserId },

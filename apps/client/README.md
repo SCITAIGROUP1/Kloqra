@@ -17,6 +17,7 @@ Copy `.env.example` to `.env.local`:
 ```
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 NEXT_PUBLIC_AUTH_SCOPE=client
+NEXT_PUBLIC_HARD_AUTO_STOP_HOURS=12
 ```
 
 ## Routes

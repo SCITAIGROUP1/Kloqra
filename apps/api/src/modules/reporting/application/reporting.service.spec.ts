@@ -15,7 +15,8 @@ describe("ReportingService myWeekSummary", () => {
 
   beforeEach(() => {
     mockPrisma = {
-      project: { findMany: vi.fn().mockResolvedValue([{ id: "p1", color: "#236bfe" }]) }
+      project: { findMany: vi.fn().mockResolvedValue([{ id: "p1", color: "#236bfe" }]) },
+      workspace: { findUnique: vi.fn().mockResolvedValue({ settings: { weekStart: "sunday" } }) }
     };
     mockAggregation = {
       fetchLogs: vi.fn().mockResolvedValue([
@@ -87,6 +88,20 @@ describe("ReportingService myWeekSummary", () => {
       expect.objectContaining({ categoryId: "c1" })
     );
   });
+
+  it("respects weekStart setting when defined", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({ settings: { weekStart: "monday" } });
+
+    await service.myWeekSummary(workspaceId, userId);
+
+    expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({
+        from: expect.any(Date),
+        to: expect.any(Date)
+      })
+    );
+  });
 });
 
 describe("ReportingService dashboard", () => {
@@ -120,6 +135,9 @@ describe("ReportingService dashboard", () => {
       },
       timeLog: {
         groupBy: vi.fn().mockResolvedValue([{ taskId: "t1", _sum: { durationSec: 72000 } }])
+      },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({ settings: { currency: "USD" } })
       }
     };
     mockAggregation = {

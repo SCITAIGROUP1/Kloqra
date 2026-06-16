@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { listPaginationQuerySchema } from "../pagination";
-import { assertMaxDateRange, isoDatetimeSchema, uuidSchema } from "./common.dto";
+import {
+  assertMaxDateRange,
+  currencyCodeSchema,
+  isoDatetimeSchema,
+  uuidSchema
+} from "./common.dto";
 
 export const reportQuerySchema = z
   .object({
@@ -67,7 +72,7 @@ export const dashboardReportSchema = z.object({
   }),
   workspace: hoursBreakdownSchema.extend({
     totalAmount: z.number(),
-    currency: z.literal("USD"),
+    currency: currencyCodeSchema,
     activeProjects: z.number(),
     activeMembers: z.number(),
     billablePercent: z.number()

@@ -138,6 +138,9 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
     });
     if (!schedule || !schedule.enabled) return;
 
+    let status = "ok";
+    let errorMessage: string | null = null;
+
     try {
       const body = exportBodySchema.parse(schedule.body);
       const result = await this.exportService.generate(schedule.workspaceId, body);
@@ -147,7 +150,6 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
         `Schedule "${schedule.name}": generated ${result.filename} (${result.buffer.length} bytes) — sending to ${recipients.join(", ")}`
       );
 
-      // Determine MIME type from filename extension
       const ext = result.filename.split(".").pop()?.toLowerCase();
       const contentType =
         ext === "pdf"
@@ -173,16 +175,6 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
         ]
       });
 
-      await this.prisma.exportSchedule.update({
-        where: { id: scheduleId },
-        data: {
-          lastRunAt: new Date(),
-          lastRunStatus: "ok",
-          lastRunError: null,
-          nextRunAt: this.computeNextRun(schedule.frequency as ExportScheduleFrequency, new Date())
-        }
-      });
-
       void this.notificationsDispatch
         .notifyWorkspaceAdmins(schedule.workspaceId, {
           templateId: "export.ready",
@@ -190,23 +182,34 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
         })
         .catch(() => undefined);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Export failed";
-      await this.prisma.exportSchedule.update({
-        where: { id: scheduleId },
-        data: {
-          lastRunAt: new Date(),
-          lastRunStatus: "error",
-          lastRunError: message,
-          nextRunAt: this.computeNextRun(schedule.frequency as ExportScheduleFrequency, new Date())
-        }
-      });
+      status = "error";
+      errorMessage = err instanceof Error ? err.message : "Export failed";
 
       void this.notificationsDispatch
         .notifyWorkspaceAdmins(schedule.workspaceId, {
           templateId: "export.failed",
-          context: { scheduleName: schedule.name, errorMessage: message }
+          context: { scheduleName: schedule.name, errorMessage }
         })
         .catch(() => undefined);
+    } finally {
+      await this.prisma.exportSchedule
+        .update({
+          where: { id: scheduleId },
+          data: {
+            lastRunAt: new Date(),
+            lastRunStatus: status,
+            lastRunError: errorMessage,
+            nextRunAt: this.computeNextRun(
+              schedule.frequency as ExportScheduleFrequency,
+              new Date()
+            )
+          }
+        })
+        .catch((err) => {
+          this.logger.error(
+            `Failed to update export schedule run state: ${err instanceof Error ? err.message : String(err)}`
+          );
+        });
     }
   }
 

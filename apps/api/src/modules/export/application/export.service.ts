@@ -1,6 +1,7 @@
 import { PassThrough } from "stream";
 import {
   buildExportFilename,
+  ErrorCodes,
   EXPORT_COLUMN_LABELS,
   MEMBER_EXPORT_COLUMN_LABELS,
   parseWorkspaceSettings,
@@ -14,10 +15,11 @@ import {
   type MemberExportBodyDto,
   type MemberExportReportType
 } from "@kloqra/contracts";
-import { Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import archiver from "archiver";
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
@@ -156,6 +158,16 @@ export class ExportService {
     const from = new Date(filters.from);
     const to = new Date(filters.to);
 
+    const diffMs = to.getTime() - from.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDays > 366) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Date range cannot exceed 12 months",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
     let userIds: string[] | undefined;
     if (filters.teamOnly && filters.projectId) {
       userIds = await this.aggregation.teamMemberUserIds(filters.projectId);
@@ -292,7 +304,8 @@ export class ExportService {
         const rate = resolveRate(
           l.userId,
           l.task.projectId,
-          l.user.defaultHourlyRate?.toNumber() ?? null
+          l.user.defaultHourlyRate?.toNumber() ?? null,
+          l.startTime
         );
         const amount = l.isBillable ? hours * rate : 0;
         const categoryName = l.task.category?.name ?? "Uncategorized";
@@ -443,7 +456,9 @@ export class ExportService {
     sheets: SheetData[],
     fileBase: { workspaceSlug: string; from: string; to: string; scope: ExportScope }
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
-    const workbook = new ExcelJS.Workbook();
+    const stream = new PassThrough();
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream });
+
     for (const s of sheets) {
       const ws = workbook.addWorksheet(s.name);
       ws.addRow(s.headers);
@@ -451,8 +466,18 @@ export class ExportService {
         ws.addRow(line);
       }
       ws.getRow(1).font = { bold: true };
+      ws.commit();
     }
-    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    await workbook.commit();
+
+    const chunks: Buffer[] = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    await new Promise<void>((resolve) => {
+      stream.on("end", resolve);
+    });
+
+    const buffer = Buffer.concat(chunks);
+
     return {
       buffer,
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

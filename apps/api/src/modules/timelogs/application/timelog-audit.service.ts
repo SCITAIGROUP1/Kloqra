@@ -104,4 +104,47 @@ export class TimelogAuditService {
       }))
     };
   }
+
+  async listForWorkspace(
+    workspaceId: string,
+    query: { from: string; to: string; entryUserId?: string }
+  ): Promise<ListTimelogAuditEventsResponseDto> {
+    const where: Prisma.TimeLogAuditEventWhereInput = {
+      workspaceId,
+      createdAt: {
+        gte: new Date(query.from),
+        lte: new Date(query.to)
+      },
+      ...(query.entryUserId ? { entryUserId: query.entryUserId } : {})
+    };
+
+    const events = await this.prisma.timeLogAuditEvent.findMany({
+      where,
+      orderBy: { createdAt: "desc" }
+    });
+
+    const actorIds = [...new Set(events.map((e) => e.actorId))];
+    const actors =
+      actorIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: actorIds } },
+            select: { id: true, name: true }
+          })
+        : [];
+    const actorNameById = new Map(actors.map((a) => [a.id, a.name]));
+
+    return {
+      items: events.map((e) => ({
+        id: e.id,
+        timeLogId: e.timeLogId,
+        entryUserId: e.entryUserId,
+        actorId: e.actorId,
+        actorName: actorNameById.get(e.actorId) ?? "Unknown",
+        action: e.action as TimelogAuditAction,
+        before: (e.before as TimelogAuditSnapshot | null) ?? null,
+        after: (e.after as TimelogAuditSnapshot | null) ?? null,
+        createdAt: e.createdAt.toISOString()
+      }))
+    };
+  }
 }

@@ -6,7 +6,8 @@ import type {
   UpdateNotificationReadDto
 } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import type { Prisma } from "@prisma/client";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
@@ -25,6 +26,8 @@ type NotificationRow = {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   toDto(row: NotificationRow): NotificationDto {
@@ -140,5 +143,14 @@ export class NotificationsService {
       }
     });
     return this.toDto(row);
+  }
+
+  @Cron("0 3 * * *") // 3 AM daily
+  async cleanOldNotifications() {
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const { count } = await this.prisma.notification.deleteMany({
+      where: { readAt: { not: null, lt: cutoff } }
+    });
+    this.logger.log(`Cleaned ${count} old notifications`);
   }
 }

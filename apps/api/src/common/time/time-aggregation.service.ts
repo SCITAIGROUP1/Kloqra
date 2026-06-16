@@ -109,19 +109,46 @@ export class TimeAggregationService {
       orderBy: { effectiveFrom: "desc" }
     });
 
-    const projectRate = new Map<string, number>();
-    const userRate = new Map<string, number>();
+    rates.sort((a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime());
+
+    const projectRatesMap = new Map<string, typeof rates>();
+    const userRatesMap = new Map<string, typeof rates>();
+
     for (const r of rates) {
-      if (r.projectId && !projectRate.has(r.projectId)) {
-        projectRate.set(r.projectId, r.rate.toNumber());
+      if (r.projectId) {
+        const list = projectRatesMap.get(r.projectId) ?? [];
+        list.push(r);
+        projectRatesMap.set(r.projectId, list);
       }
-      if (r.userId && !userRate.has(r.userId)) {
-        userRate.set(r.userId, r.rate.toNumber());
+      if (r.userId) {
+        const list = userRatesMap.get(r.userId) ?? [];
+        list.push(r);
+        userRatesMap.set(r.userId, list);
       }
     }
 
-    const resolveRate = (userId: string, projectId: string, defaultRate: number | null) =>
-      projectRate.get(projectId) ?? userRate.get(userId) ?? defaultRate ?? 0;
+    const resolveRate = (
+      userId: string,
+      projectId: string,
+      defaultRate: number | null,
+      dateInput?: Date | string | null
+    ) => {
+      const date = dateInput ? new Date(dateInput) : new Date();
+
+      const pRates = projectRatesMap.get(projectId);
+      if (pRates) {
+        const match = pRates.find((r) => r.effectiveFrom <= date);
+        if (match) return match.rate.toNumber();
+      }
+
+      const uRates = userRatesMap.get(userId);
+      if (uRates) {
+        const match = uRates.find((r) => r.effectiveFrom <= date);
+        if (match) return match.rate.toNumber();
+      }
+
+      return defaultRate ?? 0;
+    };
 
     return { resolveRate };
   }
@@ -136,7 +163,12 @@ export class TimeAggregationService {
 
   buildAggregates(
     logs: TimeLogWithRelations[],
-    resolveRate: (userId: string, projectId: string, defaultRate: number | null) => number
+    resolveRate: (
+      userId: string,
+      projectId: string,
+      defaultRate: number | null,
+      date?: Date | string | null
+    ) => number
   ) {
     const byProject = new Map<
       string,
@@ -171,7 +203,8 @@ export class TimeAggregationService {
           resolveRate(
             log.userId,
             log.task.projectId,
-            log.user.defaultHourlyRate?.toNumber() ?? null
+            log.user.defaultHourlyRate?.toNumber() ?? null,
+            log.startTime
           )
         : 0;
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
-import { isoDatetimeSchema, uuidSchema } from "./common.dto";
+import { currencyCodeSchema, isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const hourlyRateSchema = z.object({
   id: uuidSchema,
@@ -22,7 +22,7 @@ export const billableSummarySchema = z.object({
   totalHours: z.number(),
   billableHours: z.number(),
   totalAmount: z.number(),
-  currency: z.literal("USD")
+  currency: currencyCodeSchema
 });
 
 export const listHourlyRatesQuerySchema = listPaginationQuerySchema.extend({

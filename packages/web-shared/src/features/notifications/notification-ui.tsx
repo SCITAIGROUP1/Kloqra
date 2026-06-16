@@ -16,7 +16,12 @@ import {
 
 export function iconForNotificationType(type: NotificationType, title?: string | null): LucideIcon {
   const lowerTitle = title?.toLowerCase() ?? "";
-  if (type === "APPROVAL_REQUEST" || lowerTitle.includes("amendment")) {
+  if (
+    type === "APPROVAL_REQUEST" ||
+    type === "TIMESHEET_SUBMITTED" ||
+    type === "TIMESHEET_AMENDMENT_REQUESTED" ||
+    lowerTitle.includes("amendment")
+  ) {
     return ClipboardCheck;
   }
   switch (type) {
@@ -26,8 +31,13 @@ export function iconForNotificationType(type: NotificationType, title?: string |
       return CheckSquare;
     case "TIMESHEET_REMINDER":
     case "TIMESHEET_STATUS":
+    case "TIMESHEET_APPROVED":
+    case "TIMESHEET_REJECTED":
+    case "TIMESHEET_AMENDMENT_APPROVED":
+    case "TIMESHEET_AMENDMENT_DENIED":
       return Clock;
     case "IDLE_TIMER_ALERT":
+    case "TIMER_AUTOSTOPPED":
       return Timer;
     case "JIRA_SYNC_UPDATE":
       return Link2;

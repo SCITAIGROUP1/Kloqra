@@ -1,6 +1,6 @@
 import { ErrorCodes, formatTimesheetPeriodLabel } from "@kloqra/contracts";
 import type { TimesheetAmendmentDto, TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
@@ -12,6 +12,7 @@ import { NotificationsDispatchService } from "../../notifications/application/no
 
 @Injectable()
 export class TimesheetAmendmentsService {
+  private readonly logger = new Logger(TimesheetAmendmentsService.name);
   constructor(
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService
@@ -141,7 +142,11 @@ export class TimesheetAmendmentsService {
         },
         excludeUserId: userId
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        this.logger.error(
+          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      });
 
     return this.toDto(row);
   }
@@ -260,7 +265,11 @@ export class TimesheetAmendmentsService {
           periodStart: amendment.period.periodStart.toISOString()
         }
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        this.logger.error(
+          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      });
 
     const row = await this.prisma.timesheetAmendmentRequest.findUniqueOrThrow({
       where: { id: amendmentId },
@@ -280,36 +289,40 @@ export class TimesheetAmendmentsService {
   }
 
   async deny(workspaceId: string, amendmentId: string, adminUserId: string, adminNote?: string) {
-    const result = await this.prisma.timesheetAmendmentRequest.updateMany({
-      where: { id: amendmentId, workspaceId, status: "PENDING" },
-      data: {
-        status: "DENIED",
-        adminNote: adminNote || null,
-        reviewedBy: adminUserId,
-        reviewedAt: new Date()
+    // Non-critical but preferred: wrap the status update and detail fetch inside a single
+    // transaction block to ensure atomicity and consistent database read states.
+    const row = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.timesheetAmendmentRequest.updateMany({
+        where: { id: amendmentId, workspaceId, status: "PENDING" },
+        data: {
+          status: "DENIED",
+          adminNote: adminNote || null,
+          reviewedBy: adminUserId,
+          reviewedAt: new Date()
+        }
+      });
+
+      if (result.count === 0) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Amendment request not found or already reviewed",
+          HttpStatus.NOT_FOUND
+        );
       }
-    });
 
-    if (result.count === 0) {
-      throw new DomainException(
-        ErrorCodes.NOT_FOUND,
-        "Amendment request not found or already reviewed",
-        HttpStatus.NOT_FOUND
-      );
-    }
-
-    const row = await this.prisma.timesheetAmendmentRequest.findUniqueOrThrow({
-      where: { id: amendmentId },
-      include: {
-        user: { select: { name: true, email: true } },
-        period: {
-          include: {
-            project: {
-              include: { workspace: { select: { name: true, settings: true } } }
+      return tx.timesheetAmendmentRequest.findUniqueOrThrow({
+        where: { id: amendmentId },
+        include: {
+          user: { select: { name: true, email: true } },
+          period: {
+            include: {
+              project: {
+                include: { workspace: { select: { name: true, settings: true } } }
+              }
             }
           }
         }
-      }
+      });
     });
 
     const workspaceSettings = parseWorkspaceSettingsFromRaw(row.period.project.workspace.settings);
@@ -333,7 +346,11 @@ export class TimesheetAmendmentsService {
           adminNote: adminNote || undefined
         }
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        this.logger.error(
+          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      });
 
     return this.toDto(row);
   }

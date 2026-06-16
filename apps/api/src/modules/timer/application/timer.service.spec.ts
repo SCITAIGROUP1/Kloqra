@@ -288,4 +288,20 @@ describe("TimerService", () => {
     expect(redisMock.client.del).toHaveBeenCalledWith(`timer:${workspaceId}:${userId}`);
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
+
+  it("cleans up and returns null if stored timer state is malformed", async () => {
+    redisMock.store.set(
+      `timer:${workspaceId}:${userId}`,
+      JSON.stringify({
+        userId,
+        workspaceId,
+        taskId
+        // missing startedAt, accumulatedSec, isPaused
+      })
+    );
+
+    const result = await service.active(workspaceId, userId);
+    expect(result).toBeNull();
+    expect(redisMock.store.get(`timer:${workspaceId}:${userId}`)).toBeUndefined();
+  });
 });

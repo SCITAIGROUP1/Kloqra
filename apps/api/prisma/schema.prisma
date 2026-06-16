@@ -83,6 +83,7 @@ model Notification {
 
   @@index([userId, workspaceId, createdAt(sort: Desc)])
   @@index([userId, workspaceId, readAt])
+  @@index([metadata], type: Gin)
   @@map("notifications")
 }
 
@@ -179,6 +180,7 @@ model ProjectInvite {
   createdBy   User      @relation("ProjectInvitesCreated", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([email])
   @@map("project_invites")
 }
 
@@ -262,6 +264,7 @@ model HourlyRate {
 
   @@index([workspaceId])
   @@index([workspaceId, effectiveFrom])
+  @@unique([workspaceId, userId, projectId, effectiveFrom])
   @@map("hourly_rates")
 }
 
@@ -331,28 +334,42 @@ model RefreshToken {
 
   @@index([userId])
   @@index([tokenHash])
+  @@index([userId, family, revokedAt, expiresAt])
   @@map("refresh_tokens")
 }
 
 /// Represents a timesheet approval period for a user on a project.
 /// States: DRAFT → SUBMITTED → APPROVED | REJECTED → SUBMITTED …
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum AmendmentStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
 model TimesheetPeriod {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  workspaceId String    @map("workspace_id")
-  projectId   String    @map("project_id")
-  periodStart DateTime  @map("period_start")
-  periodEnd   DateTime  @map("period_end")
-  status      String    @default("DRAFT") // DRAFT | SUBMITTED | APPROVED | REJECTED
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  workspaceId String          @map("workspace_id")
+  projectId   String          @map("project_id")
+  periodStart DateTime        @map("period_start")
+  periodEnd   DateTime        @map("period_end")
+  status      TimesheetStatus @default(DRAFT)
   note        String?
-  reviewNote  String?   @map("review_note")
-  reviewedBy  String?   @map("reviewed_by")
-  submittedAt DateTime? @map("submitted_at")
-  reviewedAt  DateTime? @map("reviewed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewNote  String?         @map("review_note")
+  reviewedBy  String?         @map("reviewed_by")
+  submittedAt DateTime?       @map("submitted_at")
+  reviewedAt  DateTime?       @map("reviewed_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   amendments  TimesheetAmendmentRequest[]
 
   @@unique([userId, projectId, periodStart])
@@ -363,25 +380,32 @@ model TimesheetPeriod {
 }
 
 model TimesheetAmendmentRequest {
-  id          String    @id @default(uuid())
-  periodId    String    @map("period_id")
-  userId      String    @map("user_id")
-  workspaceId String    @map("workspace_id")
+  id          String          @id @default(uuid())
+  periodId    String          @map("period_id")
+  userId      String          @map("user_id")
+  workspaceId String          @map("workspace_id")
   reason      String
-  status      String    @default("PENDING") // PENDING | APPROVED | DENIED
-  adminNote   String?   @map("admin_note")
-  reviewedBy  String?   @map("reviewed_by")
-  reviewedAt  DateTime? @map("reviewed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  status      AmendmentStatus @default(PENDING)
+  adminNote   String?         @map("admin_note")
+  reviewedBy  String?         @map("reviewed_by")
+  reviewedAt  DateTime?       @map("reviewed_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
   period      TimesheetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
   @@index([periodId, status])
+  // Partial unique index: amendment_one_pending_per_period (period_id) WHERE status = 'PENDING'
+  // Defined in migration 20260615173546_add_amendment_pending_unique_index — not expressible in Prisma 6 schema.
   @@map("timesheet_amendment_requests")
 }
 
+/// Audit trail for all TimeLog mutations.
+/// IMPORTANT: timeLogId is intentionally NOT a FK (no @relation).
+/// Audit records are preserved indefinitely even if the source TimeLog is deleted.
+/// This is by design for compliance and dispute resolution purposes.
+/// Do NOT add onDelete cascade to this field.
 model TimeLogAuditEvent {
   id          String   @id @default(uuid())
   workspaceId String   @map("workspace_id")
@@ -395,5 +419,6 @@ model TimeLogAuditEvent {
 
   @@index([timeLogId, createdAt])
   @@index([workspaceId, createdAt])
+  @@index([workspaceId, entryUserId, createdAt(sort: Desc)])
   @@map("time_log_audit_events")
 }

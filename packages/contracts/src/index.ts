@@ -28,3 +28,10 @@ export * from "./user-preferences";
 export * from "./dashboard-layout";
 export * from "./errors";
 export * from "./routes";
+
+export const TimerSource = {
+  manual: "manual",
+  timer: "timer",
+  timerAutostopped: "timer_autostopped"
+} as const;
+export type TimerSource = (typeof TimerSource)[keyof typeof TimerSource];

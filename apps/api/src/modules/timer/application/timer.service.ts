@@ -5,6 +5,7 @@ import { ProjectAccessService } from "../../../common/access/project-access.serv
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
+import { timerKey, timerAutoStoppedKey } from "../../../common/redis/timer-keys";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
 // eslint-disable-next-line no-restricted-imports
@@ -34,7 +35,7 @@ export class TimerService {
   ) {}
 
   private key(workspaceId: string, userId: string) {
-    return `timer:${workspaceId}:${userId}`;
+    return timerKey(workspaceId, userId);
   }
 
   private async assertNoActiveTimerAnywhere(userId: string, currentWorkspaceId: string) {
@@ -43,8 +44,16 @@ export class TimerService {
       select: { workspaceId: true }
     });
 
-    for (const { workspaceId } of memberships) {
-      const raw = await this.redis.getClient().get(this.key(workspaceId, userId));
+    const results = await Promise.all(
+      memberships.map(({ workspaceId }) =>
+        this.redis
+          .getClient()
+          .get(timerKey(workspaceId, userId))
+          .then((raw) => ({ workspaceId, raw }))
+      )
+    );
+
+    for (const { workspaceId, raw } of results) {
       if (!raw) continue;
 
       const message =
@@ -95,7 +104,7 @@ export class TimerService {
 
   async active(workspaceId: string, userId: string) {
     // Check if worker auto-stopped a timer since last poll
-    const autostopKey = `timer_autostopped:${workspaceId}:${userId}`;
+    const autostopKey = timerAutoStoppedKey(workspaceId, userId);
     const autostopRaw = await this.redis.getClient().get(autostopKey);
     if (autostopRaw) {
       await this.redis.getClient().del(autostopKey);
@@ -105,7 +114,14 @@ export class TimerService {
     const raw = await this.redis.getClient().get(this.key(workspaceId, userId));
     if (!raw) return null;
     const state = JSON.parse(raw) as Partial<TimerState>;
-    if (!state.startedAt || !state.taskId || !state.userId || !state.workspaceId) {
+    if (
+      !state.startedAt ||
+      !state.taskId ||
+      !state.userId ||
+      !state.workspaceId ||
+      typeof state.accumulatedSec !== "number" ||
+      typeof state.isPaused !== "boolean"
+    ) {
       await this.redis.getClient().del(this.key(workspaceId, userId));
       return null;
     }

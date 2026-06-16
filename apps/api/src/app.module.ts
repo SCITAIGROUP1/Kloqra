@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
+import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { CacheModule } from "./common/cache/cache.module";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
@@ -25,6 +26,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: "default",

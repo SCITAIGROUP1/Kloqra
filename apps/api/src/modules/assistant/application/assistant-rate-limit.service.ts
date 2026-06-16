@@ -9,12 +9,27 @@ export class AssistantRateLimitService {
   constructor(private redis: RedisService) {}
 
   async assertWithinLimit(userId: string): Promise<void> {
-    const key = `assistant:rl:${userId}`;
+    const key = `assistant:rl:sliding:${userId}`;
     const client = this.redis.getClient();
-    const raw = await client.get(key);
-    const count = raw ? Number.parseInt(raw, 10) : 0;
+    const now = Date.now();
+    const windowStart = now - WINDOW_SECONDS * 1000;
 
-    if (count >= MAX_REQUESTS) {
+    const multi = client.multi();
+    multi.zremrangebyscore(key, 0, windowStart);
+    multi.zadd(key, now, `${now}-${Math.random()}`);
+    multi.zcard(key);
+    multi.expire(key, WINDOW_SECONDS);
+
+    const results = await multi.exec();
+    if (!results) {
+      throw new Error("Redis multi command failed");
+    }
+
+    // Extract ZCARD count
+    const zcardResult = results[2];
+    const count = Array.isArray(zcardResult) ? (zcardResult[1] as number) : (zcardResult as number);
+
+    if (count > MAX_REQUESTS) {
       throw new HttpException(
         {
           code: "VALIDATION_ERROR",
@@ -22,12 +37,6 @@ export class AssistantRateLimitService {
         },
         HttpStatus.TOO_MANY_REQUESTS
       );
-    }
-
-    if (count === 0) {
-      await client.setex(key, WINDOW_SECONDS, "1");
-    } else {
-      await client.set(key, String(count + 1));
     }
   }
 }

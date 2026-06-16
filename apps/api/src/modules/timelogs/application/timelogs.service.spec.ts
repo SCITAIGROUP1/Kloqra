@@ -278,4 +278,39 @@ describe("TimelogAuditService", () => {
       source: "manual"
     });
   });
+
+  it("snapshotFromLog captures exactly 7 required fields", () => {
+    const log = {
+      taskId: "t1",
+      startTime: new Date("2025-01-01T09:00:00.000Z"),
+      endTime: new Date("2025-01-01T10:00:00.000Z"),
+      durationSec: 3600,
+      description: "Work",
+      isBillable: true,
+      source: "timer_autostopped"
+    };
+    const snapshot = audit.snapshotFromLog(log);
+    expect(Object.keys(snapshot)).toHaveLength(7);
+    expect(snapshot.source).toBe("timer_autostopped");
+  });
+});
+
+describe("TimelogsService resolveBillable", () => {
+  let service: TimelogsService;
+
+  beforeEach(() => {
+    service = new TimelogsService({} as never, {} as never, {} as never, {} as never, {} as never);
+  });
+
+  it("MEMBER cannot override isBillable — task default is always used", () => {
+    expect(service.resolveBillable("MEMBER", false, true)).toBe(false);
+    expect(service.resolveBillable("MEMBER", true, false)).toBe(true);
+    expect(service.resolveBillable("MEMBER", true, undefined)).toBe(true);
+  });
+
+  it("ADMIN can override isBillable", () => {
+    expect(service.resolveBillable("ADMIN", false, true)).toBe(true);
+    expect(service.resolveBillable("ADMIN", true, false)).toBe(false);
+    expect(service.resolveBillable("ADMIN", true, undefined)).toBe(true);
+  });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { currencyCodeSchema, DEFAULT_CURRENCY } from "./dto/common.dto";
 
 export const timesheetApprovalPeriodSchema = z.enum(["daily", "weekly", "monthly"]);
 
@@ -16,7 +17,8 @@ export const workspaceSettingsSchema = z
     dailyTargetHours: z.number().positive().max(24).optional(),
     roundingMinutes: z.number().int().nonnegative().optional(),
     timezone: z.string().optional(),
-    timerStaleWarningHours: z.number().positive().max(24).optional()
+    timerStaleWarningHours: z.number().positive().max(24).optional(),
+    currency: currencyCodeSchema.optional()
   })
   .passthrough();
 
@@ -37,6 +39,29 @@ export function resolveEffectiveTimerStaleWarningHours(
   return DEFAULT_STALE_WARNING_HOURS;
 }
 
+export function resolveEffectiveCurrency(workspaceSettings: WorkspaceSettings): string {
+  const currency = workspaceSettings.currency;
+  if (typeof currency === "string" && /^[A-Z]{3}$/.test(currency)) {
+    return currency;
+  }
+  return DEFAULT_CURRENCY;
+}
+
 export const DEFAULT_EXPECTED_WEEKLY_HOURS = 40;
 export const DEFAULT_STALE_WARNING_HOURS = 8;
-export const HARD_AUTO_STOP_HOURS = 14;
+export const DEFAULT_HARD_AUTO_STOP_HOURS = 12;
+
+function resolveHardAutoStopHours(): number {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    ?.env;
+  const raw = env?.HARD_AUTO_STOP_HOURS ?? env?.NEXT_PUBLIC_HARD_AUTO_STOP_HOURS;
+  if (raw) {
+    const hours = Number(raw);
+    if (Number.isFinite(hours) && hours > 0) {
+      return hours;
+    }
+  }
+  return DEFAULT_HARD_AUTO_STOP_HOURS;
+}
+
+export const HARD_AUTO_STOP_HOURS = resolveHardAutoStopHours();

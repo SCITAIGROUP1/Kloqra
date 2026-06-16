@@ -9,7 +9,12 @@ export class MemoryRedis {
     return this.store.get(key) ?? null;
   }
 
-  async set(key: string, value: string) {
+  async set(key: string, value: string, ...args: any[]) {
+    if (args.includes("NX") || args.includes("nx")) {
+      if (this.store.has(key)) {
+        return null;
+      }
+    }
     this.store.set(key, value);
     return "OK";
   }
@@ -26,6 +31,18 @@ export class MemoryRedis {
   async keys(pattern: string) {
     const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
     return Array.from(this.store.keys()).filter((k) => regex.test(k));
+  }
+
+  async mget(...keys: string[]) {
+    return keys.map((k) => this.store.get(k) ?? null);
+  }
+
+  async scan(cursor: string | number, ...args: any[]) {
+    const matchIdx = args.indexOf("MATCH");
+    const pattern = matchIdx !== -1 ? args[matchIdx + 1] : "*";
+    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+    const matchedKeys = Array.from(this.store.keys()).filter((k) => regex.test(k));
+    return ["0", matchedKeys];
   }
 
   async publish(channel: string, message: string) {
@@ -77,6 +94,68 @@ export class MemoryRedis {
         }
       }
     };
+  }
+
+  async incr(key: string) {
+    const val = this.store.get(key);
+    const num = val ? Number.parseInt(val, 10) : 0;
+    const next = num + 1;
+    this.store.set(key, String(next));
+    return next;
+  }
+
+  async expire(_key: string, _seconds: number) {
+    return 1;
+  }
+
+  multi() {
+    const queue: (() => Promise<any>)[] = [];
+    const chain = {
+      zremrangebyscore: (key: string, min: number, max: number) => {
+        queue.push(async () => {
+          const setKey = `zset:${key}`;
+          const current = this.store.get(setKey);
+          if (!current) return 0;
+          const list = JSON.parse(current) as { member: string; score: number }[];
+          const filtered = list.filter((item) => item.score < min || item.score > max);
+          this.store.set(setKey, JSON.stringify(filtered));
+          return list.length - filtered.length;
+        });
+        return chain;
+      },
+      zadd: (key: string, score: number, member: string) => {
+        queue.push(async () => {
+          const setKey = `zset:${key}`;
+          const current = this.store.get(setKey);
+          const list = current ? (JSON.parse(current) as { member: string; score: number }[]) : [];
+          list.push({ member, score });
+          this.store.set(setKey, JSON.stringify(list));
+          return 1;
+        });
+        return chain;
+      },
+      zcard: (key: string) => {
+        queue.push(async () => {
+          const setKey = `zset:${key}`;
+          const current = this.store.get(setKey);
+          const list = current ? (JSON.parse(current) as { member: string; score: number }[]) : [];
+          return list.length;
+        });
+        return chain;
+      },
+      expire: (_key: string, _seconds: number) => {
+        queue.push(async () => 1);
+        return chain;
+      },
+      exec: async () => {
+        const results = [];
+        for (const fn of queue) {
+          results.push([null, await fn()]);
+        }
+        return results;
+      }
+    };
+    return chain;
   }
 
   async quit() {}

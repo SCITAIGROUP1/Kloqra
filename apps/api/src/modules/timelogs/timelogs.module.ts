@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { RedisModule } from "../../common/redis/redis.module";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { ProjectsModule } from "../projects/projects.module";
@@ -12,7 +13,7 @@ import { TimelogsController } from "./interface/http/timelogs.controller";
 import { TimesheetsController } from "./interface/http/timesheets.controller";
 
 @Module({
-  imports: [AuthModule, ProjectsModule, NotificationsModule],
+  imports: [AuthModule, ProjectsModule, NotificationsModule, RedisModule],
   controllers: [TimelogsController, TimesheetsController],
   providers: [
     TimelogsService,

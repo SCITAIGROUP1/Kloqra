@@ -24,7 +24,12 @@ export type ExportRowContext = {
   to: Date;
   logs: TimeLogWithRelations[];
   aggregates: ReturnType<TimeAggregationService["buildAggregates"]>;
-  resolveRate: (userId: string, projectId: string, defaultRate: number | null) => number;
+  resolveRate: (
+    userId: string,
+    projectId: string,
+    defaultRate: number | null,
+    date?: Date | string | null
+  ) => number;
 };
 
 @Injectable()
@@ -94,7 +99,12 @@ export class ExportRowsBuilder {
     const rows = billableLogs.map((l) => {
       const hours = roundExport(l.durationSec / 3600);
       const rate = roundExport(
-        ctx.resolveRate(l.userId, l.task.projectId, l.user.defaultHourlyRate?.toNumber() ?? null)
+        ctx.resolveRate(
+          l.userId,
+          l.task.projectId,
+          l.user.defaultHourlyRate?.toNumber() ?? null,
+          l.startTime
+        )
       );
       const categoryName = l.task.category?.name ?? "Uncategorized";
       return {
@@ -131,7 +141,12 @@ export class ExportRowsBuilder {
   ): Record<string, string | number> {
     const hours = roundExport(l.durationSec / 3600);
     const rate = roundExport(
-      resolveRate(l.userId, l.task.projectId, l.user.defaultHourlyRate?.toNumber() ?? null)
+      resolveRate(
+        l.userId,
+        l.task.projectId,
+        l.user.defaultHourlyRate?.toNumber() ?? null,
+        l.startTime
+      )
     );
     const amount = l.isBillable ? roundExport(hours * rate) : 0;
     const categoryName = l.task.category?.name ?? "Uncategorized";
@@ -213,7 +228,8 @@ export class ExportRowsBuilder {
           ctx.resolveRate(
             log.userId,
             log.task.projectId,
-            log.user.defaultHourlyRate?.toNumber() ?? null
+            log.user.defaultHourlyRate?.toNumber() ?? null,
+            log.startTime
           );
       }
       weekly.set(key, entry);
@@ -338,7 +354,8 @@ export class ExportRowsBuilder {
           ctx.resolveRate(
             log.userId,
             log.task.projectId,
-            log.user.defaultHourlyRate?.toNumber() ?? null
+            log.user.defaultHourlyRate?.toNumber() ?? null,
+            log.startTime
           );
       }
       byTask.set(key, entry);
@@ -395,7 +412,8 @@ export class ExportRowsBuilder {
           ctx.resolveRate(
             log.userId,
             log.task.projectId,
-            log.user.defaultHourlyRate?.toNumber() ?? null
+            log.user.defaultHourlyRate?.toNumber() ?? null,
+            log.startTime
           );
       }
       byCategoryProject.set(key, entry);

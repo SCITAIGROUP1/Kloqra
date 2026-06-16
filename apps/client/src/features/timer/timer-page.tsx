@@ -30,6 +30,7 @@ import { fetchListItems } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
+import { formatAutoStopToastMessage } from "./timer-autostop-message";
 import { DailyGoalWidget, QuickActions, StaleTimerDialog } from "./timer-lazy";
 import { resolveTimerStartErrorMessage } from "./timer-start-error";
 import { api } from "@/lib/api";
@@ -37,8 +38,6 @@ import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
-
-const HARD_AUTO_STOP_HOURS = 14;
 
 function formatElapsed(sec: number) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00:00";
@@ -198,10 +197,7 @@ export function TimerPage() {
       });
       if (res && "autostopped" in res && res.autostopped) {
         setActive(null);
-        toast.warning(
-          `Your timer was automatically stopped after ${HARD_AUTO_STOP_HOURS} hours. A time entry was saved on your behalf.`,
-          { duration: 8000 }
-        );
+        toast.warning(formatAutoStopToastMessage(), { duration: 8000 });
         void fetchTodayLogs();
         return;
       }

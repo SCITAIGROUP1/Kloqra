@@ -10,6 +10,8 @@ describe("TimesheetReminderService", () => {
   const userId = "user-1";
   const projectId = "proj-1";
 
+  let mockRedis: any;
+
   beforeEach(() => {
     mockDispatch = { notify: vi.fn().mockResolvedValue(undefined) };
     mockPrisma = {
@@ -19,7 +21,22 @@ describe("TimesheetReminderService", () => {
       timesheetPeriod: { findUnique: vi.fn() },
       notification: { findFirst: vi.fn() }
     };
-    service = new TimesheetReminderService(mockPrisma, mockDispatch as never);
+    mockRedis = {
+      getClient: vi.fn().mockReturnValue({
+        set: vi.fn().mockResolvedValue("OK"),
+        del: vi.fn().mockResolvedValue(1)
+      })
+    };
+    service = new TimesheetReminderService(mockPrisma, mockRedis as any, mockDispatch as never);
+  });
+
+  it("skips execution if Redis lock is already held", async () => {
+    mockRedis.getClient().set.mockResolvedValue(null);
+
+    await service.processDueReminders(new Date("2026-06-21T17:00:00.000Z"));
+
+    expect(mockPrisma.project.findMany).not.toHaveBeenCalled();
+    expect(mockDispatch.notify).not.toHaveBeenCalled();
   });
 
   it("sends a reminder when the period ends and the user has not submitted", async () => {

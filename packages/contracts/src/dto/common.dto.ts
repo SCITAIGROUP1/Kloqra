@@ -10,6 +10,13 @@ export const slugSchema = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 export const workspaceRoleSchema = z.enum(["ADMIN", "MEMBER"]);
+
+/** ISO 4217 three-letter currency code (e.g. USD, EUR). */
+export const currencyCodeSchema = z
+  .string()
+  .regex(/^[A-Z]{3}$/, "Currency must be a 3-letter ISO 4217 code");
+
+export const DEFAULT_CURRENCY = "USD" as const;
 export const timelogSourceSchema = z.enum(["manual", "timer"]);
 
 /** Maximum inclusive span for report/export/billing date ranges */

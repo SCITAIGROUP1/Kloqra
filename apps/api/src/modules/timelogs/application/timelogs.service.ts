@@ -28,11 +28,7 @@ export class TimelogsService {
     private access: ProjectAccessService
   ) {}
 
-  private resolveBillable(
-    role: string,
-    taskBillableDefault: boolean,
-    requested?: boolean
-  ): boolean {
+  resolveBillable(role: string, taskBillableDefault: boolean, requested?: boolean): boolean {
     if (role === "ADMIN") {
       return requested ?? taskBillableDefault;
     }
@@ -201,6 +197,13 @@ export class TimelogsService {
     return { items };
   }
 
+  /**
+   * Access check path:
+   * 1. access.assertCanLogTask() → validates workspace membership + team membership for MEMBERs
+   * 2. timesheetLock.assertTaskPeriodEditable() → blocks writes to locked periods
+   * 3. assertNoOverlap() → prevents time overlap across all workspaces
+   * NOTE: assertTaskInWorkspace() is covered transitively via assertCanLogTask → task project lookup
+   */
   async create(
     workspaceId: string,
     userId: string,

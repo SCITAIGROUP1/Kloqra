@@ -2,6 +2,7 @@ import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
+import { timerAutoStoppedKey } from "../../../common/redis/timer-keys";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
@@ -45,7 +46,15 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async scanAndAutoStop() {
-    const keys = await this.redis.getClient().keys("timer:*:*");
+    const keys: string[] = [];
+    let cursor = "0";
+    do {
+      const [nextCursor, batch] = (await this.redis
+        .getClient()
+        .scan(cursor, "MATCH", "timer:*:*", "COUNT", 100)) as [string, string[]];
+      cursor = nextCursor;
+      keys.push(...batch);
+    } while (cursor !== "0");
     const hardCeilingSec = HARD_AUTO_STOP_HOURS * 3600;
 
     for (const key of keys) {
@@ -118,7 +127,7 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
       await this.redis
         .getClient()
         .setex(
-          `timer_autostopped:${state.workspaceId}:${state.userId}`,
+          timerAutoStoppedKey(state.workspaceId, state.userId),
           7200,
           JSON.stringify({ stoppedAt: end.toISOString(), durationSec: capSec })
         );
@@ -142,14 +151,26 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
             taskId: state.taskId
           }
         })
-        .catch(() => undefined);
+        .catch((err: unknown) => {
+          this.logger.error(
+            `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        });
 
       this.logger.warn(
-        `Auto-stopped stale timer for user ${state.userId} in workspace ${state.workspaceId} after ${capSec}s`
+        `Auto-stopped stale timer for user ${state.userId} in workspace ${state.workspaceId} after ${capSec}s`,
+        {
+          userId: state.userId,
+          workspaceId: state.workspaceId,
+          taskId: state.taskId,
+          durationSec: capSec
+        }
       );
     } catch (err) {
       this.logger.error(
-        `Failed to auto-stop timer ${redisKey}: ${err instanceof Error ? err.message : String(err)}`
+        `Failed to auto-stop timer ${redisKey}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+        { redisKey, userId: state.userId, workspaceId: state.workspaceId, taskId: state.taskId }
       );
     }
   }

@@ -2,15 +2,59 @@ import { Injectable } from "@nestjs/common";
 import { type Request, type Response } from "express";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
+import { timerKey } from "../../../common/redis/timer-keys";
 
 const SSE_SNAPSHOT_DEBOUNCE_MS = 1000;
 
 @Injectable()
 export class PresenceService {
+  private pools = new Map<
+    string,
+    {
+      sub: any;
+      listeners: Set<() => void>;
+    }
+  >();
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService
   ) {}
+
+  private async subscribeWorkspace(
+    workspaceId: string,
+    onMessage: () => void
+  ): Promise<{ unsubscribe: () => Promise<void> }> {
+    let pool = this.pools.get(workspaceId);
+    if (!pool) {
+      const sub = this.redis.getClient().duplicate();
+      await sub.subscribe(`presence:${workspaceId}`);
+      const listeners = new Set<() => void>();
+      sub.on("message", () => {
+        for (const listener of listeners) {
+          listener();
+        }
+      });
+      pool = { sub, listeners };
+      this.pools.set(workspaceId, pool);
+    }
+    pool.listeners.add(onMessage);
+
+    return {
+      unsubscribe: async () => {
+        pool.listeners.delete(onMessage);
+        if (pool.listeners.size === 0) {
+          this.pools.delete(workspaceId);
+          try {
+            await pool.sub.unsubscribe(`presence:${workspaceId}`);
+            await pool.sub.quit();
+          } catch {
+            // ignore
+          }
+        }
+      }
+    };
+  }
 
   async snapshot(workspaceId: string) {
     const members = await this.prisma.workspaceMember.findMany({
@@ -37,9 +81,17 @@ export class PresenceService {
       isPaused: boolean;
     }[] = [];
 
-    for (const m of members) {
-      const raw = await this.redis.getClient().get(`timer:${workspaceId}:${m.userId}`);
+    if (members.length === 0) {
+      return { members: [], updatedAt: new Date().toISOString() };
+    }
+
+    const keys = members.map((m) => timerKey(workspaceId, m.userId));
+    const rawValues = await this.redis.getClient().mget(...keys);
+
+    for (let i = 0; i < members.length; i++) {
+      const raw = rawValues[i];
       if (!raw) continue;
+      const m = members[i];
       const state = JSON.parse(raw) as { taskId: string; startedAt: string; isPaused?: boolean };
       taskIds.add(state.taskId);
       timerStates.push({
@@ -84,6 +136,7 @@ export class PresenceService {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -106,14 +159,11 @@ export class PresenceService {
     };
 
     await send();
-    const sub = this.redis.getClient().duplicate();
-    await sub.subscribe(`presence:${workspaceId}`);
-    sub.on("message", () => scheduleSend());
+    const { unsubscribe } = await this.subscribeWorkspace(workspaceId, () => scheduleSend());
 
-    req.on("close", () => {
+    req.on("close", async () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      void sub.unsubscribe();
-      void sub.quit();
+      await unsubscribe();
       res.end();
     });
   }
