@@ -1,13 +1,20 @@
-import type { TeamMemberOverviewDto } from "@kloqra/contracts";
+import type { MemberEmailDeliveryDto } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 
-function shouldShowResendCredentials(member: Pick<TeamMemberOverviewDto, "pendingCredentials">) {
-  return member.pendingCredentials === true;
+function resendToastMessage(res: MemberEmailDeliveryDto): string {
+  if (res.emailSent) return "sent";
+  if (res.emailSkipReason === "smtp_unconfigured") return "unconfigured";
+  return res.emailFailureMessage ?? "generic";
 }
 
 describe("team member resend credentials", () => {
-  it("shows resend when member still has a temporary password", () => {
-    expect(shouldShowResendCredentials({ pendingCredentials: true })).toBe(true);
-    expect(shouldShowResendCredentials({ pendingCredentials: false })).toBe(false);
+  it("surfaces SMTP failure detail in admin messaging", () => {
+    expect(
+      resendToastMessage({
+        emailSent: false,
+        emailSkipReason: "send_failed",
+        emailFailureMessage: "Invalid from"
+      })
+    ).toBe("Invalid from");
   });
 });

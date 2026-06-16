@@ -31,6 +31,7 @@ import {
   ROUTES,
   startTimerSchema,
   dashboardReportSchema,
+  memberEmailDeliverySchema,
   teamMembersOverviewSchema,
   timesheetSubmissionsQuerySchema,
   updateCategorySchema,
@@ -499,6 +500,15 @@ describe("contracts", () => {
       weeklyHours: [],
       dailyHours: [],
       dailyByProject: []
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates member email delivery with failure detail", () => {
+    const r = memberEmailDeliverySchema.safeParse({
+      emailSent: false,
+      emailSkipReason: "send_failed",
+      emailFailureMessage: "Sender not verified"
     });
     expect(r.success).toBe(true);
   });

@@ -150,7 +150,11 @@ export function TeamManagementPage() {
           "Email is not configured on the API. Add SMTP_HOST, SMTP_USER, and SMTP_PASS on Railway."
         );
       } else {
-        toast.error("Could not send email. Check API logs and SMTP settings.");
+        toast.error(
+          res.emailFailureMessage
+            ? `Could not send email: ${res.emailFailureMessage}`
+            : "Could not send email. Check API logs and SMTP settings."
+        );
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not resend sign-in email.";

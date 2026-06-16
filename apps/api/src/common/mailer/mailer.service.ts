@@ -19,6 +19,8 @@ export interface SendMailOptions {
 export type SendMailResult = {
   sent: boolean;
   reason?: "unconfigured" | "failed";
+  /** Sanitized SMTP error for admin-facing responses (no credentials). */
+  detail?: string;
 };
 
 /**
@@ -53,17 +55,19 @@ export class MailerService {
       return;
     }
 
+    const port = Number(process.env.SMTP_PORT ?? 587);
     this.transporter = nodemailer.createTransport({
       host,
-      port: Number(process.env.SMTP_PORT ?? 587),
-      secure: Number(process.env.SMTP_PORT ?? 587) === 465,
+      port,
+      secure: port === 465,
+      requireTLS: port === 587,
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 15_000,
       auth: { user, pass }
     });
 
-    this.logger.log(`Mailer configured — SMTP host: ${host}`);
+    this.logger.log(`Mailer configured — SMTP host: ${host}, from: ${this.from}`);
   }
 
   get isConfigured(): boolean {
@@ -95,11 +99,17 @@ export class MailerService {
       this.logger.log(`Email sent: to=${opts.to.join(", ")} subject="${opts.subject}"`);
       return { sent: true };
     } catch (err) {
+      const detail = sanitizeSmtpError(err);
       this.logger.error(
-        `Email send failed: to=${opts.to.join(", ")} subject="${opts.subject}"`,
+        `Email send failed: to=${opts.to.join(", ")} subject="${opts.subject}" — ${detail}`,
         err instanceof Error ? err.stack : String(err)
       );
-      return { sent: false, reason: "failed" };
+      return { sent: false, reason: "failed", detail };
     }
   }
+}
+
+function sanitizeSmtpError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/\s+/g, " ").trim().slice(0, 240);
 }

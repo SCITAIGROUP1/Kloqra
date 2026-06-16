@@ -278,7 +278,10 @@ export class WorkspaceService {
       member: this.toMemberDto(membership),
       userCreated,
       emailSent: emailDelivery.emailSent,
-      ...(emailDelivery.emailSkipReason ? { emailSkipReason: emailDelivery.emailSkipReason } : {})
+      ...(emailDelivery.emailSkipReason ? { emailSkipReason: emailDelivery.emailSkipReason } : {}),
+      ...(emailDelivery.emailFailureMessage
+        ? { emailFailureMessage: emailDelivery.emailFailureMessage }
+        : {})
     };
   }
 

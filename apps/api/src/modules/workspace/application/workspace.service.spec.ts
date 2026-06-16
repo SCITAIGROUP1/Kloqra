@@ -169,6 +169,28 @@ describe("WorkspaceService", () => {
     expect(result.emailSent).toBe(true);
   });
 
+  it("resendMemberCredentials returns SMTP failure detail", async () => {
+    mockPrisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "m-new",
+      workspaceId,
+      userId: "u-new",
+      role: "MEMBER",
+      user: { id: "u-new", email: "new@kloqra.dev", mustChangePassword: true }
+    });
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.update.mockResolvedValue({});
+    mockMailer.sendNewMemberCredentials = vi.fn().mockResolvedValue({
+      sent: false,
+      reason: "failed",
+      detail: "Sender not verified"
+    });
+
+    const result = await service.resendMemberCredentials(workspaceId, "m-new");
+
+    expect(result.emailSent).toBe(false);
+    expect(result.emailFailureMessage).toBe("Sender not verified");
+  });
+
   it("updateMember changes role", async () => {
     mockPrisma.workspaceMember.findFirst.mockResolvedValue({
       id: "m2",

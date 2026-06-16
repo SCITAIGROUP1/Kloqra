@@ -5,13 +5,15 @@ export const MEMBER_EMAIL_TIMEOUT_MS = 12_000;
 export type MemberEmailDelivery = {
   emailSent: boolean;
   emailSkipReason?: "smtp_unconfigured" | "send_failed";
+  emailFailureMessage?: string;
 };
 
 export function mapMailResultToDelivery(result: SendMailResult): MemberEmailDelivery {
   if (result.sent) return { emailSent: true };
   return {
     emailSent: false,
-    emailSkipReason: result.reason === "unconfigured" ? "smtp_unconfigured" : "send_failed"
+    emailSkipReason: result.reason === "unconfigured" ? "smtp_unconfigured" : "send_failed",
+    ...(result.detail ? { emailFailureMessage: result.detail } : {})
   };
 }
 
@@ -33,7 +35,11 @@ export async function deliverMemberEmail(
 
   if (raced.kind === "timeout") {
     void send().catch(() => undefined);
-    return { emailSent: false, emailSkipReason: "send_failed" };
+    return {
+      emailSent: false,
+      emailSkipReason: "send_failed",
+      emailFailureMessage: "SMTP timed out after 12 seconds"
+    };
   }
 
   return mapMailResultToDelivery(raced.result);

@@ -65,7 +65,8 @@ export const inviteMemberResponseSchema = z.object({
 
 export const memberEmailDeliverySchema = z.object({
   emailSent: z.boolean(),
-  emailSkipReason: emailSkipReasonSchema.optional()
+  emailSkipReason: emailSkipReasonSchema.optional(),
+  emailFailureMessage: z.string().max(240).optional()
 });
 
 export const updateWorkspaceMemberSchema = z.object({
