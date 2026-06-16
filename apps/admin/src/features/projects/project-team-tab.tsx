@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
 import type { TeamInviteDto, TeamMemberDto, WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   AppModal,
@@ -52,7 +52,7 @@ export function ProjectTeamTab() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
   const [loadingTeam, setLoadingTeam] = useState(true);
@@ -79,10 +79,15 @@ export function ProjectTeamTab() {
     setPage(1);
   }, [debouncedSearch]);
 
+  const handleLimitChange = useCallback((nextLimit: number) => {
+    setPage(1);
+    setLimit(nextLimit);
+  }, []);
+
   const loadTeam = useCallback(async () => {
     setLoadingTeam(true);
     try {
-      const query = buildTableQuery(page, debouncedSearch);
+      const query = buildTableQuery(page, debouncedSearch, undefined, limit);
       const data = await api<{
         id: string;
         projectId: string;
@@ -97,7 +102,6 @@ export function ProjectTeamTab() {
       setMembers(data.members);
       setTotal(data.total);
       setTotalPages(data.totalPages);
-      setLimit(data.limit);
     } catch {
       setTeamMeta(null);
       setMembers([]);
@@ -107,7 +111,7 @@ export function ProjectTeamTab() {
     } finally {
       setLoadingTeam(false);
     }
-  }, [workspaceId, projectId, page, debouncedSearch]);
+  }, [workspaceId, projectId, page, debouncedSearch, limit]);
 
   useEffect(() => {
     void loadTeam();
@@ -376,6 +380,7 @@ export function ProjectTeamTab() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={handleLimitChange}
               disabled={loadingTeam}
             />
           </>

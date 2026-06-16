@@ -1,4 +1,6 @@
+import { DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
 import { renderHook, waitFor } from "@testing-library/react";
+import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePaginatedList } from "./use-paginated-list";
 
@@ -53,5 +55,52 @@ describe("usePaginatedList", () => {
     rerender({ filters: { projectId: "p-2" } });
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(2));
+  });
+
+  it("refetches with new limit and resets page when limit changes", async () => {
+    fetchPaginatedList.mockResolvedValue({
+      items: Array.from({ length: 25 }, (_, i) => ({ id: String(i + 1) })),
+      total: 25,
+      totalPages: 2,
+      page: 1,
+      limit: 10
+    });
+
+    const { result } = renderHook(() =>
+      usePaginatedList<{ id: string }>({
+        workspaceId: "ws-1",
+        basePath: "/tasks"
+      })
+    );
+
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
+    expect(fetchPaginatedList).toHaveBeenLastCalledWith("/tasks", {
+      workspaceId: "ws-1",
+      page: 1,
+      limit: DEFAULT_TABLE_PAGE_SIZE,
+      search: "",
+      filters: undefined
+    });
+    expect(result.current.limit).toBe(DEFAULT_TABLE_PAGE_SIZE);
+
+    await act(async () => {
+      result.current.setPage(2);
+    });
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(2));
+    expect(result.current.page).toBe(2);
+
+    await act(async () => {
+      result.current.setLimit(25);
+    });
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(3));
+    expect(result.current.page).toBe(1);
+    expect(result.current.limit).toBe(25);
+    expect(fetchPaginatedList).toHaveBeenLastCalledWith("/tasks", {
+      workspaceId: "ws-1",
+      page: 1,
+      limit: 25,
+      search: "",
+      filters: undefined
+    });
   });
 });

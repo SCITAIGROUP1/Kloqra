@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { GlobalSearchDialog } from "./global-search-dialog";
-import { GlobalSearchTrigger } from "./global-search-trigger";
 
 type GlobalSearchShellProps = {
   workspaceId: string;
@@ -39,7 +38,7 @@ export function GlobalSearchShell({ workspaceId }: GlobalSearchShellProps) {
 
   return (
     <>
-      <GlobalSearchTrigger onOpen={() => setOpen(true)} />
+      <p className="sr-only">Press Command+K or Control+K to open search.</p>
       <GlobalSearchDialog open={open} onOpenChange={setOpen} workspaceId={workspaceId} />
     </>
   );

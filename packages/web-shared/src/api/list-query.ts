@@ -21,9 +21,10 @@ export function buildListQuery(params: {
 export function buildTableQuery(
   page: number,
   search?: string,
-  filters?: Record<string, string | undefined>
+  filters?: Record<string, string | undefined>,
+  limit?: number
 ) {
-  return buildListQuery({ page, limit: DEFAULT_TABLE_PAGE_SIZE, search, filters });
+  return buildListQuery({ page, limit: limit ?? DEFAULT_TABLE_PAGE_SIZE, search, filters });
 }
 
 export function appendListQuery(path: string, query: string) {

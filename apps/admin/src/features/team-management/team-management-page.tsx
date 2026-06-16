@@ -9,7 +9,8 @@ import type {
 import {
   AppModal,
   AppBar,
-  AppBarSecondary,
+  AppBarListToolbar,
+  appBarListFilterTriggerClass,
   Badge,
   Button,
   Card,
@@ -62,6 +63,9 @@ export function TeamManagementPage() {
   const session = useSessionStore((s) => s.session);
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
 
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
+
   const {
     members,
     summary,
@@ -72,9 +76,13 @@ export function TeamManagementPage() {
     total,
     totalPages,
     limit,
+    setLimit,
     loading,
     reload
-  } = useTeamMembersOverview(ws);
+  } = useTeamMembersOverview(ws, {
+    role: roleFilter === "ALL" ? undefined : roleFilter,
+    status: statusFilter === "ALL" ? undefined : statusFilter
+  });
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -197,6 +205,25 @@ export function TeamManagementPage() {
     }
   }
 
+  async function handleChangeStatus(member: TeamMemberOverviewDto, isActive: boolean) {
+    setMemberBusyId(member.id);
+    try {
+      await api(ROUTES.WORKSPACES.MEMBER(ws, member.id), {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify({ isActive })
+      });
+      toast.success(
+        isActive ? `${member.userName} was reactivated.` : `${member.userName} was deactivated.`
+      );
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update member status.");
+    } finally {
+      setMemberBusyId(null);
+    }
+  }
+
   async function handleChangeRole(member: TeamMemberOverviewDto, role: "ADMIN" | "MEMBER") {
     setMemberBusyId(member.id);
     try {
@@ -244,20 +271,53 @@ export function TeamManagementPage() {
         title="Team Management"
         description="Manage team members, roles, and permissions."
         secondary={
-          <AppBarSecondary
-            leading={
-              <div className="relative max-w-md w-full">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search team members…"
-                  className="h-10"
-                  aria-label="Search team members"
-                />
-              </div>
+          <AppBarListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search team members…"
+            searchAriaLabel="Search team members"
+            filters={
+              <>
+                <Select
+                  value={roleFilter}
+                  onValueChange={(value) => setRoleFilter(value as "ALL" | "ADMIN" | "MEMBER")}
+                >
+                  <SelectTrigger
+                    className={appBarListFilterTriggerClass}
+                    aria-label="Filter by role"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All roles</SelectItem>
+                    <SelectItem value="ADMIN">Admins</SelectItem>
+                    <SelectItem value="MEMBER">Members</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+                >
+                  <SelectTrigger
+                    className={appBarListFilterTriggerClass}
+                    aria-label="Filter by status"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
             }
-            trailing={
-              <Button type="button" className="h-10 gap-2" onClick={() => setInviteOpen(true)}>
+            action={
+              <Button
+                type="button"
+                className="h-10 w-full gap-2 md:w-auto"
+                onClick={() => setInviteOpen(true)}
+              >
                 <Plus className="h-4 w-4" aria-hidden />
                 Add Team Member
               </Button>
@@ -319,12 +379,12 @@ export function TeamManagementPage() {
         ) : members.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title={total === 0 && !search ? "No team members yet" : "No matching members"}
-              description={
-                total === 0 && !search
-                  ? "Invite your first team member to get started."
-                  : "Try a different search term."
+              title={
+                search.trim()
+                  ? "No team members found matching your search."
+                  : "No team members yet"
               }
+              description={search.trim() ? "" : "Invite your first team member to get started."}
             />
           </div>
         ) : (
@@ -364,14 +424,22 @@ export function TeamManagementPage() {
                     </DataTableCell>
                     <DataTableCell>
                       <Badge
-                        variant={member.status === "active" ? "outline" : "secondary"}
+                        variant={
+                          !member.isActive
+                            ? "secondary"
+                            : member.status === "active"
+                              ? "outline"
+                              : "secondary"
+                        }
                         className={
-                          member.status === "active"
-                            ? "border-success/30 bg-success/10 text-success"
-                            : undefined
+                          !member.isActive
+                            ? undefined
+                            : member.status === "active"
+                              ? "border-success/30 bg-success/10 text-success"
+                              : undefined
                         }
                       >
-                        {member.status}
+                        {!member.isActive ? "deactivated" : member.status}
                       </Badge>
                     </DataTableCell>
                     <DataTableCell className="text-right tabular-nums">
@@ -392,6 +460,7 @@ export function TeamManagementPage() {
                         onEditMember={() => setEditTarget(member)}
                         onViewAsMember={() => handleImpersonate(member)}
                         onResendCredentials={() => handleResendCredentials(member)}
+                        onChangeStatus={(isActive) => handleChangeStatus(member, isActive)}
                         onRemove={() => setRemoveTarget(member)}
                       />
                     </DataTableCell>
@@ -405,6 +474,7 @@ export function TeamManagementPage() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={setLimit}
               disabled={loading}
             />
           </>

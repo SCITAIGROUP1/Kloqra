@@ -416,6 +416,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@kloqra/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.16
         version: 1.1.16(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -459,9 +462,6 @@ importers:
       '@kloqra/config-typescript':
         specifier: workspace:*
         version: link:../config-typescript
-      '@kloqra/contracts':
-        specifier: workspace:*
-        version: link:../contracts
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1

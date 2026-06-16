@@ -25,9 +25,12 @@ export const billableSummarySchema = z.object({
   currency: currencyCodeSchema
 });
 
+export const hourlyRateScopeSchema = z.enum(["workspace", "member", "project"]);
+
 export const listHourlyRatesQuerySchema = listPaginationQuerySchema.extend({
   userId: uuidSchema.optional(),
-  projectId: uuidSchema.optional()
+  projectId: uuidSchema.optional(),
+  scope: hourlyRateScopeSchema.optional()
 });
 
 export const listHourlyRatesResponseSchema = createPaginatedListResponseSchema(hourlyRateSchema);

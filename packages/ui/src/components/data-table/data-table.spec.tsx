@@ -26,4 +26,29 @@ describe("TablePagination", () => {
     expect(onPageChange).toHaveBeenCalledWith(1);
     expect(onPageChange).toHaveBeenCalledWith(3);
   });
+
+  it("hides rows-per-page selector when onLimitChange is omitted", () => {
+    render(<TablePagination page={1} totalPages={1} total={5} limit={10} onPageChange={vi.fn()} />);
+    expect(screen.queryByRole("combobox", { name: "Rows per page" })).toBeNull();
+  });
+
+  it("shows rows-per-page selector and calls onLimitChange", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
+    const onLimitChange = vi.fn();
+    render(
+      <TablePagination
+        page={1}
+        totalPages={2}
+        total={30}
+        limit={10}
+        onPageChange={vi.fn()}
+        onLimitChange={onLimitChange}
+      />
+    );
+
+    expect(screen.getByRole("combobox", { name: "Rows per page" })).toHaveTextContent("10");
+    await user.click(screen.getByRole("combobox", { name: "Rows per page" }));
+    await user.click(screen.getByRole("option", { name: "25" }));
+    expect(onLimitChange).toHaveBeenCalledWith(25);
+  });
 });

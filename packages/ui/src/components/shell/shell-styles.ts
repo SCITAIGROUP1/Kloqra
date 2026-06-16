@@ -5,7 +5,7 @@ import { cva } from "class-variance-authority";
  */
 export const shellInsetXClass = "px-6 lg:px-8";
 
-export const shellHeaderBandYClass = "py-5";
+export const shellHeaderBandYClass = "py-4 @min-[720px]/shell:py-5";
 
 export const shellMainContentClass = `${shellInsetXClass} pb-6 lg:pb-8`;
 
@@ -40,15 +40,15 @@ export const shellMobileDrawerClass =
 export const shellAppBarClass = `sticky top-0 z-30 -mx-6 mb-6 border-b border-border/80 bg-background/95 backdrop-blur-md lg:-mx-8 ${shellInsetXClass} ${shellHeaderBandYClass}`;
 
 export const shellAppBarPrimaryRowClass =
-  "flex min-h-10 flex-col gap-3 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
+  "flex min-h-10 flex-col gap-3 @min-[640px]/shell:flex-row @min-[640px]/shell:items-start @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
 
 export const shellAppBarUtilityRowClass =
-  "flex flex-col gap-2 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between @min-[720px]/shell:gap-3";
+  "flex flex-col gap-2 @min-[640px]/shell:flex-row @min-[640px]/shell:flex-wrap @min-[640px]/shell:items-center @min-[640px]/shell:justify-end @min-[640px]/shell:gap-3";
 
-export const shellAppBarSecondaryRowClass =
-  "flex flex-col gap-3 border-t border-border/60 pt-4 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
+export const shellAppBarSecondaryRowClass = "w-full min-w-0";
 
-export const shellAppBarTitleClass = "text-2xl font-semibold tracking-tight";
+export const shellAppBarTitleClass =
+  "text-xl font-semibold tracking-tight @min-[720px]/shell:text-2xl";
 
 export const shellAppBarDescriptionClass = "max-w-2xl text-sm text-muted-foreground";
 

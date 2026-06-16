@@ -202,6 +202,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u2",
       role: "MEMBER",
+      isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
     mockPrisma.workspaceMember.count.mockResolvedValue(2);
@@ -210,6 +211,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u2",
       role: "ADMIN",
+      isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
     mockPrisma.workspace.findUnique.mockResolvedValue({ name: "Kloqra" });
@@ -237,6 +239,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u1",
       role: "ADMIN",
+      isActive: true,
       user: { name: "Admin User", email: "admin@kloqra.dev" }
     });
     mockPrisma.workspaceMember.count.mockResolvedValue(1);
@@ -257,6 +260,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u2",
       role: "MEMBER",
+      isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
     mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
@@ -279,12 +283,39 @@ describe("WorkspaceService", () => {
     );
   });
 
+  it("updateMember deactivates membership and project teams", async () => {
+    mockPrisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "m2",
+      workspaceId,
+      userId: "u2",
+      role: "MEMBER",
+      isActive: true,
+      user: { name: "Member User", email: "member@kloqra.dev" }
+    });
+    mockPrisma.workspaceMember.count.mockResolvedValue(2);
+    mockPrisma.workspaceMember.update.mockResolvedValue({
+      id: "m2",
+      workspaceId,
+      userId: "u2",
+      role: "MEMBER",
+      isActive: false,
+      user: { name: "Member User", email: "member@kloqra.dev" }
+    });
+    mockPrisma.teamMember = { updateMany: vi.fn().mockResolvedValue({ count: 1 }) };
+
+    const result = await service.updateMember(workspaceId, "m2", { isActive: false }, "u1");
+
+    expect(result.isActive).toBe(false);
+    expect(mockPrisma.teamMember.updateMany).toHaveBeenCalled();
+  });
+
   it("removeMember blocks removing yourself", async () => {
     mockPrisma.workspaceMember.findFirst.mockResolvedValue({
       id: "m1",
       workspaceId,
       userId: "u1",
       role: "ADMIN",
+      isActive: true,
       user: { name: "Admin User", email: "admin@kloqra.dev" }
     });
 

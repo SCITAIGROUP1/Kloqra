@@ -40,10 +40,11 @@ import {
   fetchListItems
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
 import { useWidgetLayout } from "./use-widget-layout";
+import type { WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
 import {
@@ -167,8 +168,11 @@ export function DashboardPage() {
   const updateLayout = useWidgetLayout((s) => s.updateLayout);
   const persistLayout = useWidgetLayout((s) => s.persistLayout);
   const saveLayoutAsDefault = useWidgetLayout((s) => s.saveLayoutAsDefault);
+  const restoreLayout = useWidgetLayout((s) => s.restoreLayout);
   const toggleWidget = useWidgetLayout((s) => s.toggleWidget);
   const resetLayout = useWidgetLayout((s) => s.resetLayout);
+
+  const arrangeSnapshotRef = useRef<WidgetLayoutItem[] | null>(null);
 
   const selectedProject = projects.find((p) => p.id === projectId);
   const selectedMember = teamMembers.find((m) => m.userId === userId);
@@ -233,14 +237,25 @@ export function DashboardPage() {
     }
   }, [ws, initialize]);
 
+  const handleCancelArranging = useCallback(() => {
+    if (arrangeSnapshotRef.current && ws) {
+      restoreLayout(ws, arrangeSnapshotRef.current);
+    }
+    arrangeSnapshotRef.current = null;
+    setIsArranging(false);
+  }, [ws, restoreLayout]);
+
   // Handle Keyboard Escape shortcut to close grid customizer
   useEffect(() => {
     if (!isCatalogOpen && !isArranging) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsCatalogOpen(false);
-        setIsArranging(false);
+        if (isArranging) {
+          handleCancelArranging();
+        } else {
+          setIsCatalogOpen(false);
+        }
       }
     }
 
@@ -248,7 +263,7 @@ export function DashboardPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isCatalogOpen, isArranging]);
+  }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
   function onProjectChange(nextId: string) {
     setProjectId(nextId);
@@ -301,6 +316,7 @@ export function DashboardPage() {
   const handleDoneArranging = async () => {
     try {
       await persistLayout(ws);
+      arrangeSnapshotRef.current = null;
       setIsArranging(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
@@ -311,6 +327,7 @@ export function DashboardPage() {
     try {
       await persistLayout(ws);
       await saveLayoutAsDefault(ws);
+      arrangeSnapshotRef.current = null;
       setIsArranging(false);
       toast.success("Layout saved as default");
     } catch (e) {
@@ -701,7 +718,9 @@ export function DashboardPage() {
               aria-label={isCatalogOpen ? "Closing catalog" : "Add widgets"}
               onClick={() => {
                 setIsCatalogOpen(!isCatalogOpen);
-                setIsArranging(false);
+                if (isArranging) {
+                  handleCancelArranging();
+                }
               }}
             >
               <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
@@ -719,6 +738,12 @@ export function DashboardPage() {
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
                     return;
+                  }
+                  arrangeSnapshotRef.current = null;
+                } else {
+                  const current = layoutsByWorkspace[ws];
+                  if (current) {
+                    arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
                   }
                 }
                 setIsArranging(!isArranging);
@@ -747,6 +772,7 @@ export function DashboardPage() {
       {isArranging && (
         <DashboardArrangeBanner
           editModeLabel="Full-Width Edit Mode"
+          onCancel={handleCancelArranging}
           onResetLayout={handleResetLayout}
           onDone={handleDoneArranging}
           onSaveAsDefault={handleDoneAndSaveAsDefault}

@@ -4,6 +4,7 @@ import { ROUTES } from "@kloqra/contracts";
 import type { CategoryDto } from "@kloqra/contracts";
 import {
   AppBar,
+  AppBarListToolbar,
   Badge,
   Button,
   DataTableCard,
@@ -17,7 +18,6 @@ import {
   TableHeader,
   TablePagination,
   TableRow,
-  TableToolbar,
   TableLoadingState
 } from "@kloqra/ui";
 import { usePaginatedList } from "@kloqra/web-shared";
@@ -38,6 +38,7 @@ export function AdminCategoriesPage() {
     total,
     totalPages,
     limit,
+    setLimit,
     loading,
     reload
   } = usePaginatedList<CategoryDto>({
@@ -142,6 +143,14 @@ export function AdminCategoriesPage() {
       <AppBar
         title="Categories"
         description="Organize tasks into categories. Each task belongs to one category."
+        secondary={
+          <AppBarListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search categories…"
+            searchAriaLabel="Search categories"
+          />
+        }
       />
 
       <form
@@ -174,12 +183,6 @@ export function AdminCategoriesPage() {
       </form>
 
       <DataTableCard>
-        <TableToolbar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search categories…"
-          searchAriaLabel="Search categories"
-        />
         {loading ? (
           <TableLoadingState rows={6} columns={4} />
         ) : (
@@ -280,6 +283,7 @@ export function AdminCategoriesPage() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={setLimit}
               disabled={loading}
             />
           </>

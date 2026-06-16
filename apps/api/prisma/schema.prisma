@@ -109,6 +109,7 @@ model WorkspaceMember {
   workspaceId String    @map("workspace_id")
   userId      String    @map("user_id")
   role        String
+  isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)

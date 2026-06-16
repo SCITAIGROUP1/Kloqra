@@ -51,6 +51,7 @@ export function TasksPage() {
     total,
     totalPages,
     limit,
+    setLimit,
     loading
   } = usePaginatedList<TaskDto>({
     workspaceId: ws,
@@ -162,6 +163,7 @@ export function TasksPage() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={setLimit}
               disabled={loading}
             />
           </>

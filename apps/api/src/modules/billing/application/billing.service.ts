@@ -19,8 +19,15 @@ export class BillingService {
   async listRates(workspaceId: string, query: ListHourlyRatesQuery) {
     const where = {
       workspaceId,
-      ...(query.userId ? { userId: query.userId } : {}),
-      ...(query.projectId ? { projectId: query.projectId } : {})
+      ...(query.scope === "workspace"
+        ? { userId: null, projectId: null }
+        : query.scope === "member"
+          ? { userId: { not: null } }
+          : query.scope === "project"
+            ? { projectId: { not: null } }
+            : {}),
+      ...(query.scope ? {} : query.userId ? { userId: query.userId } : {}),
+      ...(query.scope ? {} : query.projectId ? { projectId: query.projectId } : {})
     };
 
     const [total, rows] = await Promise.all([

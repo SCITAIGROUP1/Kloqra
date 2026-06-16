@@ -95,6 +95,7 @@ describe("global-search-results", () => {
           userName: "Alex Admin",
           userEmail: "alex@example.com",
           role: "ADMIN",
+          isActive: true,
           status: "active",
           projectCount: 2,
           weekHours: 10,

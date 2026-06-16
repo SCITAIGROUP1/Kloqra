@@ -11,6 +11,11 @@ test.describe("Admin categories", () => {
     await expect(page.getByText("Software Development").first()).toBeVisible();
   });
 
+  test("filters categories from the app bar search", async ({ page }) => {
+    await page.getByRole("textbox", { name: "Search categories" }).fill("zzzz-no-category-xyz");
+    await expect(page.getByText("Software Development")).toHaveCount(0);
+  });
+
   test("creates, edits, and deletes an empty category", async ({ page }) => {
     const uniqueName = `E2E Category ${Date.now()}`;
     const updatedName = `${uniqueName} Updated`;

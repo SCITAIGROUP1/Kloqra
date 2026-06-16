@@ -94,7 +94,7 @@ function NotificationRow({
 export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const { count, refresh: refreshUnread } = useNotificationUnreadCount(workspaceId);
-  const { items, page, setPage, total, totalPages, limit, loading, reload } =
+  const { items, page, setPage, total, totalPages, limit, setLimit, loading, reload } =
     usePaginatedNotifications(workspaceId, { unreadOnly: filter === "unread" });
 
   const filterOptions = useMemo(
@@ -168,6 +168,7 @@ export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
           total={total}
           limit={limit}
           onPageChange={setPage}
+          onLimitChange={setLimit}
         />
       ) : null}
     </div>

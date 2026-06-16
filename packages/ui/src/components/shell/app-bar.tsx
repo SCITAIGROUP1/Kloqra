@@ -60,11 +60,11 @@ export function AppBar({ title, description, actions, secondary, className }: Ap
               ) : null}
             </div>
             {hasTrailing ? (
-              <div className="flex w-full min-w-0 @min-[720px]/shell:w-auto @min-[720px]/shell:shrink-0">
+              <div className="flex w-full min-w-0 justify-end @min-[640px]/shell:w-auto @min-[640px]/shell:shrink-0">
                 <AppBarToolbar
                   pageActions={actions}
                   shellActions={shellActions ?? undefined}
-                  className="w-full justify-end @min-[720px]/shell:w-auto"
+                  className="w-full justify-end @min-[640px]/shell:w-auto"
                 />
               </div>
             ) : null}
@@ -91,7 +91,7 @@ export function AppBar({ title, description, actions, secondary, className }: Ap
             {description ? <div className={shellAppBarDescriptionClass}>{description}</div> : null}
           </div>
           {hasShellActions ? (
-            <div className="flex shrink-0 self-start @min-[720px]/shell:self-center">
+            <div className="flex w-full shrink-0 justify-end self-stretch @min-[640px]/shell:w-auto @min-[720px]/shell:self-center">
               {shellActions}
             </div>
           ) : null}
@@ -129,11 +129,20 @@ export function AppBarSecondary({ leading, trailing, className }: AppBarSecondar
   if (!leading && !trailing) return null;
 
   return (
-    <>
-      {leading ? <div className={cn("min-w-0 flex-1", className)}>{leading}</div> : null}
-      {trailing ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{trailing}</div>
+    <div
+      className={cn(
+        "flex w-full min-w-0 flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+        className
+      )}
+    >
+      {leading ? (
+        <div className="flex min-w-0 w-full flex-1 items-center sm:w-auto">{leading}</div>
       ) : null}
-    </>
+      {trailing ? (
+        <div className="flex w-full shrink-0 items-center justify-stretch gap-2 sm:w-auto sm:justify-end">
+          {trailing}
+        </div>
+      ) : null}
+    </div>
   );
 }

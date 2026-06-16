@@ -14,6 +14,7 @@ const baseMember = {
   userName: "Alex Morgan",
   userEmail: "alex@example.com",
   role: "MEMBER" as const,
+  isActive: true,
   status: "active" as const,
   projectCount: 2,
   weekHours: 12,

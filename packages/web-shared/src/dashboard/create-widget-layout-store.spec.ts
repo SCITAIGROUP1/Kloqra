@@ -146,4 +146,31 @@ describe("createWidgetLayoutStore", () => {
 
     expect(store.getState().layoutsByWorkspace[workspaceId]).toEqual(defaultLayout);
   });
+
+  it("restores layout in memory without persisting", async () => {
+    vi.mocked(fetchDashboardLayout).mockResolvedValue({
+      layout: defaultLayout,
+      defaultLayout: null
+    });
+
+    const store = createWidgetLayoutStore({
+      app: "admin",
+      widgetRegistry: registry,
+      defaultLayout,
+      legacyStorage: {
+        layoutKey: () => "layout",
+        defaultKey: () => "default"
+      }
+    });
+
+    await store.getState().initialize(workspaceId);
+
+    const modifiedLayout = [{ i: "stat_total_hours", x: 5, y: 6, w: 4, h: 3, visible: true }];
+    store.getState().updateLayout(workspaceId, modifiedLayout, { persist: false });
+
+    store.getState().restoreLayout(workspaceId, defaultLayout);
+
+    expect(store.getState().layoutsByWorkspace[workspaceId]).toEqual(defaultLayout);
+    expect(saveDashboardLayout).not.toHaveBeenCalled();
+  });
 });

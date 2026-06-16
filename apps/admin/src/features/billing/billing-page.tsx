@@ -4,6 +4,8 @@ import { ROUTES } from "@kloqra/contracts";
 import type { HourlyRateDto } from "@kloqra/contracts";
 import {
   AppBar,
+  AppBarListToolbar,
+  appBarListFilterTriggerClass,
   Button,
   Card,
   CardContent,
@@ -15,22 +17,31 @@ import {
   DataTableHeaderRow,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableHeader,
   TablePagination,
   TableRow,
-  TableToolbar,
   TableLoadingState
 } from "@kloqra/ui";
 import { usePaginatedList } from "@kloqra/web-shared";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function BillingPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [scopeFilter, setScopeFilter] = useState<"ALL" | "workspace" | "member" | "project">("ALL");
+  const listFilters = useMemo(
+    () => (scopeFilter === "ALL" ? undefined : { scope: scopeFilter }),
+    [scopeFilter]
+  );
   const {
     items: rates,
     page,
@@ -40,11 +51,13 @@ export function BillingPage() {
     total,
     totalPages,
     limit,
+    setLimit,
     loading,
     reload
   } = usePaginatedList<HourlyRateDto>({
     workspaceId: ws,
-    basePath: ROUTES.BILLING.RATES
+    basePath: ROUTES.BILLING.RATES,
+    filters: listFilters
   });
 
   const [rate, setRate] = useState("100");
@@ -79,6 +92,35 @@ export function BillingPage() {
       <AppBar
         title="Billing"
         description="Configure default and per-member hourly rates for workspace billing."
+        secondary={
+          <AppBarListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search rates…"
+            searchAriaLabel="Search hourly rates"
+            filters={
+              <Select
+                value={scopeFilter}
+                onValueChange={(value) =>
+                  setScopeFilter(value as "ALL" | "workspace" | "member" | "project")
+                }
+              >
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by scope"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All scopes</SelectItem>
+                  <SelectItem value="workspace">Workspace default</SelectItem>
+                  <SelectItem value="member">Per member</SelectItem>
+                  <SelectItem value="project">Per project</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+          />
+        }
       />
       <Card className="border-primary/10 shadow-sm">
         <CardHeader>
@@ -113,12 +155,6 @@ export function BillingPage() {
         </CardContent>
       </Card>
       <DataTableCard>
-        <TableToolbar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search rates…"
-          searchAriaLabel="Search hourly rates"
-        />
         {loading ? (
           <TableLoadingState rows={5} columns={3} />
         ) : rates.length === 0 ? (
@@ -149,6 +185,7 @@ export function BillingPage() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={setLimit}
               disabled={loading}
             />
           </>

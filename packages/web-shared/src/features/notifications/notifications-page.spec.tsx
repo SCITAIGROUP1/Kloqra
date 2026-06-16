@@ -30,7 +30,8 @@ vi.mock("../../hooks/use-notifications", () => ({
     setPage: vi.fn(),
     total: 1,
     totalPages: 1,
-    limit: 20,
+    limit: 25,
+    setLimit: vi.fn(),
     loading: false,
     reload: vi.fn()
   }),

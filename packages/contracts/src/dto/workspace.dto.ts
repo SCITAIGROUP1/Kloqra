@@ -31,6 +31,7 @@ export const workspaceMemberSchema = z.object({
   workspaceId: uuidSchema,
   userId: uuidSchema,
   role: workspaceRoleSchema,
+  isActive: z.boolean(),
   userName: z.string(),
   userEmail: z.string().email()
 });
@@ -69,9 +70,14 @@ export const memberEmailDeliverySchema = z.object({
   emailFailureMessage: z.string().max(240).optional()
 });
 
-export const updateWorkspaceMemberSchema = z.object({
-  role: workspaceRoleSchema
-});
+export const updateWorkspaceMemberSchema = z
+  .object({
+    role: workspaceRoleSchema.optional(),
+    isActive: z.boolean().optional()
+  })
+  .refine((value) => value.role !== undefined || value.isActive !== undefined, {
+    message: "At least one of role or isActive is required"
+  });
 
 export const updateWorkspaceSchema = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -85,6 +91,7 @@ export const teamMemberOverviewSchema = z.object({
   userEmail: z.string().email(),
   role: workspaceRoleSchema,
   pendingCredentials: z.boolean().optional(),
+  isActive: z.boolean(),
   status: teamMemberStatusSchema,
   projectCount: z.number().int().nonnegative(),
   weekHours: z.number(),
@@ -99,7 +106,14 @@ export const teamMembersOverviewSummarySchema = z.object({
   totalWeekHours: z.number()
 });
 
-export const teamMembersOverviewQuerySchema = listPaginationQuerySchema;
+export const teamMembersOverviewQuerySchema = listPaginationQuerySchema.extend({
+  role: workspaceRoleSchema.optional(),
+  status: teamMemberStatusSchema.optional(),
+  membershipActive: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === "true"))
+});
 
 export const teamMembersOverviewSchema = z.object({
   members: z.array(teamMemberOverviewSchema),

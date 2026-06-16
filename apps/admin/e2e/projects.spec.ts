@@ -13,6 +13,23 @@ test.describe("Admin projects", () => {
     expect(await rows.count()).toBeGreaterThan(0);
   });
 
+  test("shows status filter with all, active, and inactive options", async ({ page }) => {
+    const statusFilter = page.getByRole("combobox", { name: "Filter by status" });
+    await expect(statusFilter).toBeVisible();
+    await expect(statusFilter).toHaveText("All statuses");
+
+    await statusFilter.click();
+    await expect(page.getByRole("option", { name: "Active" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Inactive" })).toBeVisible();
+    await page.getByRole("option", { name: "Active" }).click();
+    await expect(statusFilter).toHaveText("Active");
+  });
+
+  test("filters projects from the app bar search", async ({ page }) => {
+    await page.getByRole("textbox", { name: "Search projects" }).fill("zzzz-no-project-xyz");
+    await expect(page.getByText("No matching projects")).toBeVisible();
+  });
+
   test("creates a project with name and client", async ({ page }) => {
     const projectName = `E2E Project ${Date.now()}`;
     const clientName = "Acme Corp";

@@ -48,7 +48,7 @@ export const WIDGET_GROUPS: { value: WidgetGroup; label: string }[] = [
   { value: "composition", label: "Composition" },
   { value: "projects", label: "Project Analytics" },
   { value: "team", label: "Team & People" },
-  { value: "workflow", label: "Live & Workflow" }
+  { value: "workflow", label: "Quick Actions & Workflows" }
 ];
 
 export const WIDGET_REGISTRY: WidgetDefinition[] = [

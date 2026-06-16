@@ -1,9 +1,14 @@
 import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./helpers/auth";
 
 test.describe("Admin global search", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
     await page.goto("/dashboard");
-    await expect(page.getByTestId("global-search-open")).toBeVisible();
+  });
+
+  test("does not show a toolbar search field", async ({ page }) => {
+    await expect(page.getByTestId("global-search-open")).toHaveCount(0);
   });
 
   test("opens command palette with keyboard shortcut", async ({ page }) => {
@@ -11,11 +16,6 @@ test.describe("Admin global search", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page.getByText("Pages")).toBeVisible();
     await expect(page.getByRole("option", { name: "Projects" })).toBeVisible();
-  });
-
-  test("opens command palette from toolbar trigger", async ({ page }) => {
-    await page.getByTestId("global-search-open").click();
-    await expect(page.getByRole("dialog")).toBeVisible();
   });
 
   test("finds seeded projects and navigates on select", async ({ page }) => {

@@ -9,8 +9,9 @@ type AssistantLauncherProps = {
 };
 
 export function AssistantLauncher({ className }: AssistantLauncherProps) {
-  const { view, openAssistant } = useAssistant();
+  const { view, openAssistant, launcherSuppressed } = useAssistant();
   const expanded = view === "expanded";
+  const hidden = expanded || launcherSuppressed;
 
   return (
     <button
@@ -20,11 +21,12 @@ export function AssistantLauncher({ className }: AssistantLauncherProps) {
         "hover:scale-105 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "motion-reduce:transition-none motion-reduce:hover:scale-100",
         "bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))]",
-        expanded && "pointer-events-none scale-0 opacity-0",
+        hidden && "pointer-events-none scale-0 opacity-0",
         className
       )}
       aria-label="Open help assistant"
       aria-expanded={expanded}
+      aria-hidden={hidden}
       aria-controls="assistant-chat-panel"
       onClick={openAssistant}
     >

@@ -19,6 +19,11 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
 import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  activeWorkspaceMemberWhere,
+  toWorkspaceMemberWithUser,
+  type WorkspaceMemberWithUser
+} from "../../../common/workspace/workspace-member.types";
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
@@ -59,25 +64,37 @@ export class WorkspaceService {
       // Acquire write-lock on the workspace row to prevent concurrent role changes/removals
       await tx.$queryRaw`SELECT 1 FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`;
 
-      const member = await tx.workspaceMember.findFirst({
+      const foundMember = await tx.workspaceMember.findFirst({
         where: { id: memberId, workspaceId },
         include: { user: true }
       });
-      if (!member) {
+      if (!foundMember) {
         throw new DomainException(
           ErrorCodes.NOT_FOUND,
           "Workspace member not found",
           HttpStatus.NOT_FOUND
         );
       }
+      const member = toWorkspaceMemberWithUser(foundMember);
 
-      if (member.role === dto.role) {
+      const nextRole = dto.role ?? (member.role as "ADMIN" | "MEMBER");
+      const nextIsActive = dto.isActive ?? member.isActive;
+
+      if (dto.isActive === false && member.userId === actingUserId) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "Cannot deactivate yourself",
+          HttpStatus.FORBIDDEN
+        );
+      }
+
+      if (nextRole === member.role && nextIsActive === member.isActive) {
         return { kind: "unchanged" as const, member: this.toMemberDto(member) };
       }
 
-      if (member.role === "ADMIN" && dto.role === "MEMBER") {
+      if (member.role === "ADMIN" && nextRole === "MEMBER") {
         const adminCount = await tx.workspaceMember.count({
-          where: { workspaceId, role: "ADMIN" }
+          where: activeWorkspaceMemberWhere({ workspaceId, role: "ADMIN" })
         });
         if (adminCount <= 1) {
           throw new DomainException(
@@ -88,19 +105,58 @@ export class WorkspaceService {
         }
       }
 
-      const updated = await tx.workspaceMember.update({
-        where: { id: memberId },
-        data: { role: dto.role },
-        include: { user: true }
-      });
+      if (member.role === "ADMIN" && nextIsActive === false) {
+        const activeAdminCount = await tx.workspaceMember.count({
+          where: activeWorkspaceMemberWhere({ workspaceId, role: "ADMIN" })
+        });
+        if (activeAdminCount <= 1) {
+          throw new DomainException(
+            ErrorCodes.FORBIDDEN,
+            "Cannot deactivate the last workspace admin",
+            HttpStatus.FORBIDDEN
+          );
+        }
+      }
+
+      const updated = toWorkspaceMemberWithUser(
+        await tx.workspaceMember.update({
+          where: { id: memberId },
+          data: {
+            ...(dto.role !== undefined ? { role: dto.role } : {}),
+            ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {})
+          },
+          include: { user: true }
+        })
+      );
+
+      if (dto.isActive === false && member.isActive) {
+        await tx.teamMember.updateMany({
+          where: {
+            userId: member.userId,
+            team: {
+              project: {
+                workspaceId
+              }
+            }
+          },
+          data: {
+            isActive: false
+          }
+        });
+      }
+
+      const roleChanged = dto.role !== undefined && dto.role !== member.role;
+      const statusChanged = dto.isActive !== undefined && dto.isActive !== member.isActive;
+
       return {
-        kind: "roleChanged" as const,
+        kind: roleChanged ? ("roleChanged" as const) : ("statusChanged" as const),
         member: this.toMemberDto(updated),
-        newRole: dto.role
+        newRole: roleChanged ? dto.role! : undefined,
+        statusChanged
       };
     });
 
-    if (outcome.kind === "roleChanged") {
+    if (outcome.kind === "roleChanged" && outcome.newRole) {
       const [workspace, actor] = await Promise.all([
         this.prisma.workspace.findUnique({
           where: { id: workspaceId },
@@ -331,7 +387,7 @@ export class WorkspaceService {
     }
 
     return {
-      member: this.toMemberDto(membership),
+      member: this.toMemberDto(toWorkspaceMemberWithUser(membership)),
       userCreated,
       emailSent: emailDelivery.emailSent,
       ...(emailDelivery.emailSkipReason ? { emailSkipReason: emailDelivery.emailSkipReason } : {}),
@@ -523,18 +579,13 @@ export class WorkspaceService {
     });
   }
 
-  private toMemberDto(member: {
-    id: string;
-    workspaceId: string;
-    userId: string;
-    role: string;
-    user: { name: string; email: string };
-  }) {
+  private toMemberDto(member: WorkspaceMemberWithUser) {
     return {
       id: member.id,
       workspaceId: member.workspaceId,
       userId: member.userId,
       role: member.role as "ADMIN" | "MEMBER",
+      isActive: member.isActive,
       userName: member.user.name,
       userEmail: member.user.email
     };

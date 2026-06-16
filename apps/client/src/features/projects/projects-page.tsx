@@ -32,6 +32,7 @@ export function ProjectsPage() {
     total,
     totalPages,
     limit,
+    setLimit,
     loading
   } = usePaginatedList<ProjectDto>({
     workspaceId: ws,
@@ -91,6 +92,7 @@ export function ProjectsPage() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={setLimit}
               disabled={loading}
             />
           </>

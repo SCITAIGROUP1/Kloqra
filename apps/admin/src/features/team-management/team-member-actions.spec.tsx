@@ -9,6 +9,7 @@ const member = {
   userName: "Sam Rivera",
   userEmail: "sam@kloqra.dev",
   role: "MEMBER" as const,
+  isActive: true,
   status: "active" as const,
   projectCount: 2,
   weekHours: 12,
@@ -26,6 +27,7 @@ describe("TeamMemberActions", () => {
         onViewProfile={vi.fn()}
         onEditMember={vi.fn()}
         onViewAsMember={vi.fn()}
+        onChangeStatus={vi.fn()}
         onRemove={vi.fn()}
       />
     );
@@ -42,6 +44,7 @@ describe("TeamMemberActions", () => {
         onViewProfile={vi.fn()}
         onEditMember={vi.fn()}
         onViewAsMember={vi.fn()}
+        onChangeStatus={vi.fn()}
         onRemove={vi.fn()}
       />
     );

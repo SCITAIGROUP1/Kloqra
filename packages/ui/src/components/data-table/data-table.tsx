@@ -1,11 +1,13 @@
 "use client";
 
+import { TABLE_PAGE_SIZE_OPTIONS } from "@kloqra/contracts";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import * as React from "react";
 import { cn } from "../../lib/utils.js";
 import { Button } from "../ui/button.js";
 import { Card } from "../ui/card.js";
 import { Input } from "../ui/input.js";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.js";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table.js";
 
 export const dataTableCardClass = "gap-0 overflow-hidden border-primary/10 p-0 shadow-sm";
@@ -72,6 +74,8 @@ export type TablePaginationProps = {
   total: number;
   limit: number;
   onPageChange: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+  pageSizeOptions?: readonly number[];
   disabled?: boolean;
 };
 
@@ -81,8 +85,11 @@ export function TablePagination({
   total,
   limit,
   onPageChange,
+  onLimitChange,
+  pageSizeOptions = TABLE_PAGE_SIZE_OPTIONS,
   disabled
 }: TablePaginationProps) {
+  const sizes = pageSizeOptions ?? TABLE_PAGE_SIZE_OPTIONS ?? [10, 25, 50];
   const start = total === 0 ? 0 : (page - 1) * limit + 1;
   const end = total === 0 ? 0 : Math.min(page * limit, total);
 
@@ -91,7 +98,28 @@ export function TablePagination({
       <span>
         Showing {start}–{end} of {total}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {onLimitChange ? (
+          <div className="flex items-center gap-2">
+            <span className="whitespace-nowrap">Rows per page</span>
+            <Select
+              value={String(limit)}
+              onValueChange={(value) => onLimitChange(Number(value))}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 w-[72px]" aria-label="Rows per page">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sizes.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
         <Button
           type="button"
           variant="outline"

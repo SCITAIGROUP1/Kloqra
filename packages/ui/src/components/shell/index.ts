@@ -4,6 +4,7 @@ export * from "./user-avatar.js";
 export * from "./app-bar-icon-button.js";
 export * from "./app-bar-action-button.js";
 export * from "./app-bar.js";
+export * from "./app-bar-list-toolbar.js";
 export * from "./app-bar-toolbar.js";
 export * from "./shell-menu.js";
 export * from "./sidebar-user-footer.js";

@@ -46,7 +46,7 @@ import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
-import { useWidgetLayout } from "./use-widget-layout";
+import { useWidgetLayout, type WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
 import { WidgetShell } from "./widget-shell";
@@ -59,6 +59,7 @@ import {
   TodayLogsWidget,
   WeeklyProgressWidget
 } from "./widgets-lazy";
+import { useSuppressAssistantLauncher } from "@/features/assistant/assistant-provider";
 import { useDashboardSubmissions } from "@/features/submissions/use-my-submissions";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
@@ -130,6 +131,8 @@ export function DashboardPage() {
   const [isArranging, setIsArranging] = useState(false);
   const [gridBreakpoint, setGridBreakpoint] = useState<DashboardBreakpoint>("lg");
 
+  useSuppressAssistantLauncher(isCatalogOpen || isArranging);
+
   // Local active timer controls
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
@@ -146,8 +149,11 @@ export function DashboardPage() {
   const updateLayout = useWidgetLayout((s) => s.updateLayout);
   const persistLayout = useWidgetLayout((s) => s.persistLayout);
   const saveLayoutAsDefault = useWidgetLayout((s) => s.saveLayoutAsDefault);
+  const restoreLayout = useWidgetLayout((s) => s.restoreLayout);
   const toggleWidget = useWidgetLayout((s) => s.toggleWidget);
   const resetLayout = useWidgetLayout((s) => s.resetLayout);
+
+  const arrangeSnapshotRef = useRef<WidgetLayoutItem[] | null>(null);
 
   const activeTask = active ? tasks.find((t) => t.id === active.taskId) : null;
   const activeProject = activeTask ? projects.find((p) => p.id === activeTask.projectId) : null;
@@ -183,14 +189,25 @@ export function DashboardPage() {
     }
   }, [ws, initialize]);
 
+  const handleCancelArranging = useCallback(() => {
+    if (arrangeSnapshotRef.current && ws) {
+      restoreLayout(ws, arrangeSnapshotRef.current);
+    }
+    arrangeSnapshotRef.current = null;
+    setIsArranging(false);
+  }, [ws, restoreLayout]);
+
   // Handle keydown escape to close Customize panels
   useEffect(() => {
     if (!isCatalogOpen && !isArranging) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsCatalogOpen(false);
-        setIsArranging(false);
+        if (isArranging) {
+          handleCancelArranging();
+        } else {
+          setIsCatalogOpen(false);
+        }
       }
     }
 
@@ -198,7 +215,7 @@ export function DashboardPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isCatalogOpen, isArranging]);
+  }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
   const fetchLogs = useCallback(async () => {
     if (!ws) return;
@@ -430,6 +447,7 @@ export function DashboardPage() {
   const handleDoneArranging = async () => {
     try {
       await persistLayout(ws);
+      arrangeSnapshotRef.current = null;
       setIsArranging(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
@@ -440,6 +458,7 @@ export function DashboardPage() {
     try {
       await persistLayout(ws);
       await saveLayoutAsDefault(ws);
+      arrangeSnapshotRef.current = null;
       setIsArranging(false);
       toast.success("Layout saved as default");
     } catch (e) {
@@ -577,7 +596,9 @@ export function DashboardPage() {
               active={isCatalogOpen}
               onClick={() => {
                 setIsCatalogOpen(!isCatalogOpen);
-                setIsArranging(false);
+                if (isArranging) {
+                  handleCancelArranging();
+                }
               }}
             >
               <LayoutGrid className="size-3.5" />
@@ -592,6 +613,12 @@ export function DashboardPage() {
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
                     return;
+                  }
+                  arrangeSnapshotRef.current = null;
+                } else {
+                  const current = layoutsByWorkspace[ws];
+                  if (current) {
+                    arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
                   }
                 }
                 setIsArranging(!isArranging);
@@ -617,6 +644,7 @@ export function DashboardPage() {
 
       {isArranging && (
         <DashboardArrangeBanner
+          onCancel={handleCancelArranging}
           onResetLayout={handleResetLayout}
           onDone={handleDoneArranging}
           onSaveAsDefault={handleDoneAndSaveAsDefault}

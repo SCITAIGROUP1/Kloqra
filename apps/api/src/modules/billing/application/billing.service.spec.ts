@@ -35,6 +35,16 @@ describe("BillingService", () => {
     );
   });
 
+  it("filters workspace-default rates when scope is workspace", async () => {
+    await service.listRates("ws-1", { page: 1, limit: 20, scope: "workspace" });
+
+    expect(mockPrisma.hourlyRate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workspaceId: "ws-1", userId: null, projectId: null }
+      })
+    );
+  });
+
   it("summary aggregates billable totals from time logs", async () => {
     mockPrisma.workspace = {
       findUnique: vi.fn().mockResolvedValue({ settings: { currency: "EUR" } })

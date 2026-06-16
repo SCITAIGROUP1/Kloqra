@@ -254,6 +254,9 @@ export {
 export {
   AppBar,
   type AppBarProps,
+  AppBarListToolbar,
+  type AppBarListToolbarProps,
+  appBarListFilterTriggerClass,
   AppBarSecondary,
   type AppBarSecondaryProps,
   AppBarActionButton,

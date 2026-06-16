@@ -32,6 +32,8 @@ type AssistantContextValue = {
   view: AssistantView;
   /** @deprecated Use view === "expanded" */
   open: boolean;
+  launcherSuppressed: boolean;
+  suppressLauncher: () => () => void;
   openAssistant: () => void;
   minimizeAssistant: () => void;
   closeAssistant: () => void;
@@ -58,6 +60,7 @@ function shouldIgnoreKeyboardShortcut(target: EventTarget | null): boolean {
 
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<AssistantView>("collapsed");
+  const [launcherSuppressCount, setLauncherSuppressCount] = useState(0);
   const [turns, setTurns] = useState<AssistantTurn[]>([]);
   const [feedback, setFeedback] = useState<AssistantFeedback[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -79,6 +82,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   }, [feedback, hydrated]);
 
   const openAssistant = useCallback(() => setView("expanded"), []);
+  const suppressLauncher = useCallback(() => {
+    setLauncherSuppressCount((count) => count + 1);
+    return () => {
+      setLauncherSuppressCount((count) => Math.max(0, count - 1));
+    };
+  }, []);
   const minimizeAssistant = useCallback(() => setView("minimized"), []);
   const closeAssistant = useCallback(() => setView("collapsed"), []);
   const toggleAssistant = useCallback(() => {
@@ -119,6 +128,8 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     () => ({
       view,
       open: view === "expanded",
+      launcherSuppressed: launcherSuppressCount > 0,
+      suppressLauncher,
       openAssistant,
       minimizeAssistant,
       closeAssistant,
@@ -131,6 +142,8 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     }),
     [
       view,
+      launcherSuppressCount,
+      suppressLauncher,
       openAssistant,
       minimizeAssistant,
       closeAssistant,
@@ -152,4 +165,13 @@ export function useAssistant() {
     throw new Error("useAssistant must be used within AssistantProvider");
   }
   return ctx;
+}
+
+export function useSuppressAssistantLauncher(active: boolean) {
+  const { suppressLauncher } = useAssistant();
+
+  useEffect(() => {
+    if (!active) return;
+    return suppressLauncher();
+  }, [active, suppressLauncher]);
 }

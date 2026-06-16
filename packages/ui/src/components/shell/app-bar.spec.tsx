@@ -52,7 +52,7 @@ describe("AppBar", () => {
     );
 
     expect(screen.getByRole("button", { name: "Arrange Grid" })).toBeInTheDocument();
-    expect(container.querySelector("[class*='@min-[720px]/shell:w-auto']")).toBeTruthy();
+    expect(container.querySelector("[class*='@min-[640px]/shell:w-auto']")).toBeTruthy();
   });
 
   it("renders a secondary row for search and primary CTA", () => {

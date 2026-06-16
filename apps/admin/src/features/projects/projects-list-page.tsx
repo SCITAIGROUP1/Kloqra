@@ -5,6 +5,8 @@ import type { ProjectDto } from "@kloqra/contracts";
 import {
   AppModal,
   AppBar,
+  AppBarListToolbar,
+  appBarListFilterTriggerClass,
   Badge,
   Button,
   DataTableCard,
@@ -16,18 +18,22 @@ import {
   Label,
   ProjectColorPicker,
   ProjectNameWithColor,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableHeader,
   TablePagination,
   TableRow,
-  TableToolbar,
   TableLoadingState
 } from "@kloqra/ui";
 import { usePaginatedList } from "@kloqra/web-shared";
 import { ChevronRight, FolderPlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { projectListHref } from "@/features/projects/project-detail-nav";
 import { api } from "@/lib/api";
@@ -36,6 +42,16 @@ import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 export function ProjectsListPage() {
   const router = useRouter();
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
+  const listFilters = useMemo(
+    () =>
+      statusFilter === "active"
+        ? { isActive: "true" }
+        : statusFilter === "inactive"
+          ? { isActive: "false" }
+          : undefined,
+    [statusFilter]
+  );
   const {
     items: projects,
     page,
@@ -45,12 +61,14 @@ export function ProjectsListPage() {
     total,
     totalPages,
     limit,
+    setLimit,
     loading,
     error,
     reload
   } = usePaginatedList<ProjectDto>({
     workspaceId: ws,
-    basePath: ROUTES.PROJECTS.LIST
+    basePath: ROUTES.PROJECTS.LIST,
+    filters: listFilters
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -87,38 +105,66 @@ export function ProjectsListPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <AppBar
         title="Projects"
         description="Browse workspace projects and open one to manage tasks, team, and settings."
-        actions={
-          <Button type="button" className="h-10 gap-2" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" aria-hidden />
-            New project
-          </Button>
+        secondary={
+          <AppBarListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search by name or client…"
+            searchAriaLabel="Search projects"
+            filters={
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+              >
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+            action={
+              <Button
+                type="button"
+                className="h-10 w-full gap-2 md:w-auto"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                New project
+              </Button>
+            }
+          />
         }
       />
 
       <DataTableCard>
-        <TableToolbar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search by name or client…"
-          searchAriaLabel="Search projects"
-        />
         {loading ? (
           <TableLoadingState rows={6} columns={4} />
         ) : projects.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title={total === 0 && !search ? "No projects yet" : "No matching projects"}
+              title={
+                total === 0 && !search && statusFilter === "ALL"
+                  ? "No projects yet"
+                  : "No matching projects"
+              }
               description={
-                total === 0 && !search
+                total === 0 && !search && statusFilter === "ALL"
                   ? "Create your first project to organize time tracking and teams."
-                  : "Try a different search term."
+                  : "Try a different search term or filter."
               }
               action={
-                total === 0 && !search ? (
+                total === 0 && !search && statusFilter === "ALL" ? (
                   <Button type="button" onClick={() => setCreateOpen(true)}>
                     New project
                   </Button>
@@ -183,6 +229,7 @@ export function ProjectsListPage() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={setLimit}
               disabled={loading}
             />
           </>

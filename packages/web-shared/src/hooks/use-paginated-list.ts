@@ -20,6 +20,7 @@ export function usePaginatedList<T>({
   debounceMs = 300
 }: UsePaginatedListOptions) {
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [items, setItems] = useState<T[]>([]);
@@ -45,6 +46,11 @@ export function usePaginatedList<T>({
     setPage(1);
   }, [debouncedSearch, filterKey]);
 
+  const setLimitAndResetPage = useCallback((nextLimit: number) => {
+    setPage(1);
+    setLimit(nextLimit);
+  }, []);
+
   const reload = useCallback(async () => {
     if (!enabled || !workspaceId) return;
     setLoading(true);
@@ -53,6 +59,7 @@ export function usePaginatedList<T>({
       const data = await fetchPaginatedList<T>(basePath, {
         workspaceId,
         page,
+        limit,
         search: debouncedSearch,
         filters: stableFilters
       });
@@ -67,7 +74,7 @@ export function usePaginatedList<T>({
     } finally {
       setLoading(false);
     }
-  }, [enabled, workspaceId, basePath, page, debouncedSearch, stableFilters]);
+  }, [enabled, workspaceId, basePath, page, limit, debouncedSearch, stableFilters]);
 
   useEffect(() => {
     void reload();
@@ -81,7 +88,8 @@ export function usePaginatedList<T>({
     setSearch,
     total,
     totalPages,
-    limit: DEFAULT_TABLE_PAGE_SIZE,
+    limit,
+    setLimit: setLimitAndResetPage,
     loading,
     error,
     reload

@@ -455,6 +455,7 @@ describe("contracts", () => {
           userName: "Sam Rivera",
           userEmail: "sam@kloqra.dev",
           role: "ADMIN",
+          isActive: true,
           status: "active",
           projectCount: 2,
           weekHours: 32.5,

@@ -21,6 +21,11 @@ import {
   buildVerifyEmailUrl
 } from "../../../common/mailer/auth.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  activeMembershipsInclude,
+  asUserWithMemberships,
+  isWorkspaceMembershipActive
+} from "../../../common/workspace/workspace-member.types";
 import { splitDisplayName } from "../../users/application/user-name.util";
 
 const IMPERSONATION_HANDOFF_EXPIRES = "90s";
@@ -68,6 +73,13 @@ export class AuthService {
         HttpStatus.FORBIDDEN
       );
     }
+    if (!isWorkspaceMembershipActive(membership)) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Workspace membership is deactivated",
+        HttpStatus.FORBIDDEN
+      );
+    }
     return this.buildSession(
       membership.user,
       membership.workspaceId,
@@ -90,27 +102,21 @@ export class AuthService {
       userId = this.verifyPending2faToken(dto.pendingToken);
     }
 
-    const user = userId
-      ? await this.prisma.user.findUnique({
-          where: { id: userId },
-          include: {
-            memberships: {
-              include: { workspace: true },
-              orderBy: { createdAt: "asc" },
-              take: 1
+    const user = asUserWithMemberships(
+      userId
+        ? await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+              memberships: activeMembershipsInclude()
             }
-          }
-        })
-      : await this.prisma.user.findUnique({
-          where: { email: dto.email },
-          include: {
-            memberships: {
-              include: { workspace: true },
-              orderBy: { createdAt: "asc" },
-              take: 1
+          })
+        : await this.prisma.user.findUnique({
+            where: { email: dto.email },
+            include: {
+              memberships: activeMembershipsInclude()
             }
-          }
-        });
+          })
+    );
 
     if (!user) {
       throw new DomainException(
@@ -180,16 +186,14 @@ export class AuthService {
     AuthSessionDto | LoginRequires2faResponseDto | LoginRequiresEmailVerificationResponseDto
   > {
     const userId = this.verifyPendingPasswordChangeToken(dto.pendingToken);
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        memberships: {
-          include: { workspace: true },
-          orderBy: { createdAt: "asc" },
-          take: 1
+    const user = asUserWithMemberships(
+      await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          memberships: activeMembershipsInclude()
         }
-      }
-    });
+      })
+    );
 
     if (!user?.mustChangePassword) {
       throw new DomainException(
@@ -321,19 +325,17 @@ export class AuthService {
   ): Promise<
     AuthSessionDto | LoginRequires2faResponseDto | LoginRequiresPasswordChangeResponseDto
   > {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        emailVerificationTokenHash: hashToken(token),
-        emailVerificationExpiresAt: { gt: new Date() }
-      },
-      include: {
-        memberships: {
-          include: { workspace: true },
-          orderBy: { createdAt: "asc" },
-          take: 1
+    const user = asUserWithMemberships(
+      await this.prisma.user.findFirst({
+        where: {
+          emailVerificationTokenHash: hashToken(token),
+          emailVerificationExpiresAt: { gt: new Date() }
+        },
+        include: {
+          memberships: activeMembershipsInclude()
         }
-      }
-    });
+      })
+    );
 
     if (!user) {
       throw new DomainException(
@@ -692,6 +694,7 @@ export class AuthService {
           orderBy: { createdAt: "asc" }
         });
     if (!membership) return null;
+    if (!isWorkspaceMembershipActive(membership)) return null;
 
     let impersonatorName: string | undefined;
     if (impersonatorId) {
@@ -725,14 +728,21 @@ export class AuthService {
       impersonatorName = impUser?.name;
     }
 
+    const membership = await this.prisma.workspaceMember.findUniqueOrThrow({
+      where: { workspaceId_userId: { workspaceId, userId } }
+    });
+    if (!isWorkspaceMembershipActive(membership)) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Workspace membership is deactivated",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     return this.buildSession(
       dbUser,
       workspaceId,
-      (
-        await this.prisma.workspaceMember.findUniqueOrThrow({
-          where: { workspaceId_userId: { workspaceId, userId } }
-        })
-      ).role as "ADMIN" | "MEMBER",
+      membership.role as "ADMIN" | "MEMBER",
       workspace.name,
       impersonatorId,
       impersonatorName

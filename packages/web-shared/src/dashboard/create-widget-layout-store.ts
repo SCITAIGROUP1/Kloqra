@@ -29,6 +29,7 @@ export interface WidgetLayoutState {
   ) => void;
   persistLayout: (workspaceId: string) => Promise<void>;
   saveLayoutAsDefault: (workspaceId: string) => Promise<void>;
+  restoreLayout: (workspaceId: string, layout: WidgetLayoutItem[]) => void;
   toggleWidget: (workspaceId: string, id: string) => Promise<void>;
   resetLayout: (workspaceId: string) => Promise<void>;
 }
@@ -239,6 +240,17 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
       const layout = get().layoutsByWorkspace[workspaceId];
       if (!layout) return;
       await persistToServer(workspaceId, layout, layout);
+    },
+
+    restoreLayout: (workspaceId: string, layout: WidgetLayoutItem[]) => {
+      if (!workspaceId) return;
+
+      set((state) => ({
+        layoutsByWorkspace: {
+          ...state.layoutsByWorkspace,
+          [workspaceId]: layout.map((item) => ({ ...item }))
+        }
+      }));
     },
 
     toggleWidget: async (workspaceId: string, id: string) => {

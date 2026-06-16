@@ -69,38 +69,42 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ResponsiveLayoutShell
-      navItems={nav}
-      logoIcon={<BrandMark size="lg" iconOnly />}
-      logoTitle={BRAND_NAME}
-      logoSubtitle="Admin Portal"
-      logoLinkHref="/dashboard"
-      shellToolbar={{
-        search: <GlobalSearchShell workspaceId={wsId} />,
-        actions: (
+    <>
+      <GlobalSearchShell workspaceId={wsId} />
+      <ResponsiveLayoutShell
+        navItems={nav}
+        logoIcon={<BrandMark size="lg" iconOnly />}
+        logoTitle={BRAND_NAME}
+        logoSubtitle="Admin Portal"
+        logoLinkHref="/dashboard"
+        shellToolbar={
           <ShellHeaderActions
             workspaceId={wsId}
             profileHref="/profile"
             settingsHref="/settings"
             notificationsHref="/notifications"
           />
-        )
-      }}
-      workspaceSwitcher={(collapsed) => (
-        <WorkspaceSwitcher filterRole="ADMIN" defaultRedirect="/dashboard" collapsed={collapsed} />
-      )}
-      footerContent={(collapsed) => (
-        <SidebarUserFooter
-          collapsed={collapsed}
-          userName={session.user.name ?? "Admin"}
-          profileHref="/profile"
-          onLogout={() => {
-            void logoutSession(session.workspaceId).then(() => router.push("/login"));
-          }}
-        />
-      )}
-    >
-      {children}
-    </ResponsiveLayoutShell>
+        }
+        workspaceSwitcher={(collapsed) => (
+          <WorkspaceSwitcher
+            filterRole="ADMIN"
+            defaultRedirect="/dashboard"
+            collapsed={collapsed}
+          />
+        )}
+        footerContent={(collapsed) => (
+          <SidebarUserFooter
+            collapsed={collapsed}
+            userName={session.user.name ?? "Admin"}
+            profileHref="/profile"
+            onLogout={() => {
+              void logoutSession(session.workspaceId).then(() => router.push("/login"));
+            }}
+          />
+        )}
+      >
+        {children}
+      </ResponsiveLayoutShell>
+    </>
   );
 }

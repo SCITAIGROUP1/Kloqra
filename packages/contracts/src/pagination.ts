@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const DEFAULT_TABLE_PAGE_SIZE = 20;
+export const DEFAULT_TABLE_PAGE_SIZE = 25;
+export const TABLE_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+export type TablePageSize = (typeof TABLE_PAGE_SIZE_OPTIONS)[number];
 export const DEFAULT_DROPDOWN_LIST_LIMIT = 100;
 export const MAX_LIST_LIMIT = 1000;
 
@@ -48,11 +50,12 @@ export function unwrapListItems<T>(data: T[] | PaginatedResponse<T>): T[] {
 export function tablePaginationQuery(
   page: number,
   search?: string,
-  extra?: Record<string, string>
+  extra?: Record<string, string>,
+  limit: number = DEFAULT_TABLE_PAGE_SIZE
 ) {
   const entries: [string, string][] = [
     ["page", String(page)],
-    ["limit", String(DEFAULT_TABLE_PAGE_SIZE)],
+    ["limit", String(limit)],
     ...(extra ? Object.entries(extra) : [])
   ];
   if (search?.trim()) entries.push(["search", search.trim()]);

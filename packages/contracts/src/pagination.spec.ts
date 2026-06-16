@@ -5,6 +5,7 @@ import {
   createPaginatedListResponseSchema,
   DEFAULT_TABLE_PAGE_SIZE,
   listPaginationQuerySchema,
+  TABLE_PAGE_SIZE_OPTIONS,
   tablePaginationQuery,
   unwrapListItems
 } from "./pagination";
@@ -14,6 +15,11 @@ describe("pagination contracts", () => {
     const parsed = listPaginationQuerySchema.parse({});
     expect(parsed.page).toBe(1);
     expect(parsed.limit).toBe(1000);
+  });
+
+  it("exposes table page size options", () => {
+    expect(TABLE_PAGE_SIZE_OPTIONS).toEqual([10, 25, 50]);
+    expect(DEFAULT_TABLE_PAGE_SIZE).toBe(25);
   });
 
   it("builds pagination meta", () => {
@@ -52,6 +58,7 @@ describe("pagination contracts", () => {
     expect(tablePaginationQuery(1, "  acme  ", { sort: "name" })).toBe(
       `page=1&limit=${DEFAULT_TABLE_PAGE_SIZE}&sort=name&search=acme`
     );
+    expect(tablePaginationQuery(1, undefined, undefined, 25)).toBe("page=1&limit=25");
   });
 
   it("wraps item schemas in paginated list responses", () => {

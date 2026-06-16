@@ -6,7 +6,6 @@ import type {
 import { buildPaginationMeta } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
-import { paginationSkipTake } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
@@ -42,6 +41,8 @@ export class WorkspaceMembersOverviewService {
 
     const memberWhere: Prisma.WorkspaceMemberWhereInput = {
       workspaceId,
+      ...(query.role ? { role: query.role } : {}),
+      ...(query.membershipActive !== undefined ? { isActive: query.membershipActive } : {}),
       ...(query.search
         ? {
             user: {
@@ -55,7 +56,6 @@ export class WorkspaceMembersOverviewService {
     };
 
     const [
-      filteredTotal,
       members,
       presence,
       weekLogs,
@@ -65,12 +65,10 @@ export class WorkspaceMembersOverviewService {
       adminCount,
       allMembersForSummary
     ] = await Promise.all([
-      this.prisma.workspaceMember.count({ where: memberWhere }),
       this.prisma.workspaceMember.findMany({
         where: memberWhere,
         include: { user: true },
-        orderBy: { createdAt: "asc" },
-        ...paginationSkipTake(query.page, query.limit)
+        orderBy: { createdAt: "asc" }
       }),
       this.presence.snapshot(workspaceId),
       this.aggregation.fetchLogs(workspaceId, { from: weekStart, to: weekEnd }),
@@ -93,7 +91,7 @@ export class WorkspaceMembersOverviewService {
       }),
       this.prisma.workspaceMember.findMany({
         where: { workspaceId },
-        select: { userId: true }
+        select: { userId: true, isActive: true }
       })
     ]);
 
@@ -120,10 +118,11 @@ export class WorkspaceMembersOverviewService {
         : lastLogAt
           ? lastLogAt.toISOString()
           : null;
-      const status =
+      const activityStatus =
         isTrackingNow || (lastLogAt !== null && lastLogAt >= activeThreshold)
           ? ("active" as const)
           : ("inactive" as const);
+      const status = m.isActive ? activityStatus : ("inactive" as const);
 
       return {
         id: m.id,
@@ -132,6 +131,7 @@ export class WorkspaceMembersOverviewService {
         userEmail: m.user.email,
         role: m.role as TeamMemberOverviewDto["role"],
         pendingCredentials: m.user.mustChangePassword,
+        isActive: m.isActive,
         status,
         projectCount: projectCountByUser.get(m.userId) ?? 0,
         weekHours,
@@ -140,7 +140,15 @@ export class WorkspaceMembersOverviewService {
       };
     });
 
-    const summaryUserIds = new Set(allMembersForSummary.map((m) => m.userId));
+    const statusFiltered = query.status
+      ? overviewMembers.filter((member) => member.status === query.status)
+      : overviewMembers;
+
+    const skip = (query.page - 1) * query.limit;
+    const pagedMembers = statusFiltered.slice(skip, skip + query.limit);
+
+    const summaryUserIds = allMembersForSummary.map((m) => m.userId);
+    const membershipActiveByUser = new Map(allMembersForSummary.map((m) => [m.userId, m.isActive]));
     let activeMembers = 0;
     let totalWeekHours = 0;
     for (const userId of summaryUserIds) {
@@ -148,15 +156,19 @@ export class WorkspaceMembersOverviewService {
       totalWeekHours += weekHours;
       const lastLogAt = lastActiveByUser.get(userId) ?? null;
       const isTrackingNow = trackingUserIds.has(userId);
-      if (isTrackingNow || (lastLogAt !== null && lastLogAt >= activeThreshold)) {
+      const membershipActive = membershipActiveByUser.get(userId) ?? true;
+      if (
+        membershipActive &&
+        (isTrackingNow || (lastLogAt !== null && lastLogAt >= activeThreshold))
+      ) {
         activeMembers += 1;
       }
     }
 
-    const pagination = buildPaginationMeta(filteredTotal, query.page, query.limit);
+    const pagination = buildPaginationMeta(statusFiltered.length, query.page, query.limit);
 
     return {
-      members: overviewMembers,
+      members: pagedMembers,
       summary: {
         totalMembers,
         activeMembers,

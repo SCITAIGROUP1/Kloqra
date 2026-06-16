@@ -10,6 +10,27 @@ describe("WorkspaceMembersOverviewService", () => {
   const workspaceId = "ws-1";
 
   beforeEach(() => {
+    const workspaceMembers = [
+      {
+        id: "m1",
+        workspaceId,
+        userId: "u1",
+        role: "ADMIN",
+        isActive: true,
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        user: { name: "Admin User", email: "admin@kloqra.dev", mustChangePassword: false }
+      },
+      {
+        id: "m2",
+        workspaceId,
+        userId: "u2",
+        role: "MEMBER",
+        isActive: true,
+        createdAt: new Date("2025-02-01T00:00:00.000Z"),
+        user: { name: "Member User", email: "member@kloqra.dev", mustChangePassword: false }
+      }
+    ];
+
     mockPrisma = {
       workspace: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
@@ -18,28 +39,19 @@ describe("WorkspaceMembersOverviewService", () => {
         })
       },
       workspaceMember: {
-        count: vi.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(2).mockResolvedValueOnce(1),
-        findMany: vi
-          .fn()
-          .mockResolvedValueOnce([
-            {
-              id: "m1",
-              workspaceId,
-              userId: "u1",
-              role: "ADMIN",
-              createdAt: new Date("2025-01-01T00:00:00.000Z"),
-              user: { name: "Admin User", email: "admin@kloqra.dev" }
-            },
-            {
-              id: "m2",
-              workspaceId,
-              userId: "u2",
-              role: "MEMBER",
-              createdAt: new Date("2025-02-01T00:00:00.000Z"),
-              user: { name: "Member User", email: "member@kloqra.dev" }
-            }
-          ])
-          .mockResolvedValueOnce([{ userId: "u1" }, { userId: "u2" }])
+        count: vi.fn().mockImplementation(({ where }: { where?: { role?: string } }) => {
+          if (where?.role === "ADMIN") return Promise.resolve(1);
+          return Promise.resolve(2);
+        }),
+        findMany: vi.fn().mockImplementation(({ select }) => {
+          if (select) {
+            return Promise.resolve([
+              { userId: "u1", isActive: true },
+              { userId: "u2", isActive: true }
+            ]);
+          }
+          return Promise.resolve(workspaceMembers);
+        })
       },
       teamMember: {
         groupBy: vi.fn().mockResolvedValue([
@@ -111,6 +123,7 @@ describe("WorkspaceMembersOverviewService", () => {
     const admin = result.members.find((m) => m.userId === "u1");
     expect(admin).toMatchObject({
       role: "ADMIN",
+      isActive: true,
       status: "active",
       projectCount: 2,
       weekHours: 2,
@@ -125,5 +138,22 @@ describe("WorkspaceMembersOverviewService", () => {
       weekHours: 0,
       isTrackingNow: true
     });
+  });
+
+  it("filters members by activity status", async () => {
+    mockPresence.snapshot.mockResolvedValue({
+      members: [{ userId: "u2", isPaused: true }],
+      updatedAt: new Date().toISOString()
+    });
+
+    const result = await service.getOverview(workspaceId, {
+      page: 1,
+      limit: 20,
+      status: "inactive"
+    });
+
+    expect(result.members).toHaveLength(1);
+    expect(result.members[0]?.userId).toBe("u2");
+    expect(result.total).toBe(1);
   });
 });

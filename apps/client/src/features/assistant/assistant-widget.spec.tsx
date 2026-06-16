@@ -2,7 +2,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantProvider, useAssistant } from "./assistant-provider";
+import {
+  AssistantProvider,
+  useAssistant,
+  useSuppressAssistantLauncher
+} from "./assistant-provider";
 import { ASSISTANT_FEEDBACK_STORAGE_KEY, ASSISTANT_TURNS_STORAGE_KEY } from "./assistant-storage";
 import { AssistantWidget } from "./assistant-widget";
 
@@ -59,6 +63,24 @@ describe("AssistantWidget", () => {
     );
 
     expect(screen.getByRole("button", { name: "Open help assistant" })).toBeTruthy();
+  });
+
+  it("hides FAB while launcher suppression is active", () => {
+    function SuppressLauncher() {
+      useSuppressAssistantLauncher(true);
+      return null;
+    }
+
+    render(
+      <AssistantProvider>
+        <SuppressLauncher />
+        <AssistantWidget />
+      </AssistantProvider>
+    );
+
+    const fab = screen.getByLabelText("Open help assistant", { selector: "button" });
+    expect(fab.getAttribute("aria-hidden")).toBe("true");
+    expect(fab.className).toContain("opacity-0");
   });
 
   it("renders contextual starter prompts when expanded on timer route", () => {
