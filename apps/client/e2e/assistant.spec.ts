@@ -5,6 +5,10 @@ function assistantDialog(page: Page) {
   return page.getByRole("dialog", { name: "Help assistant" });
 }
 
+function assistantShortcut() {
+  return process.platform === "darwin" ? "Meta+Slash" : "Control+Slash";
+}
+
 test.describe("Assistant help", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/dashboard");
@@ -48,10 +52,11 @@ test.describe("Assistant help", () => {
   });
 
   test("toggles assistant with keyboard shortcut", async ({ page }) => {
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+/" : "Control+/");
+    await page.locator("body").click({ position: { x: 8, y: 8 } });
+    await page.keyboard.press(assistantShortcut());
     await expect(page.getByRole("dialog", { name: "Help assistant" })).toBeVisible();
 
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+/" : "Control+/");
+    await page.keyboard.press(assistantShortcut());
     await expect(page.getByRole("dialog", { name: "Help assistant" })).not.toBeVisible();
   });
 });

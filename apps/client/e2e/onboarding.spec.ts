@@ -1,8 +1,17 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function gotoDashboard(page: Page) {
+async function gotoDashboard(page: Page, options?: { expectWizard?: boolean }) {
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+  await page.waitForLoadState("domcontentloaded");
+
+  if (options?.expectWizard) {
+    await expect(welcomeHeading(page)).toBeVisible({ timeout: 15_000 });
+    return;
+  }
+
+  await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible({
+    timeout: 15_000
+  });
 }
 
 function welcomeHeading(page: Page) {
@@ -27,7 +36,7 @@ test.describe("Onboarding first visit", () => {
       localStorage.removeItem("kloqra_onboarding_done");
       localStorage.removeItem("kloqra_onboarding_tour_done");
     });
-    await gotoDashboard(page);
+    await gotoDashboard(page, { expectWizard: true });
   });
 
   test("shows welcome wizard on first visit", async ({ page }) => {
@@ -74,7 +83,7 @@ test.describe("Onboarding persistence", () => {
         localStorage.removeItem("kloqra_onboarding_tour_done");
       });
       await page.reload();
-      await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+      await expect(welcomeHeading(page)).toBeVisible({ timeout: 15_000 });
     }
     await expect(welcomeHeading(page)).toBeVisible();
     await wizardDialog(page).getByRole("button", { name: "Skip onboarding" }).click();
