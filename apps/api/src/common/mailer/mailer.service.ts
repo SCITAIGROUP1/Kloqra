@@ -35,10 +35,10 @@ export class MailerService {
   private readonly from: string;
 
   constructor() {
-    const host = process.env.SMTP_HOST?.trim();
-    const user = process.env.SMTP_USER?.trim();
-    const pass = process.env.SMTP_PASS?.trim();
-    this.from = process.env.SMTP_FROM?.trim() ?? "Kloqra <noreply@kloqra.app>";
+    const host = readEnvValue("SMTP_HOST");
+    const user = readEnvValue("SMTP_USER");
+    const pass = readEnvValue("SMTP_PASS");
+    this.from = readEnvValue("SMTP_FROM") ?? "Kloqra <noreply@kloqra.app>";
 
     if (!host) {
       this.logger.warn(
@@ -55,7 +55,7 @@ export class MailerService {
       return;
     }
 
-    const port = Number(process.env.SMTP_PORT ?? 587);
+    const port = Number(readEnvValue("SMTP_PORT") ?? "587");
     this.transporter = nodemailer.createTransport({
       host,
       port,
@@ -112,4 +112,14 @@ export class MailerService {
 function sanitizeSmtpError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   return raw.replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+/** Strip accidental wrapping quotes copied from .env files into Railway/Vercel. */
+export function readEnvValue(name: string): string | undefined {
+  const raw = process.env[name]?.trim();
+  if (!raw) return undefined;
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1).trim();
+  }
+  return raw;
 }

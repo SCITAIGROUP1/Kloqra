@@ -33,4 +33,10 @@ describe("MailerService", () => {
     const mailer = new Svc();
     expect(mailer.isConfigured).toBe(false);
   });
+
+  it("readEnvValue strips wrapping quotes from env values", async () => {
+    process.env.SMTP_FROM = '"Chamal Nihathamana <cjaliya.sln2@gmail.com>"';
+    const { readEnvValue } = await import("./mailer.service");
+    expect(readEnvValue("SMTP_FROM")).toBe("Chamal Nihathamana <cjaliya.sln2@gmail.com>");
+  });
 });
