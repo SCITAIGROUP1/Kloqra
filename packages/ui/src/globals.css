@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Unlayered — applies before paint to avoid Windows scrollbar flash */
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -161,12 +173,23 @@
 }
 
 @layer base {
-  * {
+  *,
+  *::before,
+  *::after {
     @apply border-border;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
   }
   h1,
   h2,
@@ -228,25 +251,6 @@
 }
 
 @layer utilities {
-  /*
-   * Scrollable but no visible scrollbar chrome (wheel, trackpad, touch, and
-   * keyboard scrolling still work). macOS overlay scrollbars are unaffected.
-   */
-  .overflow-y-auto,
-  .overflow-x-auto,
-  .overflow-auto {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .overflow-y-auto::-webkit-scrollbar,
-  .overflow-x-auto::-webkit-scrollbar,
-  .overflow-auto::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
-  }
-
   .animate-fade-in-up {
     animation: fade-in-up var(--motion-base) var(--motion-ease-out) forwards;
   }

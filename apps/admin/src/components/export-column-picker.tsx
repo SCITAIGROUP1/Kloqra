@@ -71,14 +71,14 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
   }
 
   return (
-    <div className="p-1">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="min-w-0 p-1">
+      <div className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
         <Label className="text-sm font-medium">{REPORT_LABELS[report]} columns</Label>
         <Button type="button" variant="ghost" size="sm" onClick={reset}>
           Reset columns
         </Button>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
+      <p className="mb-3 text-xs text-muted-foreground break-words">
         {selected.length} selected (export order): {selected.map((k) => labels[k]).join(" → ")}
       </p>
 
@@ -100,7 +100,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
               if (dragIndex !== null) reorder(dragIndex, index);
               setDragIndex(null);
             }}
-            className={`flex cursor-grab items-center gap-2 rounded border border-transparent px-1 py-0.5 text-sm active:cursor-grabbing hover:bg-accent/50 ${
+            className={`flex min-w-0 cursor-grab items-center gap-2 rounded border border-transparent px-1 py-0.5 text-sm active:cursor-grabbing hover:bg-accent/50 ${
               dragIndex === index ? "border-primary/40 bg-accent/60" : ""
             }`}
           >
@@ -113,7 +113,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
               onChange={() => toggle(key, false)}
               className="h-4 w-4"
             />
-            <span className="flex-1">
+            <span className="min-w-0 flex-1 truncate">
               <span className="text-muted-foreground">{index + 1}.</span> {labels[key]}
             </span>
             <span className="flex gap-0.5">

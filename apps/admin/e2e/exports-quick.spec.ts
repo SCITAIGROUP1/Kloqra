@@ -35,4 +35,19 @@ test.describe("exports quick flow", () => {
     });
     expect(overflow).toBe(false);
   });
+
+  test("custom export mode does not horizontally overflow on a 1366×768 laptop viewport", async ({
+    page
+  }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/exports");
+    await page.getByRole("button", { name: "Custom export" }).click();
+    await expect(page.getByText("Period & filters")).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 1;
+    });
+    expect(overflow).toBe(false);
+  });
 });

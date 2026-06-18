@@ -150,7 +150,7 @@ function CustomOrganizePicker({
     <div className="space-y-5">
       <div className="space-y-2">
         <p className="text-sm font-medium">File structure</p>
-        <div className="grid gap-2 @min-[960px]/shell:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 @min-[960px]/shell:grid-cols-2">
           {FILE_STRUCTURE_OPTIONS.map((opt) => (
             <button
               key={opt.layout}

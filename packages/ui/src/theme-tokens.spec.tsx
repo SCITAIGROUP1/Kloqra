@@ -65,9 +65,9 @@ describe("theme tokens", () => {
     expect(new Set([muted, secondary, accent]).size).toBe(3);
   });
 
-  it("hides scrollbar chrome on overflow containers while keeping scroll", () => {
+  it("hides scrollbar chrome globally while keeping scroll", () => {
     expect(css).toContain("scrollbar-width: none");
-    expect(css).toContain(".overflow-y-auto::-webkit-scrollbar");
+    expect(css).toContain("html::-webkit-scrollbar");
     expect(css).toContain("display: none");
   });
 });
