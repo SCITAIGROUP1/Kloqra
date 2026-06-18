@@ -101,16 +101,6 @@ export function TimeTrackerToolbar({
             />
           </div>
           <SearchableMultiSelect
-            value={memberFilter}
-            onChange={onMemberChange}
-            options={members}
-            placeholder="All Members"
-            searchPlaceholder="Search members…"
-            selectAllLabel="All Members"
-            triggerClassName="bg-background h-10 w-[220px] font-normal"
-            aria-label="Filter by member"
-          />
-          <SearchableMultiSelect
             value={projectId}
             onChange={(v) => {
               onProjectChange(v);
@@ -134,6 +124,16 @@ export function TimeTrackerToolbar({
                 {option.label}
               </span>
             )}
+          />
+          <SearchableMultiSelect
+            value={memberFilter}
+            onChange={onMemberChange}
+            options={members}
+            placeholder="All Members"
+            searchPlaceholder="Search members…"
+            selectAllLabel="All Members"
+            triggerClassName="bg-background h-10 w-[220px] font-normal"
+            aria-label="Filter by member"
           />
           <Select
             value={period}

@@ -53,7 +53,15 @@ export function useTimeTrackerLogs(
       const path = buildTimeTrackerLogsQuery({ ...filters, cursor });
       const res = await api<ListTimeLogsResponseDto>(path, { workspaceId });
 
-      setLogs((prev) => (append ? [...prev, ...res.items] : res.items));
+      setLogs((prev) => {
+        const next = append ? [...prev, ...res.items] : res.items;
+        const seen = new Set<string>();
+        return next.filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+      });
       setNextCursor(res.nextCursor);
       setFullyLoaded(!res.nextCursor);
       return res;

@@ -9,7 +9,7 @@ import type {
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar } from "@kloqra/ui";
-import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
+import { api as sharedApi, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TimesheetDisplayFormat } from "./display-format";
 import { groupLogsByWeek } from "./group-logs-by-week";
@@ -56,7 +56,8 @@ export function AdminTimeTrackerPage() {
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [members, setMembers] = useState<{ userId: string; userName: string }[]>([]);
+  const [allMembers, setAllMembers] = useState<{ userId: string; userName: string }[]>([]);
+  const [projectMembers, setProjectMembers] = useState<{ userId: string; userName: string }[]>([]);
 
   const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
   const [rangeFrom, setRangeFrom] = useState(
@@ -149,7 +150,7 @@ export function AdminTimeTrackerPage() {
       workspaceId: ws
     })
       .then((res) => {
-        setMembers(
+        setAllMembers(
           (res.members ?? []).map((m) => ({
             userId: m.userId,
             userName: m.userName
@@ -157,11 +158,49 @@ export function AdminTimeTrackerPage() {
         );
       })
       .catch(() => {
-        setMembers([]);
+        setAllMembers([]);
       });
   }, [ws]);
 
-  const memberMap = useMemo(() => new Map(members.map((m) => [m.userId, m.userName])), [members]);
+  useEffect(() => {
+    if (!ws || projectFilter.length === 0) {
+      setProjectMembers([]);
+      return;
+    }
+
+    Promise.all(
+      projectFilter.map((id) =>
+        fetchProjectTeam(id, { workspaceId: ws })
+          .then((res) => res.members ?? [])
+          .catch(() => [])
+      )
+    ).then((teamsMembersLists) => {
+      const uniqueMembersMap = new Map<string, { userId: string; userName: string }>();
+      for (const list of teamsMembersLists) {
+        for (const m of list) {
+          uniqueMembersMap.set(m.userId, { userId: m.userId, userName: m.userName });
+        }
+      }
+      setProjectMembers([...uniqueMembersMap.values()]);
+    });
+  }, [ws, projectFilter]);
+
+  const members = useMemo(() => {
+    return projectFilter.length > 0 ? projectMembers : allMembers;
+  }, [projectFilter, projectMembers, allMembers]);
+
+  useEffect(() => {
+    if (memberFilter.length === 0) return;
+    const validMemberIds = memberFilter.filter((id) => members.some((m) => m.userId === id));
+    if (validMemberIds.length !== memberFilter.length) {
+      setMemberFilter(validMemberIds);
+    }
+  }, [members, memberFilter]);
+
+  const memberMap = useMemo(
+    () => new Map(allMembers.map((m) => [m.userId, m.userName])),
+    [allMembers]
+  );
 
   const memberOptions = useMemo(
     () => members.map((m) => ({ value: m.userId, label: m.userName })),
