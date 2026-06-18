@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-import * as bcrypt from "bcrypt";
 import {
   createReportingApiKeySchema,
   ErrorCodes,
@@ -10,8 +9,9 @@ import {
   type UpdateReportingApiKeyDto
 } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
-import type { ApiCredentialContext } from "../../../common/decorators/api-credential.decorator";
+import * as bcrypt from "bcrypt";
 import { hashPassword } from "../../../common/auth/password.util";
+import type { ApiCredentialContext } from "../../../common/decorators/api-credential.decorator";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 

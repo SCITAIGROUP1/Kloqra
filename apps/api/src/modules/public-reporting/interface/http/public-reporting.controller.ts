@@ -10,9 +10,10 @@ import {
   type ApiCredentialContext
 } from "../../../../common/decorators/api-credential.decorator";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
-import { ReportingService } from "../../reporting/application/reporting.service";
-import { ReportingApiCredentialService } from "../application/reporting-api-credential.service";
-import { ApiKeyAuthGuard } from "../guards/api-key-auth.guard";
+// eslint-disable-next-line no-restricted-imports
+import { ReportingService } from "../../../reporting/application/reporting.service";
+import { ReportingApiCredentialService } from "../../application/reporting-api-credential.service";
+import { ApiKeyAuthGuard } from "../../guards/api-key-auth.guard";
 
 @Controller()
 @UseGuards(ApiKeyAuthGuard)

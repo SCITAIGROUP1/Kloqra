@@ -1,9 +1,9 @@
 import type { ProjectListItemDto } from "@kloqra/contracts";
 import { reportingApiKeyHeaders } from "@kloqra/contracts";
-import request from "supertest";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
+import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
