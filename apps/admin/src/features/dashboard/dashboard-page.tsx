@@ -96,7 +96,12 @@ const ADMIN_PERIOD_PRESETS = [
 function rangeQuery(
   start: string,
   end: string,
-  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
+  filters?: {
+    projectId?: string | string[];
+    userId?: string | string[];
+    categoryId?: string;
+    taskId?: string;
+  }
 ) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
@@ -104,8 +109,24 @@ function rangeQuery(
     from: from.toISOString(),
     to: to.toISOString()
   });
-  if (filters?.projectId) params.set("projectId", filters.projectId);
-  if (filters?.userId) params.set("userId", filters.userId);
+  if (filters?.projectId) {
+    if (Array.isArray(filters.projectId)) {
+      if (filters.projectId.length > 0) {
+        params.set("projectId", filters.projectId.join(","));
+      }
+    } else {
+      params.set("projectId", filters.projectId);
+    }
+  }
+  if (filters?.userId) {
+    if (Array.isArray(filters.userId)) {
+      if (filters.userId.length > 0) {
+        params.set("userId", filters.userId.join(","));
+      }
+    } else {
+      params.set("userId", filters.userId);
+    }
+  }
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
   if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
@@ -125,8 +146,8 @@ export function DashboardPage() {
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
   const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
-  const [projectId, setProjectId] = useState("");
-  const [userId, setUserId] = useState("");
+  const [projectId, setProjectId] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [taskId, setTaskId] = useState("");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
@@ -177,17 +198,37 @@ export function DashboardPage() {
 
   const arrangeSnapshotRef = useRef<WidgetLayoutItem[] | null>(null);
 
-  const selectedProject = projects.find((p) => p.id === projectId);
-  const selectedMember = teamMembers.find((m) => m.userId === userId);
+  const selectedProject = Array.isArray(projectId)
+    ? projectId.length === 1
+      ? projects.find((p) => p.id === projectId[0])
+      : null
+    : projects.find((p) => p.id === projectId);
+
+  const selectedMember = Array.isArray(userId)
+    ? userId.length === 1
+      ? teamMembers.find((m) => m.userId === userId[0])
+      : null
+    : teamMembers.find((m) => m.userId === userId);
+
   const selectedTask = tasks.find((t) => t.id === taskId);
 
   const scopeLabel = selectedTask
-    ? `${selectedTask.taskName} · ${selectedProject!.name}`
+    ? `${selectedTask.taskName} · ${selectedProject?.name ?? "1 project"}`
     : selectedMember
-      ? `${selectedMember.userName} · ${selectedProject!.name}`
-      : selectedProject
-        ? selectedProject.name
-        : "All workspace";
+      ? `${selectedMember.userName} · ${selectedProject?.name ?? "1 project"}`
+      : Array.isArray(userId) && userId.length > 0
+        ? userId.length === 1
+          ? `${teamMembers.find((m) => m.userId === userId[0])?.userName ?? "1 member"} · ${selectedProject?.name ?? "1 project"}`
+          : `${userId.length} members · ${selectedProject?.name ?? "1 project"}`
+        : Array.isArray(projectId)
+          ? projectId.length === 1
+            ? (selectedProject?.name ?? "1 project")
+            : projectId.length > 1
+              ? `${projectId.length} projects`
+              : "All workspace"
+          : selectedProject
+            ? selectedProject.name
+            : "All workspace";
 
   // Prevent SSR layout hydration mismatch
   useEffect(() => {
@@ -201,18 +242,33 @@ export function DashboardPage() {
   }, [ws]);
 
   useEffect(() => {
-    if (!ws || !projectId) {
+    if (!ws || !projectId || projectId.length === 0) {
       setTeamMembers([]);
       setTasks([]);
-      setUserId("");
+      setUserId([]);
       setTaskId("");
       return;
     }
-    fetchProjectTeam(projectId, { workspaceId: ws })
-      .then((team) => setTeamMembers(team.members))
-      .catch(() => setTeamMembers([]));
 
-    const filters: Record<string, string> = { projectId };
+    const projectIds = Array.isArray(projectId) ? projectId : [projectId];
+
+    Promise.all(
+      projectIds.map((id) =>
+        fetchProjectTeam(id, { workspaceId: ws })
+          .then((res) => res.members)
+          .catch(() => [])
+      )
+    ).then((teamsMembersLists) => {
+      const uniqueMembersMap = new Map<string, TeamMemberDto>();
+      for (const list of teamsMembersLists) {
+        for (const m of list) {
+          uniqueMembersMap.set(m.userId, m);
+        }
+      }
+      setTeamMembers([...uniqueMembersMap.values()]);
+    });
+
+    const filters: Record<string, string | string[]> = { projectId: projectIds };
     if (categoryId) filters.categoryId = categoryId;
     fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
       .then(setTasks)
@@ -220,9 +276,10 @@ export function DashboardPage() {
   }, [ws, projectId, categoryId]);
 
   useEffect(() => {
-    if (!userId) return;
-    if (!teamMembers.some((m) => m.userId === userId)) {
-      setUserId("");
+    if (!userId || userId.length === 0) return;
+    const validUserIds = userId.filter((id) => teamMembers.some((m) => m.userId === id));
+    if (validUserIds.length !== userId.length) {
+      setUserId(validUserIds);
     }
   }, [teamMembers, userId]);
 
@@ -268,9 +325,9 @@ export function DashboardPage() {
     };
   }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
-  function onProjectChange(nextId: string) {
+  function onProjectChange(nextId: string[]) {
     setProjectId(nextId);
-    setUserId("");
+    setUserId([]);
     setTaskId("");
   }
 
@@ -280,8 +337,8 @@ export function DashboardPage() {
   }
 
   function clearScopeFilters() {
-    setProjectId("");
-    setUserId("");
+    setProjectId([]);
+    setUserId([]);
     setCategoryId("");
     setTaskId("");
   }
@@ -292,8 +349,8 @@ export function DashboardPage() {
     setError(null);
     api<DashboardReportDto>(
       `${ROUTES.REPORTING.DASHBOARD}?${rangeQuery(startDate, endDate, {
-        projectId: projectId || undefined,
-        userId: userId || undefined,
+        projectId: projectId,
+        userId: userId,
         categoryId: categoryId || undefined,
         taskId: taskId || undefined
       })}`,
@@ -597,10 +654,14 @@ export function DashboardPage() {
       case "active_timers":
         return (
           <ActiveTimersWidget
-            projectFilterName={
-              projectId ? projects.find((p) => p.id === projectId)?.name : undefined
+            projectFilterNames={
+              projectId.length > 0
+                ? (projectId
+                    .map((id) => projects.find((p) => p.id === id)?.name)
+                    .filter(Boolean) as string[])
+                : undefined
             }
-            userId={userId || undefined}
+            userId={userId.length > 0 ? userId : undefined}
           />
         );
 

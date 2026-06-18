@@ -95,6 +95,11 @@ export function AccountSettingsPage({
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
         >
+          {isImpersonating && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
+              Settings cannot be changed while viewing as a member.
+            </div>
+          )}
           <CrossfadePresence presenceKey={activeSection} duration={0.12}>
             {activeSection === "appearance" ? (
               <AppearanceSection profile={profile} onSavePreferences={updatePreferences} />

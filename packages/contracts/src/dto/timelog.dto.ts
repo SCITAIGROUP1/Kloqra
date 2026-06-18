@@ -3,7 +3,8 @@ import {
   assertMaxDateRange,
   isoDatetimeSchema,
   timelogSourceSchema,
-  uuidSchema
+  uuidSchema,
+  queryUuidArraySchema
 } from "./common.dto";
 
 export const timeLogSchema = z.object({
@@ -60,9 +61,9 @@ const listTimeLogsBillableOnlySchema = z
 export const listTimeLogsQuerySchema = z
   .object({
     taskId: uuidSchema.optional(),
-    projectId: uuidSchema.optional(),
+    projectId: queryUuidArraySchema,
     categoryId: uuidSchema.optional(),
-    userId: uuidSchema.optional(),
+    userId: queryUuidArraySchema,
     from: isoDatetimeSchema.optional(),
     to: isoDatetimeSchema.optional(),
     search: z.string().trim().min(1).max(200).optional(),

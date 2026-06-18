@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "pnpm -C ../../packages/contracts run build",
+    "prebuild": "corepack pnpm -C ../../packages/contracts run build",
     "build": "nest build",
     "dev": "nest start --watch",
-    "predev": "pnpm -C ../../packages/contracts run build",
+    "predev": "corepack pnpm -C ../../packages/contracts run build",
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.seed.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
@@ -17,7 +17,7 @@
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "preprisma:seed": "pnpm -C ../../packages/contracts run build",
+    "preprisma:seed": "corepack pnpm -C ../../packages/contracts run build",
     "prisma:seed": "prisma generate && tsx --tsconfig tsconfig.seed.json prisma/seed.ts",
     "prisma:validate": "prisma validate"
   },

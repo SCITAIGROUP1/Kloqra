@@ -18,8 +18,8 @@ import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export type HourlyRatesWidgetProps = {
-  projectId?: string;
-  userId?: string;
+  projectId?: string | string[];
+  userId?: string | string[];
 };
 
 const WIDGET_PAGE_SIZE = 5;

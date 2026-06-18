@@ -7,11 +7,13 @@ import { ProjectOverviewStats } from "@kloqra/web-shared";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useMemberProjectDetail } from "./project-detail-context";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 
 export function MemberProjectOverview() {
   const { workspaceId, projectId, project, setProject } = useMemberProjectDetail();
   const [savingColor, setSavingColor] = useState(false);
+  const isImpersonating = useIsImpersonating();
 
   const loadSummary = useCallback(
     async (from: string, to: string) => {
@@ -29,6 +31,7 @@ export function MemberProjectOverview() {
   const displayColor = project.myColor ?? project.color;
 
   async function saveColor(color: string) {
+    if (isImpersonating) return;
     setSavingColor(true);
     try {
       await api(ROUTES.USERS.PROJECT_COLOR(projectId), {
@@ -46,6 +49,7 @@ export function MemberProjectOverview() {
   }
 
   async function clearColor() {
+    if (isImpersonating) return;
     setSavingColor(true);
     try {
       await api(ROUTES.USERS.PROJECT_COLOR(projectId), {
@@ -66,10 +70,12 @@ export function MemberProjectOverview() {
       <div className="rounded-xl border border-border/70 bg-card p-5 shadow-sm">
         <MemberProjectColorPicker
           value={displayColor}
-          onChange={(color) => void saveColor(color)}
+          onChange={(color) => {
+            if (!isImpersonating) void saveColor(color);
+          }}
           colors={PROJECT_COLORS}
-          onClear={project.myColor ? () => void clearColor() : undefined}
-          disabled={savingColor}
+          onClear={!isImpersonating && project.myColor ? () => void clearColor() : undefined}
+          disabled={isImpersonating || savingColor}
         />
       </div>
       <ProjectOverviewStats mode="member" loadSummary={loadSummary} />

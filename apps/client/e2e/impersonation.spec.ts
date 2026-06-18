@@ -14,7 +14,7 @@ test("admin impersonation redirects to client dashboard", async ({ page }) => {
   await page.waitForURL("**/dashboard**");
   await dismissOnboardingIfVisible(page);
   await expect(page.getByText("Total Hours")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/Viewing workspace as/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Viewing as/)).toBeVisible({ timeout: 15_000 });
 
   const workspaceSwitcher = page.locator("button[aria-haspopup='listbox']").first();
   await expect(workspaceSwitcher).toBeVisible();
@@ -28,5 +28,5 @@ test("admin impersonation redirects to client dashboard", async ({ page }) => {
 
   await page.waitForURL("**/dashboard**");
   await expect(page.getByText("Total Hours")).toBeVisible();
-  await expect(page.getByText(/Viewing workspace as/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Viewing as/)).toBeVisible({ timeout: 15_000 });
 });

@@ -155,7 +155,11 @@ export class TimesheetAmendmentsService {
     const periodWhere =
       filter.projectId || periodStartRange
         ? {
-            ...(filter.projectId ? { projectId: filter.projectId } : {}),
+            ...(filter.projectId
+              ? Array.isArray(filter.projectId)
+                ? { projectId: { in: filter.projectId } }
+                : { projectId: filter.projectId }
+              : {}),
             ...(periodStartRange ? { periodStart: periodStartRange } : {})
           }
         : undefined;
@@ -164,7 +168,11 @@ export class TimesheetAmendmentsService {
       where: {
         workspaceId,
         status: "PENDING",
-        ...(filter.userId ? { userId: filter.userId } : {}),
+        ...(filter.userId
+          ? Array.isArray(filter.userId)
+            ? { userId: { in: filter.userId } }
+            : { userId: filter.userId }
+          : {}),
         ...(periodWhere ? { period: periodWhere } : {})
       },
       include: {

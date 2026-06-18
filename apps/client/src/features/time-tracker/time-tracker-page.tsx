@@ -38,6 +38,7 @@ import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
@@ -46,6 +47,7 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function TimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const isImpersonating = useIsImpersonating();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
 
@@ -144,12 +146,17 @@ export function TimeTrackerPage() {
 
   const {
     logs,
+    paginatedLogs,
     loading: logsLoading,
-    loadingMore,
-    hasMore,
-    fullyLoaded,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    hasNext,
+    hasPrev,
+    totalPages,
+    totalCount,
     error: logsError,
-    loadMore,
     refresh: refreshLogs
   } = useTimeTrackerLogs(ws, serverFilters);
 
@@ -221,9 +228,18 @@ export function TimeTrackerPage() {
   );
 
   const weekGroups = useMemo(
-    () => groupLogsByWeek(logs, timezone, weekStartPref),
-    [logs, timezone, weekStartPref]
+    () => groupLogsByWeek(paginatedLogs, timezone, weekStartPref),
+    [paginatedLogs, timezone, weekStartPref]
   );
+
+  const weekTotals = useMemo(() => {
+    const fullGroups = groupLogsByWeek(logs, timezone, weekStartPref);
+    const map = new Map<string, { totalSec: number; billableSec: number }>();
+    for (const group of fullGroups) {
+      map.set(group.weekKey, { totalSec: group.totalSec, billableSec: group.billableSec });
+    }
+    return map;
+  }, [logs, timezone, weekStartPref]);
 
   const stats = useMemo(
     () => computeTimeTrackerStats(logs, periodLabel, projects, tasks, submissionByKey),
@@ -248,6 +264,7 @@ export function TimeTrackerPage() {
   }
 
   function openAddEntry() {
+    if (isImpersonating) return;
     const today = todayInZone(timezone);
     openDraft(draftFromSlot(today, 9, 0, timezone));
   }
@@ -264,6 +281,7 @@ export function TimeTrackerPage() {
   }
 
   async function saveEntry() {
+    if (isImpersonating) return;
     if (editingLog && isEntryLocked(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
@@ -317,6 +335,7 @@ export function TimeTrackerPage() {
   }
 
   function deleteEntry(log: TimeLogDto) {
+    if (isImpersonating) return;
     if (isEntryLocked(log)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
@@ -325,6 +344,7 @@ export function TimeTrackerPage() {
   }
 
   async function confirmDelete() {
+    if (isImpersonating) return;
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
@@ -377,14 +397,16 @@ export function TimeTrackerPage() {
         onBillabilityChange={setBillability}
         onClearFilters={clearFilters}
         onAddEntry={openAddEntry}
+        readOnly={isImpersonating}
       />
 
-      <TimeTrackerStatCards stats={stats} loading={logsLoading || loadingMore || filtersPending} />
+      <TimeTrackerStatCards stats={stats} loading={logsLoading || filtersPending} />
 
       {pageError && !dialogOpen ? <p className="text-sm text-destructive">{pageError}</p> : null}
 
       <TimeTrackerWeekList
         groups={weekGroups}
+        weekTotals={weekTotals}
         tasks={tasks}
         projects={projects}
         workspaceNamesById={workspaceNamesById}
@@ -395,10 +417,16 @@ export function TimeTrackerPage() {
         onDelete={deleteEntry}
         timezone={timezone}
         loading={logsLoading || filtersPending}
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        fullyLoaded={fullyLoaded}
-        onLoadMore={() => void loadMore()}
+        page={page}
+        limit={limit}
+        onLimitChange={setLimit}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        onPageChange={setPage}
+        logsLength={paginatedLogs.length}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        readOnly={isImpersonating}
       />
 
       <TimeEntryDialog
@@ -414,12 +442,14 @@ export function TimeTrackerPage() {
         saving={saving}
         error={error}
         editingLog={editingLog}
-        readOnly={editingLog ? isEntryLocked(editingLog) : false}
+        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
         onDraftChange={setDraft}
         onClose={closeDialog}
         onSave={() => void saveEntry()}
         onDelete={
-          editingLog && !isEntryLocked(editingLog) ? () => deleteEntry(editingLog) : undefined
+          !isImpersonating && editingLog && !isEntryLocked(editingLog)
+            ? () => deleteEntry(editingLog)
+            : undefined
         }
       />
 

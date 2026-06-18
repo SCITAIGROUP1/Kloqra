@@ -82,8 +82,18 @@ export function parseAdminApprovalsSearch(search: string): AdminApprovalsDeepLin
 export function parseApprovalsFilterSearch(search: string): TimesheetApprovalsFilterQuery {
   const params = parseAdminApprovalsSearch(search);
   return {
-    projectId: params.projectId,
-    userId: params.userId,
+    projectId: params.projectId
+      ? params.projectId
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
+    userId: params.userId
+      ? params.userId
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined,
     from: params.from,
     to: params.to
   };
@@ -95,8 +105,17 @@ export function appendApprovalsFilterSearch(
 ): void {
   for (const key of ["projectId", "userId", "from", "to"] as const) {
     const value = filter[key];
-    if (value) params.set(key, value);
-    else params.delete(key);
+    if (value) {
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          params.set(key, value.join(","));
+        } else {
+          params.delete(key);
+        }
+      } else {
+        params.set(key, value);
+      }
+    } else params.delete(key);
   }
 }
 
@@ -107,5 +126,9 @@ export function buildApprovalsFilterQueryString(filter: TimesheetApprovalsFilter
 }
 
 export function hasActiveApprovalsFilter(filter: TimesheetApprovalsFilterQuery): boolean {
-  return Boolean(filter.projectId || filter.userId || filter.from || filter.to);
+  const hasProject = Array.isArray(filter.projectId)
+    ? filter.projectId.length > 0
+    : Boolean(filter.projectId);
+  const hasUser = Array.isArray(filter.userId) ? filter.userId.length > 0 : Boolean(filter.userId);
+  return Boolean(hasProject || hasUser || filter.from || filter.to);
 }

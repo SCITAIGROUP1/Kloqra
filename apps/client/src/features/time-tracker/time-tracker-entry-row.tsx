@@ -29,6 +29,7 @@ type TimeTrackerEntryRowProps = {
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
+  readOnly?: boolean;
 };
 
 export function TimeTrackerEntryRow({
@@ -41,7 +42,8 @@ export function TimeTrackerEntryRow({
   locked,
   onEdit,
   onDelete,
-  timezone
+  timezone,
+  readOnly = false
 }: TimeTrackerEntryRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -89,55 +91,59 @@ export function TimeTrackerEntryRow({
       <TableCell className="py-3.5">
         <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
       </TableCell>
-      <TableCell className="py-3.5 text-right">
-        <div className="relative inline-block" ref={menuRef}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8 opacity-70 group-hover:opacity-100"
-            aria-label="Entry actions"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <MoreVertical className="size-4" />
-          </Button>
-          {menuOpen ? (
-            <ShellMenuPanel className={cn("absolute right-0 top-full z-20 mt-1 min-w-[8rem]")}>
-              {locked ? (
-                <ShellMenuItem
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onEdit(log);
-                  }}
-                >
-                  View
-                </ShellMenuItem>
-              ) : (
-                <>
+      {readOnly ? (
+        <TableCell className="py-3.5" />
+      ) : (
+        <TableCell className="py-3.5 text-right">
+          <div className="relative inline-block" ref={menuRef}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 opacity-70 group-hover:opacity-100"
+              aria-label="Entry actions"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <MoreVertical className="size-4" />
+            </Button>
+            {menuOpen ? (
+              <ShellMenuPanel className={cn("absolute right-0 top-full z-20 mt-1 min-w-[8rem]")}>
+                {locked ? (
                   <ShellMenuItem
                     onClick={() => {
                       setMenuOpen(false);
                       onEdit(log);
                     }}
                   >
-                    Edit
+                    View
                   </ShellMenuItem>
-                  <ShellMenuItem
-                    tone="destructive"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDelete(log);
-                    }}
-                  >
-                    Delete
-                  </ShellMenuItem>
-                </>
-              )}
-            </ShellMenuPanel>
-          ) : null}
-        </div>
-      </TableCell>
+                ) : (
+                  <>
+                    <ShellMenuItem
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onEdit(log);
+                      }}
+                    >
+                      Edit
+                    </ShellMenuItem>
+                    <ShellMenuItem
+                      tone="destructive"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onDelete(log);
+                      }}
+                    >
+                      Delete
+                    </ShellMenuItem>
+                  </>
+                )}
+              </ShellMenuPanel>
+            ) : null}
+          </div>
+        </TableCell>
+      )}
     </TableRow>
   );
 }

@@ -129,7 +129,7 @@ describe("WidgetShareService", () => {
     expect(mockReporting.utilization).toHaveBeenCalledWith(
       workspaceId,
       expect.objectContaining({
-        projectId: "550e8400-e29b-41d4-a716-446655440000",
+        projectId: ["550e8400-e29b-41d4-a716-446655440000"],
         page: 1,
         limit: 1000
       })

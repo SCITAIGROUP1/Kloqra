@@ -9,8 +9,8 @@ import { usePresenceSnapshot } from "@/hooks/use-presence-snapshot";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export type LivePresenceWidgetProps = {
-  projectId?: string;
-  userId?: string;
+  projectId?: string | string[];
+  userId?: string | string[];
 };
 
 export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProps) {
@@ -38,13 +38,21 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
   const filteredMembers = useMemo(() => {
     return members.filter((m: PresenceSnapshotDto["members"][number]) => {
       if (projectId) {
-        const project = projects.find((p) => p.id === projectId);
-        if (!project || m.projectName !== project.name) {
-          return false;
+        const pIds = Array.isArray(projectId) ? projectId : [projectId];
+        if (pIds.length > 0) {
+          const matchedProjectNames = projects
+            .filter((p) => pIds.includes(p.id))
+            .map((p) => p.name);
+          if (!matchedProjectNames.includes(m.projectName)) {
+            return false;
+          }
         }
       }
-      if (userId && m.userId !== userId) {
-        return false;
+      if (userId) {
+        const uIds = Array.isArray(userId) ? userId : [userId];
+        if (uIds.length > 0 && !uIds.includes(m.userId)) {
+          return false;
+        }
       }
       return true;
     });

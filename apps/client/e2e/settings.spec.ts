@@ -5,7 +5,7 @@ test.describe("Settings page", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(page.getByText("Customize how Kloqra looks for you")).toBeVisible();
-    await expect(page.getByText("Light")).toBeVisible();
+    await expect(page.getByText("Light", { exact: true })).toBeVisible();
   });
 
   test("navigates to time settings", async ({ page }) => {

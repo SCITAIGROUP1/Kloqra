@@ -15,8 +15,8 @@ type ReviewTarget = {
 
 export type PendingTimesheetsWidgetProps = {
   onHeaderActions?: (actions: React.ReactNode) => void;
-  projectId?: string;
-  userId?: string;
+  projectId?: string | string[];
+  userId?: string | string[];
 };
 
 export function PendingTimesheetsWidget({
@@ -30,11 +30,17 @@ export function PendingTimesheetsWidget({
 
   const filteredTimesheets = useMemo(() => {
     return pending.filter((sheet) => {
-      if (projectId && sheet.projectId !== projectId) {
-        return false;
+      if (projectId) {
+        const pIds = Array.isArray(projectId) ? projectId : [projectId];
+        if (pIds.length > 0 && !pIds.includes(sheet.projectId)) {
+          return false;
+        }
       }
-      if (userId && sheet.userId !== userId) {
-        return false;
+      if (userId) {
+        const uIds = Array.isArray(userId) ? userId : [userId];
+        if (uIds.length > 0 && !uIds.includes(sheet.userId)) {
+          return false;
+        }
       }
       return true;
     });

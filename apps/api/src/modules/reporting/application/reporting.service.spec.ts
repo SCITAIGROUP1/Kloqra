@@ -273,7 +273,7 @@ describe("ReportingService utilization", () => {
     expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
       workspaceId,
       expect.objectContaining({
-        projectId,
+        projectIds: [projectId],
         categoryId: "c1",
         taskId: "t1"
       })

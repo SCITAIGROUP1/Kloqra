@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { assertMaxDateRange, isoDatetimeSchema, uuidSchema } from "./common.dto";
+import {
+  assertMaxDateRange,
+  isoDatetimeSchema,
+  uuidSchema,
+  queryUuidArraySchema
+} from "./common.dto";
 import { dashboardReportSchema, utilizationResponseSchema } from "./reporting.dto";
 
 /** KPI stat cards — not shareable (too small / redundant as links). */
@@ -78,8 +83,8 @@ export const widgetShareBodySchema = z
     widgetId: widgetShareIdSchema,
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
-    projectId: uuidSchema.optional(),
-    userId: uuidSchema.optional(),
+    projectId: queryUuidArraySchema,
+    userId: queryUuidArraySchema,
     categoryId: uuidSchema.optional(),
     taskId: uuidSchema.optional(),
     options: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
@@ -91,8 +96,8 @@ export const widgetShareStoredBodySchema = z
     widgetId: widgetShareStoredIdSchema,
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
-    projectId: uuidSchema.optional(),
-    userId: uuidSchema.optional(),
+    projectId: queryUuidArraySchema,
+    userId: queryUuidArraySchema,
     categoryId: uuidSchema.optional(),
     taskId: uuidSchema.optional(),
     options: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()

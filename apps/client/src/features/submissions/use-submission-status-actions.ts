@@ -9,6 +9,7 @@ import type {
 import { formatSubmissionPeriodLabel } from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -24,6 +25,7 @@ export function useSubmissionStatusActions(
   onSubmitted: () => void
 ) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const isImpersonating = useIsImpersonating();
   const [note, setNote] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [amendmentOpen, setAmendmentOpen] = useState(false);
@@ -126,9 +128,11 @@ export function useSubmissionStatusActions(
     reviewNote: statusInfo.reviewNote,
     amendmentPending: Boolean(statusInfo.amendmentPending),
     canSubmit:
+      !isImpersonating &&
       (statusInfo.status === "DRAFT" || statusInfo.status === "REJECTED") &&
       !statusInfo.amendmentPending,
     canRequestEdit:
+      !isImpersonating &&
       (statusInfo.status === "SUBMITTED" || statusInfo.status === "APPROVED") &&
       !statusInfo.amendmentPending &&
       Boolean(statusInfo.id)

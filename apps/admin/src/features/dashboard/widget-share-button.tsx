@@ -28,8 +28,8 @@ export type WidgetShareButtonProps = {
   widgetLabel: string;
   startDate: string;
   endDate: string;
-  projectId?: string;
-  userId?: string;
+  projectId?: string | string[];
+  userId?: string | string[];
   categoryId?: string;
   taskId?: string;
   options?: Record<string, unknown>;

@@ -46,7 +46,7 @@ export async function fetchListItems<T>(
   path: string,
   options: {
     workspaceId: string;
-    filters?: Record<string, string | undefined>;
+    filters?: Record<string, string | string[] | number | boolean | undefined | null>;
     limit?: number;
     bypassCache?: boolean;
   }
@@ -79,7 +79,7 @@ export async function fetchPaginatedList<T>(
     page: number;
     limit?: number;
     search?: string;
-    filters?: Record<string, string | undefined>;
+    filters?: Record<string, string | string[] | number | boolean | undefined | null>;
   }
 ): Promise<PaginatedResponse<T>> {
   const limit = options.limit ?? DEFAULT_TABLE_PAGE_SIZE;

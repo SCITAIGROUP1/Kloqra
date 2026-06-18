@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { formatAutoStopToastMessage } from "./timer-autostop-message";
 import { DailyGoalWidget, QuickActions, StaleTimerDialog } from "./timer-lazy";
 import { resolveTimerStartErrorMessage } from "./timer-start-error";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -259,6 +260,7 @@ export function TimerPage() {
   const activeTask = active ? tasks.find((t) => t.id === active.taskId) : null;
   const activeProject = activeTask ? projects.find((p) => p.id === activeTask.projectId) : null;
   const tracking = isActiveTimer(active);
+  const isImpersonating = useIsImpersonating();
 
   // Stale check warning trigger
   useEffect(() => {
@@ -283,7 +285,7 @@ export function TimerPage() {
   }
 
   async function startTimer() {
-    if (!canStart) return;
+    if (isImpersonating || !canStart) return;
     setStarting(true);
     setError(null);
     try {
@@ -307,6 +309,7 @@ export function TimerPage() {
   }
 
   async function stopTimer() {
+    if (isImpersonating) return;
     setStopping(true);
     setError(null);
     try {
@@ -337,6 +340,7 @@ export function TimerPage() {
   }
 
   async function pauseTimer() {
+    if (isImpersonating) return;
     setPausing(true);
     setError(null);
     try {
@@ -354,6 +358,7 @@ export function TimerPage() {
   }
 
   async function resumeTimer() {
+    if (isImpersonating) return;
     setResuming(true);
     setError(null);
     try {
@@ -382,6 +387,7 @@ export function TimerPage() {
   };
 
   const handleDiscard = async () => {
+    if (isImpersonating) return;
     setShowStaleDialog(false);
     try {
       await api(ROUTES.TIMER.DISCARD, { method: "POST", workspaceId: ws });
@@ -523,53 +529,61 @@ export function TimerPage() {
 
                 {tracking ? (
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="stop-description">Note (optional)</Label>
-                      <Input
-                        id="stop-description"
-                        value={stopDescription}
-                        onChange={(e) => setStopDescription(e.target.value)}
-                        placeholder="What did you work on?"
-                      />
-                    </div>
-                    {/* Actions Row */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {isPaused ? (
-                        <Button
-                          onClick={resumeTimer}
-                          disabled={resuming || stopping}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                        >
-                          <Play className="size-4 mr-1.5" />
-                          {resuming ? "Resuming…" : "Resume"}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          onClick={pauseTimer}
-                          disabled={pausing || stopping}
-                          className="w-full border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
-                        >
-                          <Pause className="size-4 mr-1.5" />
-                          {pausing ? "Pausing…" : "Pause break"}
-                        </Button>
-                      )}
-                      <Button
-                        variant="destructive"
-                        className="w-full"
-                        onClick={stopTimer}
-                        disabled={stopping || pausing || resuming}
-                      >
-                        <Square className="size-4 mr-1.5 fill-current" />
-                        {stopping ? "Stopping…" : "Stop & save"}
-                      </Button>
-                    </div>
-
-                    {/* Paused state banner */}
-                    {isPaused && (
-                      <p className="text-center text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg py-2 px-3">
-                        ⏸ Timer is paused. Resume when you&apos;re back, or stop to save.
+                    {isImpersonating ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Timer controls are disabled in view-only mode.
                       </p>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="stop-description">Note (optional)</Label>
+                          <Input
+                            id="stop-description"
+                            value={stopDescription}
+                            onChange={(e) => setStopDescription(e.target.value)}
+                            placeholder="What did you work on?"
+                          />
+                        </div>
+                        {/* Actions Row */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {isPaused ? (
+                            <Button
+                              onClick={resumeTimer}
+                              disabled={resuming || stopping}
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                            >
+                              <Play className="size-4 mr-1.5" />
+                              {resuming ? "Resuming…" : "Resume"}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              onClick={pauseTimer}
+                              disabled={pausing || stopping}
+                              className="w-full border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
+                            >
+                              <Pause className="size-4 mr-1.5" />
+                              {pausing ? "Pausing…" : "Pause break"}
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            className="w-full"
+                            onClick={stopTimer}
+                            disabled={stopping || pausing || resuming}
+                          >
+                            <Square className="size-4 mr-1.5 fill-current" />
+                            {stopping ? "Stopping…" : "Stop & save"}
+                          </Button>
+                        </div>
+
+                        {/* Paused state banner */}
+                        {isPaused && (
+                          <p className="text-center text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg py-2 px-3">
+                            ⏸ Timer is paused. Resume when you&apos;re back, or stop to save.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 ) : (
@@ -651,13 +665,20 @@ export function TimerPage() {
                           )}
                         </div>
 
-                        <Button
-                          className="w-full"
-                          onClick={startTimer}
-                          disabled={!canStart || starting}
-                        >
-                          {starting ? "Starting…" : "Start timer"}
-                        </Button>
+                        {!isImpersonating && (
+                          <Button
+                            className="w-full"
+                            onClick={startTimer}
+                            disabled={!canStart || starting}
+                          >
+                            {starting ? "Starting…" : "Start timer"}
+                          </Button>
+                        )}
+                        {isImpersonating && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Timer controls are disabled in view-only mode.
+                          </p>
+                        )}
                       </>
                     )}
                   </div>

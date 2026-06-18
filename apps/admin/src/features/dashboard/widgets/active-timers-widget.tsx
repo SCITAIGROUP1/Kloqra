@@ -7,11 +7,11 @@ import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export type ActiveTimersWidgetProps = {
-  projectFilterName?: string;
-  userId?: string;
+  projectFilterNames?: string[];
+  userId?: string | string[];
 };
 
-export function ActiveTimersWidget({ projectFilterName, userId }: ActiveTimersWidgetProps) {
+export function ActiveTimersWidget({ projectFilterNames, userId }: ActiveTimersWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [data, setData] = useState<ActiveTimerCountDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,15 +20,20 @@ export function ActiveTimersWidget({ projectFilterName, userId }: ActiveTimersWi
   const filteredMembers = useMemo(() => {
     if (!data) return [];
     return data.members.filter((m) => {
-      if (projectFilterName && m.projectName !== projectFilterName) {
-        return false;
+      if (projectFilterNames && projectFilterNames.length > 0) {
+        if (!m.projectName || !projectFilterNames.includes(m.projectName)) {
+          return false;
+        }
       }
-      if (userId && m.userId !== userId) {
-        return false;
+      if (userId) {
+        const uIds = Array.isArray(userId) ? userId : [userId];
+        if (uIds.length > 0 && !uIds.includes(m.userId)) {
+          return false;
+        }
       }
       return true;
     });
-  }, [data, projectFilterName, userId]);
+  }, [data, projectFilterNames, userId]);
 
   const fetchActiveCount = useCallback(async () => {
     if (!ws) return;

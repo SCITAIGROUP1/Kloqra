@@ -12,19 +12,23 @@ export class ReportCacheService {
     workspaceId: string,
     from: string,
     to: string,
-    userId?: string,
-    projectId?: string,
+    userId?: string | string[],
+    projectId?: string | string[],
     categoryId?: string,
     taskId?: string,
     projectIds?: string[]
   ) {
+    const userIdKey = Array.isArray(userId) ? [...userId].sort().join(",") : (userId ?? "");
+    const projectIdKey = Array.isArray(projectId)
+      ? [...projectId].sort().join(",")
+      : (projectId ?? "");
     const projectIdsKey =
       projectIds !== undefined
         ? projectIds.length
           ? [...projectIds].sort().join(",")
           : "__none__"
         : "";
-    return `report:dashboard:${workspaceId}:${from}:${to}:${userId ?? ""}:${projectId ?? ""}:${categoryId ?? ""}:${taskId ?? ""}:${projectIdsKey}`;
+    return `report:dashboard:${workspaceId}:${from}:${to}:${userIdKey}:${projectIdKey}:${categoryId ?? ""}:${taskId ?? ""}:${projectIdsKey}`;
   }
 
   async getDashboard(key: string): Promise<DashboardReportDto | null> {
@@ -63,8 +67,18 @@ export class ReportCacheService {
     } while (cursor !== "0");
   }
 
-  billingKey(workspaceId: string, from: string, to: string, userId?: string, projectId?: string) {
-    return `report:billing:${workspaceId}:${from}:${to}:${userId ?? ""}:${projectId ?? ""}`;
+  billingKey(
+    workspaceId: string,
+    from: string,
+    to: string,
+    userId?: string | string[],
+    projectId?: string | string[]
+  ) {
+    const userIdKey = Array.isArray(userId) ? [...userId].sort().join(",") : (userId ?? "");
+    const projectIdKey = Array.isArray(projectId)
+      ? [...projectId].sort().join(",")
+      : (projectId ?? "");
+    return `report:billing:${workspaceId}:${from}:${to}:${userIdKey}:${projectIdKey}`;
   }
 
   async getBilling(key: string): Promise<any | null> {

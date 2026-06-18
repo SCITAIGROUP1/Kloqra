@@ -1,17 +1,25 @@
 "use client";
 
 import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
-import { Badge, Button, Label, ProjectColorDot, SearchableSelect, cn } from "@kloqra/ui";
+import {
+  Badge,
+  Button,
+  Label,
+  ProjectColorDot,
+  SearchableSelect,
+  SearchableMultiSelect,
+  cn
+} from "@kloqra/ui";
 import { ChevronDown, Filter, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 export type ScopeMember = { userId: string; userName: string };
 
 export type ReportScopeFilterValues = {
-  projectId: string;
+  projectId: string | string[];
   categoryId: string;
   taskId: string;
-  userId: string;
+  userId: string | string[];
 };
 
 type ReportScopeFiltersProps = {
@@ -20,10 +28,10 @@ type ReportScopeFiltersProps = {
   categories: CategoryDto[];
   tasks: TaskDto[];
   members: ScopeMember[];
-  onProjectChange: (projectId: string) => void;
+  onProjectChange: (projectId: any) => void;
   onCategoryChange: (categoryId: string) => void;
   onTaskChange: (taskId: string) => void;
-  onUserChange: (userId: string) => void;
+  onUserChange: (userId: any) => void;
   onClearAll: () => void;
   taskRequiresProject?: boolean;
   memberRequiresProject?: boolean;
@@ -37,8 +45,15 @@ type ReportScopeFiltersProps = {
 };
 
 function activeFilterCount(values: ReportScopeFilterValues, includeMember: boolean) {
-  const parts = [values.projectId, values.categoryId, values.taskId];
-  if (includeMember) parts.push(values.userId);
+  const hasProject = Array.isArray(values.projectId)
+    ? values.projectId.length > 0
+    : Boolean(values.projectId);
+  const hasMember = Array.isArray(values.userId)
+    ? values.userId.length > 0
+    : Boolean(values.userId);
+  const parts = [values.categoryId, values.taskId];
+  if (hasProject) parts.push("project");
+  if (includeMember && hasMember) parts.push("member");
   return parts.filter(Boolean).length;
 }
 
@@ -70,15 +85,39 @@ export function ReportScopeFilters({
     if (activeCount > 0) setOpen(true);
   }, [activeCount]);
 
+  const hasSelectedProject = Array.isArray(values.projectId)
+    ? values.projectId.length > 0
+    : Boolean(values.projectId);
+
   const chips = useMemo(() => {
     const out: { key: string; label: string; onClear: () => void }[] = [];
-    if (values.projectId) {
-      const p = projects.find((x) => x.id === values.projectId);
-      out.push({
-        key: "project",
-        label: p ? `Project: ${p.name}` : "Project",
-        onClear: () => onProjectChange("")
-      });
+    if (
+      values.projectId &&
+      (Array.isArray(values.projectId) ? values.projectId.length > 0 : true)
+    ) {
+      if (Array.isArray(values.projectId)) {
+        if (values.projectId.length === 1) {
+          const p = projects.find((x) => x.id === values.projectId[0]);
+          out.push({
+            key: "project",
+            label: p ? `Project: ${p.name}` : "1 project",
+            onClear: () => onProjectChange([])
+          });
+        } else {
+          out.push({
+            key: "projects",
+            label: `${values.projectId.length} projects`,
+            onClear: () => onProjectChange([])
+          });
+        }
+      } else {
+        const p = projects.find((x) => x.id === values.projectId);
+        out.push({
+          key: "project",
+          label: p ? `Project: ${p.name}` : "Project",
+          onClear: () => onProjectChange("")
+        });
+      }
     }
     if (values.categoryId) {
       const c = categories.find((x) => x.id === values.categoryId);
@@ -96,13 +135,34 @@ export function ReportScopeFilters({
         onClear: () => onTaskChange("")
       });
     }
-    if (!hideMemberFilter && values.userId) {
-      const m = members.find((x) => x.userId === values.userId);
-      out.push({
-        key: "member",
-        label: m ? `Member: ${m.userName}` : "Member",
-        onClear: () => onUserChange("")
-      });
+    if (
+      !hideMemberFilter &&
+      values.userId &&
+      (Array.isArray(values.userId) ? values.userId.length > 0 : true)
+    ) {
+      if (Array.isArray(values.userId)) {
+        if (values.userId.length === 1) {
+          const m = members.find((x) => x.userId === values.userId[0]);
+          out.push({
+            key: "member",
+            label: m ? `Member: ${m.userName}` : "1 member",
+            onClear: () => onUserChange([])
+          });
+        } else {
+          out.push({
+            key: "members",
+            label: `${values.userId.length} members`,
+            onClear: () => onUserChange([])
+          });
+        }
+      } else {
+        const m = members.find((x) => x.userId === values.userId);
+        out.push({
+          key: "member",
+          label: m ? `Member: ${m.userName}` : "Member",
+          onClear: () => onUserChange("")
+        });
+      }
     }
     return out;
   }, [
@@ -193,42 +253,63 @@ export function ReportScopeFilters({
         >
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Project</Label>
-            <SearchableSelect
-              value={values.projectId || "__all__"}
-              onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
-              options={[
-                { value: "__all__", label: "All projects" },
-                ...projects.map((p) => ({ value: p.id, label: p.name }))
-              ]}
-              placeholder="All projects"
-              searchPlaceholder="Search projects…"
-              triggerClassName={triggerClass}
-              renderOption={(option) =>
-                option.value === "__all__" ? (
-                  option.label
-                ) : (
+            {Array.isArray(values.projectId) ? (
+              <SearchableMultiSelect
+                value={values.projectId}
+                onChange={onProjectChange}
+                options={projects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
+                placeholder="All projects"
+                searchPlaceholder="Search projects…"
+                selectAllLabel="All projects"
+                triggerClassName={triggerClass}
+                renderOption={(option) => (
                   <span className="flex items-center gap-2">
-                    <ProjectColorDot
-                      color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
-                    />
+                    {"color" in option && option.color ? (
+                      <ProjectColorDot color={option.color as string} />
+                    ) : null}
                     {option.label}
                   </span>
-                )
-              }
-              renderValue={(option) =>
-                option && option.value !== "__all__" ? (
-                  <span className="flex items-center gap-2">
-                    <ProjectColorDot
-                      color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
-                    />
-                    {option.label}
-                  </span>
-                ) : (
-                  (option?.label ?? "All projects")
-                )
-              }
-              aria-label="Project"
-            />
+                )}
+                aria-label="Project"
+              />
+            ) : (
+              <SearchableSelect
+                value={values.projectId || "__all__"}
+                onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
+                options={[
+                  { value: "__all__", label: "All projects" },
+                  ...projects.map((p) => ({ value: p.id, label: p.name }))
+                ]}
+                placeholder="All projects"
+                searchPlaceholder="Search projects…"
+                triggerClassName={triggerClass}
+                renderOption={(option) =>
+                  option.value === "__all__" ? (
+                    option.label
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <ProjectColorDot
+                        color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                      />
+                      {option.label}
+                    </span>
+                  )
+                }
+                renderValue={(option) =>
+                  option && option.value !== "__all__" ? (
+                    <span className="flex items-center gap-2">
+                      <ProjectColorDot
+                        color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                      />
+                      {option.label}
+                    </span>
+                  ) : (
+                    (option?.label ?? "All projects")
+                  )
+                }
+                aria-label="Project"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -249,7 +330,7 @@ export function ReportScopeFilters({
 
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Task</Label>
-            {!taskRequiresProject || values.projectId ? (
+            {!taskRequiresProject || hasSelectedProject ? (
               <SearchableSelect
                 value={values.taskId || "__all__"}
                 onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
@@ -259,7 +340,7 @@ export function ReportScopeFilters({
                 ]}
                 placeholder="All tasks"
                 searchPlaceholder="Search tasks…"
-                disabled={taskRequiresProject && !values.projectId}
+                disabled={taskRequiresProject && !hasSelectedProject}
                 triggerClassName={triggerClass}
                 aria-label="Task"
               />
@@ -271,20 +352,33 @@ export function ReportScopeFilters({
           {!hideMemberFilter ? (
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">Member</Label>
-              {!memberRequiresProject || values.projectId ? (
-                <SearchableSelect
-                  value={values.userId || "__all__"}
-                  onValueChange={(v) => onUserChange(v === "__all__" ? "" : v)}
-                  options={[
-                    { value: "__all__", label: memberAllLabel },
-                    ...members.map((m) => ({ value: m.userId, label: m.userName }))
-                  ]}
-                  placeholder={memberPlaceholder}
-                  searchPlaceholder="Search members…"
-                  disabled={memberRequiresProject && !values.projectId}
-                  triggerClassName={triggerClass}
-                  aria-label="Member"
-                />
+              {!memberRequiresProject || hasSelectedProject ? (
+                Array.isArray(values.userId) ? (
+                  <SearchableMultiSelect
+                    value={values.userId}
+                    onChange={onUserChange}
+                    options={members.map((m) => ({ value: m.userId, label: m.userName }))}
+                    placeholder={memberPlaceholder}
+                    searchPlaceholder="Search members…"
+                    selectAllLabel={memberAllLabel}
+                    triggerClassName={triggerClass}
+                    aria-label="Member"
+                  />
+                ) : (
+                  <SearchableSelect
+                    value={values.userId || "__all__"}
+                    onValueChange={(v) => onUserChange(v === "__all__" ? "" : v)}
+                    options={[
+                      { value: "__all__", label: memberAllLabel },
+                      ...members.map((m) => ({ value: m.userId, label: m.userName }))
+                    ]}
+                    placeholder={memberPlaceholder}
+                    searchPlaceholder="Search members…"
+                    disabled={memberRequiresProject && !values.projectId}
+                    triggerClassName={triggerClass}
+                    aria-label="Member"
+                  />
+                )
               ) : (
                 <p className={placeholderClass}>Select a project first</p>
               )}

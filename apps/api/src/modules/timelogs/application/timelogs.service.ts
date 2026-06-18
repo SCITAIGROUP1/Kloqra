@@ -79,7 +79,11 @@ export class TimelogsService {
     const taskWhere = query.taskId
       ? { project: { workspaceId } }
       : {
-          ...(query.projectId ? { projectId: query.projectId } : {}),
+          ...(query.projectId
+            ? Array.isArray(query.projectId)
+              ? { projectId: { in: query.projectId } }
+              : { projectId: query.projectId }
+            : {}),
           ...(query.categoryId ? { categoryId: query.categoryId } : {}),
           project: { workspaceId }
         };
@@ -102,7 +106,11 @@ export class TimelogsService {
 
     const logs = await this.prisma.timeLog.findMany({
       where: {
-        ...(filterUserId ? { userId: filterUserId } : {}),
+        ...(filterUserId
+          ? Array.isArray(filterUserId)
+            ? { userId: { in: filterUserId } }
+            : { userId: filterUserId }
+          : {}),
         ...(query.taskId ? { taskId: query.taskId } : {}),
         ...(query.billableOnly ? { isBillable: true } : {}),
         ...(from || to

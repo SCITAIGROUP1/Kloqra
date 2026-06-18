@@ -4,15 +4,16 @@ import {
   assertMaxDateRange,
   currencyCodeSchema,
   isoDatetimeSchema,
-  uuidSchema
+  uuidSchema,
+  queryUuidArraySchema
 } from "./common.dto";
 
 export const reportQuerySchema = z
   .object({
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
-    projectId: uuidSchema.optional(),
-    userId: uuidSchema.optional(),
+    projectId: queryUuidArraySchema,
+    userId: queryUuidArraySchema,
     categoryId: uuidSchema.optional(),
     taskId: uuidSchema.optional()
   })
@@ -185,8 +186,8 @@ export const utilizationQuerySchema = z
   .object({
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
-    userId: uuidSchema.optional(),
-    projectId: uuidSchema.optional(),
+    userId: queryUuidArraySchema,
+    projectId: queryUuidArraySchema,
     categoryId: uuidSchema.optional(),
     taskId: uuidSchema.optional()
   })

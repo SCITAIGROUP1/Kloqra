@@ -2,7 +2,6 @@
 
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import {
-  Button,
   Card,
   CardContent,
   EmptyState,
@@ -10,7 +9,8 @@ import {
   TableBody,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  TablePagination
 } from "@kloqra/ui";
 import { CalendarDays, Loader2 } from "lucide-react";
 import type { WeekLogGroup } from "./group-logs-by-week";
@@ -20,6 +20,7 @@ import { formatProjectLabel } from "@/lib/project-labels";
 
 export type TimeTrackerWeekListProps = {
   groups: WeekLogGroup[];
+  weekTotals: Map<string, { totalSec: number; billableSec: number }>;
   tasks: TaskDto[];
   projects: ProjectDto[];
   workspaceNamesById: Record<string, string>;
@@ -30,10 +31,16 @@ export type TimeTrackerWeekListProps = {
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
   loading?: boolean;
-  loadingMore?: boolean;
-  hasMore?: boolean;
-  fullyLoaded?: boolean;
-  onLoadMore?: () => void;
+  page: number;
+  limit: number;
+  onLimitChange: (limit: number) => void;
+  hasNext: boolean;
+  hasPrev: boolean;
+  onPageChange: (page: number) => void;
+  logsLength: number;
+  totalPages: number;
+  totalCount: number;
+  readOnly?: boolean;
 };
 
 function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: number }) {
@@ -54,6 +61,7 @@ function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: 
 
 export function TimeTrackerWeekList({
   groups,
+  weekTotals,
   tasks,
   projects,
   workspaceNamesById,
@@ -64,10 +72,13 @@ export function TimeTrackerWeekList({
   onDelete,
   timezone,
   loading = false,
-  loadingMore = false,
-  hasMore = false,
-  fullyLoaded = true,
-  onLoadMore
+  page,
+  limit,
+  onLimitChange,
+  onPageChange,
+  totalPages,
+  totalCount,
+  readOnly = false
 }: TimeTrackerWeekListProps) {
   const taskById = new Map(tasks.map((t) => [t.id, t]));
   const projectById = new Map(projects.map((p) => [p.id, p]));
@@ -109,7 +120,10 @@ export function TimeTrackerWeekList({
                 {formatWeekSectionLabel(group.weekStart, timezone)}
               </h2>
             </div>
-            <WeekTotals totalSec={group.totalSec} billableSec={group.billableSec} />
+            {(() => {
+              const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
+              return <WeekTotals totalSec={totals.totalSec} billableSec={totals.billableSec} />;
+            })()}
           </div>
 
           <div className="overflow-x-auto">
@@ -156,6 +170,7 @@ export function TimeTrackerWeekList({
                       onEdit={onEdit}
                       onDelete={onDelete}
                       timezone={timezone}
+                      readOnly={readOnly}
                     />
                   );
                 })}
@@ -165,22 +180,17 @@ export function TimeTrackerWeekList({
         </Card>
       ))}
 
-      <div className="flex flex-col items-center gap-2 py-2">
-        {loadingMore ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading more entries…
-          </p>
-        ) : null}
-        {!fullyLoaded && hasMore && onLoadMore ? (
-          <Button type="button" variant="outline" size="sm" onClick={onLoadMore}>
-            Load more
-          </Button>
-        ) : null}
-        {fullyLoaded && groups.length > 0 ? (
-          <p className="text-xs text-muted-foreground">All entries loaded for this period.</p>
-        ) : null}
-      </div>
+      {groups.length > 0 && (
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          total={totalCount}
+          limit={limit}
+          onPageChange={onPageChange}
+          onLimitChange={onLimitChange}
+          disabled={loading}
+        />
+      )}
     </div>
   );
 }

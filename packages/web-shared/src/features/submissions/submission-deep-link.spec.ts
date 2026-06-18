@@ -62,6 +62,6 @@ describe("submission deep links", () => {
 
   it("detects active filters", () => {
     expect(hasActiveApprovalsFilter({})).toBe(false);
-    expect(hasActiveApprovalsFilter({ projectId: "p1" })).toBe(true);
+    expect(hasActiveApprovalsFilter({ projectId: ["p1"] })).toBe(true);
   });
 });

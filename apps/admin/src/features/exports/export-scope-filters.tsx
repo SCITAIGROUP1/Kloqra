@@ -108,7 +108,7 @@ export function ExportScopeFilters({
     [tasks]
   );
 
-  const taskDisabled = projectIds.length !== 1;
+  const taskDisabled = projectIds.length === 0;
   const chips = useMemo(() => {
     const out: { key: string; label: string; onClear: () => void }[] = [];
     if (projectIds.length === 1) {
@@ -270,13 +270,13 @@ export function ExportScopeFilters({
                   value={taskId || "__all__"}
                   onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
                   options={[{ value: "__all__", label: "All tasks" }, ...taskOptions]}
-                  placeholder={taskDisabled ? "Select one project first" : "All tasks"}
+                  placeholder={taskDisabled ? "Select a project first" : "All tasks"}
                   searchPlaceholder="Search tasks…"
                   disabled={taskDisabled}
                 />
-                {taskDisabled && projectIds.length !== 1 ? (
+                {taskDisabled && projectIds.length === 0 ? (
                   <p className="text-[11px] text-muted-foreground">
-                    Task filter is available when exactly one project is selected.
+                    Task filter is available when at least one project is selected.
                   </p>
                 ) : null}
               </div>

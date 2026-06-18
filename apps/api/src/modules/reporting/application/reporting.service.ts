@@ -354,14 +354,22 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     const from = new Date(query.from);
     const to = new Date(query.to);
 
+    let finalProjectIds = allowedProjectIds;
+    if (query.projectId) {
+      if (allowedProjectIds !== undefined) {
+        finalProjectIds = query.projectId.filter((p) => allowedProjectIds.includes(p));
+      } else {
+        finalProjectIds = query.projectId;
+      }
+    }
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
-      userId: query.userId,
-      projectId: query.projectId,
+      userIds: query.userId,
+      projectIds: finalProjectIds,
       categoryId: query.categoryId,
-      taskId: query.taskId,
-      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
+      taskId: query.taskId
     });
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const { workspaceAgg, byProject, byUser, byCategory } = this.aggregation.buildAggregates(
@@ -666,14 +674,23 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     const expectedWeeklyHours = settings.expectedWeeklyHours ?? 40;
     const targetHours = roundExport(expectedHoursForRange(from, to, expectedWeeklyHours));
 
+    let finalProjectIds = allowedProjectIds;
+    if (query.projectId) {
+      const pIds = Array.isArray(query.projectId) ? query.projectId : [query.projectId];
+      if (allowedProjectIds !== undefined) {
+        finalProjectIds = pIds.filter((p) => allowedProjectIds.includes(p));
+      } else {
+        finalProjectIds = pIds;
+      }
+    }
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
-      userId: query.userId,
-      projectId: query.projectId,
+      userIds: query.userId,
+      projectIds: finalProjectIds,
       categoryId: query.categoryId,
-      taskId: query.taskId,
-      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
+      taskId: query.taskId
     });
 
     const byUser = new Map<string, { name: string; hours: number; billableHours: number }>();
@@ -690,11 +707,11 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
 
     // Include workspace members with zero logs (admin view only — skip for scoped public API keys)
     if (allowedProjectIds === undefined) {
-      if (query.projectId) {
+      if (query.projectId && query.projectId.length > 0) {
         const teamMembers = await this.prisma.teamMember.findMany({
           where: {
             isActive: true,
-            team: { projectId: query.projectId, project: { workspaceId } }
+            team: { projectId: { in: query.projectId }, project: { workspaceId } }
           },
           include: { user: { select: { id: true, name: true } } }
         });
@@ -743,7 +760,10 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       rows = rows.filter((row) => row.userName.toLowerCase().includes(q));
     }
     if (query.userId) {
-      rows = rows.filter((row) => row.userId === query.userId);
+      const uIds = Array.isArray(query.userId) ? query.userId : [query.userId];
+      if (uIds.length > 0) {
+        rows = rows.filter((row) => uIds.includes(row.userId));
+      }
     }
 
     const total = rows.length;
@@ -762,14 +782,22 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
   async heatmap(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    let finalProjectIds = allowedProjectIds;
+    if (query.projectId) {
+      if (allowedProjectIds !== undefined) {
+        finalProjectIds = query.projectId.filter((p) => allowedProjectIds.includes(p));
+      } else {
+        finalProjectIds = query.projectId;
+      }
+    }
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
-      userId: query.userId,
-      projectId: query.projectId,
+      userIds: query.userId,
+      projectIds: finalProjectIds,
       categoryId: query.categoryId,
-      taskId: query.taskId,
-      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
+      taskId: query.taskId
     });
 
     const slotsMap = new Map<string, number>();
@@ -803,14 +831,22 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
   async tasks(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    let finalProjectIds = allowedProjectIds;
+    if (query.projectId) {
+      if (allowedProjectIds !== undefined) {
+        finalProjectIds = query.projectId.filter((p) => allowedProjectIds.includes(p));
+      } else {
+        finalProjectIds = query.projectId;
+      }
+    }
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
-      userId: query.userId,
-      projectId: query.projectId,
+      userIds: query.userId,
+      projectIds: finalProjectIds,
       categoryId: query.categoryId,
-      taskId: query.taskId,
-      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
+      taskId: query.taskId
     });
 
     const tasksMap = new Map<
@@ -884,14 +920,22 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
   ): Promise<CategoryProjectHeatmapResponseDto> {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    let finalProjectIds = allowedProjectIds;
+    if (query.projectId) {
+      if (allowedProjectIds !== undefined) {
+        finalProjectIds = query.projectId.filter((p) => allowedProjectIds.includes(p));
+      } else {
+        finalProjectIds = query.projectId;
+      }
+    }
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
-      userId: query.userId,
-      projectId: query.projectId,
+      userIds: query.userId,
+      projectIds: finalProjectIds,
       categoryId: query.categoryId,
-      taskId: query.taskId,
-      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
+      taskId: query.taskId
     });
 
     const TOP_N = 8;

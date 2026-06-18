@@ -1,6 +1,16 @@
 import { z, type RefinementCtx } from "zod";
 
 export const uuidSchema = z.string().uuid();
+export const queryUuidArraySchema = z.preprocess((val) => {
+  if (val === undefined || val === null || val === "") return undefined;
+  if (typeof val === "string")
+    return val
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  if (Array.isArray(val)) return val;
+  return [val];
+}, z.array(uuidSchema).optional());
 export const isoDatetimeSchema = z.string().datetime({ offset: true });
 export const emailSchema = z.string().email();
 export const slugSchema = z

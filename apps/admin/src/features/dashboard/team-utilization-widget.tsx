@@ -24,8 +24,8 @@ export function TeamUtilizationWidget({
 }: {
   from: string;
   to: string;
-  userId?: string;
-  projectId?: string;
+  userId?: string | string[];
+  projectId?: string | string[];
   categoryId?: string;
   taskId?: string;
   cardless?: boolean;

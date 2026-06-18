@@ -20,8 +20,8 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 export type TaskBreakdownWidgetProps = {
   from: string;
   to: string;
-  projectId?: string;
-  userId?: string;
+  projectId?: string | string[];
+  userId?: string | string[];
   categoryId?: string;
   taskId?: string;
 };
@@ -40,7 +40,12 @@ const CHART_PALETTE = [
 function rangeQuery(
   start: string,
   end: string,
-  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
+  filters?: {
+    projectId?: string | string[];
+    userId?: string | string[];
+    categoryId?: string;
+    taskId?: string;
+  }
 ) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
@@ -48,8 +53,14 @@ function rangeQuery(
     from: from.toISOString(),
     to: to.toISOString()
   });
-  if (filters?.projectId) params.set("projectId", filters.projectId);
-  if (filters?.userId) params.set("userId", filters.userId);
+  if (filters?.projectId) {
+    const val = filters.projectId;
+    params.set("projectId", Array.isArray(val) ? val.join(",") : val);
+  }
+  if (filters?.userId) {
+    const val = filters.userId;
+    params.set("userId", Array.isArray(val) ? val.join(",") : val);
+  }
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
   if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;

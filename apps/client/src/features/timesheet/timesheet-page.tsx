@@ -70,6 +70,7 @@ import {
   isTimeEntryLocked,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -102,6 +103,7 @@ function buildOccupancyQuery(from: Date, to: Date): string {
 
 export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const isImpersonating = useIsImpersonating();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
 
@@ -417,6 +419,7 @@ export function TimesheetPage() {
   }
 
   function openCreateSlot(day: Date, hour: number, minute: number) {
+    if (isImpersonating) return;
     if (showOccupancyOverlay) {
       const index = slotIndexFromTime(hour, minute);
       if (index >= 0) {
@@ -441,6 +444,7 @@ export function TimesheetPage() {
   }
 
   function openCreateRange(day: Date, startIndex: number, endIndex: number) {
+    if (isImpersonating) return;
     if (showOccupancyOverlay) {
       const dateKey = calendarDateKey(day, timezone);
       const segments = buildDayOccupancySegments(dateKey, occupancy, timezone, ws);
@@ -472,6 +476,7 @@ export function TimesheetPage() {
   }
 
   async function saveEntry() {
+    if (isImpersonating) return;
     if (editingLog && isEntryLocked(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
@@ -532,6 +537,7 @@ export function TimesheetPage() {
   }
 
   async function deleteEntry(log?: TimeLogDto) {
+    if (isImpersonating) return;
     const target = log ?? editingLog;
     if (!target) return;
     if (isEntryLocked(target)) {
@@ -542,6 +548,7 @@ export function TimesheetPage() {
   }
 
   async function confirmDelete() {
+    if (isImpersonating) return;
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
@@ -566,7 +573,7 @@ export function TimesheetPage() {
   }
 
   async function duplicateEntry(log: TimeLogDto, start: Date, end: Date) {
-    if (isEntryLocked(log)) return;
+    if (isImpersonating || isEntryLocked(log)) return;
     if (end <= start) return;
     const conflict = findOccupancyConflict(occupancy, start, end);
     if (conflict) {
@@ -599,7 +606,7 @@ export function TimesheetPage() {
   }
 
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
-    if (isEntryLocked(log) || isTimerEntry(log)) return;
+    if (isImpersonating || isEntryLocked(log) || isTimerEntry(log)) return;
     if (end <= start) return;
 
     const conflict = findOccupancyConflict(occupancy, start, end, log.id);
@@ -837,7 +844,7 @@ export function TimesheetPage() {
             onEntryResize={resizeEntry}
             onEntryMove={moveEntry}
             onEntryDuplicate={duplicateEntry}
-            readOnly={false}
+            readOnly={isImpersonating}
             timezone={timezone}
             displayFormat={displayFormat ?? undefined}
           />
@@ -855,12 +862,14 @@ export function TimesheetPage() {
         editingLog={editingLog}
         saving={saving}
         error={error}
-        readOnly={editingLog ? isEntryLocked(editingLog) : false}
+        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
         workspaceId={ws}
         onClose={closeDialog}
         onDraftChange={setDraft}
         onSave={saveEntry}
-        onDelete={editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined}
+        onDelete={
+          !isImpersonating && editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined
+        }
         timezone={timezone}
       />
 

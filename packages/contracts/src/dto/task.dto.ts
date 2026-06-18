@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
-import { uuidSchema } from "./common.dto";
+import { uuidSchema, queryUuidArraySchema } from "./common.dto";
 
 export const taskAssigneeSchema = z.object({
   userId: uuidSchema,
@@ -35,7 +35,7 @@ export const updateTaskSchema = z.object({
 });
 
 export const listTasksQuerySchema = listPaginationQuerySchema.extend({
-  projectId: uuidSchema.optional(),
+  projectId: queryUuidArraySchema,
   categoryId: uuidSchema.optional()
 });
 

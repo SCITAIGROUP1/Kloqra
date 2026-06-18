@@ -462,8 +462,16 @@ export class TimesheetsService {
       where: {
         workspaceId,
         status,
-        ...(filter.projectId ? { projectId: filter.projectId } : {}),
-        ...(filter.userId ? { userId: filter.userId } : {}),
+        ...(filter.projectId
+          ? Array.isArray(filter.projectId)
+            ? { projectId: { in: filter.projectId } }
+            : { projectId: filter.projectId }
+          : {}),
+        ...(filter.userId
+          ? Array.isArray(filter.userId)
+            ? { userId: { in: filter.userId } }
+            : { userId: filter.userId }
+          : {}),
         ...(periodStartRange ? { periodStart: periodStartRange } : {})
       },
       include: {
@@ -583,7 +591,11 @@ export class TimesheetsService {
         workspaceId,
         timesheetApprovalEnabled: true,
         isActive: true,
-        ...(filter.projectId ? { id: filter.projectId } : {})
+        ...(filter.projectId
+          ? Array.isArray(filter.projectId)
+            ? { id: { in: filter.projectId } }
+            : { id: filter.projectId }
+          : {})
       },
       include: { workspace: { select: { settings: true } } }
     });
@@ -605,7 +617,10 @@ export class TimesheetsService {
       });
 
       for (const member of members) {
-        if (filter.userId && member.userId !== filter.userId) continue;
+        if (filter.userId) {
+          const uIds = Array.isArray(filter.userId) ? filter.userId : [filter.userId];
+          if (uIds.length > 0 && !uIds.includes(member.userId)) continue;
+        }
 
         const period = await this.prisma.timesheetPeriod.findUnique({
           where: {

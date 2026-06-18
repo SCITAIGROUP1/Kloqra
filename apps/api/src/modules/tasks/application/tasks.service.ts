@@ -77,10 +77,8 @@ export class TasksService {
   async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (query.projectId) {
-      if (!projectIds.includes(query.projectId)) {
-        return emptyPaginatedResponse(query.page, query.limit);
-      }
-      projectIds = [query.projectId];
+      const filterProjectIds = Array.isArray(query.projectId) ? query.projectId : [query.projectId];
+      projectIds = projectIds.filter((id) => filterProjectIds.includes(id));
     }
     if (projectIds.length === 0) {
       return emptyPaginatedResponse(query.page, query.limit);

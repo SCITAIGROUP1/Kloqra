@@ -30,6 +30,7 @@ import {
   type OnboardingStepId
 } from "./onboarding-steps";
 import { isWizardDone, markWizardDone } from "./onboarding-storage";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
@@ -57,6 +58,7 @@ export function OnboardingOverlay({
   const session = useSessionStore((s) => s.session);
   const ws = session?.workspaceId ?? "";
   const isAdmin = session?.workspaceRole === "ADMIN";
+  const isImpersonating = useIsImpersonating();
   const userName = session?.user.name ?? "there";
 
   const { projects, setProjects, setTasks } = useProjectsStore();
@@ -71,6 +73,7 @@ export function OnboardingOverlay({
   const progressPercent = (stepNumber / TOTAL_ONBOARDING_STEPS) * 100;
 
   useEffect(() => {
+    if (isImpersonating) return;
     if (forceOpen !== undefined) {
       setShow(forceOpen);
       return;
@@ -78,7 +81,7 @@ export function OnboardingOverlay({
     if (typeof window !== "undefined" && !replay && !isWizardDone()) {
       setShow(true);
     }
-  }, [forceOpen, replay]);
+  }, [forceOpen, replay, isImpersonating]);
 
   useEffect(() => {
     if (replay && forceOpen) {

@@ -75,6 +75,7 @@ import {
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { useActiveTimerSessionStore } from "@/stores/member-data.store";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -102,6 +103,7 @@ export function DashboardPage() {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
   const isAdmin = session?.workspaceRole === "ADMIN";
+  const isImpersonating = useIsImpersonating();
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
 
@@ -385,7 +387,7 @@ export function DashboardPage() {
     activeTask?.billableDefault ?? suggestBillableFromTask(tasks, taskChoice);
 
   async function startTimer() {
-    if (!canStart) return;
+    if (isImpersonating || !canStart) return;
     setStarting(true);
     try {
       const res = await api<ActiveTimerDto>(ROUTES.TIMER.START, {
@@ -406,6 +408,7 @@ export function DashboardPage() {
   }
 
   async function stopTimer() {
+    if (isImpersonating) return;
     setStopping(true);
     try {
       await api(ROUTES.TIMER.STOP, {
@@ -429,6 +432,7 @@ export function DashboardPage() {
   }
 
   async function pauseTimer() {
+    if (isImpersonating) return;
     setPausing(true);
     try {
       await api(ROUTES.TIMER.PAUSE, { method: "POST", workspaceId: ws });
@@ -442,6 +446,7 @@ export function DashboardPage() {
   }
 
   async function resumeTimer() {
+    if (isImpersonating) return;
     setResuming(true);
     try {
       await api(ROUTES.TIMER.RESUME, { method: "POST", workspaceId: ws });
@@ -466,6 +471,7 @@ export function DashboardPage() {
   );
 
   const handleDeleteLog = async (logId: string) => {
+    if (isImpersonating) return;
     const log = logs.find((item) => item.id === logId);
     if (log && isLogLocked(log)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
@@ -481,6 +487,7 @@ export function DashboardPage() {
   };
 
   const handleResumeTask = async (taskId: string) => {
+    if (isImpersonating) return;
     try {
       const res = await api<ActiveTimerDto>(ROUTES.TIMER.START, {
         method: "POST",
@@ -504,6 +511,7 @@ export function DashboardPage() {
   };
 
   const handleDoneArranging = async () => {
+    if (isImpersonating) return;
     try {
       await persistLayout(ws);
       arrangeSnapshotRef.current = null;
@@ -514,6 +522,7 @@ export function DashboardPage() {
   };
 
   const handleDoneAndSaveAsDefault = async () => {
+    if (isImpersonating) return;
     try {
       await persistLayout(ws);
       await saveLayoutAsDefault(ws);
@@ -650,44 +659,48 @@ export function DashboardPage() {
         title="Dashboard"
         description="Analyze your weekly progress and customize your widget layout."
         actions={
-          <>
-            <AppBarActionButton
-              active={isCatalogOpen}
-              onClick={() => {
-                setIsCatalogOpen(!isCatalogOpen);
-                if (isArranging) {
-                  handleCancelArranging();
-                }
-              }}
-            >
-              <LayoutGrid className="size-3.5" />
-              {isCatalogOpen ? "Close Catalog" : "Add Widgets"}
-            </AppBarActionButton>
-            <AppBarActionButton
-              active={isArranging}
-              onClick={async () => {
-                if (isArranging) {
-                  try {
-                    await persistLayout(ws);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
-                    return;
+          !isImpersonating ? (
+            <>
+              <AppBarActionButton
+                active={isCatalogOpen}
+                onClick={() => {
+                  setIsCatalogOpen(!isCatalogOpen);
+                  if (isArranging) {
+                    handleCancelArranging();
                   }
-                  arrangeSnapshotRef.current = null;
-                } else {
-                  const current = layoutsByWorkspace[ws];
-                  if (current) {
-                    arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
+                }}
+              >
+                <LayoutGrid className="size-3.5" />
+                {isCatalogOpen ? "Close Catalog" : "Add Widgets"}
+              </AppBarActionButton>
+              <AppBarActionButton
+                active={isArranging}
+                onClick={async () => {
+                  if (isArranging) {
+                    try {
+                      await persistLayout(ws);
+                    } catch (e) {
+                      toast.error(
+                        e instanceof Error ? e.message : "Could not save dashboard layout"
+                      );
+                      return;
+                    }
+                    arrangeSnapshotRef.current = null;
+                  } else {
+                    const current = layoutsByWorkspace[ws];
+                    if (current) {
+                      arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
+                    }
                   }
-                }
-                setIsArranging(!isArranging);
-                setIsCatalogOpen(false);
-              }}
-            >
-              <Move className="size-3.5" />
-              {isArranging ? "Done Arranging" : "Arrange Grid"}
-            </AppBarActionButton>
-          </>
+                  setIsArranging(!isArranging);
+                  setIsCatalogOpen(false);
+                }}
+              >
+                <Move className="size-3.5" />
+                {isArranging ? "Done Arranging" : "Arrange Grid"}
+              </AppBarActionButton>
+            </>
+          ) : undefined
         }
       />
 
@@ -951,7 +964,7 @@ export function DashboardPage() {
                                     {isPaused ? (
                                       <Button
                                         onClick={resumeTimer}
-                                        disabled={resuming}
+                                        disabled={resuming || isImpersonating}
                                         className="h-8 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                                       >
                                         <Play className="size-3 mr-1 fill-current" />
@@ -961,7 +974,7 @@ export function DashboardPage() {
                                       <Button
                                         variant="outline"
                                         onClick={pauseTimer}
-                                        disabled={pausing}
+                                        disabled={pausing || isImpersonating}
                                         className="h-8 text-xs flex-1 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
                                       >
                                         <Pause className="size-3 mr-1" />
@@ -971,7 +984,7 @@ export function DashboardPage() {
                                     <Button
                                       variant="destructive"
                                       onClick={stopTimer}
-                                      disabled={stopping}
+                                      disabled={stopping || isImpersonating}
                                       className="h-8 text-xs flex-1"
                                     >
                                       <Square className="size-3 mr-1 fill-current" />
@@ -1039,7 +1052,7 @@ export function DashboardPage() {
 
                                   <Button
                                     onClick={startTimer}
-                                    disabled={!canStart || starting}
+                                    disabled={!canStart || starting || isImpersonating}
                                     className="h-8 w-full text-xs"
                                   >
                                     <Play className="size-3 mr-1 fill-current" />

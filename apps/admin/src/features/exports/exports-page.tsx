@@ -10,7 +10,7 @@ import {
   type TaskDto,
   type WorkspaceMemberDto
 } from "@kloqra/contracts";
-import { fetchListItems } from "@kloqra/web-shared";
+import { fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExportCustomFlow } from "./export-custom-flow";
@@ -82,20 +82,56 @@ export function ExportsPage() {
       .catch(() => {});
   }, [ws]);
 
-  const singleProjectId = projectIds.length === 1 ? projectIds[0] : "";
-
   useEffect(() => {
-    if (!ws || !singleProjectId) {
+    if (!ws || projectIds.length === 0) {
       setTasks([]);
       setTaskId("");
       return;
     }
-    const filters: Record<string, string> = { projectId: singleProjectId };
+    const filters: Record<string, string | string[]> = { projectId: projectIds };
     if (categoryId) filters.categoryId = categoryId;
     fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
       .then(setTasks)
       .catch(() => setTasks([]));
-  }, [ws, singleProjectId, categoryId]);
+  }, [ws, projectIds, categoryId]);
+
+  const [projectMembers, setProjectMembers] = useState<{ userId: string; userName: string }[]>([]);
+
+  useEffect(() => {
+    if (!ws || projectIds.length === 0) {
+      setProjectMembers([]);
+      return;
+    }
+    Promise.all(
+      projectIds.map((id) =>
+        fetchProjectTeam(id, { workspaceId: ws })
+          .then((res) => res.members)
+          .catch(() => [])
+      )
+    ).then((teamsMembersLists) => {
+      const uniqueMembersMap = new Map<string, { userId: string; userName: string }>();
+      for (const list of teamsMembersLists) {
+        for (const m of list) {
+          uniqueMembersMap.set(m.userId, { userId: m.userId, userName: m.userName });
+        }
+      }
+      setProjectMembers([...uniqueMembersMap.values()]);
+    });
+  }, [ws, projectIds]);
+
+  const scopedMembers = useMemo(() => {
+    if (projectIds.length === 0) {
+      return members;
+    }
+    const teamUserIds = new Set(projectMembers.map((m) => m.userId));
+    return members.filter((m) => teamUserIds.has(m.userId));
+  }, [members, projectMembers, projectIds]);
+
+  const scopedCategories = useMemo(() => {
+    if (projectIds.length === 0) return categories;
+    const activeCategoryIds = new Set(tasks.map((t) => t.categoryId));
+    return categories.filter((c) => activeCategoryIds.has(c.id));
+  }, [categories, tasks, projectIds]);
 
   useEffect(() => {
     if (!taskId) return;
@@ -138,9 +174,9 @@ export function ExportsPage() {
       onTeamOnlyChange: setTeamOnly,
       onClearScope: clearScopeFilters,
       projects,
-      categories,
+      categories: scopedCategories,
       tasks,
-      members,
+      members: scopedMembers,
       preview,
       previewLoading,
       previewError
@@ -156,9 +192,9 @@ export function ExportsPage() {
       taskId,
       teamOnly,
       projects,
-      categories,
+      scopedCategories,
       tasks,
-      members,
+      scopedMembers,
       preview,
       previewLoading,
       previewError

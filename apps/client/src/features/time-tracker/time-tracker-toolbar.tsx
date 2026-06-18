@@ -48,6 +48,7 @@ type TimeTrackerToolbarProps = {
   onBillabilityChange: (value: TimeTrackerFilterValues["billability"]) => void;
   onClearFilters: () => void;
   onAddEntry: () => void;
+  readOnly?: boolean;
 };
 
 export function TimeTrackerToolbar({
@@ -70,7 +71,8 @@ export function TimeTrackerToolbar({
   onTaskChange,
   onBillabilityChange,
   onClearFilters,
-  onAddEntry
+  onAddEntry,
+  readOnly = false
 }: TimeTrackerToolbarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -190,10 +192,12 @@ export function TimeTrackerToolbar({
             />
           </Button>
         </div>
-        <Button type="button" className="gap-1.5 shrink-0" onClick={onAddEntry}>
-          <Plus className="size-4" />
-          Add Entry
-        </Button>
+        {!readOnly && (
+          <Button type="button" className="gap-1.5 shrink-0" onClick={onAddEntry}>
+            <Plus className="size-4" />
+            Add Entry
+          </Button>
+        )}
       </div>
 
       {filtersOpen ? (

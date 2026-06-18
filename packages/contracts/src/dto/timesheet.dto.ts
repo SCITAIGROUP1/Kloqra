@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { timesheetApprovalPeriodSchema } from "../workspace-settings";
-import { isoDatetimeSchema, uuidSchema } from "./common.dto";
+import { isoDatetimeSchema, uuidSchema, queryUuidArraySchema } from "./common.dto";
 
 export const timesheetPeriodStatusSchema = z.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"]);
 
@@ -86,8 +86,8 @@ export const pendingTimesheetSchema = z.object({
 });
 
 export const timesheetApprovalsFilterQuerySchema = z.object({
-  projectId: uuidSchema.optional(),
-  userId: uuidSchema.optional(),
+  projectId: queryUuidArraySchema,
+  userId: queryUuidArraySchema,
   from: z.string().optional(),
   to: z.string().optional()
 });

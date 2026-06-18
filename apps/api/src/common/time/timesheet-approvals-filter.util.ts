@@ -33,8 +33,20 @@ export function appendApprovalsFilterParams(
   params: URLSearchParams,
   filter: TimesheetApprovalsFilterQuery
 ): void {
-  if (filter.projectId) params.set("projectId", filter.projectId);
-  if (filter.userId) params.set("userId", filter.userId);
+  if (filter.projectId) {
+    if (Array.isArray(filter.projectId)) {
+      params.set("projectId", filter.projectId.join(","));
+    } else {
+      params.set("projectId", filter.projectId);
+    }
+  }
+  if (filter.userId) {
+    if (Array.isArray(filter.userId)) {
+      params.set("userId", filter.userId.join(","));
+    } else {
+      params.set("userId", filter.userId);
+    }
+  }
   if (filter.from) params.set("from", filter.from);
   if (filter.to) params.set("to", filter.to);
 }

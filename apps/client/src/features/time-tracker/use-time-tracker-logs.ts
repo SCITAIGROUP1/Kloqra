@@ -10,120 +10,130 @@ import { api } from "@/lib/api";
 
 export type TimeTrackerLogsState = {
   logs: TimeLogDto[];
+  paginatedLogs: TimeLogDto[];
   loading: boolean;
-  loadingMore: boolean;
-  hasMore: boolean;
-  fullyLoaded: boolean;
+  page: number;
+  setPage: (page: number) => void;
+  limit: number;
+  setLimit: (limit: number) => void;
+  hasNext: boolean;
+  hasPrev: boolean;
+  totalPages: number;
+  totalCount: number;
   error: string | null;
-  loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
 };
-
-function filtersKey(filters: TimeTrackerServerFilters): string {
-  return JSON.stringify({
-    from: filters.from.toISOString(),
-    to: filters.to.toISOString(),
-    projectId: filters.projectId ?? "",
-    categoryId: filters.categoryId ?? "",
-    taskId: filters.taskId ?? "",
-    search: filters.search ?? "",
-    billableOnly: filters.billableOnly ?? false
-  });
-}
 
 export function useTimeTrackerLogs(
   workspaceId: string,
   filters: TimeTrackerServerFilters
 ): TimeTrackerLogsState {
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [fullyLoaded, setFullyLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [limit, setLimit] = useState(50);
+  const [page, setPage] = useState(1);
+
   const requestIdRef = useRef(0);
-  const autoLoadRef = useRef(false);
-  const filterKey = useMemo(() => filtersKey(filters), [filters]);
 
-  const fetchPage = useCallback(
-    async (cursor: string | undefined, append: boolean) => {
-      if (!workspaceId) return { items: [] as TimeLogDto[], nextCursor: undefined };
+  const filterKey = useMemo(() => {
+    return JSON.stringify({
+      from: filters.from.toISOString(),
+      to: filters.to.toISOString(),
+      projectId: filters.projectId ?? "",
+      categoryId: filters.categoryId ?? "",
+      taskId: filters.taskId ?? "",
+      search: filters.search ?? "",
+      billableOnly: filters.billableOnly ?? false
+    });
+  }, [filters]);
 
-      const path = buildTimeTrackerLogsQuery({ ...filters, cursor });
-      const res = await api<ListTimeLogsResponseDto>(path, { workspaceId });
-
-      setLogs((prev) => (append ? [...prev, ...res.items] : res.items));
-      setNextCursor(res.nextCursor);
-      setFullyLoaded(!res.nextCursor);
-      return res;
-    },
-    [workspaceId, filters]
-  );
-
-  const refresh = useCallback(async () => {
+  const loadLogs = useCallback(async () => {
     if (!workspaceId) return;
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
-    setFullyLoaded(false);
-    autoLoadRef.current = true;
 
     try {
-      const res = await fetchPage(undefined, false);
-      if (requestId !== requestIdRef.current) return;
+      let allItems: TimeLogDto[] = [];
+      let cursor: string | undefined = undefined;
+      let hasMore = true;
 
-      let cursor = res.nextCursor;
-      while (cursor && autoLoadRef.current && requestId === requestIdRef.current) {
-        setLoadingMore(true);
-        const next = await fetchPage(cursor, true);
+      while (hasMore && requestId === requestIdRef.current) {
+        const path = buildTimeTrackerLogsQuery({ ...filters, limit: 250, cursor });
+        const res = await api<ListTimeLogsResponseDto>(path, { workspaceId });
         if (requestId !== requestIdRef.current) return;
-        cursor = next.nextCursor;
+
+        allItems = [...allItems, ...res.items];
+        cursor = res.nextCursor;
+        hasMore = Boolean(res.nextCursor);
       }
+
+      const seen = new Set<string>();
+      const uniqueItems = allItems.filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
+      setLogs(uniqueItems);
     } catch (e) {
       if (requestId === requestIdRef.current) {
         setError(e instanceof Error ? e.message : "Could not load time entries");
         setLogs([]);
-        setNextCursor(undefined);
-        setFullyLoaded(true);
       }
     } finally {
       if (requestId === requestIdRef.current) {
         setLoading(false);
-        setLoadingMore(false);
       }
     }
-  }, [workspaceId, fetchPage]);
+  }, [workspaceId, filters]);
 
-  const loadMore = useCallback(async () => {
-    if (!workspaceId || !nextCursor || loading || loadingMore) return;
-    autoLoadRef.current = false;
-    setLoadingMore(true);
-    setError(null);
-    try {
-      await fetchPage(nextCursor, true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load more entries");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [workspaceId, nextCursor, loading, loadingMore, fetchPage]);
+  const loadLogsRef = useRef(loadLogs);
+  useEffect(() => {
+    loadLogsRef.current = loadLogs;
+  }, [loadLogs]);
 
   useEffect(() => {
-    autoLoadRef.current = false;
     requestIdRef.current += 1;
     setLogs([]);
-    setNextCursor(undefined);
-    void refresh();
-  }, [workspaceId, filterKey, refresh]);
+    setPage(1);
+    void loadLogsRef.current();
+  }, [workspaceId, filterKey]);
+
+  const totalCount = logs.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedLogs = useMemo(() => {
+    const start = (page - 1) * limit;
+    return logs.slice(start, start + limit);
+  }, [logs, page, limit]);
+
+  const setLimitAndResetPage = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  }, []);
 
   return {
     logs,
+    paginatedLogs,
     loading,
-    loadingMore,
-    hasMore: Boolean(nextCursor),
-    fullyLoaded,
+    page,
+    setPage,
+    limit,
+    setLimit: setLimitAndResetPage,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+    totalPages,
+    totalCount,
     error,
-    loadMore,
-    refresh
+    refresh: loadLogs
   };
 }

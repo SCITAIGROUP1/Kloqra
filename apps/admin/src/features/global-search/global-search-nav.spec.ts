@@ -3,7 +3,7 @@ import { filterAdminNavItems, toPageSearchResult } from "./global-search-nav";
 
 describe("global-search-nav", () => {
   it("returns all pages when query is empty", () => {
-    expect(filterAdminNavItems("")).toHaveLength(10);
+    expect(filterAdminNavItems("")).toHaveLength(11);
   });
 
   it("filters pages by label", () => {

@@ -30,7 +30,7 @@ export function BudgetBurnDownWidget({
   cardless = false,
   onHeaderActions
 }: {
-  projectId?: string;
+  projectId?: string | string[];
   cardless?: boolean;
   onHeaderActions?: (actions: React.ReactNode) => void;
 }) {
@@ -45,8 +45,14 @@ export function BudgetBurnDownWidget({
     setLoading(true);
     setError(null);
     try {
-      if (projectId) {
-        const res = await api<BudgetData>(ROUTES.REPORTING.BUDGET(projectId), {
+      const singleId = Array.isArray(projectId)
+        ? projectId.length === 1
+          ? projectId[0]
+          : undefined
+        : projectId;
+
+      if (singleId) {
+        const res = await api<BudgetData>(ROUTES.REPORTING.BUDGET(singleId), {
           workspaceId: ws
         });
         setData(res);
@@ -56,7 +62,10 @@ export function BudgetBurnDownWidget({
         const projects = await fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
           workspaceId: ws
         });
-        const budgetPromises = projects
+        const targetProjects = Array.isArray(projectId)
+          ? projects.filter((p) => projectId.includes(p.id))
+          : projects;
+        const budgetPromises = targetProjects
           .filter((p) => p.budgetHours !== null)
           .map((p) =>
             api<BudgetData>(ROUTES.REPORTING.BUDGET(p.id), { workspaceId: ws }).catch(() => null)

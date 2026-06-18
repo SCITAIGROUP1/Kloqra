@@ -168,9 +168,12 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
               </span>
               <span>
-                Viewing workspace as <strong className="font-semibold">{session.user.name}</strong>{" "}
-                (impersonated by Admin{" "}
-                <strong className="font-semibold">{session.impersonatorName}</strong>)
+                👁 Viewing as <strong className="font-semibold">{session.user.name}</strong> —
+                read-only mode{" "}
+                <span className="opacity-70">
+                  (impersonated by Admin{" "}
+                  <strong className="font-semibold">{session.impersonatorName}</strong>)
+                </span>
               </span>
             </div>
             <Button

@@ -7,9 +7,9 @@ export type TimeLogWithRelations = Awaited<ReturnType<TimeAggregationService["fe
 export type ExportFilters = {
   from: Date;
   to: Date;
-  projectId?: string;
+  projectId?: string | string[];
   projectIds?: string[];
-  userId?: string;
+  userId?: string | string[];
   userIds?: string[];
   categoryId?: string;
   taskId?: string;
@@ -45,21 +45,42 @@ export class TimeAggregationService {
           ? { isBillable: false }
           : {};
 
-    const userWhere = filters.userIds?.length
-      ? { userId: { in: filters.userIds } }
-      : filters.userId
-        ? { userId: filters.userId }
-        : {};
+    let userWhere = {};
+    const uIds: string[] = [];
+    if (filters.userId) {
+      if (Array.isArray(filters.userId)) {
+        uIds.push(...filters.userId);
+      } else {
+        uIds.push(filters.userId);
+      }
+    }
+    if (filters.userIds) {
+      uIds.push(...filters.userIds);
+    }
+    if (uIds.length > 0) {
+      const uniqueUIds = [...new Set(uIds)].filter(Boolean);
+      if (uniqueUIds.length === 1) {
+        userWhere = { userId: uniqueUIds[0] };
+      } else {
+        userWhere = { userId: { in: uniqueUIds } };
+      }
+    }
 
     const projectWhere: { workspaceId: string; id?: string | { in: string[] } } = { workspaceId };
-    if (filters.projectId && filters.projectIds !== undefined) {
-      projectWhere.id = filters.projectIds.includes(filters.projectId)
-        ? filters.projectId
-        : { in: [] };
-    } else if (filters.projectId) {
-      projectWhere.id = filters.projectId;
-    } else if (filters.projectIds !== undefined) {
-      projectWhere.id = filters.projectIds.length ? { in: filters.projectIds } : { in: [] };
+    const pIds: string[] = [];
+    if (filters.projectId) {
+      if (Array.isArray(filters.projectId)) {
+        pIds.push(...filters.projectId);
+      } else {
+        pIds.push(filters.projectId);
+      }
+    }
+    if (filters.projectIds) {
+      pIds.push(...filters.projectIds);
+    }
+    if (pIds.length > 0) {
+      const uniquePIds = [...new Set(pIds)].filter(Boolean);
+      projectWhere.id = uniquePIds.length === 1 ? uniquePIds[0] : { in: uniquePIds };
     }
 
     return this.prisma.timeLog.findMany({

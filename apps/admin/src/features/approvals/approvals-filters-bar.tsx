@@ -1,7 +1,7 @@
 "use client";
 
 import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
-import { Button, DateRangePicker, SearchableSelect } from "@kloqra/ui";
+import { Button, DateRangePicker, SearchableMultiSelect } from "@kloqra/ui";
 import { hasActiveApprovalsFilter } from "@kloqra/web-shared";
 import type { ApprovalsFilterOption } from "./use-approvals-filter-options";
 
@@ -39,39 +39,35 @@ export function ApprovalsFiltersBar({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Project</FilterFieldLabel>
-          <SearchableSelect
-            value={filters.projectId ?? "all"}
-            onValueChange={(value) =>
-              onChange({ ...filters, projectId: value === "all" ? undefined : value })
+          <SearchableMultiSelect
+            value={filters.projectId ?? []}
+            onChange={(value) =>
+              onChange({ ...filters, projectId: value.length > 0 ? value : undefined })
             }
-            options={[
-              { value: "all", label: "All projects" },
-              ...projectOptions.map((option) => ({ value: option.value, label: option.label }))
-            ]}
+            options={projectOptions.map((option) => ({ value: option.value, label: option.label }))}
             placeholder="All projects"
             searchPlaceholder="Search projects…"
+            selectAllLabel="All projects"
             disabled={loading}
             aria-label="Project"
-            triggerClassName="bg-background"
+            triggerClassName="bg-background h-10 w-full font-normal"
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Member</FilterFieldLabel>
-          <SearchableSelect
-            value={filters.userId ?? "all"}
-            onValueChange={(value) =>
-              onChange({ ...filters, userId: value === "all" ? undefined : value })
+          <SearchableMultiSelect
+            value={filters.userId ?? []}
+            onChange={(value) =>
+              onChange({ ...filters, userId: value.length > 0 ? value : undefined })
             }
-            options={[
-              { value: "all", label: "All members" },
-              ...memberOptions.map((option) => ({ value: option.value, label: option.label }))
-            ]}
+            options={memberOptions.map((option) => ({ value: option.value, label: option.label }))}
             placeholder="All members"
             searchPlaceholder="Search members…"
+            selectAllLabel="All members"
             disabled={loading}
             aria-label="Member"
-            triggerClassName="bg-background"
+            triggerClassName="bg-background h-10 w-full font-normal"
           />
         </div>
 

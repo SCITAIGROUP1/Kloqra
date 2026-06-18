@@ -4,15 +4,19 @@ export function buildListQuery(params: {
   page?: number;
   limit?: number;
   search?: string;
-  filters?: Record<string, string | number | boolean | undefined | null>;
+  filters?: Record<string, string | string[] | number | boolean | undefined | null>;
 }) {
   const qs = new URLSearchParams();
   qs.set("page", String(params.page ?? 1));
   qs.set("limit", String(params.limit ?? MAX_LIST_LIMIT));
   if (params.search?.trim()) qs.set("search", params.search.trim());
   for (const [key, value] of Object.entries(params.filters ?? {})) {
-    if (value !== undefined && value !== null && value !== "") {
-      qs.set(key, String(value));
+    if (
+      value !== undefined &&
+      value !== null &&
+      (Array.isArray(value) ? value.length > 0 : value !== "")
+    ) {
+      qs.set(key, Array.isArray(value) ? value.join(",") : String(value));
     }
   }
   return qs.toString();
@@ -21,7 +25,7 @@ export function buildListQuery(params: {
 export function buildTableQuery(
   page: number,
   search?: string,
-  filters?: Record<string, string | undefined>,
+  filters?: Record<string, string | string[] | number | boolean | undefined | null>,
   limit?: number
 ) {
   return buildListQuery({ page, limit: limit ?? DEFAULT_TABLE_PAGE_SIZE, search, filters });

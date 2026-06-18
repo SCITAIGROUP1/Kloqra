@@ -7,13 +7,17 @@ const listCache = new Map<string, CacheEntry>();
 export function buildListCacheKey(
   path: string,
   workspaceId: string,
-  filters: Record<string, string | undefined> | undefined,
+  filters: Record<string, string | string[] | number | boolean | undefined | null> | undefined,
   limit: number
 ) {
   const filterKey = filters
     ? Object.keys(filters)
         .sort()
-        .map((key) => `${key}=${filters[key] ?? ""}`)
+        .map((key) => {
+          const val = filters[key];
+          const valStr = Array.isArray(val) ? val.join(",") : (val ?? "");
+          return `${key}=${valStr}`;
+        })
         .join("&")
     : "";
   return `${workspaceId}:${path}:${limit}:${filterKey}`;
