@@ -167,5 +167,11 @@ export const ROUTES = {
   },
   ASSISTANT: {
     CHAT: "/assistant/chat"
+  },
+  JIRA: {
+    MY_ISSUES: "/jira/my-issues",
+    CREDENTIALS: "/jira/credentials",
+    VERIFY: "/jira/verify",
+    VERIFY_USER: "/jira/verify-user"
   }
 } as const;

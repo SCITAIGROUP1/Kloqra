@@ -14,6 +14,7 @@ import { BillingModule } from "./modules/billing/billing.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { ExportModule } from "./modules/export/export.module";
 import { HealthModule } from "./modules/health/health.module";
+import { JiraModule } from "./modules/jira/jira.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PresenceModule } from "./modules/presence/presence.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
@@ -59,7 +60,8 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     PublicReportingModule,
     PresenceModule,
     ExportModule,
-    NotificationsModule
+    NotificationsModule,
+    JiraModule
   ],
   providers: [
     {

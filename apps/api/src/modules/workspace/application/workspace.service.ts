@@ -439,6 +439,11 @@ export class WorkspaceService {
     );
   }
 
+  async getById(id: string) {
+    const ws = await this.prisma.workspace.findUniqueOrThrow({ where: { id } });
+    return this.toWorkspaceDto(ws);
+  }
+
   async update(id: string, dto: { name?: string; settings?: any }) {
     const data: any = {};
     if (dto.name !== undefined) {

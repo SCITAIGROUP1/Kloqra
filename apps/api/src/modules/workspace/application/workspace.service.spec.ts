@@ -375,6 +375,25 @@ describe("WorkspaceService", () => {
     expect(mockPrisma.workspace.create).toHaveBeenCalled();
   });
 
+  it("getById returns workspace with settings", async () => {
+    mockPrisma.workspace.findUniqueOrThrow = vi.fn().mockResolvedValue({
+      id: "ws-1",
+      name: "Acme Corporation",
+      slug: "acme",
+      settings: {
+        jiraSiteUrl: "https://acme.atlassian.net",
+        jiraServiceEmail: "bot@acme.com",
+        jiraServiceToken: "ATATT3xtoken"
+      }
+    });
+
+    const result = await service.getById("ws-1");
+
+    expect(result.id).toBe("ws-1");
+    expect(result.name).toBe("Acme Corporation");
+    expect((result as any).settings.jiraSiteUrl).toBe("https://acme.atlassian.net");
+  });
+
   it("update rejects renaming to an existing workspace name", async () => {
     mockPrisma.workspace.findFirst.mockResolvedValue({
       id: "ws-other",

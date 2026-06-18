@@ -70,6 +70,7 @@ import {
   isTimeEntryLocked,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
+import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -117,6 +118,7 @@ export function TimesheetPage() {
           dateFormat: profile.effectiveDateFormat,
           timeFormat: profile.effectiveTimeFormat
         });
+        setJiraConnected(profile.jiraConnected ?? false);
       })
       .catch(() => {});
   }, [ws]);
@@ -136,6 +138,9 @@ export function TimesheetPage() {
     () => countActionableSubmissions(submissionNavItems),
     [submissionNavItems]
   );
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const { issues: jiraIssues } = useJiraIssues(jiraConnected);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
@@ -862,6 +867,7 @@ export function TimesheetPage() {
         onSave={saveEntry}
         onDelete={editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined}
         timezone={timezone}
+        jiraSuggestions={jiraIssues}
       />
 
       <ConfirmDialog

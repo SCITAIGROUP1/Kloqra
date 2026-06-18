@@ -1,18 +1,24 @@
 "use client";
 
+import { ROUTES } from "@kloqra/contracts";
 import { AppBar, Card, CardContent, SegmentedControl, Skeleton } from "@kloqra/ui";
 import Link from "next/link";
 import { useState } from "react";
+import { api } from "../../api/client";
+import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { IntegrationsSection } from "./profile/integrations-section";
 import { PersonalInfoSection } from "./profile/personal-info-section";
 import { ProfileHero } from "./profile/profile-hero";
 import { WorkDetailsSection } from "./profile/work-details-section";
 import { useUserProfile } from "./use-user-profile";
 
-type ProfileTab = "personal" | "work";
+type ProfileTab = "personal" | "work" | "integrations";
 
 export function ProfilePage() {
+  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [tab, setTab] = useState<ProfileTab>("personal");
-  const { profile, loading, error, updateProfile, workspaceRole, workspaceName } = useUserProfile();
+  const { profile, loading, error, updateProfile, setProfile, workspaceRole, workspaceName } =
+    useUserProfile();
 
   if (loading) {
     return (
@@ -63,7 +69,8 @@ export function ProfilePage() {
             onChange={setTab}
             options={[
               { value: "personal", label: "Personal Info" },
-              { value: "work", label: "Work Details" }
+              { value: "work", label: "Work Details" },
+              { value: "integrations", label: "Integrations" }
             ]}
             size="md"
             fullWidth
@@ -77,11 +84,27 @@ export function ProfilePage() {
               await updateProfile(data);
             }}
           />
-        ) : (
+        ) : tab === "work" ? (
           <WorkDetailsSection
             profile={profile}
             onSave={async (data) => {
               await updateProfile(data);
+            }}
+          />
+        ) : (
+          <IntegrationsSection
+            profile={profile}
+            onSave={async (data) => {
+              const updated = await api<typeof profile>(ROUTES.JIRA.CREDENTIALS, {
+                method: "PATCH",
+                workspaceId: ws,
+                body: JSON.stringify(data)
+              });
+              if (typeof updated === "object" && updated && "jiraEmail" in updated) {
+                setProfile({ ...profile, ...updated });
+              } else {
+                setProfile({ ...profile, jiraEmail: data.jiraEmail ?? null });
+              }
             }}
           />
         )}

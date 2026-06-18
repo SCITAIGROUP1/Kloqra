@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  jiraIssueSchema,
+  jiraIssuesResponseSchema,
+  updateJiraCredentialsSchema,
+  verifyWorkspaceJiraSchema,
+  verifyUserJiraSchema
+} from "./dto/jira.dto";
+import {
   assistantChatRequestSchema,
   assistantChatResponseSchema,
   changePasswordSchema,
@@ -657,5 +664,80 @@ describe("contracts", () => {
       links: [{ label: "Timer", href: "/timer" }]
     });
     expect(res.success).toBe(true);
+  });
+
+  it("exposes Jira routes", () => {
+    expect(ROUTES.JIRA.MY_ISSUES).toBe("/jira/my-issues");
+    expect(ROUTES.JIRA.CREDENTIALS).toBe("/jira/credentials");
+    expect(ROUTES.JIRA.VERIFY).toBe("/jira/verify");
+    expect(ROUTES.JIRA.VERIFY_USER).toBe("/jira/verify-user");
+  });
+
+  it("validates jiraIssueSchema", () => {
+    const r = jiraIssueSchema.safeParse({ key: "PROJ-1", summary: "Fix bug" });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates jiraIssuesResponseSchema with connected true", () => {
+    const r = jiraIssuesResponseSchema.safeParse({
+      connected: true,
+      issues: [{ key: "PROJ-1", summary: "Fix bug", statusCategory: "In Progress" }]
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates jiraIssuesResponseSchema with connected false and empty issues", () => {
+    const r = jiraIssuesResponseSchema.safeParse({ connected: false, issues: [] });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates updateJiraCredentialsSchema with email", () => {
+    const r = updateJiraCredentialsSchema.safeParse({ jiraEmail: "alice@acme.com" });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates updateJiraCredentialsSchema with null (unlink)", () => {
+    const r = updateJiraCredentialsSchema.safeParse({ jiraEmail: null });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects updateJiraCredentialsSchema with invalid email", () => {
+    const r = updateJiraCredentialsSchema.safeParse({ jiraEmail: "not-an-email" });
+    expect(r.success).toBe(false);
+  });
+
+  it("validates verifyWorkspaceJiraSchema", () => {
+    const r = verifyWorkspaceJiraSchema.safeParse({
+      jiraSiteUrl: "https://acme.atlassian.net",
+      jiraServiceEmail: "bot@acme.com",
+      jiraServiceToken: "ATATT3xtoken"
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates verifyWorkspaceJiraSchema without token (optional)", () => {
+    const r = verifyWorkspaceJiraSchema.safeParse({
+      jiraSiteUrl: "https://acme.atlassian.net",
+      jiraServiceEmail: "bot@acme.com"
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects verifyWorkspaceJiraSchema with invalid URL", () => {
+    const r = verifyWorkspaceJiraSchema.safeParse({
+      jiraSiteUrl: "not-a-url",
+      jiraServiceEmail: "bot@acme.com"
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("validates verifyUserJiraSchema", () => {
+    const r = verifyUserJiraSchema.safeParse({ jiraEmail: "alice@acme.com" });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects verifyUserJiraSchema with non-email", () => {
+    const r = verifyUserJiraSchema.safeParse({ jiraEmail: "not-an-email" });
+    expect(r.success).toBe(false);
   });
 });

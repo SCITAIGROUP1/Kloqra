@@ -45,6 +45,7 @@ model User {
   projectColors         UserProjectColor[]
   notifications         Notification[]
   exportJobs            ExportJob[]
+  jiraEmail             String?           @map("jira_email")
 
   @@map("users")
 }

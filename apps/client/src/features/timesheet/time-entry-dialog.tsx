@@ -4,7 +4,8 @@ import type {
   TimeLogDto,
   TaskDto,
   ProjectDto,
-  ListTimelogAuditEventsResponseDto
+  ListTimelogAuditEventsResponseDto,
+  JiraIssueDto
 } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
 import {
@@ -28,6 +29,7 @@ import {
   suggestBillableFromTask,
   taskSaveHint
 } from "./time-entry-draft";
+import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { api } from "@/lib/api";
 import { formatProjectLabel } from "@/lib/project-labels";
 
@@ -60,6 +62,7 @@ type TimeEntryDialogProps = {
   readOnly?: boolean;
   workspaceId?: string;
   timezone?: string;
+  jiraSuggestions?: JiraIssueDto[];
 };
 
 export function TimeEntryDialog({
@@ -79,7 +82,8 @@ export function TimeEntryDialog({
   onDelete,
   readOnly = false,
   workspaceId,
-  timezone = "UTC"
+  timezone = "UTC",
+  jiraSuggestions = []
 }: TimeEntryDialogProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
@@ -395,6 +399,12 @@ export function TimeEntryDialog({
               <p className="text-xs text-destructive">{parsedValidation.fieldErrors.description}</p>
             ) : null}
           </div>
+          {canEdit && (
+            <JiraIssuePicker
+              issues={jiraSuggestions}
+              onSelect={(value) => patch({ description: value })}
+            />
+          )}
           {readOnly && editingLog ? (
             <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
               This timesheet period is locked (submitted or approved). Entries cannot be edited or

@@ -18,7 +18,10 @@ export const workspaceSettingsSchema = z
     roundingMinutes: z.number().int().nonnegative().optional(),
     timezone: z.string().optional(),
     timerStaleWarningHours: z.number().positive().max(24).optional(),
-    currency: currencyCodeSchema.optional()
+    currency: currencyCodeSchema.optional(),
+    jiraSiteUrl: z.string().url().optional(),
+    jiraServiceEmail: z.string().email().optional(),
+    jiraServiceToken: z.string().max(500).optional()
   })
   .passthrough();
 

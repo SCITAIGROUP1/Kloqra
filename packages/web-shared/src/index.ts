@@ -111,6 +111,7 @@ export { VerifyEmailPageContent } from "./features/auth/verify-email-page-conten
 export { AccountSettingsPage } from "./features/account/account-settings-page";
 export { NotificationsPage } from "./features/notifications/notifications-page";
 export { ProfilePage } from "./features/account/profile-page";
+export { IntegrationsSection } from "./features/account/profile/integrations-section";
 export { useUserProfile } from "./features/account/use-user-profile";
 export { SettingsCard } from "./features/account/settings/settings-card";
 export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";

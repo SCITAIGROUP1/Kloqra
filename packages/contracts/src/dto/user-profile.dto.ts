@@ -33,7 +33,10 @@ export const userProfileSchema = z.object({
   effectiveTimeFormat: timeFormatPreferenceSchema,
   effectiveTheme: themePreferenceSchema,
   twoFactorEnabled: z.boolean(),
-  activityStats: userActivityStatsSchema
+  activityStats: userActivityStatsSchema,
+  jiraEmail: z.string().email().nullable().optional(),
+  jiraConnected: z.boolean().optional(),
+  workspaceJiraSiteUrl: z.string().url().nullable().optional()
 });
 
 export const updateUserProfileSchema = z

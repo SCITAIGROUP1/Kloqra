@@ -12,7 +12,7 @@ export function GlobalSearchShell({ workspaceId }: GlobalSearchShellProps) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "k") return;
+      if (event.key?.toLowerCase() !== "k") return;
       if (!event.metaKey && !event.ctrlKey) return;
       const target = event.target;
       if (

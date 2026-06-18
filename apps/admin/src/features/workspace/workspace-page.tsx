@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   Input,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -68,6 +69,13 @@ export function WorkspacePage() {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
 
+  const [jiraSiteUrl, setJiraSiteUrl] = useState("");
+  const [jiraServiceEmail, setJiraServiceEmail] = useState("");
+  const [jiraServiceToken, setJiraServiceToken] = useState("");
+  const [jiraLoading, setJiraLoading] = useState(false);
+  const [jiraError, setJiraError] = useState<string | null>(null);
+  const [jiraSuccess, setJiraSuccess] = useState<string | null>(null);
+
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [createFieldErrors, setCreateFieldErrors] = useState<{ name?: string }>({});
   const [createLoading, setCreateLoading] = useState(false);
@@ -85,21 +93,20 @@ export function WorkspacePage() {
   useEffect(() => {
     if (!ws) return;
 
-    api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: ws })
-      .then((list) => {
-        const currentWs = list.find((w) => w.id === ws);
-        if (currentWs) {
-          setWorkspaceName(currentWs.name || "");
-          const settings = currentWs.settings || {};
-          setWeekStart(settings.weekStart || "monday");
-          setTimesheetApprovalPeriod(settings.timesheetApprovalPeriod || "weekly");
-          setExpectedWeeklyHours(settings.expectedWeeklyHours || 40);
-          setDailyTargetHours(settings.dailyTargetHours || 8);
-          setRoundingMinutes(settings.roundingMinutes || 0);
-          setTimezone(
-            settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-          );
-        }
+    api<{ id: string; name: string; settings?: Record<string, any> }>(ROUTES.WORKSPACES.BY_ID(ws), {
+      workspaceId: ws
+    })
+      .then((currentWs) => {
+        setWorkspaceName(currentWs.name || "");
+        const settings = currentWs.settings || {};
+        setWeekStart(settings.weekStart || "monday");
+        setTimesheetApprovalPeriod(settings.timesheetApprovalPeriod || "weekly");
+        setExpectedWeeklyHours(settings.expectedWeeklyHours || 40);
+        setDailyTargetHours(settings.dailyTargetHours || 8);
+        setRoundingMinutes(settings.roundingMinutes || 0);
+        setTimezone(settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+        setJiraSiteUrl(settings.jiraSiteUrl || "");
+        setJiraServiceEmail(settings.jiraServiceEmail || "");
       })
       .catch(() => {});
   }, [ws]);
@@ -195,6 +202,94 @@ export function WorkspacePage() {
       toast.error(message);
     } finally {
       setCreateLoading(false);
+    }
+  }
+
+  function extractAtlassianOrigin(url: string): string {
+    try {
+      return new URL(url.trim()).origin;
+    } catch {
+      return url.trim();
+    }
+  }
+
+  async function saveJiraSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setJiraLoading(true);
+    setJiraError(null);
+    setJiraSuccess(null);
+
+    const siteUrl = extractAtlassianOrigin(jiraSiteUrl);
+    const serviceEmail = jiraServiceEmail.trim();
+    const token = jiraServiceToken.trim();
+
+    try {
+      const verifyBody: Record<string, string> = {
+        jiraSiteUrl: siteUrl,
+        jiraServiceEmail: serviceEmail
+      };
+      if (token) verifyBody.jiraServiceToken = token;
+
+      const verifyRes = await api<{ ok: boolean; displayName?: string }>(ROUTES.JIRA.VERIFY, {
+        method: "POST",
+        workspaceId: ws,
+        body: JSON.stringify(verifyBody)
+      });
+
+      if (!verifyRes.ok) {
+        throw new Error("Jira verification failed — please check your credentials");
+      }
+
+      const settingsUpdate: Record<string, string | null> = {
+        jiraSiteUrl: siteUrl || null,
+        jiraServiceEmail: serviceEmail || null
+      };
+      if (token) settingsUpdate.jiraServiceToken = token;
+
+      await api(ROUTES.WORKSPACES.BY_ID(ws), {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify({ settings: settingsUpdate })
+      });
+
+      const name = verifyRes.displayName ? ` as ${verifyRes.displayName}` : "";
+      setJiraSuccess(`Connected successfully${name}. Settings saved.`);
+      setJiraServiceToken("");
+      toast.success("Jira workspace connection verified and saved.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to connect to Jira";
+      setJiraError(message);
+    } finally {
+      setJiraLoading(false);
+    }
+  }
+
+  async function deleteJiraSettings() {
+    if (
+      !window.confirm(
+        "Remove the Jira integration? This will disconnect all members from Jira until reconfigured."
+      )
+    )
+      return;
+    setJiraLoading(true);
+    setJiraError(null);
+    setJiraSuccess(null);
+    try {
+      await api(ROUTES.WORKSPACES.BY_ID(ws), {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify({
+          settings: { jiraSiteUrl: null, jiraServiceEmail: null, jiraServiceToken: null }
+        })
+      });
+      setJiraSiteUrl("");
+      setJiraServiceEmail("");
+      setJiraServiceToken("");
+      toast.success("Jira integration removed.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove Jira integration");
+    } finally {
+      setJiraLoading(false);
     }
   }
 
@@ -364,6 +459,121 @@ export function WorkspacePage() {
               <Button type="submit" disabled={settingsLoading} className="min-w-[160px]">
                 {settingsLoading ? "Saving settings…" : "Save settings"}
               </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Jira Integration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Jira Integration</CardTitle>
+          <CardDescription>
+            Connect your Atlassian Jira workspace so members can see their assigned issues when
+            logging time.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Connected summary — shown when workspace Jira is already configured */}
+          {jiraSiteUrl && jiraServiceEmail && !jiraError && (
+            <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-800 dark:bg-green-950/30">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
+                Currently Configured
+              </p>
+              <dl className="space-y-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <dt className="w-32 shrink-0 text-muted-foreground">Site URL</dt>
+                  <dd className="font-mono font-medium break-all">{jiraSiteUrl}</dd>
+                </div>
+                <div className="flex items-center gap-2">
+                  <dt className="w-32 shrink-0 text-muted-foreground">Service Email</dt>
+                  <dd className="font-mono font-medium">{jiraServiceEmail}</dd>
+                </div>
+                <div className="flex items-center gap-2">
+                  <dt className="w-32 shrink-0 text-muted-foreground">API Token</dt>
+                  <dd className="text-muted-foreground italic">saved (hidden)</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          <form onSubmit={(e) => void saveJiraSettings(e)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="jira-site-url">Jira Site URL</Label>
+              <Input
+                id="jira-site-url"
+                type="url"
+                placeholder="https://your-company.atlassian.net"
+                value={jiraSiteUrl}
+                onChange={(e) => setJiraSiteUrl(e.target.value)}
+                onBlur={(e) => setJiraSiteUrl(extractAtlassianOrigin(e.target.value))}
+                disabled={jiraLoading}
+              />
+              {(() => {
+                const cleaned = extractAtlassianOrigin(jiraSiteUrl);
+                return cleaned && cleaned !== jiraSiteUrl.trim() ? (
+                  <p className="text-xs text-muted-foreground">
+                    Will save as: <span className="font-mono font-medium">{cleaned}</span>
+                  </p>
+                ) : null;
+              })()}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jira-service-email">Service Account Email</Label>
+              <Input
+                id="jira-service-email"
+                type="email"
+                placeholder="jira-service@company.com"
+                value={jiraServiceEmail}
+                onChange={(e) => setJiraServiceEmail(e.target.value)}
+                disabled={jiraLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jira-service-token">
+                API Token{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  (leave blank to keep existing)
+                </span>
+              </Label>
+              <Input
+                id="jira-service-token"
+                type="password"
+                placeholder="ATATT3x…"
+                value={jiraServiceToken}
+                onChange={(e) => setJiraServiceToken(e.target.value)}
+                disabled={jiraLoading}
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                Generate at{" "}
+                <span className="font-mono">id.atlassian.com → Security → API tokens</span>
+              </p>
+            </div>
+
+            {jiraError && <p className="text-sm text-destructive">{jiraError}</p>}
+            {jiraSuccess && (
+              <p className="text-sm text-green-600 dark:text-green-400">{jiraSuccess}</p>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                type="submit"
+                disabled={jiraLoading || !jiraSiteUrl.trim() || !jiraServiceEmail.trim()}
+              >
+                {jiraLoading ? "Verifying…" : "Verify & Save"}
+              </Button>
+              {(jiraSiteUrl || jiraServiceEmail) && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={jiraLoading}
+                  onClick={() => void deleteJiraSettings()}
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  Remove Integration
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>

@@ -136,6 +136,13 @@ export class WorkspaceController {
   }
 
   @Roles("ADMIN")
+  @Get(ROUTES.WORKSPACES.BY_ID(":id"))
+  getById(@Param("id") id: string, @CurrentUser() user: RequestUser) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.getById(id);
+  }
+
+  @Roles("ADMIN")
   @Patch(ROUTES.WORKSPACES.BY_ID(":id"))
   update(
     @Param("id") id: string,

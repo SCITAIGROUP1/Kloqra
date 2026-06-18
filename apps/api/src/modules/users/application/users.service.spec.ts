@@ -235,4 +235,59 @@ describe("UsersService", () => {
     );
     expect(result.layout).toEqual(layout);
   });
+
+  it("sets jiraConnected true when user has jiraEmail and workspace has jira credentials", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
+      ...baseUser,
+      jiraEmail: "alice@acme.com"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      settings: {
+        jiraSiteUrl: "https://acme.atlassian.net",
+        jiraServiceEmail: "bot@acme.com",
+        jiraServiceToken: "ATATT3xtoken"
+      }
+    });
+
+    const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
+
+    expect(profile.jiraEmail).toBe("alice@acme.com");
+    expect(profile.jiraConnected).toBe(true);
+    expect(profile.workspaceJiraSiteUrl).toBe("https://acme.atlassian.net");
+  });
+
+  it("sets jiraConnected false when workspace has no jira token", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
+      ...baseUser,
+      jiraEmail: "alice@acme.com"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      settings: { jiraSiteUrl: "https://acme.atlassian.net" }
+    });
+
+    const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
+
+    expect(profile.jiraConnected).toBe(false);
+  });
+
+  it("sets jiraConnected false when user has no jiraEmail", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
+      ...baseUser,
+      jiraEmail: null
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      settings: {
+        jiraSiteUrl: "https://acme.atlassian.net",
+        jiraServiceToken: "ATATT3xtoken"
+      }
+    });
+
+    const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
+
+    expect(profile.jiraConnected).toBe(false);
+    expect(profile.jiraEmail).toBeNull();
+  });
 });
