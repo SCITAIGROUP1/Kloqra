@@ -56,6 +56,8 @@
   --shell-compact-min: 960px;
   --shell-compact-max: 1100px;
   --shell-comfortable-min: 1100px;
+  --scrollbar-thumb: color-mix(in oklch, var(--muted-foreground) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--muted-foreground) 48%, transparent);
 }
 
 .dark {
@@ -101,6 +103,8 @@
   --status-danger-bg: color-mix(in oklch, var(--destructive) 12%, transparent);
   --status-danger-fg: oklch(0.82 0.1 25);
   --status-danger-border: color-mix(in oklch, var(--destructive) 28%, transparent);
+  --scrollbar-thumb: color-mix(in oklch, var(--muted-foreground) 38%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--muted-foreground) 58%, transparent);
 }
 
 @theme inline {
@@ -163,26 +167,6 @@
 @layer base {
   * {
     @apply border-border;
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent) transparent;
-  }
-
-  *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  *::-webkit-scrollbar-thumb {
-    border-radius: 9999px;
-    background-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
-  }
-
-  *::-webkit-scrollbar-track {
-    background: transparent;
   }
 
   body {
@@ -248,6 +232,82 @@
 }
 
 @layer utilities {
+  /*
+   * Overlay-style scrollbars: hidden thumb on Windows until the scroll area is
+   * hovered or contains the pointer (macOS keeps native overlay scrollbars).
+   */
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .overflow-auto {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .overflow-y-auto:hover,
+  .overflow-x-auto:hover,
+  .overflow-auto:hover,
+  .overflow-y-auto:has(:hover),
+  .overflow-x-auto:has(:hover),
+  .overflow-auto:has(:hover),
+  .overflow-y-auto:focus-within,
+  .overflow-x-auto:focus-within,
+  .overflow-auto:focus-within {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar,
+  .overflow-auto::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track,
+  .overflow-x-auto::-webkit-scrollbar-track,
+  .overflow-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb,
+  .overflow-x-auto::-webkit-scrollbar-thumb,
+  .overflow-auto::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: transparent;
+    transition: background-color var(--motion-fast) var(--motion-ease-out);
+  }
+
+  .overflow-y-auto:hover::-webkit-scrollbar-thumb,
+  .overflow-x-auto:hover::-webkit-scrollbar-thumb,
+  .overflow-auto:hover::-webkit-scrollbar-thumb,
+  .overflow-y-auto:has(:hover)::-webkit-scrollbar-thumb,
+  .overflow-x-auto:has(:hover)::-webkit-scrollbar-thumb,
+  .overflow-auto:has(:hover)::-webkit-scrollbar-thumb,
+  .overflow-y-auto:focus-within::-webkit-scrollbar-thumb,
+  .overflow-x-auto:focus-within::-webkit-scrollbar-thumb,
+  .overflow-auto:focus-within::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover,
+  .overflow-x-auto::-webkit-scrollbar-thumb:hover,
+  .overflow-auto::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  @media (hover: none) {
+    .overflow-y-auto,
+    .overflow-x-auto,
+    .overflow-auto {
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb,
+    .overflow-x-auto::-webkit-scrollbar-thumb,
+    .overflow-auto::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
+    }
+  }
+
   .animate-fade-in-up {
     animation: fade-in-up var(--motion-base) var(--motion-ease-out) forwards;
   }

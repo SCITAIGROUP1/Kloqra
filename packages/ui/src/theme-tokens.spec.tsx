@@ -64,4 +64,10 @@ describe("theme tokens", () => {
     expect(accent).toBeTruthy();
     expect(new Set([muted, secondary, accent]).size).toBe(3);
   });
+
+  it("uses overlay scrollbars on overflow containers", () => {
+    expect(css).toContain("--scrollbar-thumb:");
+    expect(css).toContain(".overflow-y-auto:has(:hover)");
+    expect(css).toContain("scrollbar-color: transparent transparent");
+  });
 });
