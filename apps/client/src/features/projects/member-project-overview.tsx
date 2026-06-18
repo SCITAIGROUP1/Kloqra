@@ -70,7 +70,9 @@ export function MemberProjectOverview() {
       <div className="rounded-xl border border-border/70 bg-card p-5 shadow-sm">
         <MemberProjectColorPicker
           value={displayColor}
-          onChange={isImpersonating ? undefined : (color) => void saveColor(color)}
+          onChange={(color) => {
+            if (!isImpersonating) void saveColor(color);
+          }}
           colors={PROJECT_COLORS}
           onClear={!isImpersonating && project.myColor ? () => void clearColor() : undefined}
           disabled={isImpersonating || savingColor}

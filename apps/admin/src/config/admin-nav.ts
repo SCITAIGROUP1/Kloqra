@@ -4,6 +4,7 @@ import {
   Bell,
   Building2,
   ClipboardCheck,
+  Clock,
   CreditCard,
   Download,
   FolderKanban,
@@ -40,6 +41,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     label: "Approvals",
     Icon: ClipboardCheck,
     keywords: ["timesheets", "submissions"]
+  },
+  {
+    href: "/time-tracker",
+    label: "Time Tracker",
+    Icon: Clock,
+    keywords: ["timelogs", "tracker", "hours"]
   },
   { href: "/notifications", label: "Notifications", Icon: Bell },
   { href: "/billing", label: "Billing", Icon: CreditCard, keywords: ["rates", "hourly"] },

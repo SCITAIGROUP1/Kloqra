@@ -1,16 +1,12 @@
 "use client";
 
 import type { ProjectDto, TaskDto, TimeLogDto } from "@kloqra/contracts";
-import {
-  ProjectColorDot,
-  TableCell,
-  TableRow
-} from "@kloqra/ui";
+import { ProjectColorDot, TableCell, TableRow } from "@kloqra/ui";
+import { toDateKeyInZone } from "./calendar-utils";
 import { formatEntryShortDate } from "./display-format";
 import { resolveEntryApprovalStatus } from "./entry-approval-status";
 import { formatHoursCompact } from "./group-logs-by-week";
 import { TimeTrackerEntryStatus } from "./time-tracker-entry-status";
-import { toDateKeyInZone } from "./calendar-utils";
 
 type AdminTimeTrackerEntryRowProps = {
   log: TimeLogDto;
