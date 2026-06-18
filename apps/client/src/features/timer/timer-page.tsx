@@ -22,7 +22,7 @@ import {
   SearchableSelect,
   EmptyState
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { fetchListItems, useRefetchOnWindowFocus } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
@@ -212,6 +212,20 @@ export function TimerPage() {
       fetchTodayLogs()
     ]);
   }, [ws, setProjects, setTasks, fetchActiveTimer, fetchTodayLogs]);
+
+  const reloadCatalog = useCallback(() => {
+    if (!ws) return;
+    void Promise.all([
+      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws, bypassCache: true }).then(
+        setProjects
+      ),
+      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
+        setTasks
+      )
+    ]);
+  }, [ws, setProjects, setTasks]);
+
+  useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
 
   // Handle active status ticks
   useEffect(() => {

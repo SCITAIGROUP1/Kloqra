@@ -10,6 +10,8 @@ type UsePaginatedListOptions = {
   basePath: string;
   filters?: Record<string, string | undefined>;
   debounceMs?: number;
+  /** Refetch when the user returns to this browser tab. */
+  refreshOnFocus?: boolean;
 };
 
 export function usePaginatedList<T>({
@@ -17,7 +19,8 @@ export function usePaginatedList<T>({
   workspaceId,
   basePath,
   filters,
-  debounceMs = 300
+  debounceMs = 300,
+  refreshOnFocus = false
 }: UsePaginatedListOptions) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
@@ -79,6 +82,24 @@ export function usePaginatedList<T>({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (!refreshOnFocus || !enabled || !workspaceId || typeof window === "undefined") return;
+
+    const run = () => {
+      void reload();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") run();
+    };
+
+    window.addEventListener("focus", run);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", run);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [refreshOnFocus, enabled, workspaceId, reload]);
 
   return {
     items,

@@ -1,6 +1,13 @@
 import type { PaginatedResponse } from "@kloqra/contracts";
-import { describe, expect, it } from "vitest";
-import { normalizePaginatedListResponse } from "./fetch-list-items";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchListItems, normalizePaginatedListResponse } from "./fetch-list-items";
+import { buildListCacheKey, setCachedListItems } from "./list-items-cache";
+
+const api = vi.fn();
+
+vi.mock("./client", () => ({
+  api: (...args: unknown[]) => api(...args)
+}));
 
 describe("normalizePaginatedListResponse", () => {
   it("unwraps legacy array list responses", () => {
@@ -31,5 +38,32 @@ describe("normalizePaginatedListResponse", () => {
     }>;
     const normalized = normalizePaginatedListResponse(malformed, 1, 20);
     expect(normalized.items).toEqual([]);
+  });
+});
+
+describe("fetchListItems", () => {
+  beforeEach(() => {
+    api.mockReset();
+  });
+
+  it("bypasses cached list responses when requested", async () => {
+    const cacheKey = buildListCacheKey("/tasks", "ws-1", { projectId: "p-1" }, 100);
+    setCachedListItems(cacheKey, [{ id: "stale" }]);
+    api.mockResolvedValue({
+      items: [{ id: "fresh" }],
+      page: 1,
+      limit: 100,
+      total: 1,
+      totalPages: 1
+    });
+
+    const items = await fetchListItems<{ id: string }>("/tasks", {
+      workspaceId: "ws-1",
+      filters: { projectId: "p-1" },
+      bypassCache: true
+    });
+
+    expect(items).toEqual([{ id: "fresh" }]);
+    expect(api).toHaveBeenCalledTimes(1);
   });
 });

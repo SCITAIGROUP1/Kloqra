@@ -209,7 +209,7 @@ export function ExportScopeFilters({
             export.
           </p>
 
-          <div className="grid gap-4 @min-[960px]/shell:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2">
             <div className="space-y-2">
               <Label>Projects</Label>
               <SearchableMultiSelect
@@ -253,7 +253,7 @@ export function ExportScopeFilters({
           </div>
 
           {moreOpen ? (
-            <div className="grid gap-4 @min-[960px]/shell:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2">
               <div className="space-y-2">
                 <Label>Category</Label>
                 <SearchableSelect

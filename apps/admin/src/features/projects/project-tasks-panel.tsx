@@ -84,7 +84,8 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
       const [taskList, categoryList, team] = await Promise.all([
         fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
           workspaceId,
-          filters: { projectId }
+          filters: { projectId },
+          bypassCache: true
         }),
         fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId }),
         fetchProjectTeam(projectId, { workspaceId })

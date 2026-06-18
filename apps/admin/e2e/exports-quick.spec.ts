@@ -43,6 +43,8 @@ test.describe("exports quick flow", () => {
     await page.goto("/exports");
     await page.getByRole("button", { name: "Custom export" }).click();
     await expect(page.getByText("Period & filters")).toBeVisible();
+    await expect(page.getByText("Review & download")).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     const overflow = await page.evaluate(() => {
       const doc = document.documentElement;

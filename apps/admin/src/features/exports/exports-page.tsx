@@ -166,7 +166,7 @@ export function ExportsPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <AppBar
         title="Exports"
         description={

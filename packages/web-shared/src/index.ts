@@ -40,6 +40,7 @@ export type {
 export {
   fetchListItems,
   fetchPaginatedList,
+  invalidateListItemsCache,
   normalizePaginatedListResponse
 } from "./api/fetch-list-items";
 export { coerceListItems } from "./utils/coerce-list-items";
@@ -71,6 +72,7 @@ export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
 export { usePaginatedList } from "./hooks/use-paginated-list";
+export { useRefetchOnWindowFocus } from "./hooks/use-refetch-on-window-focus";
 export {
   formatNotificationTimeAgo,
   markAllNotificationsRead,

@@ -56,7 +56,8 @@ export function TasksPage() {
   } = usePaginatedList<TaskDto>({
     workspaceId: ws,
     basePath: ROUTES.TASKS.LIST,
-    filters: taskFilters
+    filters: taskFilters,
+    refreshOnFocus: true
   });
 
   const projectsById = useMemo(() => {

@@ -20,7 +20,7 @@ export function ExportSamplePreview({ sampleRows }: Props) {
   const columnCount = sample.columns.length;
 
   return (
-    <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
+    <div className="mt-3 min-w-0 max-w-full space-y-2 border-t border-border/60 pt-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-medium text-muted-foreground">{contextLabel}</p>
         <p className="text-[10px] text-muted-foreground text-right">

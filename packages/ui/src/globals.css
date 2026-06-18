@@ -189,7 +189,6 @@ html::-webkit-scrollbar {
 
   body {
     @apply bg-background text-foreground;
-    overflow: hidden;
   }
   h1,
   h2,

@@ -5,30 +5,21 @@ import {
   type PaginatedResponse
 } from "@kloqra/contracts";
 import { api } from "./client";
+import {
+  buildListCacheKey,
+  getCachedListItems,
+  invalidateListItemsCache,
+  setCachedListItems
+} from "./list-items-cache";
 import { appendListQuery, buildListQuery } from "./list-query";
 
 type ListApiResponse<T> = T[] | PaginatedResponse<T>;
 
-const LIST_CACHE_TTL_MS = 30_000;
-const listCache = new Map<string, { expiresAt: number; items: unknown[] }>();
+export { invalidateListItemsCache } from "./list-items-cache";
 
-function buildListCacheKey(
-  path: string,
-  workspaceId: string,
-  filters: Record<string, string | undefined> | undefined,
-  limit: number
-) {
-  const filterKey = filters
-    ? Object.keys(filters)
-        .sort()
-        .map((key) => `${key}=${filters[key] ?? ""}`)
-        .join("&")
-    : "";
-  return `${workspaceId}:${path}:${limit}:${filterKey}`;
-}
-
+/** @deprecated Use invalidateListItemsCache() */
 export function clearListItemsCache() {
-  listCache.clear();
+  invalidateListItemsCache();
 }
 
 export function normalizePaginatedListResponse<T>(
@@ -57,13 +48,15 @@ export async function fetchListItems<T>(
     workspaceId: string;
     filters?: Record<string, string | undefined>;
     limit?: number;
+    bypassCache?: boolean;
   }
 ): Promise<T[]> {
   const limit = options.limit ?? DEFAULT_DROPDOWN_LIST_LIMIT;
   const cacheKey = buildListCacheKey(path, options.workspaceId, options.filters, limit);
-  const cached = listCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.items as T[];
+
+  if (!options.bypassCache) {
+    const cached = getCachedListItems(cacheKey);
+    if (cached) return cached as T[];
   }
 
   const query = buildListQuery({
@@ -75,7 +68,7 @@ export async function fetchListItems<T>(
     workspaceId: options.workspaceId
   });
   const items = normalizePaginatedListResponse(res, 1, limit).items;
-  listCache.set(cacheKey, { items, expiresAt: Date.now() + LIST_CACHE_TTL_MS });
+  setCachedListItems(cacheKey, items);
   return items;
 }
 

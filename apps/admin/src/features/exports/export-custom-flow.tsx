@@ -400,7 +400,7 @@ export function ExportCustomFlow({
 
   return (
     <>
-      <div className="grid gap-8 @min-[1280px]/shell:grid-cols-12">
+      <div className="grid min-w-0 gap-8 @min-[1280px]/shell:grid-cols-12">
         <div className="order-2 min-w-0 space-y-6 @min-[1280px]/shell:order-1 @min-[1280px]/shell:col-span-8">
           <Card>
             <CardHeader className="pb-4">

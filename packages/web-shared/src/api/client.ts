@@ -3,6 +3,7 @@ import { tryRefreshSession } from "../auth/refresh-session";
 import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
+import { invalidateListItemsCache } from "./list-items-cache";
 
 export { getApiBase } from "./base";
 
@@ -207,6 +208,10 @@ async function executeApiRequest<T>(
       handleSessionFailure(message);
     }
     throw new Error(message);
+  }
+
+  if (method !== "GET" && method !== "HEAD") {
+    invalidateListItemsCache(ws ? { workspaceId: ws } : undefined);
   }
 
   const ct = res.headers.get("content-type");

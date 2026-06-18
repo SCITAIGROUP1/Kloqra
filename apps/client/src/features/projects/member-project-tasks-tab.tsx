@@ -36,7 +36,8 @@ export function MemberProjectTasksTab() {
   } = usePaginatedList<TaskDto>({
     workspaceId,
     basePath: ROUTES.TASKS.LIST,
-    filters
+    filters,
+    refreshOnFocus: true
   });
 
   const grouped = useMemo(() => {
