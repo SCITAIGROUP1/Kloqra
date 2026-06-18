@@ -2,7 +2,6 @@
 
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import {
-  Button,
   Card,
   CardContent,
   EmptyState,
@@ -10,7 +9,8 @@ import {
   TableBody,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  TablePagination
 } from "@kloqra/ui";
 import { CalendarDays, Loader2 } from "lucide-react";
 import type { WeekLogGroup } from "./group-logs-by-week";
@@ -30,10 +30,13 @@ export type TimeTrackerWeekListProps = {
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
   loading?: boolean;
-  loadingMore?: boolean;
-  hasMore?: boolean;
-  fullyLoaded?: boolean;
-  onLoadMore?: () => void;
+  page: number;
+  limit: number;
+  onLimitChange: (limit: number) => void;
+  hasNext: boolean;
+  hasPrev: boolean;
+  onPageChange: (page: number) => void;
+  logsLength: number;
   readOnly?: boolean;
 };
 
@@ -65,10 +68,12 @@ export function TimeTrackerWeekList({
   onDelete,
   timezone,
   loading = false,
-  loadingMore = false,
-  hasMore = false,
-  fullyLoaded = true,
-  onLoadMore,
+  page,
+  limit,
+  onLimitChange,
+  hasNext,
+  onPageChange,
+  logsLength,
   readOnly = false
 }: TimeTrackerWeekListProps) {
   const taskById = new Map(tasks.map((t) => [t.id, t]));
@@ -168,22 +173,17 @@ export function TimeTrackerWeekList({
         </Card>
       ))}
 
-      <div className="flex flex-col items-center gap-2 py-2">
-        {loadingMore ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading more entries…
-          </p>
-        ) : null}
-        {!fullyLoaded && hasMore && onLoadMore ? (
-          <Button type="button" variant="outline" size="sm" onClick={onLoadMore}>
-            Load more
-          </Button>
-        ) : null}
-        {fullyLoaded && groups.length > 0 ? (
-          <p className="text-xs text-muted-foreground">All entries loaded for this period.</p>
-        ) : null}
-      </div>
+      {groups.length > 0 && (
+        <TablePagination
+          page={page}
+          totalPages={hasNext ? page + 1 : page}
+          total={hasNext ? page * limit + 1 : (page - 1) * limit + logsLength}
+          limit={limit}
+          onPageChange={onPageChange}
+          onLimitChange={onLimitChange}
+          disabled={loading}
+        />
+      )}
     </div>
   );
 }

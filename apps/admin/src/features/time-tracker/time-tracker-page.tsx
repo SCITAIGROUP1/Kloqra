@@ -133,11 +133,14 @@ export function AdminTimeTrackerPage() {
   const {
     logs,
     loading: logsLoading,
-    loadingMore,
-    hasMore,
-    fullyLoaded,
-    error: logsError,
-    loadMore
+    page,
+    limit,
+    setLimit,
+    hasNext,
+    hasPrev,
+    nextPage,
+    prevPage,
+    error: logsError
   } = useTimeTrackerLogs(ws, serverFilters);
 
   useEffect(() => {
@@ -276,10 +279,16 @@ export function AdminTimeTrackerPage() {
         memberMap={memberMap}
         timezone={timezone}
         loading={logsLoading || filtersPending}
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        fullyLoaded={fullyLoaded}
-        onLoadMore={() => void loadMore()}
+        page={page}
+        limit={limit}
+        onLimitChange={setLimit}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        onPageChange={(target) => {
+          if (target > page) nextPage();
+          else if (target < page) prevPage();
+        }}
+        logsLength={logs.length}
       />
     </div>
   );

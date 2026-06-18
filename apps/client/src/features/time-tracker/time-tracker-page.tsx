@@ -147,11 +147,14 @@ export function TimeTrackerPage() {
   const {
     logs,
     loading: logsLoading,
-    loadingMore,
-    hasMore,
-    fullyLoaded,
+    page,
+    limit,
+    setLimit,
+    hasNext,
+    hasPrev,
+    nextPage,
+    prevPage,
     error: logsError,
-    loadMore,
     refresh: refreshLogs
   } = useTimeTrackerLogs(ws, serverFilters);
 
@@ -386,7 +389,7 @@ export function TimeTrackerPage() {
         readOnly={isImpersonating}
       />
 
-      <TimeTrackerStatCards stats={stats} loading={logsLoading || loadingMore || filtersPending} />
+      <TimeTrackerStatCards stats={stats} loading={logsLoading || filtersPending} />
 
       {pageError && !dialogOpen ? <p className="text-sm text-destructive">{pageError}</p> : null}
 
@@ -402,10 +405,16 @@ export function TimeTrackerPage() {
         onDelete={deleteEntry}
         timezone={timezone}
         loading={logsLoading || filtersPending}
-        loadingMore={loadingMore}
-        hasMore={hasMore}
-        fullyLoaded={fullyLoaded}
-        onLoadMore={() => void loadMore()}
+        page={page}
+        limit={limit}
+        onLimitChange={setLimit}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        onPageChange={(target) => {
+          if (target > page) nextPage();
+          else if (target < page) prevPage();
+        }}
+        logsLength={logs.length}
         readOnly={isImpersonating}
       />
 
