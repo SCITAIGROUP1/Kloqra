@@ -80,11 +80,19 @@ test.describe("Client dashboard", () => {
       .getByRole("heading", { name: "Team Activities" })
       .locator("..")
       .locator("..");
-    await expect(widget.getByText("Member", { exact: true })).toBeVisible();
-    await expect(widget.getByText("Latest activity", { exact: true })).toBeVisible();
-    await expect(widget.getByText("Duration", { exact: true })).toBeVisible();
-    await expect(widget.getByText("Time since", { exact: true })).toBeVisible();
-    await expect(widget.getByText("This week", { exact: true })).toBeVisible();
-    await expect(widget.getByText("Hours by day", { exact: true })).toBeVisible();
+    await expect(widget.getByRole("columnheader", { name: "Member", exact: true })).toBeVisible();
+    await expect(
+      widget.getByRole("columnheader", { name: "Latest activity", exact: true })
+    ).toBeVisible();
+    await expect(widget.getByRole("columnheader", { name: "Duration", exact: true })).toBeVisible();
+    await expect(
+      widget.getByRole("columnheader", { name: "Time since", exact: true })
+    ).toBeVisible();
+    await expect(
+      widget.getByRole("columnheader", { name: "This week", exact: true })
+    ).toBeVisible();
+    await expect(
+      widget.getByRole("columnheader", { name: "Hours by day", exact: true })
+    ).toBeVisible();
   });
 });
