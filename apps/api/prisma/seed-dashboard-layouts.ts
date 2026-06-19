@@ -9,8 +9,8 @@ import {
 export const SEED_CLIENT_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
   { i: "stat_total_hours_today", x: 0, y: 0, w: 3, h: 2, visible: true },
   { i: "stat_total_hours", x: 3, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_billable", x: 6, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_projects", x: 9, y: 0, w: 3, h: 2, visible: true },
+  { i: "stat_billable", x: 9, y: 0, w: 3, h: 2, visible: false },
+  { i: "stat_projects", x: 6, y: 0, w: 3, h: 2, visible: true },
   { i: "weekly_progress", x: 0, y: 6, w: 8, h: 4, visible: true },
   { i: "project_split", x: 8, y: 2, w: 4, h: 4, visible: true },
   { i: "category_split", x: 8, y: 10, w: 4, h: 4, visible: true },

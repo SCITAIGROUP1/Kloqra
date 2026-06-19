@@ -74,7 +74,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     defaultSize: { w: 4, h: 2 },
     minSize: { w: 3, h: 2 },
     maxSize: { w: 6, h: 2 },
-    defaultVisible: true,
+    defaultVisible: false,
     iconName: "DollarSign"
   },
   {
@@ -200,8 +200,8 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
 export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
   { i: "stat_total_hours_today", x: 0, y: 0, w: 3, h: 2, visible: true },
   { i: "stat_total_hours", x: 3, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_billable", x: 6, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_projects", x: 9, y: 0, w: 3, h: 2, visible: true },
+  { i: "stat_billable", x: 9, y: 0, w: 3, h: 2, visible: false },
+  { i: "stat_projects", x: 6, y: 0, w: 3, h: 2, visible: true },
   { i: "weekly_progress", x: 0, y: 6, w: 8, h: 4, visible: true },
   { i: "project_split", x: 5, y: 2, w: 7, h: 4, visible: true },
   { i: "category_split", x: 8, y: 10, w: 4, h: 4, visible: true },
