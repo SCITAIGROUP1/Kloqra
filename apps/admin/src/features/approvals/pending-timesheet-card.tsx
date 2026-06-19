@@ -45,7 +45,8 @@ function periodHeading(t: PendingTimesheetDto) {
 
 function PendingActivity({
   item,
-  workspaceId
+  workspaceId,
+  timezone
 }: {
   item: Pick<
     PendingTimesheetDto,
