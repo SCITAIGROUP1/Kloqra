@@ -30,6 +30,43 @@ vi.mock("../../change-password-section", () => ({
   ChangePasswordSection: () => <div>Change password form</div>
 }));
 
+vi.mock("react-qr-code", () => ({
+  default: () => <div data-testid="qr-code" />
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() }
+}));
+
+describe("SecuritySection 2FA setup", () => {
+  it("shows QR code and secret after enabling 2FA", async () => {
+    const onEnable2fa = vi.fn().mockResolvedValue({
+      secret: "7Y0SPZ2AWUGXRUVVZBSHBSKB5HPBNY7G",
+      otpauthUrl:
+        "otpauth://totp/Kloqra:user@example.com?secret=7Y0SPZ2AWUGXRUVVZBSHBSKB5HPBNY7G&issuer=Kloqra"
+    });
+
+    render(
+      <SecuritySection
+        profile={profile}
+        onChangePassword={vi.fn()}
+        onEnable2fa={onEnable2fa}
+        onVerify2fa={vi.fn()}
+        onDisable2fa={vi.fn()}
+        onListSessions={vi.fn()}
+        onRevokeSession={vi.fn()}
+        onRevokeOtherSessions={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Enable 2FA" }));
+    expect(await screen.findByTestId("qr-code")).toBeTruthy();
+    expect(screen.getByText("7Y0S PZ2A WUGX RUVV ZBSH BSKB 5HPB NY7G")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Verify and enable" })).toBeTruthy();
+    expect(onEnable2fa).toHaveBeenCalledOnce();
+  });
+});
+
 describe("SecuritySection sessions", () => {
   it("shows sign out other devices when other sessions exist", async () => {
     render(

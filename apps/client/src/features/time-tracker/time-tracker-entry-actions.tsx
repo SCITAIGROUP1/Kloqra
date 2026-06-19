@@ -1,9 +1,17 @@
 "use client";
 
 import type { TimeLogDto } from "@kloqra/contracts";
-import { Button, ShellMenuItem, ShellMenuPanel, cn } from "@kloqra/ui";
+import {
+  Button,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  ShellMenuItem,
+  ShellMenuPanel,
+  cn
+} from "@kloqra/ui";
 import { MoreVertical } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 type TimeTrackerEntryActionsProps = {
   log: TimeLogDto;
@@ -19,34 +27,28 @@ export function TimeTrackerEntryActions({
   onDelete
 }: TimeTrackerEntryActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onPointerDown(e: MouseEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [menuOpen]);
 
   return (
-    <div className="relative inline-block" ref={menuRef}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-8 opacity-70 hover:opacity-100"
-        aria-label="Entry actions"
-        aria-expanded={menuOpen}
-        onClick={() => setMenuOpen((open) => !open)}
-      >
-        <MoreVertical className="size-4" />
-      </Button>
-      {menuOpen ? (
-        <ShellMenuPanel className={cn("absolute right-0 top-full z-20 mt-1 min-w-[8rem]")}>
+    <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 opacity-70 hover:opacity-100"
+          aria-label="Entry actions"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+        >
+          <MoreVertical className="size-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" side="bottom" sideOffset={4} className="w-auto p-0">
+        <ShellMenuPanel
+          className={cn(
+            "static right-auto top-auto mt-0 min-w-[8rem] border-0 bg-transparent p-1 shadow-none animate-none"
+          )}
+        >
           {locked ? (
             <ShellMenuItem
               onClick={() => {
@@ -78,7 +80,7 @@ export function TimeTrackerEntryActions({
             </>
           )}
         </ShellMenuPanel>
-      ) : null}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

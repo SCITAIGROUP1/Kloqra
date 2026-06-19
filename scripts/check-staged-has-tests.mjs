@@ -86,7 +86,9 @@ for (const file of staged) {
   if (featureMatch) {
     const app = featureMatch[1];
     const hasE2e = staged.some((f) => f.startsWith(`apps/${app}/e2e/`));
-    const hasUnit = staged.some((f) => f.startsWith(`apps/${app}/src/`) && f.endsWith(".spec.ts"));
+    const hasUnit = staged.some(
+      (f) => f.startsWith(`apps/${app}/src/`) && (f.endsWith(".spec.ts") || f.endsWith(".spec.tsx"))
+    );
     if (!hasE2e && !hasUnit) {
       errors.push(
         `apps/${app}: feature UI changed without staged e2e (apps/${app}/e2e/) or unit spec`

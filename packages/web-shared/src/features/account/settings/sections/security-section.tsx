@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ChangePasswordSection } from "../../change-password-section";
 import { formatSessionDevice } from "../format-session-device";
 import { SettingsCard } from "../settings-card";
+import { TwoFaSetupPanel } from "./two-fa-setup-panel";
 
 export function SecuritySection({
   profile,
@@ -33,6 +34,7 @@ export function SecuritySection({
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [sessions, setSessions] = useState<UserSessionDto[]>([]);
   const [twoFaSecret, setTwoFaSecret] = useState<string | null>(null);
+  const [twoFaOtpauthUrl, setTwoFaOtpauthUrl] = useState<string | null>(null);
   const [twoFaCode, setTwoFaCode] = useState("");
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
@@ -53,10 +55,17 @@ export function SecuritySection({
     }
   }
 
+  function resetTwoFaSetup() {
+    setTwoFaSecret(null);
+    setTwoFaOtpauthUrl(null);
+    setTwoFaCode("");
+  }
+
   async function handleEnable2fa() {
     try {
       const result = await onEnable2fa();
       setTwoFaSecret(result.secret);
+      setTwoFaOtpauthUrl(result.otpauthUrl);
       setTwoFaOpen(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start 2FA setup");
@@ -67,8 +76,7 @@ export function SecuritySection({
     try {
       await onVerify2fa(twoFaCode);
       setTwoFaOpen(false);
-      setTwoFaSecret(null);
-      setTwoFaCode("");
+      resetTwoFaSetup();
       toast.success("Two-factor authentication enabled");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Invalid code");
@@ -162,15 +170,31 @@ export function SecuritySection({
 
       <AppModal
         open={twoFaOpen}
-        onOpenChange={setTwoFaOpen}
+        onOpenChange={(open) => {
+          setTwoFaOpen(open);
+          if (!open) resetTwoFaSetup();
+        }}
         title={profile.twoFactorEnabled ? "Manage two-factor authentication" : "Enable 2FA"}
         description={
           profile.twoFactorEnabled
             ? "Disable 2FA by confirming your password and authentication code."
-            : "Scan the secret into your authenticator app, then verify with a code."
+            : "Scan the QR code with your authenticator app, then verify with a code."
         }
         icon={<Shield className="size-5" />}
         size="lg"
+        footer={
+          !profile.twoFactorEnabled && twoFaSecret && twoFaOtpauthUrl ? (
+            <div className="flex w-full justify-end">
+              <Button
+                type="button"
+                onClick={() => void handleVerify2fa()}
+                disabled={twoFaCode.length !== 6}
+              >
+                Verify and enable
+              </Button>
+            </div>
+          ) : undefined
+        }
       >
         {profile.twoFactorEnabled ? (
           <div className="space-y-4">
@@ -195,26 +219,15 @@ export function SecuritySection({
               Disable 2FA
             </Button>
           </div>
+        ) : twoFaSecret && twoFaOtpauthUrl ? (
+          <TwoFaSetupPanel
+            secret={twoFaSecret}
+            otpauthUrl={twoFaOtpauthUrl}
+            code={twoFaCode}
+            onCodeChange={setTwoFaCode}
+          />
         ) : (
-          <div className="space-y-4">
-            {twoFaSecret ? (
-              <p className="text-sm text-muted-foreground break-all">
-                Add this secret to your authenticator app: <code>{twoFaSecret}</code>
-              </p>
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="verify-code">Enter 6-digit code</Label>
-              <Input
-                id="verify-code"
-                value={twoFaCode}
-                onChange={(e) => setTwoFaCode(e.target.value)}
-                maxLength={6}
-              />
-            </div>
-            <Button type="button" onClick={() => void handleVerify2fa()}>
-              Verify and enable
-            </Button>
-          </div>
+          <Spinner label="Preparing 2FA setup…" className="justify-center py-8" />
         )}
       </AppModal>
 
