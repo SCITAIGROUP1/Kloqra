@@ -43,7 +43,7 @@ test.describe("Admin global search", () => {
     await expect(projectHit).toBeVisible({ timeout: 15_000 });
     await projectHit.click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/overview$/);
-    await expect(page.getByText("Annual Audit")).toBeVisible();
+    await expect(page.getByText("Annual Audit").first()).toBeVisible();
   });
 
   test("navigates to approvals page from pages group", async ({ page }) => {

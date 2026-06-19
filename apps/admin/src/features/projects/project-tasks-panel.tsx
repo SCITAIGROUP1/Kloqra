@@ -244,7 +244,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           title="Add task"
           description="Members pick from this list when logging time on the project."
         >
-          <form onSubmit={createTask} className="space-y-4">
+          <form onSubmit={createTask} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="new-task-name">Task name</Label>
@@ -270,29 +270,39 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                 />
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <Label>Task Assignment Type</Label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="new-task-type"
-                    className="size-4 border border-input accent-primary"
-                    checked={newIsCommon}
-                    onChange={() => setNewIsCommon(true)}
-                  />
-                  <span>Common task (all members)</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="new-task-type"
-                    className="size-4 border border-input accent-primary"
-                    checked={!newIsCommon}
-                    onChange={() => setNewIsCommon(false)}
-                  />
-                  <span>Assigned task (restrict members)</span>
-                </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setNewIsCommon(true)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+                    newIsCommon
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-transparent"
+                  )}
+                >
+                  <span className="text-sm font-semibold">Common task</span>
+                  <span className="text-xs text-muted-foreground">
+                    Available to all project team members by default
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewIsCommon(false)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+                    !newIsCommon
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-transparent"
+                  )}
+                >
+                  <span className="text-sm font-semibold">Assigned task</span>
+                  <span className="text-xs text-muted-foreground">
+                    Restrict visibility to specific team members
+                  </span>
+                </button>
               </div>
             </div>
             {!newIsCommon && (
@@ -306,7 +316,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                 />
               </div>
             )}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -371,7 +381,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                         )}
                       >
                         {isEditing ? (
-                          <div className="space-y-3">
+                          <div className="space-y-4">
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-2">
                                 <Label htmlFor={`edit-name-${task.id}`}>Task name</Label>
@@ -395,7 +405,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 />
                               </div>
                             </div>
-                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm py-1">
                               <input
                                 type="checkbox"
                                 className="size-4 rounded border border-input accent-primary"
@@ -406,27 +416,37 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                             </label>
                             <div className="space-y-2">
                               <Label>Task Assignment Type</Label>
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
-                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                  <input
-                                    type="radio"
-                                    name={`edit-task-type-${task.id}`}
-                                    className="size-4 border border-input accent-primary"
-                                    checked={editIsCommon}
-                                    onChange={() => setEditIsCommon(true)}
-                                  />
-                                  <span>Common task (all members)</span>
-                                </label>
-                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                  <input
-                                    type="radio"
-                                    name={`edit-task-type-${task.id}`}
-                                    className="size-4 border border-input accent-primary"
-                                    checked={!editIsCommon}
-                                    onChange={() => setEditIsCommon(false)}
-                                  />
-                                  <span>Assigned task (restrict members)</span>
-                                </label>
+                              <div className="grid gap-2.5 sm:grid-cols-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditIsCommon(true)}
+                                  className={cn(
+                                    "flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-all hover:bg-muted/50",
+                                    editIsCommon
+                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                      : "border-border bg-background"
+                                  )}
+                                >
+                                  <span className="text-xs font-semibold">Common task</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    All project members can access
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditIsCommon(false)}
+                                  className={cn(
+                                    "flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-all hover:bg-muted/50",
+                                    !editIsCommon
+                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                      : "border-border bg-background"
+                                  )}
+                                >
+                                  <span className="text-xs font-semibold">Assigned task</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Restrict to specific assignees
+                                  </span>
+                                </button>
                               </div>
                             </div>
                             {!editIsCommon && (
