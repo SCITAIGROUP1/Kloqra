@@ -169,6 +169,24 @@ describe("notification templates", () => {
     expect(rendered.body).toContain("Missing Friday hours");
   });
 
+  it("renders timesheet approved and rejected templates with totalHours", () => {
+    const approved = buildNotificationTemplate("timesheet.approved", {
+      ...timesheetBase,
+      totalHours: 37.5
+    });
+    expect(approved.body).toContain("37.5 hours");
+    expect(approved.metadata.details).toContainEqual({ label: "Hours", value: "37.5 hours" });
+
+    const rejected = buildNotificationTemplate("timesheet.rejected", {
+      ...timesheetBase,
+      totalHours: 37.5,
+      reviewerName: "Alex Admin",
+      reviewNote: "Incorrect logs"
+    });
+    expect(rejected.body).toContain("37.5 hours");
+    expect(rejected.metadata.details).toContainEqual({ label: "Hours", value: "37.5 hours" });
+  });
+
   it("renders amendment templates", () => {
     const requested = buildNotificationTemplate("timesheet.amendment.requested", {
       memberName: "Sam Rivera",

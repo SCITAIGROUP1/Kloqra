@@ -92,7 +92,8 @@ export const timesheetReviewedContextSchema = z.object({
   periodStart: z.string().datetime(),
   reviewerName: optionalName,
   reviewNote: z.string().max(500).optional(),
-  adminNote: z.string().max(500).optional()
+  adminNote: z.string().max(500).optional(),
+  totalHours: z.number().positive().optional()
 });
 
 export const timesheetReminderContextSchema = z.object({
@@ -537,11 +538,15 @@ function renderTemplate(
     }
     case "timesheet.approved": {
       const c = context as NotificationTemplateContextMap["timesheet.approved"];
+      const hoursLine =
+        typeof c.totalHours === "number" ? `${c.totalHours.toFixed(1)} hours` : undefined;
       return {
         type,
         preferenceKey,
         title: "Timesheet approved",
-        body: `Your timesheet for ${c.periodLabel} on ${c.projectName} was approved.`,
+        body: `Your timesheet for ${c.periodLabel} on ${c.projectName}${
+          hoursLine ? ` (${hoursLine})` : ""
+        } was approved.`,
         emailSubject: subjectPrefix(`Timesheet approved — ${c.projectName}`),
         preheader: `Your ${c.periodLabel} timesheet is approved.`,
         metadata: {
@@ -555,20 +560,25 @@ function renderTemplate(
             c.workspaceName ?? c.projectName,
             c.projectName,
             c.periodLabel,
-            [...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : [])]
+            [
+              ...(hoursLine ? [{ label: "Hours", value: hoursLine }] : []),
+              ...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : [])
+            ]
           )
         }
       };
     }
     case "timesheet.rejected": {
       const c = context as NotificationTemplateContextMap["timesheet.rejected"];
+      const hoursLine =
+        typeof c.totalHours === "number" ? `${c.totalHours.toFixed(1)} hours` : undefined;
       return {
         type,
         preferenceKey,
         title: "Timesheet rejected",
-        body: `Your timesheet for ${c.periodLabel} on ${c.projectName} was rejected.${
-          c.reviewNote ? ` Note: ${c.reviewNote}` : ""
-        }`,
+        body: `Your timesheet for ${c.periodLabel} on ${c.projectName}${
+          hoursLine ? ` (${hoursLine})` : ""
+        } was rejected.${c.reviewNote ? ` Note: ${c.reviewNote}` : ""}`,
         emailSubject: subjectPrefix(`Timesheet rejected — ${c.projectName}`),
         preheader: `Action needed on your ${c.periodLabel} timesheet.`,
         metadata: {
@@ -583,6 +593,7 @@ function renderTemplate(
             c.projectName,
             c.periodLabel,
             [
+              ...(hoursLine ? [{ label: "Hours", value: hoursLine }] : []),
               ...(c.reviewerName ? [{ label: "Reviewed by", value: c.reviewerName }] : []),
               ...(c.reviewNote ? [{ label: "Note", value: c.reviewNote }] : [])
             ]

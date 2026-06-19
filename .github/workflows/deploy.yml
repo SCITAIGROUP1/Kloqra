@@ -148,7 +148,9 @@ jobs:
           else
             echo "has_vercel_token=false" >> "$GITHUB_OUTPUT"
           fi
-          if [[ -n "$DATABASE_URL" ]]; then
+          # Strip wrapping quotes if any and check if it starts with a postgres protocol
+          DB_URL_VAL=$(echo "$DATABASE_URL" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+          if [[ "$DB_URL_VAL" =~ ^postgres(ql)?:// ]]; then
             echo "has_database_url=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_database_url=false" >> "$GITHUB_OUTPUT"
@@ -163,9 +165,9 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter @kloqra/api...
       - name: prisma migrate deploy
         if: steps.check.outputs.has_database_url == 'true'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          CLEAN_DATABASE_URL=$(echo "${{ secrets.DATABASE_URL }}" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+          export DATABASE_URL="$CLEAN_DATABASE_URL"
           pnpm --filter @kloqra/api prisma:generate
           pnpm --filter @kloqra/api exec prisma migrate deploy
 

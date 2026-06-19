@@ -838,6 +838,17 @@ export class TimesheetsService {
       select: { name: true }
     });
 
+    const totalHoursAggregation = await this.prisma.timeLog.aggregate({
+      where: {
+        userId: period.userId,
+        task: { projectId: period.projectId },
+        startTime: { gte: period.periodStart, lte: period.periodEnd }
+      },
+      _sum: { durationSec: true }
+    });
+    const totalHours =
+      Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
+
     void this.notificationsDispatch
       .notify({
         userId: period.userId,
@@ -850,7 +861,8 @@ export class TimesheetsService {
           periodId: id,
           projectId: period.projectId,
           periodStart: period.periodStart.toISOString(),
-          reviewerName: reviewer?.name
+          reviewerName: reviewer?.name,
+          ...(totalHours > 0 ? { totalHours } : {})
         }
       })
       .catch((err: unknown) => {
@@ -927,6 +939,17 @@ export class TimesheetsService {
       select: { name: true }
     });
 
+    const totalHoursAggregation = await this.prisma.timeLog.aggregate({
+      where: {
+        userId: period.userId,
+        task: { projectId: period.projectId },
+        startTime: { gte: period.periodStart, lte: period.periodEnd }
+      },
+      _sum: { durationSec: true }
+    });
+    const totalHours =
+      Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
+
     void this.notificationsDispatch
       .notify({
         userId: period.userId,
@@ -940,7 +963,8 @@ export class TimesheetsService {
           projectId: period.projectId,
           periodStart: period.periodStart.toISOString(),
           reviewerName: reviewer?.name,
-          reviewNote: reviewNote || undefined
+          reviewNote: reviewNote || undefined,
+          ...(totalHours > 0 ? { totalHours } : {})
         }
       })
       .catch((err: unknown) => {
