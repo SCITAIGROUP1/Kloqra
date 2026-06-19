@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@kloqra/config-typescript": "workspace:*",
+    "@testing-library/react": "^16.1.0",
     "@next/bundle-analyzer": "^15.1.2",
     "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4.0.0",
@@ -38,6 +39,7 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@types/react-grid-layout": "^1.3.5",
+    "jsdom": "^26.0.0",
     "recharts": "^2.15.4",
     "tailwindcss": "^4.0.0",
     "tw-animate-css": "^1.2.5",

@@ -8,15 +8,15 @@ function log(
   partial: Partial<TimeLogDto> & Pick<TimeLogDto, "startTime" | "durationSec">
 ): TimeLogDto {
   return {
-    id: "log-1",
-    workspaceId: "ws-1",
+    id: partial.id ?? "log-1",
     userId: "user-1",
     taskId: "task-1",
-    endTime: partial.startTime,
-    description: null,
-    isBillable: false,
-    source: "TIMER",
-    ...partial
+    startTime: partial.startTime,
+    endTime: partial.endTime ?? partial.startTime,
+    durationSec: partial.durationSec,
+    description: partial.description ?? null,
+    isBillable: partial.isBillable ?? false,
+    source: partial.source ?? "timer"
   };
 }
 
