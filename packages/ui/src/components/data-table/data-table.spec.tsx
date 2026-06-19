@@ -51,4 +51,22 @@ describe("TablePagination", () => {
     await user.click(screen.getByRole("option", { name: "25" }));
     expect(onLimitChange).toHaveBeenCalledWith(25);
   });
+
+  it("supports custom page unit and summary", () => {
+    render(
+      <TablePagination
+        page={2}
+        totalPages={3}
+        total={3}
+        limit={1}
+        onPageChange={vi.fn()}
+        pageUnit="Week"
+        pageSizeLabel="Weeks per page"
+        summary="Week of Jun 1 – Week of Jun 15"
+      />
+    );
+
+    expect(screen.getByText("Week of Jun 1 – Week of Jun 15")).toBeTruthy();
+    expect(screen.getByText("Week 2 of 3")).toBeTruthy();
+  });
 });

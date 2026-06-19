@@ -10,16 +10,7 @@ import { api } from "@/lib/api";
 
 export type TimeTrackerLogsState = {
   logs: TimeLogDto[];
-  paginatedLogs: TimeLogDto[];
   loading: boolean;
-  page: number;
-  setPage: (page: number) => void;
-  limit: number;
-  setLimit: (limit: number) => void;
-  hasNext: boolean;
-  hasPrev: boolean;
-  totalPages: number;
-  totalCount: number;
   error: string | null;
   refresh: () => Promise<void>;
 };
@@ -31,9 +22,6 @@ export function useTimeTrackerLogs(
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [limit, setLimit] = useState(50);
-  const [page, setPage] = useState(1);
 
   const requestIdRef = useRef(0);
 
@@ -99,41 +87,12 @@ export function useTimeTrackerLogs(
   useEffect(() => {
     requestIdRef.current += 1;
     setLogs([]);
-    setPage(1);
     void loadLogsRef.current();
   }, [workspaceId, filterKey]);
 
-  const totalCount = logs.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
-
-  const paginatedLogs = useMemo(() => {
-    const start = (page - 1) * limit;
-    return logs.slice(start, start + limit);
-  }, [logs, page, limit]);
-
-  const setLimitAndResetPage = useCallback((newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1);
-  }, []);
-
   return {
     logs,
-    paginatedLogs,
     loading,
-    page,
-    setPage,
-    limit,
-    setLimit: setLimitAndResetPage,
-    hasNext: page < totalPages,
-    hasPrev: page > 1,
-    totalPages,
-    totalCount,
     error,
     refresh: loadLogs
   };

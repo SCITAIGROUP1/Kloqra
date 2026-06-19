@@ -56,7 +56,7 @@ export function TimeTrackerEntryStatus({
       {isBillable ? (
         <Badge
           variant="outline"
-          className="border-primary/25 bg-primary/10 text-primary text-xs font-medium uppercase tracking-wide"
+          className="border-primary/20 bg-primary/5 px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide text-primary"
         >
           Billable
         </Badge>

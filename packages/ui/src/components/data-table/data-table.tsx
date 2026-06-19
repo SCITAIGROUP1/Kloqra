@@ -76,6 +76,9 @@ export type TablePaginationProps = {
   onPageChange: (page: number) => void;
   onLimitChange?: (limit: number) => void;
   pageSizeOptions?: readonly number[];
+  pageUnit?: string;
+  pageSizeLabel?: string;
+  summary?: React.ReactNode;
   disabled?: boolean;
 };
 
@@ -87,27 +90,29 @@ export function TablePagination({
   onPageChange,
   onLimitChange,
   pageSizeOptions = TABLE_PAGE_SIZE_OPTIONS,
+  pageUnit = "Page",
+  pageSizeLabel = "Rows per page",
+  summary,
   disabled
 }: TablePaginationProps) {
   const sizes = pageSizeOptions ?? TABLE_PAGE_SIZE_OPTIONS ?? [10, 25, 50];
   const start = total === 0 ? 0 : (page - 1) * limit + 1;
   const end = total === 0 ? 0 : Math.min(page * limit, total);
+  const defaultSummary = `Showing ${start}–${end} of ${total}`;
 
   return (
     <div className="flex flex-col gap-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-      <span>
-        Showing {start}–{end} of {total}
-      </span>
+      <span>{summary ?? defaultSummary}</span>
       <div className="flex flex-wrap items-center gap-2">
         {onLimitChange ? (
           <div className="flex items-center gap-2">
-            <span className="whitespace-nowrap">Rows per page</span>
+            <span className="whitespace-nowrap">{pageSizeLabel}</span>
             <Select
               value={String(limit)}
               onValueChange={(value) => onLimitChange(Number(value))}
               disabled={disabled}
             >
-              <SelectTrigger className="h-8 w-[72px]" aria-label="Rows per page">
+              <SelectTrigger className="h-8 w-[72px]" aria-label={pageSizeLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -132,7 +137,7 @@ export function TablePagination({
           Previous
         </Button>
         <span className="min-w-[80px] text-center font-medium text-foreground">
-          Page {page} of {Math.max(totalPages, 1)}
+          {pageUnit} {page} of {Math.max(totalPages, 1)}
         </span>
         <Button
           type="button"

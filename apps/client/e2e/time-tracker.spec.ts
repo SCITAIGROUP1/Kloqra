@@ -25,6 +25,7 @@ test.describe("Time Tracker", () => {
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByRole("combobox", { name: "Time period" })).toContainText("Custom range");
     await expect(page.getByText(/Week of/i).first()).toBeVisible();
+    await expect(page.getByText(/Week 1 of/i)).toBeVisible();
   });
 
   test("opens add entry dialog", async ({ page }) => {

@@ -1,21 +1,12 @@
 "use client";
 
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
-import {
-  Button,
-  ProjectColorDot,
-  ShellMenuItem,
-  ShellMenuPanel,
-  TableCell,
-  TableRow,
-  cn
-} from "@kloqra/ui";
-import { MoreVertical } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ProjectColorDot, TableCell, TableRow } from "@kloqra/ui";
 import { toDateKeyInZone } from "../timesheet/calendar-utils";
 import { formatEntryShortDate } from "../timesheet/display-format";
 import { resolveEntryApprovalStatus } from "./entry-approval-status";
 import { formatHoursCompact } from "./group-logs-by-week";
+import { TimeTrackerEntryActions } from "./time-tracker-entry-actions";
 import { TimeTrackerEntryStatus } from "./time-tracker-entry-status";
 
 type TimeTrackerEntryRowProps = {
@@ -45,22 +36,9 @@ export function TimeTrackerEntryRow({
   timezone,
   readOnly = false
 }: TimeTrackerEntryRowProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const approval = resolveEntryApprovalStatus(log, project, submissionByKey);
   const entryDate = new Date(log.startTime);
   const dateLabel = formatEntryShortDate(entryDate, timezone);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onPointerDown(e: MouseEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [menuOpen]);
 
   return (
     <TableRow className="group border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
@@ -95,53 +73,7 @@ export function TimeTrackerEntryRow({
         <TableCell className="py-3.5" />
       ) : (
         <TableCell className="py-3.5 text-right">
-          <div className="relative inline-block" ref={menuRef}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 opacity-70 group-hover:opacity-100"
-              aria-label="Entry actions"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              <MoreVertical className="size-4" />
-            </Button>
-            {menuOpen ? (
-              <ShellMenuPanel className={cn("absolute right-0 top-full z-20 mt-1 min-w-[8rem]")}>
-                {locked ? (
-                  <ShellMenuItem
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onEdit(log);
-                    }}
-                  >
-                    View
-                  </ShellMenuItem>
-                ) : (
-                  <>
-                    <ShellMenuItem
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onEdit(log);
-                      }}
-                    >
-                      Edit
-                    </ShellMenuItem>
-                    <ShellMenuItem
-                      tone="destructive"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onDelete(log);
-                      }}
-                    >
-                      Delete
-                    </ShellMenuItem>
-                  </>
-                )}
-              </ShellMenuPanel>
-            ) : null}
-          </div>
+          <TimeTrackerEntryActions log={log} locked={locked} onEdit={onEdit} onDelete={onDelete} />
         </TableCell>
       )}
     </TableRow>

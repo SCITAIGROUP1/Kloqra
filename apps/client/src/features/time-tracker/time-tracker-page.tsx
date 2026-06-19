@@ -37,6 +37,7 @@ import {
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
+import { formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
@@ -146,19 +147,68 @@ export function TimeTrackerPage() {
 
   const {
     logs,
-    paginatedLogs,
     loading: logsLoading,
-    page,
-    setPage,
-    limit,
-    setLimit,
-    hasNext,
-    hasPrev,
-    totalPages,
-    totalCount,
     error: logsError,
     refresh: refreshLogs
   } = useTimeTrackerLogs(ws, serverFilters);
+
+  const [weeksPerPage, setWeeksPerPage] = useState(1);
+  const [page, setPage] = useState(1);
+
+  const filterResetKey = useMemo(
+    () =>
+      JSON.stringify({
+        from: serverFilters.from.toISOString(),
+        to: serverFilters.to.toISOString(),
+        projectId: serverFilters.projectId ?? "",
+        categoryId: serverFilters.categoryId ?? "",
+        taskId: serverFilters.taskId ?? "",
+        search: serverFilters.search ?? "",
+        billableOnly: serverFilters.billableOnly ?? false
+      }),
+    [serverFilters]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterResetKey]);
+
+  const allWeekGroups = useMemo(
+    () => groupLogsByWeek(logs, timezone, weekStartPref),
+    [logs, timezone, weekStartPref]
+  );
+
+  const totalWeekCount = allWeekGroups.length;
+  const totalWeekPages = Math.max(1, Math.ceil(totalWeekCount / weeksPerPage));
+
+  useEffect(() => {
+    if (page > totalWeekPages) {
+      setPage(totalWeekPages);
+    }
+  }, [page, totalWeekPages]);
+
+  const visibleWeekGroups = useMemo(() => {
+    const start = (page - 1) * weeksPerPage;
+    return allWeekGroups.slice(start, start + weeksPerPage);
+  }, [allWeekGroups, page, weeksPerPage]);
+
+  const weekTotals = useMemo(() => {
+    const map = new Map<string, { totalSec: number; billableSec: number }>();
+    for (const group of allWeekGroups) {
+      map.set(group.weekKey, { totalSec: group.totalSec, billableSec: group.billableSec });
+    }
+    return map;
+  }, [allWeekGroups]);
+
+  const weekRangeSummary = useMemo(
+    () => formatVisibleWeeksSummary(visibleWeekGroups, timezone),
+    [visibleWeekGroups, timezone]
+  );
+
+  const setWeeksPerPageAndResetPage = useCallback((next: number) => {
+    setWeeksPerPage(next);
+    setPage(1);
+  }, []);
 
   const refreshSubmissions = useCallback(async () => {
     if (!ws) return;
@@ -226,20 +276,6 @@ export function TimeTrackerPage() {
     (taskId: string) => colorForTask(taskId, tasks, projects),
     [tasks, projects]
   );
-
-  const weekGroups = useMemo(
-    () => groupLogsByWeek(paginatedLogs, timezone, weekStartPref),
-    [paginatedLogs, timezone, weekStartPref]
-  );
-
-  const weekTotals = useMemo(() => {
-    const fullGroups = groupLogsByWeek(logs, timezone, weekStartPref);
-    const map = new Map<string, { totalSec: number; billableSec: number }>();
-    for (const group of fullGroups) {
-      map.set(group.weekKey, { totalSec: group.totalSec, billableSec: group.billableSec });
-    }
-    return map;
-  }, [logs, timezone, weekStartPref]);
 
   const stats = useMemo(
     () => computeTimeTrackerStats(logs, periodLabel, projects, tasks, submissionByKey),
@@ -405,7 +441,7 @@ export function TimeTrackerPage() {
       {pageError && !dialogOpen ? <p className="text-sm text-destructive">{pageError}</p> : null}
 
       <TimeTrackerWeekList
-        groups={weekGroups}
+        groups={visibleWeekGroups}
         weekTotals={weekTotals}
         tasks={tasks}
         projects={projects}
@@ -416,16 +452,17 @@ export function TimeTrackerPage() {
         onEdit={openEditEntry}
         onDelete={deleteEntry}
         timezone={timezone}
+        weekStartPref={weekStartPref}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
         loading={logsLoading || filtersPending}
         page={page}
-        limit={limit}
-        onLimitChange={setLimit}
-        hasNext={hasNext}
-        hasPrev={hasPrev}
+        weeksPerPage={weeksPerPage}
+        onWeeksPerPageChange={setWeeksPerPageAndResetPage}
         onPageChange={setPage}
-        logsLength={paginatedLogs.length}
-        totalCount={totalCount}
-        totalPages={totalPages}
+        totalWeekPages={totalWeekPages}
+        totalWeekCount={totalWeekCount}
+        weekRangeSummary={weekRangeSummary}
         readOnly={isImpersonating}
       />
 

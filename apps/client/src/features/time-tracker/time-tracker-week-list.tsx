@@ -1,22 +1,21 @@
 "use client";
 
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
-import {
-  Card,
-  CardContent,
-  EmptyState,
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TablePagination
-} from "@kloqra/ui";
+import { Card, CardContent, EmptyState, TablePagination } from "@kloqra/ui";
 import { CalendarDays, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { WeekLogGroup } from "./group-logs-by-week";
-import { formatHoursCompact, formatWeekSectionLabel } from "./group-logs-by-week";
-import { TimeTrackerEntryRow } from "./time-tracker-entry-row";
+import {
+  buildWeekDayTabs,
+  defaultActiveDayKey,
+  formatHoursDecimalWithSuffix,
+  formatWeekSectionLabel
+} from "./group-logs-by-week";
+import { TimeTrackerDayTabs } from "./time-tracker-day-tabs";
+import { TimeTrackerEntryListItem } from "./time-tracker-entry-list-item";
 import { formatProjectLabel } from "@/lib/project-labels";
+
+const WEEKS_PER_PAGE_OPTIONS = [1, 2, 4] as const;
 
 export type TimeTrackerWeekListProps = {
   groups: WeekLogGroup[];
@@ -30,32 +29,185 @@ export type TimeTrackerWeekListProps = {
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
+  weekStartPref: "monday" | "sunday";
+  rangeFrom: string;
+  rangeTo: string;
   loading?: boolean;
   page: number;
-  limit: number;
-  onLimitChange: (limit: number) => void;
-  hasNext: boolean;
-  hasPrev: boolean;
+  weeksPerPage: number;
+  onWeeksPerPageChange: (weeksPerPage: number) => void;
   onPageChange: (page: number) => void;
-  logsLength: number;
-  totalPages: number;
-  totalCount: number;
+  totalWeekPages: number;
+  totalWeekCount: number;
+  weekRangeSummary: string;
   readOnly?: boolean;
 };
 
 function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: number }) {
   return (
-    <p className="text-sm text-muted-foreground">
+    <p className="text-xs text-muted-foreground sm:text-sm">
       Total:{" "}
       <span className="font-semibold tabular-nums text-foreground">
-        {formatHoursCompact(totalSec)}
+        {formatHoursDecimalWithSuffix(totalSec)}
       </span>
       <span className="mx-1.5 text-border">·</span>
       Billable:{" "}
       <span className="font-semibold tabular-nums text-primary">
-        {formatHoursCompact(billableSec)}
+        {formatHoursDecimalWithSuffix(billableSec)}
       </span>
     </p>
+  );
+}
+
+type WeekListPaginationProps = {
+  page: number;
+  totalWeekPages: number;
+  totalWeekCount: number;
+  weeksPerPage: number;
+  onPageChange: (page: number) => void;
+  onWeeksPerPageChange: (weeksPerPage: number) => void;
+  weekRangeSummary: string;
+  loading?: boolean;
+};
+
+function WeekListPagination({
+  page,
+  totalWeekPages,
+  totalWeekCount,
+  weeksPerPage,
+  onPageChange,
+  onWeeksPerPageChange,
+  weekRangeSummary,
+  loading = false
+}: WeekListPaginationProps) {
+  return (
+    <Card className="gap-0 overflow-hidden border-primary/10 p-0 shadow-sm">
+      <TablePagination
+        page={page}
+        totalPages={totalWeekPages}
+        total={totalWeekCount}
+        limit={weeksPerPage}
+        onPageChange={onPageChange}
+        onLimitChange={onWeeksPerPageChange}
+        pageSizeOptions={WEEKS_PER_PAGE_OPTIONS}
+        pageUnit="Week"
+        pageSizeLabel="Weeks per page"
+        summary={
+          weekRangeSummary ? (
+            <span className="hidden truncate sm:inline">{weekRangeSummary}</span>
+          ) : (
+            weekRangeSummary
+          )
+        }
+        disabled={loading}
+      />
+    </Card>
+  );
+}
+
+type WeekSectionProps = {
+  group: WeekLogGroup;
+  weekTotals: Map<string, { totalSec: number; billableSec: number }>;
+  taskById: Map<string, TaskDto>;
+  projectById: Map<string, ProjectDto>;
+  workspaceNamesById: Record<string, string>;
+  submissionByKey: Map<string, TimesheetPeriodDto>;
+  entryColor: (taskId: string) => string;
+  isEntryLocked: (log: TimeLogDto) => boolean;
+  onEdit: (log: TimeLogDto) => void;
+  onDelete: (log: TimeLogDto) => void;
+  timezone: string;
+  weekStartPref: "monday" | "sunday";
+  rangeFrom: string;
+  rangeTo: string;
+  readOnly?: boolean;
+};
+
+function TimeTrackerWeekSection({
+  group,
+  weekTotals,
+  taskById,
+  projectById,
+  workspaceNamesById,
+  submissionByKey,
+  entryColor,
+  isEntryLocked,
+  onEdit,
+  onDelete,
+  timezone,
+  weekStartPref,
+  rangeFrom,
+  rangeTo,
+  readOnly = false
+}: WeekSectionProps) {
+  const dayGroups = useMemo(
+    () =>
+      buildWeekDayTabs(group.weekStart, group.logs, timezone, weekStartPref, rangeFrom, rangeTo),
+    [group.weekStart, group.logs, timezone, weekStartPref, rangeFrom, rangeTo]
+  );
+
+  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups));
+
+  useEffect(() => {
+    if (!dayGroups.some((day) => day.dayKey === activeDayKey)) {
+      setActiveDayKey(defaultActiveDayKey(dayGroups));
+    }
+  }, [group.weekKey, dayGroups, activeDayKey]);
+
+  const activeDay = dayGroups.find((day) => day.dayKey === activeDayKey);
+  const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
+
+  return (
+    <Card className="gap-0 overflow-hidden border-primary/10 p-0 shadow-sm">
+      <div className="flex flex-col gap-2 border-b border-border/70 bg-muted/20 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-8">
+            <CalendarDays className="size-4" aria-hidden />
+          </div>
+          <h2 className="text-xs font-semibold leading-tight tracking-tight text-foreground sm:text-sm">
+            {formatWeekSectionLabel(group.weekStart, timezone)}
+          </h2>
+        </div>
+        <WeekTotals totalSec={totals.totalSec} billableSec={totals.billableSec} />
+      </div>
+
+      {dayGroups.length > 0 ? (
+        <>
+          <TimeTrackerDayTabs
+            days={dayGroups}
+            activeDayKey={activeDayKey}
+            onDayChange={setActiveDayKey}
+          />
+          <div>
+            {(activeDay?.logs ?? []).length > 0 ? (
+              (activeDay?.logs ?? []).map((log) => {
+                const task = taskById.get(log.taskId);
+                const project = task ? projectById.get(task.projectId) : undefined;
+                return (
+                  <TimeTrackerEntryListItem
+                    key={log.id}
+                    log={log}
+                    task={task}
+                    project={project}
+                    projectName={project ? formatProjectLabel(project, workspaceNamesById) : "—"}
+                    entryColor={entryColor(log.taskId)}
+                    submissionByKey={submissionByKey}
+                    locked={isEntryLocked(log)}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    readOnly={readOnly}
+                  />
+                );
+              })
+            ) : (
+              <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+                No time entries for this day.
+              </p>
+            )}
+          </div>
+        </>
+      ) : null}
+    </Card>
   );
 }
 
@@ -71,13 +223,17 @@ export function TimeTrackerWeekList({
   onEdit,
   onDelete,
   timezone,
+  weekStartPref,
+  rangeFrom,
+  rangeTo,
   loading = false,
   page,
-  limit,
-  onLimitChange,
+  weeksPerPage,
+  onWeeksPerPageChange,
   onPageChange,
-  totalPages,
-  totalCount,
+  totalWeekPages,
+  totalWeekCount,
+  weekRangeSummary,
   readOnly = false
 }: TimeTrackerWeekListProps) {
   const taskById = new Map(tasks.map((t) => [t.id, t]));
@@ -110,87 +266,46 @@ export function TimeTrackerWeekList({
   return (
     <div className="space-y-4">
       {groups.map((group) => (
-        <Card key={group.weekKey} className="gap-0 overflow-hidden border-primary/10 p-0 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <CalendarDays className="size-4" aria-hidden />
-              </div>
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                {formatWeekSectionLabel(group.weekStart, timezone)}
-              </h2>
-            </div>
-            {(() => {
-              const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
-              return <WeekTotals totalSec={totals.totalSec} billableSec={totals.billableSec} />;
-            })()}
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-border/70 bg-background hover:bg-background">
-                  <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Date
-                  </TableHead>
-                  <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Project
-                  </TableHead>
-                  <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Task
-                  </TableHead>
-                  <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Description
-                  </TableHead>
-                  <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Hours
-                  </TableHead>
-                  <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Status
-                  </TableHead>
-                  <TableHead className="h-10 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {group.logs.map((log) => {
-                  const task = taskById.get(log.taskId);
-                  const project = task ? projectById.get(task.projectId) : undefined;
-                  return (
-                    <TimeTrackerEntryRow
-                      key={log.id}
-                      log={log}
-                      task={task}
-                      project={project}
-                      projectName={project ? formatProjectLabel(project, workspaceNamesById) : "—"}
-                      entryColor={entryColor(log.taskId)}
-                      submissionByKey={submissionByKey}
-                      locked={isEntryLocked(log)}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      timezone={timezone}
-                      readOnly={readOnly}
-                    />
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+        <TimeTrackerWeekSection
+          key={group.weekKey}
+          group={group}
+          weekTotals={weekTotals}
+          taskById={taskById}
+          projectById={projectById}
+          workspaceNamesById={workspaceNamesById}
+          submissionByKey={submissionByKey}
+          entryColor={entryColor}
+          isEntryLocked={isEntryLocked}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          timezone={timezone}
+          weekStartPref={weekStartPref}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+          readOnly={readOnly}
+        />
       ))}
 
-      {groups.length > 0 && (
-        <TablePagination
-          page={page}
-          totalPages={totalPages}
-          total={totalCount}
-          limit={limit}
-          onPageChange={onPageChange}
-          onLimitChange={onLimitChange}
-          disabled={loading}
-        />
-      )}
+      <WeekListPagination
+        page={page}
+        totalWeekPages={totalWeekPages}
+        totalWeekCount={totalWeekCount}
+        weeksPerPage={weeksPerPage}
+        onPageChange={onPageChange}
+        onWeeksPerPageChange={onWeeksPerPageChange}
+        weekRangeSummary={weekRangeSummary}
+        loading={loading}
+      />
     </div>
   );
+}
+
+export function formatVisibleWeeksSummary(groups: WeekLogGroup[], timezone: string): string {
+  if (groups.length === 0) return "";
+  if (groups.length === 1) {
+    return formatWeekSectionLabel(groups[0]!.weekStart, timezone);
+  }
+  const newest = groups[0]!;
+  const oldest = groups[groups.length - 1]!;
+  return `${formatWeekSectionLabel(oldest.weekStart, timezone)} – ${formatWeekSectionLabel(newest.weekStart, timezone)}`;
 }
