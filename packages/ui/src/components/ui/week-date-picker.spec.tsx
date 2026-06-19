@@ -61,6 +61,36 @@ describe("WeekDatePicker", () => {
     expect(today).toHaveAttribute("aria-current", "date");
   });
 
+  it("highlights only the selected day in day mode", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-20T12:00:00"));
+
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(
+      <WeekDatePicker
+        anchorDate="2026-06-13"
+        onChange={onChange}
+        label="Jun 13, 2026"
+        highlightMode="day"
+        ariaLabel="Select date"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Select date" }));
+
+    // Selected date (June 13) should be highlighted as endpoint/primary
+    const selected = screen.getByRole("button", { name: "2026-06-13" });
+    expect(selected).toHaveClass("bg-primary");
+
+    // Today (June 20) is also today. But is it highlighted as selected?
+    // And what about other days in the week of June 20 (June 15-19)?
+    const otherDay = screen.getByRole("button", { name: "2026-06-15" });
+    expect(otherDay).not.toHaveClass("bg-primary/12");
+    expect(otherDay).not.toHaveClass("text-primary");
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });

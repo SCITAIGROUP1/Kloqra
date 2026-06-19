@@ -17,9 +17,8 @@ import {
   SearchableSelect,
   SegmentedControl,
   TimeEntryAuditTrail,
-  WeekDatePicker,
+  DatePicker,
   dateKeyFromDate,
-  formatDateKeyLabel,
   cn
 } from "@kloqra/ui";
 import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
@@ -423,13 +422,10 @@ export function TimeEntryDialog({
               {(draft.recurrence ?? "none") !== "none" && (
                 <div className="space-y-2">
                   <Label htmlFor="entry-repeat-until">Repeat until</Label>
-                  <WeekDatePicker
-                    anchorDate={draft.repeatUntil || dateKeyFromDate(todayInZone(timezone))}
+                  <DatePicker
+                    value={draft.repeatUntil || dateKeyFromDate(todayInZone(timezone))}
                     onChange={(dateKey) => patch({ repeatUntil: dateKey })}
-                    label={
-                      draft.repeatUntil ? formatDateKeyLabel(draft.repeatUntil) : "Select date"
-                    }
-                    highlightMode="day"
+                    placeholder="Select date"
                     maxDate={dateKeyFromDate(todayInZone(timezone))}
                     className="w-full h-10 bg-background justify-start"
                     disabled={!canEdit}

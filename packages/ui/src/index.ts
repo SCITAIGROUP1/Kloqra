@@ -24,6 +24,7 @@ export { Popover, PopoverTrigger, PopoverAnchor, PopoverContent } from "./compon
 
 export { DateRangePicker, type DateRangePickerProps } from "./components/ui/date-range-picker.js";
 export { WeekDatePicker, type WeekDatePickerProps } from "./components/ui/week-date-picker.js";
+export { DatePicker, type DatePickerProps } from "./components/ui/date-picker.js";
 
 export {
   addMonths,
