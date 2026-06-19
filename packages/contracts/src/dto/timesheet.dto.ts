@@ -82,14 +82,16 @@ export const pendingTimesheetSchema = z.object({
   note: z.string().nullable(),
   totalHours: z.number(),
   cascadedCount: z.number().int().nonnegative().optional(),
-  amendmentPending: z.boolean().optional()
+  amendmentPending: z.boolean().optional(),
+  submittedAt: isoDatetimeSchema.nullable().optional()
 });
 
 export const timesheetApprovalsFilterQuerySchema = z.object({
   projectId: queryUuidArraySchema,
   userId: queryUuidArraySchema,
   from: z.string().optional(),
-  to: z.string().optional()
+  to: z.string().optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional()
 });
 
 export const pendingTimesheetQuerySchema = timesheetApprovalsFilterQuerySchema;

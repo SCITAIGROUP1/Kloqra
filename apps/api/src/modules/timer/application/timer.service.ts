@@ -44,16 +44,14 @@ export class TimerService {
       select: { workspaceId: true }
     });
 
-    const results = await Promise.all(
-      memberships.map(({ workspaceId }) =>
-        this.redis
-          .getClient()
-          .get(timerKey(workspaceId, userId))
-          .then((raw) => ({ workspaceId, raw }))
-      )
-    );
+    if (memberships.length === 0) return;
 
-    for (const { workspaceId, raw } of results) {
+    const keys = memberships.map(({ workspaceId }) => timerKey(workspaceId, userId));
+    const values = await this.redis.getClient().mget(...keys);
+
+    for (let i = 0; i < memberships.length; i++) {
+      const workspaceId = memberships[i]!.workspaceId;
+      const raw = values[i];
       if (!raw) continue;
 
       const message =
@@ -317,12 +315,20 @@ export class TimerService {
       include: { user: true }
     });
 
+    if (members.length === 0) {
+      return { count: 0, members: [] };
+    }
+
+    const keys = members.map((m) => `timer:${workspaceId}:${m.userId}`);
+    const values = await this.redis.getClient().mget(...keys);
+
     const activeMembers = [];
     const taskIds = new Set<string>();
     const timerStates = [];
 
-    for (const m of members) {
-      const raw = await this.redis.getClient().get(`timer:${workspaceId}:${m.userId}`);
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i]!;
+      const raw = values[i];
       if (!raw) continue;
       const state = JSON.parse(raw) as { taskId: string; startedAt: string };
       taskIds.add(state.taskId);

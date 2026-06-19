@@ -124,6 +124,20 @@ export function PendingTimesheetsWidget({
                       Project:{" "}
                       <span className="font-medium text-foreground">{sheet.projectName}</span>
                     </p>
+                    {sheet.submittedAt ? (
+                      <p className="text-[9px] text-muted-foreground/80 mt-0.5 truncate">
+                        Submitted:{" "}
+                        <span className="font-medium text-foreground">
+                          {new Date(sheet.submittedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "UTC"
+                          })}
+                        </span>
+                      </p>
+                    ) : null}
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-xs font-extrabold text-primary font-mono block">

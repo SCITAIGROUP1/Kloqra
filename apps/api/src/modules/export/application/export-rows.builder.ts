@@ -474,12 +474,9 @@ export class ExportRowsBuilder {
     let memberUserIds: string[] | undefined;
 
     if (ctx.filters.projectId) {
-      memberUserIds = await this.aggregation.teamMemberUserIds(ctx.filters.projectId);
+      memberUserIds = await this.aggregation.teamMembersUserIds([ctx.filters.projectId]);
     } else if (ctx.filters.projectIds?.length) {
-      const sets = await Promise.all(
-        ctx.filters.projectIds.map((id) => this.aggregation.teamMemberUserIds(id))
-      );
-      memberUserIds = [...new Set(sets.flat())];
+      memberUserIds = await this.aggregation.teamMembersUserIds(ctx.filters.projectIds);
     }
 
     const members = await this.prisma.workspaceMember.findMany({
@@ -506,13 +503,12 @@ export class ExportRowsBuilder {
           userId: { in: userIds },
           task: { project: { workspaceId: ctx.workspaceId } }
         },
-        orderBy: { startTime: "desc" },
+        distinct: ["userId"],
+        orderBy: [{ userId: "asc" }, { startTime: "desc" }],
         select: { userId: true, startTime: true }
       });
       for (const log of lastLogs) {
-        if (!lastByUser.has(log.userId)) {
-          lastByUser.set(log.userId, log.startTime);
-        }
+        lastByUser.set(log.userId, log.startTime);
       }
     }
 
@@ -711,12 +707,9 @@ export class ExportRowsBuilder {
   ): Promise<Record<string, string | number>[]> {
     let memberUserIds: string[] | undefined;
     if (ctx.filters.projectIds?.length) {
-      const sets = await Promise.all(
-        ctx.filters.projectIds.map((id) => this.aggregation.teamMemberUserIds(id))
-      );
-      memberUserIds = [...new Set(sets.flat())];
+      memberUserIds = await this.aggregation.teamMembersUserIds(ctx.filters.projectIds);
     } else if (ctx.filters.projectId) {
-      memberUserIds = await this.aggregation.teamMemberUserIds(ctx.filters.projectId);
+      memberUserIds = await this.aggregation.teamMembersUserIds([ctx.filters.projectId]);
     }
 
     const members = await this.prisma.workspaceMember.findMany({

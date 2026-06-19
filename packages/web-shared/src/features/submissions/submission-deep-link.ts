@@ -16,6 +16,7 @@ export type AdminApprovalsDeepLink = {
   userId?: string;
   from?: string;
   to?: string;
+  sortOrder?: string;
 };
 
 export function buildMemberSubmissionsHref(params: MemberSubmissionsDeepLink): string {
@@ -38,6 +39,7 @@ export function buildAdminApprovalsHref(params: AdminApprovalsDeepLink): string 
   if (params.userId) search.set("userId", params.userId);
   if (params.from) search.set("from", params.from);
   if (params.to) search.set("to", params.to);
+  if (params.sortOrder) search.set("sortOrder", params.sortOrder);
   const q = search.toString();
   return q ? `/approvals?${q}` : "/approvals";
 }
@@ -75,12 +77,15 @@ export function parseAdminApprovalsSearch(search: string): AdminApprovalsDeepLin
     projectId: params.get("projectId") ?? undefined,
     userId: params.get("userId") ?? undefined,
     from: params.get("from") ?? undefined,
-    to: params.get("to") ?? undefined
+    to: params.get("to") ?? undefined,
+    sortOrder: params.get("sortOrder") ?? undefined
   };
 }
 
 export function parseApprovalsFilterSearch(search: string): TimesheetApprovalsFilterQuery {
   const params = parseAdminApprovalsSearch(search);
+  const sortOrderRaw = params.sortOrder;
+  const sortOrder = sortOrderRaw === "asc" || sortOrderRaw === "desc" ? sortOrderRaw : undefined;
   return {
     projectId: params.projectId
       ? params.projectId
@@ -95,7 +100,8 @@ export function parseApprovalsFilterSearch(search: string): TimesheetApprovalsFi
           .filter(Boolean)
       : undefined,
     from: params.from,
-    to: params.to
+    to: params.to,
+    sortOrder
   };
 }
 
@@ -103,7 +109,7 @@ export function appendApprovalsFilterSearch(
   params: URLSearchParams,
   filter: TimesheetApprovalsFilterQuery
 ): void {
-  for (const key of ["projectId", "userId", "from", "to"] as const) {
+  for (const key of ["projectId", "userId", "from", "to", "sortOrder"] as const) {
     const value = filter[key];
     if (value) {
       if (Array.isArray(value)) {

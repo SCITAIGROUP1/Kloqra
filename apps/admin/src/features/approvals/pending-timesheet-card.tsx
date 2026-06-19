@@ -244,6 +244,22 @@ export function PendingTimesheetCard({
               <span>{periodHeading(item)}</span>
             </div>
 
+            {item.submittedAt ? (
+              <p className="text-[11px] text-muted-foreground">
+                Submitted:{" "}
+                <span className="text-foreground font-medium">
+                  {new Date(item.submittedAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: timezone ?? "UTC"
+                  })}
+                </span>
+              </p>
+            ) : null}
+
             {batchLabel ? (
               <Badge variant="outline" className="text-[10px] w-fit">
                 {batchLabel}

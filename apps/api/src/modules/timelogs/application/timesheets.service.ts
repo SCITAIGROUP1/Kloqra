@@ -490,7 +490,8 @@ export class TimesheetsService {
           select: { id: true }
         }
       },
-      orderBy: status === "SUBMITTED" ? { submittedAt: "desc" } : { reviewedAt: "desc" }
+      orderBy:
+        status === "SUBMITTED" ? { submittedAt: filter.sortOrder ?? "asc" } : { reviewedAt: "desc" }
     });
 
     const batchCounts = new Map<string, number>();
@@ -569,7 +570,8 @@ export class TimesheetsService {
         note: p.note,
         totalHours: Math.round(totalHours * 100) / 100,
         cascadedCount: cascadedCount > 1 ? cascadedCount : undefined,
-        amendmentPending: p.amendments.length > 0
+        amendmentPending: p.amendments.length > 0,
+        submittedAt: p.submittedAt?.toISOString() ?? null
       };
 
       if (status === "SUBMITTED") {
