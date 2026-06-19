@@ -38,6 +38,6 @@ describe("TwoFaSetupPanel", () => {
       />
     );
 
-    expect((screen.getByLabelText("Enter 6-digit code ") as HTMLInputElement).value).toBe("123456");
+    expect((screen.getByLabelText("Enter 6-digit code") as HTMLInputElement).value).toBe("123456");
   });
 });

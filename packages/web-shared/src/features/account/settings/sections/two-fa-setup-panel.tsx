@@ -80,7 +80,7 @@ export function TwoFaSetupPanel({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="verify-code">Enter 6-digit code </Label>
+        <Label htmlFor="verify-code">Enter 6-digit code</Label>
         <Input
           id="verify-code"
           value={code}
