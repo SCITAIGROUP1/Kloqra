@@ -69,6 +69,20 @@ export function PendingTimesheetsWidget({
     });
   }
 
+  function formatDateRange(startStr: string, endStr: string) {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
+  }
+
+  function getPeriodLabel(sheet: PendingTimesheetDto) {
+    return sheet.approvalPeriod === "daily"
+      ? "Day"
+      : sheet.approvalPeriod === "monthly"
+        ? "Month"
+        : "Week";
+  }
+
   if (loading) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 py-6">
@@ -77,6 +91,10 @@ export function PendingTimesheetsWidget({
       </div>
     );
   }
+
+  const periodRangeStr = reviewTarget
+    ? `${getPeriodLabel(reviewTarget.sheet)}: ${formatDateRange(reviewTarget.sheet.periodStart, reviewTarget.sheet.periodEnd)}`
+    : "";
 
   return (
     <div className="flex flex-col h-full">
@@ -167,8 +185,8 @@ export function PendingTimesheetsWidget({
           }
           description={
             reviewTarget.action === "approve"
-              ? `Approve ${reviewTarget.sheet.userName}'s submission for ${reviewTarget.sheet.projectName}?`
-              : `Send ${reviewTarget.sheet.userName}'s submission back for correction.`
+              ? `Approve ${reviewTarget.sheet.userName}'s submission for ${reviewTarget.sheet.projectName} (${periodRangeStr})?`
+              : `Send ${reviewTarget.sheet.userName}'s submission for ${reviewTarget.sheet.projectName} (${periodRangeStr}) back for correction.`
           }
           noteLabel={reviewTarget.action === "approve" ? "Review comment" : "Rejection reason"}
           notePlaceholder={

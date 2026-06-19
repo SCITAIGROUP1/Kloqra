@@ -204,6 +204,9 @@ export function PendingTimesheetCard({
     item.cascadedCount && item.cascadedCount > 0
       ? `Part of batch submit (+${item.cascadedCount})`
       : null;
+  const periodLabel =
+    item.approvalPeriod === "daily" ? "Day" : item.approvalPeriod === "monthly" ? "Month" : "Week";
+  const periodRangeStr = `${periodLabel}: ${formatDateRange(item.periodStart, item.periodEnd, timezone)}`;
 
   function closeDialog() {
     setConfirmAction(null);
@@ -300,7 +303,7 @@ export function PendingTimesheetCard({
           if (!open) closeDialog();
         }}
         title="Approve this timesheet?"
-        description={`Approve ${item.userName}'s submission for ${item.projectName}? Entries in this period will remain locked.`}
+        description={`Approve ${item.userName}'s submission for ${item.projectName} (${periodRangeStr})? Entries in this period will remain locked.`}
         noteLabel="Review comment"
         notePlaceholder="Optional feedback for the member"
         confirmLabel="Approve timesheet"
@@ -317,7 +320,7 @@ export function PendingTimesheetCard({
           if (!open) closeDialog();
         }}
         title="Reject this timesheet?"
-        description={`Send ${item.userName}'s submission back for correction. The member will see your note.`}
+        description={`Send ${item.userName}'s submission for ${item.projectName} (${periodRangeStr}) back for correction. The member will see your note.`}
         noteLabel="Rejection reason"
         notePlaceholder="Explain what needs to be corrected"
         noteRequired
