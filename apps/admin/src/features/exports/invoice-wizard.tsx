@@ -355,10 +355,12 @@ export function InvoiceWizard() {
                   <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Details
                   </span>
-                  <span className="block">Due Date: {new Date(dueDate).toLocaleDateString()}</span>
                   <span className="block">
-                    Range: {new Date(from).toLocaleDateString()} -{" "}
-                    {new Date(to).toLocaleDateString()}
+                    Due Date: {new Date(dueDate).toLocaleDateString(undefined, { timeZone: "UTC" })}
+                  </span>
+                  <span className="block">
+                    Range: {new Date(from).toLocaleDateString(undefined, { timeZone: "UTC" })} -{" "}
+                    {new Date(to).toLocaleDateString(undefined, { timeZone: "UTC" })}
                   </span>
                 </div>
               </div>

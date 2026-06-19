@@ -1,6 +1,6 @@
 "use client";
 
-import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
+import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
   TaskDto,
@@ -22,7 +22,13 @@ import {
   SearchableSelect,
   EmptyState
 } from "@kloqra/ui";
-import { fetchListItems, useRefetchOnWindowFocus } from "@kloqra/web-shared";
+import {
+  fetchListItems,
+  useRefetchOnWindowFocus,
+  useUserProfile,
+  todayInZone,
+  localMidnightUtcInZone
+} from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
@@ -138,6 +144,11 @@ export function TimerPage() {
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
+  const { profile } = useUserProfile();
+  const timezone = useMemo(() => {
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return resolveEffectiveTimezone(profile?.preferences ?? {}, browserTz);
+  }, [profile]);
 
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
@@ -177,10 +188,12 @@ export function TimerPage() {
   const fetchTodayLogs = useCallback(async () => {
     if (!ws) return;
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
+      const today = todayInZone(timezone);
+      const ty = today.getFullYear();
+      const tm = today.getMonth() + 1;
+      const td = today.getDate();
+      const todayStart = localMidnightUtcInZone(ty, tm, td, timezone);
+      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
       const params = new URLSearchParams({
         from: todayStart.toISOString(),
         to: todayEnd.toISOString()
@@ -192,7 +205,7 @@ export function TimerPage() {
     } catch {
       // ignore
     }
-  }, [ws]);
+  }, [ws, timezone]);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;

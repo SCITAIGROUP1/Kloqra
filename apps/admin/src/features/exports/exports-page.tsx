@@ -2,12 +2,14 @@
 
 import {
   ROUTES,
+  resolveEffectiveTimezone,
   type ExportPresetDto,
   type ExportPreviewBodyDto,
   type ExportPreviewResponseDto,
   type CategoryDto,
   type ProjectDto,
   type TaskDto,
+  type UserProfileDto,
   type WorkspaceMemberDto
 } from "@kloqra/contracts";
 import { fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
@@ -59,6 +61,18 @@ export function ExportsPage() {
 
   const [localPresets, setLocalPresets] = useState<StoredExportPreset[]>([]);
   const [serverPresets, setServerPresets] = useState<ExportPresetDto[]>([]);
+
+  // Load the admin user's timezone preference so exported date columns match the UI.
+  const [userTimezone, setUserTimezone] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!ws) return;
+    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+      .then((profile) => {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setUserTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
+      })
+      .catch(() => {});
+  }, [ws]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -179,7 +193,9 @@ export function ExportsPage() {
       members: scopedMembers,
       preview,
       previewLoading,
-      previewError
+      previewError,
+      // Pass user timezone preference so exports use the same timezone as the UI
+      timezone: userTimezone
     }),
     [
       ws,
@@ -197,7 +213,8 @@ export function ExportsPage() {
       scopedMembers,
       preview,
       previewLoading,
-      previewError
+      previewError,
+      userTimezone
     ]
   );
 

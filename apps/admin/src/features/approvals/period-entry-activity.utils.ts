@@ -26,14 +26,20 @@ export function formatEntryDuration(durationSec: number): string {
   return `${minutes}m`;
 }
 
-export function formatEntryTimeRange(startTime: string, endTime: string): string {
+export function formatEntryTimeRange(
+  startTime: string,
+  endTime: string,
+  timezone?: string
+): string {
   const start = new Date(startTime);
   const end = new Date(endTime);
-  const sameDay = start.toDateString() === end.toDateString();
+  const tzOpts = timezone ? { timeZone: timezone } : {};
+  const sameDay =
+    start.toLocaleDateString(undefined, tzOpts) === end.toLocaleDateString(undefined, tzOpts);
   if (sameDay) {
-    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} – ${end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric", ...tzOpts })} · ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...tzOpts })} – ${end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...tzOpts })}`;
   }
-  return `${start.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} – ${end.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+  return `${start.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...tzOpts })} – ${end.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...tzOpts })}`;
 }
 
 export function sortLogsByStartDesc(logs: TimeLogDto[]): TimeLogDto[] {

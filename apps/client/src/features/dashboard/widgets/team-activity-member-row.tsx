@@ -14,6 +14,7 @@ type TeamActivityMemberRowProps = {
   member: TeamActivityMemberDto;
   periodTotalLabel: string;
   projectColor: string;
+  timezone?: string;
 };
 
 function MemberAvatar({ name }: { name: string }) {
@@ -50,7 +51,8 @@ function LatestActivityBlock({
 export function TeamActivityMemberCard({
   member,
   periodTotalLabel,
-  projectColor
+  projectColor,
+  timezone
 }: TeamActivityMemberRowProps) {
   const latest = member.latestActivity;
 
@@ -91,6 +93,7 @@ export function TeamActivityMemberCard({
         periodTotalHours={member.periodTotalHours}
         showCaption
         className="mt-3"
+        timezone={timezone}
       />
     </article>
   );
@@ -101,7 +104,8 @@ const DESKTOP_GRID =
 
 export function TeamActivityMemberTableRow({
   member,
-  projectColor
+  projectColor,
+  timezone
 }: Omit<TeamActivityMemberRowProps, "periodTotalLabel">) {
   const latest = member.latestActivity;
 
@@ -129,7 +133,11 @@ export function TeamActivityMemberTableRow({
       </span>
 
       <div role="cell">
-        <DailyHoursSparkline days={member.dailyHours} periodTotalHours={member.periodTotalHours} />
+        <DailyHoursSparkline
+          days={member.dailyHours}
+          periodTotalHours={member.periodTotalHours}
+          timezone={timezone}
+        />
       </div>
     </div>
   );

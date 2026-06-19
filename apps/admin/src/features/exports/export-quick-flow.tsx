@@ -98,6 +98,8 @@ export type ExportQuickFlowProps = {
   onPreviewBodyChange: (body: ExportPreviewBodyDto) => void;
   initialScenarioId?: ExportScenarioId | null;
   onJobCreated?: () => void;
+  /** User's IANA timezone preference — sent to the server so exported dates match the UI. */
+  timezone?: string;
 };
 
 export function ExportQuickFlow({
@@ -127,7 +129,8 @@ export function ExportQuickFlow({
   previewError,
   onPreviewBodyChange,
   initialScenarioId,
-  onJobCreated
+  onJobCreated,
+  timezone
 }: ExportQuickFlowProps) {
   const [step, setStep] = useState(0);
   const [scenarioId, setScenarioId] = useState<ExportScenarioId | null>(initialScenarioId ?? null);
@@ -167,6 +170,7 @@ export function ExportQuickFlow({
       sheetLayout: organize.sheetLayout,
       columns: defaultColumnsForReports(scenario.reportTypes),
       exportPurpose: scenario.purposeSlug,
+      ...(timezone ? { timezone } : {}),
       ...(projectIds.length ? { projectIds } : {}),
       ...(userIds.length ? { userIds } : {}),
       ...(categoryId ? { categoryId } : {}),
@@ -184,7 +188,8 @@ export function ExportQuickFlow({
     userIds,
     categoryId,
     taskId,
-    teamOnly
+    teamOnly,
+    timezone
   ]);
 
   const previewBody = useMemo(() => {
@@ -198,6 +203,7 @@ export function ExportQuickFlow({
       sheetLayout: exportBody.sheetLayout,
       ...(exportBody.columns ? { columns: exportBody.columns } : {}),
       ...(exportBody.exportPurpose ? { exportPurpose: exportBody.exportPurpose } : {}),
+      ...(exportBody.timezone ? { timezone: exportBody.timezone } : {}),
       ...(exportBody.projectIds?.length ? { projectIds: exportBody.projectIds } : {}),
       ...(exportBody.userIds?.length ? { userIds: exportBody.userIds } : {}),
       ...(exportBody.categoryId ? { categoryId: exportBody.categoryId } : {}),

@@ -8,7 +8,7 @@ import { PendingActivity } from "./pending-timesheet-card";
 function formatDateRange(startStr: string, endStr: string) {
   const start = new Date(startStr);
   const end = new Date(endStr);
-  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
 }
 
 function periodHeading(t: ReviewedTimesheetDto) {
@@ -21,12 +21,14 @@ export interface ReviewedTimesheetCardProps {
   item: ReviewedTimesheetDto;
   workspaceId: string;
   highlighted?: boolean;
+  timezone?: string;
 }
 
 export function ReviewedTimesheetCard({
   item,
   workspaceId,
-  highlighted = false
+  highlighted = false,
+  timezone
 }: ReviewedTimesheetCardProps) {
   const batchLabel =
     item.cascadedCount && item.cascadedCount > 0
@@ -37,7 +39,8 @@ export function ReviewedTimesheetCard({
     day: "numeric",
     year: "numeric",
     hour: "numeric",
-    minute: "2-digit"
+    minute: "2-digit",
+    ...(timezone ? { timeZone: timezone } : {})
   });
 
   return (
@@ -115,7 +118,7 @@ export function ReviewedTimesheetCard({
             </div>
           ) : null}
 
-          <PendingActivity item={item} workspaceId={workspaceId} />
+          <PendingActivity item={item} workspaceId={workspaceId} timezone={timezone} />
         </div>
       </CardContent>
     </Card>

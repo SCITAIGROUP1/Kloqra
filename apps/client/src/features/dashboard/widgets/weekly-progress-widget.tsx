@@ -7,14 +7,15 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from "@kloqra/ui/chart";
+import { toDateKeyInZone, localMidnightUtcInZone } from "@kloqra/web-shared";
 import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
-import { toDateKey } from "@/features/timesheet/calendar-utils";
 
 export type WeeklyProgressWidgetProps = {
   logs: TimeLogDto[];
   startDate: string;
   endDate: string;
+  timezone?: string;
 };
 
 const chartConfig = {
@@ -22,10 +23,18 @@ const chartConfig = {
   nonBillable: { label: "Non-billable Hours", color: "var(--chart-2)" }
 } satisfies ChartConfig;
 
-export function WeeklyProgressWidget({ logs, startDate, endDate }: WeeklyProgressWidgetProps) {
+export function WeeklyProgressWidget({
+  logs,
+  startDate,
+  endDate,
+  timezone
+}: WeeklyProgressWidgetProps) {
+  const resolvedTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const chartData = useMemo(() => {
-    const start = new Date(startDate + "T00:00:00");
-    const end = new Date(endDate + "T23:59:59.999");
+    const [sy, sm, sd] = startDate.split("-").map(Number);
+    const [ey, em, ed] = endDate.split("-").map(Number);
+    const start = localMidnightUtcInZone(sy, sm, sd, resolvedTz);
+    const end = localMidnightUtcInZone(ey, em, ed, resolvedTz);
     const days: Date[] = [];
     const curr = new Date(start);
     while (curr <= end) {
@@ -34,12 +43,12 @@ export function WeeklyProgressWidget({ logs, startDate, endDate }: WeeklyProgres
     }
 
     return days.map((dayDate) => {
-      const dateKey = toDateKey(dayDate);
+      const dateKey = toDateKeyInZone(dayDate, resolvedTz);
 
       // Find logs for this specific date
       const dayLogs = logs.filter((log) => {
         const logDate = new Date(log.startTime);
-        return toDateKey(logDate) === dateKey;
+        return toDateKeyInZone(logDate, resolvedTz) === dateKey;
       });
 
       let billableHours = 0;
@@ -57,8 +66,12 @@ export function WeeklyProgressWidget({ logs, startDate, endDate }: WeeklyProgres
       // X-Axis label format: if 7 days or less, show weekday name. Otherwise show month/day
       const showShortDate = days.length > 7;
       const dayName = showShortDate
-        ? dayDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-        : dayDate.toLocaleDateString(undefined, { weekday: "short" });
+        ? dayDate.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            timeZone: resolvedTz
+          })
+        : dayDate.toLocaleDateString(undefined, { weekday: "short", timeZone: resolvedTz });
 
       return {
         dayName,
@@ -66,7 +79,7 @@ export function WeeklyProgressWidget({ logs, startDate, endDate }: WeeklyProgres
         nonBillable: Math.round(nonBillableHours * 100) / 100
       };
     });
-  }, [logs, startDate, endDate]);
+  }, [logs, startDate, endDate, resolvedTz]);
 
   return (
     <div className="flex h-full flex-col justify-center min-h-[200px] min-w-0">

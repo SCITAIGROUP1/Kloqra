@@ -23,6 +23,7 @@ export type TeamActivitiesWidgetProps = {
   error?: string | null;
   range: DashboardPeriodSelection;
   filters: TeamActivitiesFilters;
+  timezone?: string;
 };
 
 function resolveProjectColor(projectId: string, projectColorById: Map<string, string>): string {
@@ -35,7 +36,8 @@ export function TeamActivitiesWidget({
   loading,
   error,
   range,
-  filters
+  filters,
+  timezone
 }: TeamActivitiesWidgetProps) {
   const periodTotalLabel = teamActivitiesPeriodTotalLabel(range);
   const activeFilterCount = countActiveTeamActivityFilters(filters);
@@ -120,6 +122,7 @@ export function TeamActivitiesWidget({
                       ? resolveProjectColor(member.latestActivity.projectId, projectColorById)
                       : "var(--muted)"
                   }
+                  timezone={timezone}
                 />
               ))}
             </div>
@@ -138,6 +141,7 @@ export function TeamActivitiesWidget({
                 ? resolveProjectColor(member.latestActivity.projectId, projectColorById)
                 : "var(--muted)"
             }
+            timezone={timezone}
           />
         ))}
       </div>

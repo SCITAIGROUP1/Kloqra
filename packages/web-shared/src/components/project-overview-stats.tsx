@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   applyDashboardPeriodPreset,
   matchDashboardPeriodPreset,
+  localMidnightUtcInZone,
   type DashboardPeriodPreset
 } from "../utils/dashboard-period-presets";
 import {
@@ -46,10 +47,17 @@ export type ProjectOverviewStatsProps = {
   mode: "admin" | "member";
   loadSummary: (from: string, to: string) => Promise<ProjectSummaryDto>;
   className?: string;
+  timezone?: string;
 };
 
-export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOverviewStatsProps) {
-  const initial = applyDashboardPeriodPreset("week");
+export function ProjectOverviewStats({
+  mode,
+  loadSummary,
+  className,
+  timezone
+}: ProjectOverviewStatsProps) {
+  const resolvedTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const initial = useMemo(() => applyDashboardPeriodPreset("week", resolvedTz), [resolvedTz]);
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState(initial.from);
   const [endDate, setEndDate] = useState(initial.to);
@@ -60,11 +68,23 @@ export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOv
   const periodLabel = mode === "admin" ? "Team time on this project" : "Your time on this project";
 
   useEffect(() => {
+    if (range !== "custom") {
+      const next = applyDashboardPeriodPreset(range, resolvedTz);
+      setStartDate(next.from);
+      setEndDate(next.to);
+    }
+  }, [resolvedTz, range]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const from = new Date(`${startDate}T00:00:00.000Z`).toISOString();
-    const to = new Date(`${endDate}T23:59:59.999Z`).toISOString();
+    const [fy, fm, fd] = startDate.split("-").map(Number);
+    const [ty, tm, td] = endDate.split("-").map(Number);
+    const from = localMidnightUtcInZone(fy, fm, fd, resolvedTz).toISOString();
+    const to = new Date(
+      localMidnightUtcInZone(ty, tm, td, resolvedTz).getTime() + 24 * 60 * 60 * 1000 - 1
+    ).toISOString();
     void loadSummary(from, to)
       .then((data) => {
         if (!cancelled) setSummary(data);
@@ -80,7 +100,7 @@ export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOv
     return () => {
       cancelled = true;
     };
-  }, [startDate, endDate, loadSummary]);
+  }, [startDate, endDate, resolvedTz, loadSummary]);
 
   const kpis = useMemo<KpiDef[] | null>(() => {
     if (!summary) return null;
@@ -122,7 +142,7 @@ export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOv
 
   function handlePresetChange(preset: DashboardPeriodPreset) {
     setRange(preset);
-    const next = applyDashboardPeriodPreset(preset);
+    const next = applyDashboardPeriodPreset(preset, resolvedTz);
     setStartDate(next.from);
     setEndDate(next.to);
   }
@@ -130,7 +150,14 @@ export function ProjectOverviewStats({ mode, loadSummary, className }: ProjectOv
   function handleDateRangeChange(from: string, to: string) {
     setStartDate(from);
     setEndDate(to);
-    setRange(matchDashboardPeriodPreset(from, to) ?? "custom");
+    setRange(
+      matchDashboardPeriodPreset(
+        from,
+        to,
+        PERIOD_PRESETS.map((p) => p.value as DashboardPeriodPreset),
+        resolvedTz
+      ) ?? "custom"
+    );
   }
 
   return (

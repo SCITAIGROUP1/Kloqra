@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   TimeLogDto,
   ProjectDto,
@@ -40,7 +40,11 @@ import {
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
-  fetchListItems
+  fetchListItems,
+  useUserProfile,
+  localMidnightUtcInZone,
+  todayInZone,
+  toDateKeyInZone
 } from "@kloqra/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -72,7 +76,6 @@ import {
   isTimeEntryLocked,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
-import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
@@ -106,11 +109,23 @@ export function DashboardPage() {
   const isImpersonating = useIsImpersonating();
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
+  const { profile } = useUserProfile();
+
+  const timezone = useMemo(() => {
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return resolveEffectiveTimezone(profile?.preferences ?? {}, browserTz);
+  }, [profile]);
 
   // Dashboard filter states
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
-  const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
-  const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return applyDashboardPeriodPreset("week", tz).from;
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return applyDashboardPeriodPreset("week", tz).to;
+  });
   const [filterProjectId, setFilterProjectId] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTaskId, setFilterTaskId] = useState("");
@@ -120,9 +135,22 @@ export function DashboardPage() {
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
+  // Keep date ranges in sync with the loaded/updated timezone preference
+  const lastTimezoneRef = useRef(timezone);
+  useEffect(() => {
+    if (timezone !== lastTimezoneRef.current) {
+      lastTimezoneRef.current = timezone;
+      if (range !== "custom") {
+        const { from, to } = applyDashboardPeriodPreset(range, timezone);
+        setStartDate(from);
+        setEndDate(to);
+      }
+    }
+  }, [timezone, range]);
+
   function handleRangePresetChange(newRange: DashboardPeriodPreset) {
     setRange(newRange);
-    const { from, to } = applyDashboardPeriodPreset(newRange);
+    const { from, to } = applyDashboardPeriodPreset(newRange, timezone);
     setStartDate(from);
     setEndDate(to);
   }
@@ -130,7 +158,14 @@ export function DashboardPage() {
   function handleDateRangeChange(from: string, to: string) {
     setStartDate(from);
     setEndDate(to);
-    setRange(matchDashboardPeriodPreset(from, to) ?? "custom");
+    setRange(
+      matchDashboardPeriodPreset(
+        from,
+        to,
+        CLIENT_PERIOD_PRESETS.map((p) => p.value),
+        timezone
+      ) ?? "custom"
+    );
   }
 
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
@@ -143,17 +178,31 @@ export function DashboardPage() {
     Boolean(ws)
   );
 
-  const teamActivitiesFilters = useMemo(
-    () => ({
-      from: new Date(startDate + "T00:00:00").toISOString(),
-      to: new Date(endDate + "T23:59:59.999").toISOString(),
+  const teamActivitiesFilters = useMemo(() => {
+    const [fy, fm, fd] = startDate.split("-").map(Number);
+    const [ty, tm, td] = endDate.split("-").map(Number);
+    const from = localMidnightUtcInZone(fy, fm, fd, timezone).toISOString();
+    const to = new Date(
+      localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
+    ).toISOString();
+    return {
+      from,
+      to,
       ...(filterProjectId ? { projectId: filterProjectId } : {}),
       ...(filterCategoryId ? { categoryId: filterCategoryId } : {}),
       ...(filterTaskId ? { taskId: filterTaskId } : {}),
       ...(isAdmin && filterUserId ? { userId: filterUserId } : {})
-    }),
-    [startDate, endDate, filterProjectId, filterCategoryId, filterTaskId, filterUserId, isAdmin]
-  );
+    };
+  }, [
+    startDate,
+    endDate,
+    filterProjectId,
+    filterCategoryId,
+    filterTaskId,
+    filterUserId,
+    isAdmin,
+    timezone
+  ]);
 
   const layoutsByWorkspace = useWidgetLayout((s) => s.layoutsByWorkspace);
   const initialized = useWidgetLayout((s) => s.initialized);
@@ -265,8 +314,12 @@ export function DashboardPage() {
   const fetchLogs = useCallback(async () => {
     if (!ws) return;
     try {
-      const from = new Date(startDate + "T00:00:00");
-      const to = new Date(endDate + "T23:59:59.999");
+      const [fy, fm, fd] = startDate.split("-").map(Number);
+      const [ty, tm, td] = endDate.split("-").map(Number);
+      const from = localMidnightUtcInZone(fy, fm, fd, timezone);
+      const to = new Date(
+        localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
+      );
       const params = new URLSearchParams({
         from: from.toISOString(),
         to: to.toISOString()
@@ -280,7 +333,7 @@ export function DashboardPage() {
     } catch {
       // ignore
     }
-  }, [ws, startDate, endDate, isAdmin, filterUserId, filterTaskId]);
+  }, [ws, startDate, endDate, isAdmin, filterUserId, filterTaskId, timezone]);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -568,14 +621,18 @@ export function DashboardPage() {
       }
       // Filter by period
       const subStart = new Date(sub.periodStart);
-      const fromDate = new Date(startDate + "T00:00:00");
-      const toDate = new Date(endDate + "T23:59:59.999");
+      const [fy, fm, fd] = startDate.split("-").map(Number);
+      const [ty, tm, td] = endDate.split("-").map(Number);
+      const fromDate = localMidnightUtcInZone(fy, fm, fd, timezone);
+      const toDate = new Date(
+        localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
+      );
       if (subStart < fromDate || subStart > toDate) {
         return false;
       }
       return true;
     });
-  }, [submissions, filterProjectId, startDate, endDate]);
+  }, [submissions, filterProjectId, startDate, endDate, timezone]);
 
   // Aggregates for Stats Cards
   const periodStats = useMemo(() => {
@@ -623,10 +680,14 @@ export function DashboardPage() {
   ]);
 
   const todayLoggedSec = useMemo(() => {
-    const todayStr = toDateKey(new Date());
-    const todayLogs = filteredLogs.filter((log) => toDateKey(new Date(log.startTime)) === todayStr);
+    const today = todayInZone(timezone);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const todayLogs = filteredLogs.filter(
+      (log) => toDateKeyInZone(new Date(log.startTime), timezone) === todayStr
+    );
     return todayLogs.reduce((sum, log) => sum + log.durationSec, 0);
-  }, [filteredLogs]);
+  }, [filteredLogs, timezone]);
 
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
 
@@ -849,6 +910,7 @@ export function DashboardPage() {
                               logs={filteredLogs}
                               startDate={startDate}
                               endDate={endDate}
+                              timezone={timezone}
                             />
                           );
                         case "project_split":
@@ -896,6 +958,7 @@ export function DashboardPage() {
                               onDeleteLog={handleDeleteLog}
                               onResumeTask={handleResumeTask}
                               isLogLocked={isLogLocked}
+                              timezone={timezone}
                             />
                           );
                         case "team_activities":
@@ -907,6 +970,7 @@ export function DashboardPage() {
                               error={teamActivitiesError}
                               range={range}
                               filters={teamActivitiesFilters}
+                              timezone={timezone}
                             />
                           );
                         case "timesheet_submissions":
@@ -914,6 +978,7 @@ export function DashboardPage() {
                             <TimesheetSubmissionsWidget
                               submissions={filteredSubmissions}
                               projects={projects}
+                              timezone={timezone}
                             />
                           );
                         case "daily_progress":

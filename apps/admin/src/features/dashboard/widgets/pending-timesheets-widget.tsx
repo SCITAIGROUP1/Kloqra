@@ -64,7 +64,8 @@ export function PendingTimesheetsWidget({
   function formatDate(isoStr: string) {
     return new Date(isoStr).toLocaleDateString(undefined, {
       month: "short",
-      day: "numeric"
+      day: "numeric",
+      timeZone: "UTC"
     });
   }
 

@@ -33,6 +33,7 @@ export type WidgetShareButtonProps = {
   categoryId?: string;
   taskId?: string;
   options?: Record<string, unknown>;
+  timezone?: string;
 };
 
 export function WidgetShareButton({
@@ -45,7 +46,8 @@ export function WidgetShareButton({
   userId,
   categoryId,
   taskId,
-  options
+  options,
+  timezone
 }: WidgetShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -60,7 +62,7 @@ export function WidgetShareButton({
     setSharing(true);
     setShareUrl(null);
     try {
-      const { from, to } = buildWidgetShareDateRange(startDate, endDate);
+      const { from, to } = buildWidgetShareDateRange(startDate, endDate, timezone);
       const result = await api<WidgetShareDto>(ROUTES.REPORTING.WIDGET_SHARES, {
         method: "POST",
         workspaceId,

@@ -542,7 +542,11 @@ const exportFiltersObjectSchema = z.object({
   billable: exportBillableFilterSchema.default("all"),
   groupBy: exportGroupByListSchema.default([]),
   sheetLayout: exportSheetLayoutSchema.default("standard"),
-  exportPurpose: z.string().max(48).optional()
+  exportPurpose: z.string().max(48).optional(),
+  /** IANA timezone from the requesting user's preference (e.g. "America/New_York").
+   *  When present, the server uses this for all date formatting instead of the
+   *  workspace-level timezone, ensuring exported dates match what the user sees in the UI. */
+  timezone: z.string().optional()
 });
 
 const withExportFiltersPreprocess = <T extends z.ZodTypeAny>(schema: T) =>
@@ -740,7 +744,11 @@ export const memberExportBodySchema = z
     billable: exportBillableFilterSchema.default("all"),
     reportTypes: z.array(memberExportReportTypeSchema).min(1).default(["time_entries"]),
     format: exportFormatSchema,
-    columns: memberExportColumnsSchema
+    columns: memberExportColumnsSchema,
+    /** IANA timezone from the requesting user's preference (e.g. "America/New_York").
+     *  When present, the server uses this for all date formatting ensuring exported
+     *  dates match what the user sees in the UI. */
+    timezone: z.string().optional()
   })
   .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 

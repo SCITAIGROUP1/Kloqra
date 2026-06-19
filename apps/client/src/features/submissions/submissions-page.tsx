@@ -70,7 +70,7 @@ export function SubmissionsPage() {
   useEffect(() => {
     if (!ws) return;
     void api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws }).then((profile) => {
-      const pref = profile.preferences?.weekStartsOn;
+      const pref = profile.preferences?.weekStart;
       if (pref === "monday" || pref === "sunday") {
         setWeekStartPref(pref);
       }

@@ -149,6 +149,8 @@ export type ExportCustomFlowProps = {
   onLocalPresetsChange: (presets: StoredExportPreset[]) => void;
   onServerPresetsChange: (presets: ExportPresetDto[]) => void;
   onJobCreated?: () => void;
+  /** User's IANA timezone preference — sent to the server so exported dates match the UI. */
+  timezone?: string;
 };
 
 export function ExportCustomFlow({
@@ -181,7 +183,8 @@ export function ExportCustomFlow({
   serverPresets,
   onLocalPresetsChange,
   onServerPresetsChange,
-  onJobCreated
+  onJobCreated,
+  timezone
 }: ExportCustomFlowProps) {
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
@@ -216,6 +219,7 @@ export function ExportCustomFlow({
       groupBy: safeGroupBy,
       sheetLayout,
       columns: columnsPayload,
+      ...(timezone ? { timezone } : {}),
       ...(projectIds.length ? { projectIds } : {}),
       ...(userIds.length ? { userIds } : {}),
       ...(categoryId ? { categoryId } : {}),
@@ -236,7 +240,8 @@ export function ExportCustomFlow({
     categoryId,
     taskId,
     teamOnly,
-    columnsPayload
+    columnsPayload,
+    timezone
   ]);
 
   const previewBody = useMemo(
@@ -249,6 +254,7 @@ export function ExportCustomFlow({
       sheetLayout: exportBody.sheetLayout,
       columns: columnsPayload,
       exportPurpose: exportBody.exportPurpose,
+      ...(exportBody.timezone ? { timezone: exportBody.timezone } : {}),
       ...(expandedReport ? { sampleReportType: expandedReport } : {}),
       ...(exportBody.projectIds?.length ? { projectIds: exportBody.projectIds } : {}),
       ...(exportBody.userIds?.length ? { userIds: exportBody.userIds } : {}),

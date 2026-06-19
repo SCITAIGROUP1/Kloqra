@@ -26,7 +26,7 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
-import { formatExportClockTime } from "./export-format.util";
+import { formatExportClockTime, formatExportDateKey } from "./export-format.util";
 import { buildExportPreviewCopy } from "./export-preview-copy.util";
 import { projectRows, rowsToCsv } from "./export-render.util";
 import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
@@ -234,11 +234,19 @@ export class ExportService {
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const aggregates = this.aggregation.buildAggregates(logs, resolveRate);
 
+    const parsedSettings = parseWorkspaceSettings(workspace.settings);
+    // Prefer the requesting user's personal timezone preference over the workspace default.
+    // This ensures exported date columns match exactly what the user sees in the UI.
+    const effectiveTimezone = filters.timezone ?? parsedSettings.timezone;
+    const settingsWithUserTimezone = effectiveTimezone
+      ? { ...parsedSettings, timezone: effectiveTimezone }
+      : parsedSettings;
+
     return {
       workspaceId,
       workspaceName: workspace.name,
       workspaceSlug: workspace.slug,
-      settings: parseWorkspaceSettings(workspace.settings),
+      settings: settingsWithUserTimezone,
       filters,
       from,
       to,
@@ -387,7 +395,7 @@ export class ExportService {
           project: l.task.project.name,
           category: categoryName,
           task: l.task.taskName,
-          date: l.startTime.toISOString().slice(0, 10),
+          date: formatExportDateKey(l.startTime, timeZone),
           start_time: formatExportClockTime(l.startTime, timeZone),
           end_time: formatExportClockTime(l.endTime, timeZone),
           hours: roundExport(hours),

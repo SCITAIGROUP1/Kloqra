@@ -8,6 +8,18 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
 import { getWeekStartDate, getWeekStartUtc } from "../../../common/time/week.util";
+function formatDateKeyInZone(date: Date, timeZone?: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: timeZone ?? "UTC"
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
 
 function addUtcDays(dateKey: string, days: number): string {
   const d = new Date(`${dateKey}T00:00:00.000Z`);
@@ -86,7 +98,7 @@ export class WorkspaceTeamActivitiesService {
     const periodTotalByUser = new Map<string, number>();
 
     for (const log of periodLogs) {
-      const dayKey = log.startTime.toISOString().slice(0, 10);
+      const dayKey = formatDateKeyInZone(log.startTime, query.timezone);
       const hours = log.durationSec / 3600;
       const userDayMap = hoursByUserDay.get(log.userId) ?? new Map<string, number>();
       userDayMap.set(dayKey, (userDayMap.get(dayKey) ?? 0) + hours);
@@ -146,8 +158,8 @@ export class WorkspaceTeamActivitiesService {
       return {
         from,
         to,
-        periodStartKey: from.toISOString().slice(0, 10),
-        periodEndKey: to.toISOString().slice(0, 10)
+        periodStartKey: formatDateKeyInZone(from, query.timezone),
+        periodEndKey: formatDateKeyInZone(to, query.timezone)
       };
     }
 
@@ -161,7 +173,7 @@ export class WorkspaceTeamActivitiesService {
       from: weekStart,
       to: weekEnd,
       periodStartKey: getWeekStartUtc(now, weekStartPref),
-      periodEndKey: weekEnd.toISOString().slice(0, 10)
+      periodEndKey: formatDateKeyInZone(weekEnd, query.timezone)
     };
   }
 }

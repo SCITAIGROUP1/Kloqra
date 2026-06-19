@@ -21,11 +21,12 @@ function periodLabel(info: TimesheetPeriodDto): string {
     return start.toLocaleDateString(undefined, {
       weekday: "short",
       month: "short",
-      day: "numeric"
+      day: "numeric",
+      timeZone: "UTC"
     });
   }
   if (info.approvalPeriod === "monthly") {
-    return start.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    return start.toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
   }
   return `Week of ${start.toISOString().slice(0, 10)}`;
 }

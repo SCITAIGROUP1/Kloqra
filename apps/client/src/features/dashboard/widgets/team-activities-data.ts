@@ -1,5 +1,5 @@
 import type { TeamActivityDayDto } from "@kloqra/contracts";
-import type { DashboardPeriodSelection } from "@kloqra/web-shared";
+import { todayInZone, type DashboardPeriodSelection } from "@kloqra/web-shared";
 
 export function formatDurationSec(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -60,10 +60,12 @@ export function dayTooltipLabel(dateKey: string): string {
   });
 }
 
-export function isTodayDateKey(dateKey: string, now = new Date()): boolean {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
+export function isTodayDateKey(dateKey: string, timezone?: string): boolean {
+  const resolvedTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const today = todayInZone(resolvedTz);
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, "0");
+  const d = String(today.getDate()).padStart(2, "0");
   return dateKey === `${y}-${m}-${d}`;
 }
 
@@ -96,6 +98,7 @@ export function teamActivitiesPeriodTotalLabel(range: DashboardPeriodSelection):
 export type TeamActivitiesFilters = {
   from: string;
   to: string;
+  timezone?: string;
   projectId?: string;
   categoryId?: string;
   taskId?: string;
@@ -107,6 +110,7 @@ export function buildTeamActivitiesQuery(filters: TeamActivitiesFilters): string
     from: filters.from,
     to: filters.to
   });
+  if (filters.timezone) params.set("timezone", filters.timezone);
   if (filters.projectId) params.set("projectId", filters.projectId);
   if (filters.categoryId) params.set("categoryId", filters.categoryId);
   if (filters.taskId) params.set("taskId", filters.taskId);

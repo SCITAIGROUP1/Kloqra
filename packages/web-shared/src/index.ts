@@ -86,6 +86,10 @@ export { fetchUserProfile } from "./stores/user-profile.store";
 export {
   applyDashboardPeriodPreset,
   matchDashboardPeriodPreset,
+  localMidnightUtcInZone,
+  todayInZone,
+  toDateKeyInZone,
+  getTimezoneOffsetMs,
   type DashboardPeriodPreset
 } from "./utils/dashboard-period-presets";
 export {

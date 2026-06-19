@@ -63,19 +63,41 @@ export function slotEnd(start: Date): Date {
   return end;
 }
 
-export function formatDayHeader(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+export function formatDayHeader(d: Date, timezone?: string): string {
+  return d.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(timezone ? { timeZone: timezone } : {})
+  });
 }
 
-export function formatWeekRange(weekStart: Date): string {
+export function formatWeekRange(weekStart: Date, timezone?: string): string {
   const weekEnd = addDays(weekStart, 6);
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  const opts: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    timeZone: timezone
+  };
   const startStr = weekStart.toLocaleDateString(undefined, opts);
   const endStr = weekEnd.toLocaleDateString(undefined, {
     ...opts,
-    year: weekStart.getFullYear() !== weekEnd.getFullYear() ? "numeric" : undefined
+    year:
+      (timezone
+        ? new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric" }).format(
+            weekStart
+          )
+        : weekStart.getFullYear().toString()) !==
+      (timezone
+        ? new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric" }).format(weekEnd)
+        : weekEnd.getFullYear().toString())
+        ? "numeric"
+        : undefined
   });
-  return `${startStr} – ${endStr}, ${weekEnd.getFullYear()}`;
+  const endYear = timezone
+    ? new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric" }).format(weekEnd)
+    : weekEnd.getFullYear();
+  return `${startStr} – ${endStr}, ${endYear}`;
 }
 
 export function formatTimeLabel(hour: number, minute: number): string {
@@ -367,16 +389,20 @@ export function combineDayAndTime(dateKey: string, time: string): Date {
 
 export function formatDraftDateLabel(
   draft: { date: string },
-  log?: { startTime: string } | null
+  log?: { startTime: string } | null,
+  timezone?: string
 ): string {
   const opts: Intl.DateTimeFormatOptions = {
     weekday: "long",
     month: "long",
     day: "numeric",
-    year: "numeric"
+    year: "numeric",
+    timeZone: timezone
   };
   if (/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) {
-    return fromDateKey(draft.date).toLocaleDateString(undefined, opts);
+    const [y, m, d] = draft.date.split("-").map(Number);
+    const date = localMidnightUtcInZone(y!, m!, d!, timezone || "UTC");
+    return date.toLocaleDateString(undefined, { ...opts, timeZone: timezone || "UTC" });
   }
   if (log?.startTime) {
     const d = new Date(log.startTime);
@@ -413,8 +439,12 @@ export function addMonths(d: Date, months: number): Date {
   return x;
 }
 
-export function formatMonthYear(d: Date): string {
-  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+export function formatMonthYear(d: Date, timezone?: string): string {
+  return d.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+    ...(timezone ? { timeZone: timezone } : {})
+  });
 }
 
 /** Monday-first grid cells for a month (null = padding) */

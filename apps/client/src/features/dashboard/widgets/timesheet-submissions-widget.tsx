@@ -13,6 +13,7 @@ import {
   TableRow,
   TimesheetApprovalStatusBadge
 } from "@kloqra/ui";
+import { localMidnightUtcInZone } from "@kloqra/web-shared";
 import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import React from "react";
@@ -22,15 +23,18 @@ import { formatWeekRange } from "@/features/timesheet/calendar-utils";
 export type TimesheetSubmissionsWidgetProps = {
   submissions: TimesheetPeriodDto[];
   projects: ProjectDto[];
+  timezone?: string;
 };
 
 export function TimesheetSubmissionsWidget({
   submissions,
-  projects
+  projects,
+  timezone
 }: TimesheetSubmissionsWidgetProps) {
   function formatPeriod(start: string) {
-    const d = new Date(start);
-    return formatWeekRange(d);
+    const [y, m, d] = start.split("-").map(Number);
+    const date = localMidnightUtcInZone(y!, m!, d!, timezone || "UTC");
+    return formatWeekRange(date, timezone);
   }
 
   const actionableCount = countActionableSubmissions(submissions);

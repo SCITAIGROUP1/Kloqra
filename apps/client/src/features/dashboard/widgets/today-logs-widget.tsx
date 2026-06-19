@@ -2,9 +2,9 @@
 
 import type { TimeLogDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import { Button, ProjectColorDot } from "@kloqra/ui";
+import { toDateKeyInZone, todayInZone } from "@kloqra/web-shared";
 import { Lock, Play, Trash2, Clock } from "lucide-react";
 import React, { useMemo } from "react";
-import { toDateKey } from "@/features/timesheet/calendar-utils";
 
 export type TodayLogsWidgetProps = {
   logs: TimeLogDto[];
@@ -13,6 +13,7 @@ export type TodayLogsWidgetProps = {
   onDeleteLog: (id: string) => Promise<void>;
   onResumeTask: (taskId: string) => Promise<void>;
   isLogLocked?: (log: TimeLogDto) => boolean;
+  timezone?: string;
 };
 
 export function TodayLogsWidget({
@@ -21,21 +22,27 @@ export function TodayLogsWidget({
   tasks,
   onDeleteLog,
   onResumeTask,
-  isLogLocked
+  isLogLocked,
+  timezone
 }: TodayLogsWidgetProps) {
+  const resolvedTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const todayLogs = useMemo(() => {
-    const todayStr = toDateKey(new Date());
+    const todayStr = toDateKeyInZone(todayInZone(resolvedTz), resolvedTz);
     return logs
       .filter((log) => {
         const logDate = new Date(log.startTime);
-        return toDateKey(logDate) === todayStr;
+        return toDateKeyInZone(logDate, resolvedTz) === todayStr;
       })
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-  }, [logs]);
+  }, [logs, resolvedTz]);
 
   function formatTime(iso: string) {
     const d = new Date(iso);
-    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: resolvedTz
+    });
   }
 
   function formatDuration(sec: number) {

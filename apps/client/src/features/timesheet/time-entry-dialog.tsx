@@ -127,7 +127,7 @@ export function TimeEntryDialog({
 
   const canDelete = Boolean(editingLog && onDelete && !readOnly);
   const canEdit = !readOnly && editingLog?.source !== "timer";
-  const dateLabel = draft ? formatDraftDateLabel(draft, editingLog) : "";
+  const dateLabel = draft ? formatDraftDateLabel(draft, editingLog, timezone) : "";
   const canSave = draft ? canSaveTaskDraft(draft) : false;
   const saveHint = draft ? taskSaveHint(draft) : null;
 

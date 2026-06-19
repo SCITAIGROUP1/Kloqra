@@ -69,7 +69,8 @@ export function formatChartDay(dateIso: string) {
   return new Date(`${dateIso}T12:00:00Z`).toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    timeZone: "UTC"
   });
 }
 

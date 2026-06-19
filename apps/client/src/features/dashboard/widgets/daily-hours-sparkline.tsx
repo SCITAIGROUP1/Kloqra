@@ -19,13 +19,15 @@ type DailyHoursSparklineProps = {
   periodTotalHours: number;
   className?: string;
   showCaption?: boolean;
+  timezone?: string;
 };
 
 export function DailyHoursSparkline({
   days,
   periodTotalHours,
   className,
-  showCaption = false
+  showCaption = false,
+  timezone
 }: DailyHoursSparklineProps) {
   const dayCount = days.length;
   const maxHours = useMemo(() => maxDailyHours(days), [days]);
@@ -62,7 +64,7 @@ export function DailyHoursSparkline({
           >
             {days.map((day) => {
               const barHeight = sparklineBarHeightPx(day.hours, maxHours);
-              const isToday = isTodayDateKey(day.dateKey);
+              const isToday = isTodayDateKey(day.dateKey, timezone);
               const tooltip = `${dayTooltipLabel(day.dateKey)}: ${formatWeekHours(day.hours)}`;
 
               return (
@@ -96,7 +98,7 @@ export function DailyHoursSparkline({
                   <span
                     className={cn(
                       "block truncate text-[8px] leading-none",
-                      isTodayDateKey(day.dateKey)
+                      isTodayDateKey(day.dateKey, timezone)
                         ? "font-semibold text-primary"
                         : "text-muted-foreground"
                     )}

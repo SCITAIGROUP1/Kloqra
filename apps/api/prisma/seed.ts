@@ -775,10 +775,28 @@ function hash01(a: number, b: number, c: number): number {
   return x - Math.floor(x);
 }
 
-function utcDay(daysAgo: number, hour: number, minute = 0): Date {
+function getOffsetHours(timezone: string, date: Date): number {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "shortOffset"
+    });
+    const tzPart = formatter.formatToParts(date).find((p) => p.type === "timeZoneName")?.value;
+    if (!tzPart || tzPart === "GMT") return 0;
+    const match = tzPart.match(/GMT([+-]\d+)/);
+    if (match) return parseInt(match[1], 10);
+  } catch {
+    // ignore
+  }
+  return 0;
+}
+
+function utcDay(daysAgo: number, hour: number, minute = 0, timezone = "UTC"): Date {
   const d = new Date();
-  d.setUTCHours(hour, minute, 0, 0);
+  d.setUTCHours(12, 0, 0, 0); // stable anchor
   d.setUTCDate(d.getUTCDate() - daysAgo);
+  const offset = getOffsetHours(timezone, d);
+  d.setUTCHours(hour - offset, minute, 0, 0);
   return d;
 }
 
@@ -927,7 +945,12 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
         const hours = roundQuarter(
           0.75 + hash01(daysAgo, e, 6) * (weekend ? 2 : 3.25) + meetingStretch
         );
-        const start = utcDay(daysAgo, Math.floor(cursorMinutes / 60), cursorMinutes % 60);
+        const start = utcDay(
+          daysAgo,
+          Math.floor(cursorMinutes / 60),
+          cursorMinutes % 60,
+          userSpec.preferences?.timezone ?? "UTC"
+        );
         const end = new Date(start.getTime() + hours * 3600 * 1000);
         cursorMinutes += Math.round(hours * 60) + 30;
         dayCursorMinutes.set(dayKey, cursorMinutes);

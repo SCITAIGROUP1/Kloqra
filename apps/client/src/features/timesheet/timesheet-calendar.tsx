@@ -149,9 +149,13 @@ export function TimesheetCalendar({
         : formatDayHeaderPref(day, displayFormat);
     }
     if (useCompactDayHeaders) {
-      return day.toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
+      return day.toLocaleDateString(undefined, {
+        weekday: "short",
+        day: "numeric",
+        ...(timezone ? { timeZone: timezone } : {})
+      });
     }
-    return formatDayHeader(day);
+    return formatDayHeader(day, timezone);
   };
   const labelTime = (hour: number, minute: number) =>
     displayFormat ? formatClockLabel(hour, minute, displayFormat) : formatTimeLabel(hour, minute);
@@ -240,7 +244,7 @@ export function TimesheetCalendar({
       setDrag(null);
       dragMoved.current = false;
     },
-    [days, onSlotRangeSelect]
+    [days, onSlotRangeSelect, timezone]
   );
 
   useEffect(() => {

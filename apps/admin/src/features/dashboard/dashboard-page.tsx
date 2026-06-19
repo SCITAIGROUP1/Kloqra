@@ -1,12 +1,13 @@
 "use client";
 
-import { isShareableWidgetId, ROUTES } from "@kloqra/contracts";
+import { isShareableWidgetId, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   CategoryDto,
   DashboardReportDto,
   ProjectDto,
   TaskDto,
-  TeamMemberDto
+  TeamMemberDto,
+  UserProfileDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -37,7 +38,9 @@ import {
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
-  fetchListItems
+  fetchListItems,
+  api as sharedApi,
+  localMidnightUtcInZone
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Download, Folder, LayoutGrid, Move, Users } from "lucide-react";
 import Link from "next/link";
@@ -101,10 +104,16 @@ function rangeQuery(
     userId?: string | string[];
     categoryId?: string;
     taskId?: string;
-  }
+  },
+  timezone?: string
 ) {
-  const from = new Date(start + "T00:00:00");
-  const to = new Date(end + "T23:59:59.999");
+  const effectiveTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const [fy, fm, fd] = start.split("-").map(Number);
+  const [ty, tm, td] = end.split("-").map(Number);
+  const from = localMidnightUtcInZone(fy, fm, fd, effectiveTz);
+  const to = new Date(
+    localMidnightUtcInZone(ty, tm, td, effectiveTz).getTime() + 24 * 60 * 60 * 1000 - 1
+  );
   const params = new URLSearchParams({
     from: from.toISOString(),
     to: to.toISOString()
@@ -143,9 +152,34 @@ function formatMoney(n: number) {
 export function DashboardPage() {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
+  const [displayFormat, setDisplayFormat] = useState<any>(null);
+
+  useEffect(() => {
+    if (!ws) return;
+    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+      .then((profile) => {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const timezoneVal = resolveEffectiveTimezone(profile.preferences, browserTz);
+        setDisplayFormat({
+          timezone: timezoneVal,
+          dateFormat: profile.effectiveDateFormat,
+          timeFormat: profile.effectiveTimeFormat
+        });
+      })
+      .catch(() => {});
+  }, [ws]);
+
+  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
-  const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
-  const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return applyDashboardPeriodPreset("week", tz).from;
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return applyDashboardPeriodPreset("week", tz).to;
+  });
   const [projectId, setProjectId] = useState<string[]>([]);
   const [userId, setUserId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -158,9 +192,22 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Keep date ranges in sync with the loaded/updated timezone preference
+  const lastTimezoneRef = useRef(timezone);
+  useEffect(() => {
+    if (timezone !== lastTimezoneRef.current) {
+      lastTimezoneRef.current = timezone;
+      if (range !== "custom") {
+        const { from, to } = applyDashboardPeriodPreset(range, timezone);
+        setStartDate(from);
+        setEndDate(to);
+      }
+    }
+  }, [timezone, range]);
+
   function handleRangePresetChange(newRange: DashboardPeriodPreset) {
     setRange(newRange);
-    const { from, to } = applyDashboardPeriodPreset(newRange);
+    const { from, to } = applyDashboardPeriodPreset(newRange, timezone);
     setStartDate(from);
     setEndDate(to);
   }
@@ -168,7 +215,7 @@ export function DashboardPage() {
   function handleDateRangeChange(from: string, to: string) {
     setStartDate(from);
     setEndDate(to);
-    setRange(matchDashboardPeriodPreset(from, to, ["week", "month"]) ?? "custom");
+    setRange(matchDashboardPeriodPreset(from, to, ["week", "month"], timezone) ?? "custom");
   }
 
   // Widget Customization UI States
@@ -348,18 +395,23 @@ export function DashboardPage() {
     setLoading(true);
     setError(null);
     api<DashboardReportDto>(
-      `${ROUTES.REPORTING.DASHBOARD}?${rangeQuery(startDate, endDate, {
-        projectId: projectId,
-        userId: userId,
-        categoryId: categoryId || undefined,
-        taskId: taskId || undefined
-      })}`,
+      `${ROUTES.REPORTING.DASHBOARD}?${rangeQuery(
+        startDate,
+        endDate,
+        {
+          projectId: projectId,
+          userId: userId,
+          categoryId: categoryId || undefined,
+          taskId: taskId || undefined
+        },
+        timezone
+      )}`,
       { workspaceId: ws }
     )
       .then(setReport)
       .catch(() => setError("Could not load analytics. Is the API running on port 3001?"))
       .finally(() => setLoading(false));
-  }, [ws, startDate, endDate, projectId, userId, categoryId, taskId]);
+  }, [ws, startDate, endDate, projectId, userId, categoryId, taskId, timezone]);
 
   useEffect(() => {
     load();
@@ -697,6 +749,7 @@ export function DashboardPage() {
           breakdownGroupBy,
           distributionGroupBy
         })}
+        timezone={timezone}
       />
     );
   }

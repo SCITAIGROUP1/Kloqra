@@ -4,10 +4,12 @@ import {
   ROUTES,
   buildExportFilename,
   DEFAULT_MEMBER_EXPORT_COLUMNS,
+  resolveEffectiveTimezone,
   type CategoryDto,
   type MemberExportBodyDto,
   type MemberExportReportType,
-  type ProjectDto
+  type ProjectDto,
+  type UserProfileDto
 } from "@kloqra/contracts";
 import {
   Button,
@@ -26,6 +28,7 @@ import {
 } from "@kloqra/ui";
 import { fetchListItems, toDateInputValue } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -58,6 +61,18 @@ export function TimesheetExport({
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  // Load user's timezone preference so exported date columns match the UI.
+  const [userTimezone, setUserTimezone] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!ws) return;
+    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+      .then((profile) => {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setUserTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
+      })
+      .catch(() => {});
+  }, [ws]);
+
   useEffect(() => {
     if (!ws) return;
     void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
@@ -76,6 +91,7 @@ export function TimesheetExport({
         billable,
         reportTypes: [reportType],
         format,
+        ...(userTimezone ? { timezone: userTimezone } : {}),
         ...(projectId ? { projectId } : {}),
         ...(categoryId ? { categoryId } : {}),
         ...(reportType === "time_entries"

@@ -33,6 +33,7 @@ export const teamActivitiesQuerySchema = z
   .object({
     from: isoDatetimeSchema.optional(),
     to: isoDatetimeSchema.optional(),
+    timezone: z.string().optional(),
     projectId: uuidSchema.optional(),
     categoryId: uuidSchema.optional(),
     taskId: uuidSchema.optional(),

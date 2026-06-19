@@ -302,14 +302,15 @@ export function TimesheetPage() {
 
   const rangeLabel = useMemo(() => {
     if (!displayFormat) {
-      if (view === "day") return anchor.toLocaleDateString();
-      if (view === "week") return weekStart.toLocaleDateString();
-      return monthStart.toLocaleDateString();
+      const tzOpts = timezone ? { timeZone: timezone } : undefined;
+      if (view === "day") return anchor.toLocaleDateString(undefined, tzOpts);
+      if (view === "week") return weekStart.toLocaleDateString(undefined, tzOpts);
+      return monthStart.toLocaleDateString(undefined, tzOpts);
     }
     if (view === "day") return formatDayRangeLabel(anchor, displayFormat);
     if (view === "week") return formatWeekRangeLabel(weekStart, displayFormat);
     return formatMonthYearLabel(monthStart, displayFormat);
-  }, [view, anchor, weekStart, monthStart, displayFormat]);
+  }, [view, anchor, weekStart, monthStart, displayFormat, timezone]);
 
   const taskLabel = useCallback(
     (taskId: string) => {

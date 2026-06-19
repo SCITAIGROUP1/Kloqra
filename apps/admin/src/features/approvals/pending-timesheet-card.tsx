@@ -31,10 +31,10 @@ import {
 } from "./period-entry-activity.utils";
 import { api } from "@/lib/api";
 
-function formatDateRange(startStr: string, endStr: string) {
+function formatDateRange(startStr: string, endStr: string, timezone?: string) {
   const start = new Date(startStr);
   const end = new Date(endStr);
-  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: timezone ?? "UTC" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: timezone ?? "UTC" })}`;
 }
 
 function periodHeading(t: PendingTimesheetDto) {
@@ -52,6 +52,7 @@ function PendingActivity({
     "id" | "userId" | "projectId" | "projectName" | "periodStart" | "periodEnd"
   >;
   workspaceId: string;
+  timezone?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
@@ -155,7 +156,7 @@ function PendingActivity({
                       >
                         <p className="font-medium">{task?.taskName ?? "Task"}</p>
                         <p className="text-muted-foreground">
-                          {formatEntryTimeRange(log.startTime, log.endTime)} ·{" "}
+                          {formatEntryTimeRange(log.startTime, log.endTime, timezone)} ·{" "}
                           {formatEntryDuration(log.durationSec)} ·{" "}
                           {log.isBillable ? "billable" : "non-billable"}
                         </p>
@@ -185,6 +186,7 @@ export interface PendingTimesheetCardProps {
   onReview: (action: "approve" | "reject", reviewNote: string) => void;
   actioning: boolean;
   highlighted?: boolean;
+  timezone?: string;
 }
 
 export function PendingTimesheetCard({
@@ -192,7 +194,8 @@ export function PendingTimesheetCard({
   workspaceId,
   onReview,
   actioning,
-  highlighted = false
+  highlighted = false,
+  timezone
 }: PendingTimesheetCardProps) {
   const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | null>(null);
   const blockedByAmendment = Boolean(item.amendmentPending);
@@ -261,7 +264,7 @@ export function PendingTimesheetCard({
               </div>
             )}
 
-            <PendingActivity item={item} workspaceId={workspaceId} />
+            <PendingActivity item={item} workspaceId={workspaceId} timezone={timezone} />
           </div>
 
           <div className="flex gap-2 pt-2">

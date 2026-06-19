@@ -1,6 +1,13 @@
-export function buildWidgetShareDateRange(startDate: string, endDate: string) {
-  const from = new Date(`${startDate}T00:00:00`);
-  const to = new Date(`${endDate}T23:59:59.999`);
+import { localMidnightUtcInZone } from "@kloqra/web-shared";
+
+export function buildWidgetShareDateRange(startDate: string, endDate: string, timezone?: string) {
+  const effectiveTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const [fy, fm, fd] = startDate.split("-").map(Number);
+  const [ty, tm, td] = endDate.split("-").map(Number);
+  const from = localMidnightUtcInZone(fy, fm, fd, effectiveTz);
+  const to = new Date(
+    localMidnightUtcInZone(ty, tm, td, effectiveTz).getTime() + 24 * 60 * 60 * 1000 - 1
+  );
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
