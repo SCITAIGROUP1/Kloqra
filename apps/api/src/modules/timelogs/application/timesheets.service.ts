@@ -504,6 +504,13 @@ export class TimesheetsService {
 
     if (periods.length === 0) return { items: [] };
 
+    const reviewerIds = [...new Set(periods.map((p) => p.reviewedBy).filter(Boolean))] as string[];
+    const reviewers = await this.prisma.user.findMany({
+      where: { id: { in: reviewerIds } },
+      select: { id: true, name: true }
+    });
+    const reviewerMap = new Map(reviewers.map((r) => [r.id, r.name]));
+
     const projectIds = [...new Set(periods.map((p) => p.projectId))];
     const userIds = [...new Set(periods.map((p) => p.userId))];
     const minStart = new Date(Math.min(...periods.map((p) => p.periodStart.getTime())));
@@ -573,7 +580,9 @@ export class TimesheetsService {
         ...base,
         status,
         reviewNote: p.reviewNote,
-        reviewedAt: p.reviewedAt?.toISOString() ?? new Date(0).toISOString()
+        reviewedAt: p.reviewedAt?.toISOString() ?? new Date(0).toISOString(),
+        reviewedBy: p.reviewedBy,
+        reviewedByName: p.reviewedBy ? (reviewerMap.get(p.reviewedBy) ?? null) : null
       };
     });
 

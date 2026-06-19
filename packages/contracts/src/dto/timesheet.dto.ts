@@ -170,7 +170,9 @@ export const listTimesheetSubmissionsResponseSchema = z.object({
 export const reviewedTimesheetSchema = pendingTimesheetSchema.extend({
   status: z.enum(["APPROVED", "REJECTED"]),
   reviewNote: z.string().nullable(),
-  reviewedAt: isoDatetimeSchema
+  reviewedAt: isoDatetimeSchema,
+  reviewedBy: uuidSchema.nullable().optional(),
+  reviewedByName: z.string().nullable().optional()
 });
 
 export const listPendingTimesheetsResponseSchema = z.object({

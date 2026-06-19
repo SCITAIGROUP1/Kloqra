@@ -40,7 +40,7 @@ import { Section, ToggleChip } from "@/components/admin-page";
 import { ExportColumnPicker } from "@/components/export-column-picker";
 import { ExportSchedulesPanel } from "@/components/export-schedules-panel";
 import { api } from "@/lib/api";
-import { applyDatePreset, type DatePreset } from "@/lib/export-date-presets";
+import { applyDatePreset, toDateInputValue, type DatePreset } from "@/lib/export-date-presets";
 import { groupBySummaryLabel, reportsForGroupBy } from "@/lib/export-group-by";
 import { normalizeExportBody } from "@/lib/export-normalize";
 import {
@@ -290,6 +290,16 @@ export function ExportCustomFlow({
     });
   }
 
+  function handleResetFilters() {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    onFromChange(toDateInputValue(d));
+    onToChange(toDateInputValue(new Date()));
+    onClearScope();
+    setBillable("all");
+    toast.success("Filters reset to defaults");
+  }
+
   function onGroupByDimensionsChange(next: ExportGroupByDimension[]) {
     setGroupBy(next);
     if (!next.length) return;
@@ -496,6 +506,7 @@ export function ExportCustomFlow({
                 teamOnly={teamOnly}
                 onTeamOnlyChange={onTeamOnlyChange}
                 onClearAll={onClearScope}
+                onResetFilters={handleResetFilters}
               />
             </CardContent>
           </Card>
