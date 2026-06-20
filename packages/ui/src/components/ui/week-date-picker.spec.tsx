@@ -56,8 +56,8 @@ describe("WeekDatePicker", () => {
     await user.click(screen.getByRole("button", { name: "Jump to week" }));
 
     const today = screen.getByRole("button", { name: "2026-06-10" });
-    expect(today).toHaveClass("bg-primary");
-    expect(today).toHaveClass("text-primary-foreground");
+    expect(today).toHaveClass("bg-muted");
+    expect(today).not.toHaveClass("bg-primary");
     expect(today).toHaveAttribute("aria-current", "date");
   });
 

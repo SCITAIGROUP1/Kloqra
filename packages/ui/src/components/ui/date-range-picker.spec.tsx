@@ -56,10 +56,10 @@ describe("DateRangePicker", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Date range" }));
-    expect(screen.getByRole("button", { name: "2026-06-10" })).toHaveAttribute(
-      "aria-current",
-      "date"
-    );
+    const today = screen.getByRole("button", { name: "2026-06-10" });
+    expect(today).toHaveClass("bg-muted");
+    expect(today).not.toHaveClass("bg-primary");
+    expect(today).toHaveAttribute("aria-current", "date");
 
     vi.useRealTimers();
   });
