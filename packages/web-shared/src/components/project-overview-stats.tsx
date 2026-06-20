@@ -31,7 +31,8 @@ import {
 const PERIOD_PRESETS: DashboardPeriodFilterOption[] = [
   { value: "today", label: "Today" },
   { value: "week", label: "This week" },
-  { value: "month", label: "This month" }
+  { value: "month", label: "This month" },
+  { value: "all", label: "All time" }
 ];
 
 type KpiDef = {
@@ -46,6 +47,7 @@ type KpiDef = {
 export type ProjectOverviewStatsProps = {
   mode: "admin" | "member";
   loadSummary: (from: string, to: string) => Promise<ProjectSummaryDto>;
+  projectInceptionDate?: string;
   className?: string;
   timezone?: string;
 };
@@ -53,12 +55,16 @@ export type ProjectOverviewStatsProps = {
 export function ProjectOverviewStats({
   mode,
   loadSummary,
+  projectInceptionDate,
   className,
   timezone
 }: ProjectOverviewStatsProps) {
   const resolvedTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const initial = useMemo(() => applyDashboardPeriodPreset("week", resolvedTz), [resolvedTz]);
-  const [range, setRange] = useState<DashboardPeriodSelection>("week");
+  const initial = useMemo(
+    () => applyDashboardPeriodPreset("all", resolvedTz, projectInceptionDate),
+    [resolvedTz, projectInceptionDate]
+  );
+  const [range, setRange] = useState<DashboardPeriodSelection>("all");
   const [startDate, setStartDate] = useState(initial.from);
   const [endDate, setEndDate] = useState(initial.to);
   const [summary, setSummary] = useState<ProjectSummaryDto | null>(null);
@@ -69,11 +75,11 @@ export function ProjectOverviewStats({
 
   useEffect(() => {
     if (range !== "custom") {
-      const next = applyDashboardPeriodPreset(range, resolvedTz);
+      const next = applyDashboardPeriodPreset(range, resolvedTz, projectInceptionDate);
       setStartDate(next.from);
       setEndDate(next.to);
     }
-  }, [resolvedTz, range]);
+  }, [resolvedTz, range, projectInceptionDate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,7 +148,7 @@ export function ProjectOverviewStats({
 
   function handlePresetChange(preset: DashboardPeriodPreset) {
     setRange(preset);
-    const next = applyDashboardPeriodPreset(preset, resolvedTz);
+    const next = applyDashboardPeriodPreset(preset, resolvedTz, projectInceptionDate);
     setStartDate(next.from);
     setEndDate(next.to);
   }
@@ -155,7 +161,8 @@ export function ProjectOverviewStats({
         from,
         to,
         PERIOD_PRESETS.map((p) => p.value as DashboardPeriodPreset),
-        resolvedTz
+        resolvedTz,
+        projectInceptionDate
       ) ?? "custom"
     );
   }

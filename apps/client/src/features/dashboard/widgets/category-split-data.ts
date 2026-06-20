@@ -1,4 +1,5 @@
 import type { TaskDto, TimeLogDto } from "@kloqra/contracts";
+import type { DashboardPeriodSelection } from "@kloqra/web-shared";
 
 export const CATEGORY_SPLIT_PALETTE = [
   "hsl(221 83% 53%)",
@@ -31,49 +32,41 @@ export type CategorySplitData = {
   totalHours: number;
 };
 
-function roundHours(hours: number): number {
-  return Math.round(hours * 100) / 100;
-}
-
 export function buildCategorySplitData(logs: TimeLogDto[], tasks: TaskDto[]): CategorySplitData {
-  const taskById = new Map(tasks.map((task) => [task.id, task]));
-  const categoryHoursMap: Record<string, { id: string; name: string; hours: number }> = {};
+  const byCategory = new Map<string, { name: string; seconds: number }>();
+  let totalSec = 0;
 
   for (const log of logs) {
-    const task = taskById.get(log.taskId);
-    const categoryId = task?.categoryId ?? "unknown";
-    const categoryName = task?.categoryName ?? "Uncategorized";
-    const hours = log.durationSec / 3600;
-    const existing = categoryHoursMap[categoryId];
+    const task = tasks.find((t) => t.id === log.taskId);
+    const catId = task?.categoryId ?? "uncategorized";
+    const catName = task?.categoryName ?? "Uncategorized";
 
-    if (existing) {
-      existing.hours += hours;
-    } else {
-      categoryHoursMap[categoryId] = { id: categoryId, name: categoryName, hours };
-    }
+    const prev = byCategory.get(catId) ?? { name: catName, seconds: 0 };
+    byCategory.set(catId, {
+      name: prev.name,
+      seconds: prev.seconds + log.durationSec
+    });
+    totalSec += log.durationSec;
   }
 
-  const rawTotal = Object.values(categoryHoursMap).reduce((sum, row) => sum + row.hours, 0);
-  const totalHours = roundHours(rawTotal);
+  const sorted = Array.from(byCategory.entries())
+    .map(([id, val]) => ({ id, name: val.name, seconds: val.seconds }))
+    .sort((a, b) => b.seconds - a.seconds);
 
-  const rows: CategorySplitRow[] = Object.values(categoryHoursMap)
-    .map((row) => {
-      const roundedHours = roundHours(row.hours);
-      const percentage = rawTotal > 0 ? Math.round((row.hours / rawTotal) * 1000) / 10 : 0;
+  const totalHours = totalSec / 3600;
+  const rows: CategorySplitRow[] = sorted.map((item, idx) => {
+    const hours = item.seconds / 3600;
+    const percentage = totalHours > 0 ? Math.round((hours / totalHours) * 1000) / 10 : 0;
+    const color = CATEGORY_SPLIT_PALETTE[idx % CATEGORY_SPLIT_PALETTE.length] || "hsl(215 16% 55%)";
 
-      return {
-        id: row.id,
-        categoryName: row.name,
-        hours: roundedHours,
-        percentage,
-        color: ""
-      };
-    })
-    .sort((a, b) => b.hours - a.hours)
-    .map((row, idx) => ({
-      ...row,
-      color: CATEGORY_SPLIT_PALETTE[idx % CATEGORY_SPLIT_PALETTE.length]!
-    }));
+    return {
+      id: item.id,
+      categoryName: item.name,
+      hours,
+      percentage,
+      color
+    };
+  });
 
   const chartRows: CategorySplitChartRow[] = rows.map((row, idx) => ({
     ...row,
@@ -86,7 +79,7 @@ export function buildCategorySplitData(logs: TimeLogDto[], tasks: TaskDto[]): Ca
   return { rows, chartRows, totalHours };
 }
 
-export function categorySplitPeriodLabel(range: "today" | "week" | "month" | "custom"): string {
+export function categorySplitPeriodLabel(range: DashboardPeriodSelection): string {
   switch (range) {
     case "today":
       return "Today";
@@ -94,6 +87,8 @@ export function categorySplitPeriodLabel(range: "today" | "week" | "month" | "cu
       return "This week";
     case "month":
       return "This month";
+    case "all":
+      return "All time";
     default:
       return "Period";
   }

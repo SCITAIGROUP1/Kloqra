@@ -1,6 +1,6 @@
 "use client";
 
-import { VerifyEmailPageContent } from "@kloqra/web-shared";
+import { VerifyEmailPageContent, hasMultipleWorkspaces } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useSessionStore } from "@/stores/session.store";
@@ -22,7 +22,12 @@ function VerifyEmailContent() {
           throw new Error("Admin access required");
         }
         setSession(session, accessToken, refreshToken);
-        router.push("/dashboard");
+        const multi = await hasMultipleWorkspaces(session.workspaceId, "ADMIN");
+        if (multi) {
+          router.push("/select-workspace");
+        } else {
+          router.push("/dashboard");
+        }
       }}
     />
   );

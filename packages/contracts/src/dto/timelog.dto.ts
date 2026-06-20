@@ -69,7 +69,7 @@ export const listTimeLogsQuerySchema = z
     search: z.string().trim().min(1).max(200).optional(),
     billableOnly: listTimeLogsBillableOnlySchema,
     limit: z.coerce.number().int().min(1).max(1000).optional(),
-    cursor: uuidSchema.optional()
+    cursor: z.string().optional()
   })
   .superRefine((v, ctx) => {
     if (v.from && v.to) assertMaxDateRange(v.from, v.to, ctx);
@@ -77,7 +77,7 @@ export const listTimeLogsQuerySchema = z
 
 export const listTimeLogsResponseSchema = z.object({
   items: z.array(timeLogSchema),
-  nextCursor: uuidSchema.optional()
+  nextCursor: z.string().optional()
 });
 
 export const createBatchTimeLogsSchema = z

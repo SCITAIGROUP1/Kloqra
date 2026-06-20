@@ -1,8 +1,10 @@
 "use client";
 
+import { passwordValidationSchema } from "@kloqra/contracts";
 import { Button, PasswordInput, Label } from "@kloqra/ui";
 import { useState } from "react";
 import { toast } from "sonner";
+import { PasswordStrengthIndicator } from "../../components/password-strength-indicator";
 import { AccountSectionFooter } from "./account-section-footer";
 
 type ChangePasswordSectionProps = {
@@ -19,8 +21,9 @@ export function ChangePasswordSection({ onChangePassword }: ChangePasswordSectio
     currentPassword.length > 0 && newPassword.length >= 8 && confirmPassword.length > 0;
 
   async function handleSave() {
-    if (newPassword.length < 8) {
-      toast.error("New password must be at least 8 characters");
+    const result = passwordValidationSchema.safeParse(newPassword);
+    if (!result.success) {
+      toast.error(result.error.errors[0]?.message ?? "Invalid password.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -64,7 +67,10 @@ export function ChangePasswordSection({ onChangePassword }: ChangePasswordSectio
             onChange={(e) => setNewPassword(e.target.value)}
             className="h-10 bg-background"
           />
-          <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+          <PasswordStrengthIndicator password={newPassword} />
+          <p className="text-xs text-muted-foreground">
+            Must contain uppercase, lowercase, numbers, and special characters.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm-password">Confirm new password</Label>

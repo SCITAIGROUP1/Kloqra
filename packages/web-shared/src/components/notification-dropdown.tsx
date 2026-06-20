@@ -110,7 +110,7 @@ export function NotificationDropdown({
         <div
           role="menu"
           aria-label="Notifications"
-          className="absolute right-0 top-full z-50 mt-1.5 w-[22rem] overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+          className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:w-[22rem] z-50 mt-1.5 overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
         >
           <div className="flex items-start justify-between gap-3 border-b border-border/70 px-4 py-3">
             <div>

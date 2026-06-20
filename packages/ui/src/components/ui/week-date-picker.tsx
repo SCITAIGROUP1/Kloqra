@@ -28,6 +28,7 @@ export type WeekDatePickerProps = {
   className?: string;
   ariaLabel?: string;
   disabled?: boolean;
+  maxDate?: string;
 };
 
 function monthTitle(year: number, month: number): string {
@@ -71,7 +72,8 @@ function MonthPanel({
   hoverKey,
   highlightMode,
   onDayClick,
-  onDayHover
+  onDayHover,
+  maxDate
 }: {
   year: number;
   month: number;
@@ -81,6 +83,7 @@ function MonthPanel({
   highlightMode: WeekDatePickerHighlightMode;
   onDayClick: (key: string) => void;
   onDayHover: (key: string | null) => void;
+  maxDate?: string;
 }) {
   const weeks = buildMonthGrid(year, month, weekStartsOn);
   const weekdayLabels = weekStartsOn === 1 ? WEEKDAY_LABELS_MONDAY : WEEKDAY_LABELS_SUNDAY;
@@ -119,14 +122,16 @@ function MonthPanel({
           const inAnchorMonth = highlightMode === "month" && isSameMonthKey(key, anchorDate);
 
           const isSelectedEndpoint = isStart || isEnd || (highlightMode === "day" && isAnchor);
+          const isDisabled = maxDate ? key > maxDate : false;
 
           return (
             <button
               key={key}
               type="button"
-              onClick={() => onDayClick(key)}
-              onMouseEnter={() => onDayHover(key)}
-              onMouseLeave={() => onDayHover(null)}
+              disabled={isDisabled}
+              onClick={() => !isDisabled && onDayClick(key)}
+              onMouseEnter={() => !isDisabled && onDayHover(key)}
+              onMouseLeave={() => !isDisabled && onDayHover(null)}
               className={cn(
                 "relative flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium transition-colors",
                 "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
@@ -136,7 +141,8 @@ function MonthPanel({
                   "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
                 isToday &&
                   !isSelectedEndpoint &&
-                  "bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                  "bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground",
+                isDisabled && "opacity-30 cursor-not-allowed pointer-events-none"
               )}
               aria-label={key}
               aria-pressed={inCommittedRange || isAnchor}
@@ -159,7 +165,8 @@ export function WeekDatePicker({
   highlightMode = "week",
   className,
   ariaLabel = "Jump to date",
-  disabled = false
+  disabled = false,
+  maxDate
 }: WeekDatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [hoverKey, setHoverKey] = React.useState<string | null>(null);
@@ -266,6 +273,7 @@ export function WeekDatePicker({
             highlightMode={highlightMode}
             onDayClick={handleDayClick}
             onDayHover={setHoverKey}
+            maxDate={maxDate}
           />
           {showSecondMonth ? (
             <MonthPanel
@@ -277,6 +285,7 @@ export function WeekDatePicker({
               highlightMode={highlightMode}
               onDayClick={handleDayClick}
               onDayHover={setHoverKey}
+              maxDate={maxDate}
             />
           ) : null}
         </div>

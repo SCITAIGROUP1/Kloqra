@@ -1,6 +1,6 @@
 "use client";
 
-import { VerifyEmailPageContent } from "@kloqra/web-shared";
+import { VerifyEmailPageContent, hasMultipleWorkspaces } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useSessionStore } from "@/stores/session.store";
@@ -18,7 +18,12 @@ function VerifyEmailContent() {
       email={email}
       onSession={async (session, accessToken, refreshToken) => {
         setSession(session, accessToken, refreshToken);
-        router.push("/timer");
+        const multi = await hasMultipleWorkspaces(session.workspaceId);
+        if (multi) {
+          router.push("/select-workspace");
+        } else {
+          router.push("/timer");
+        }
       }}
     />
   );

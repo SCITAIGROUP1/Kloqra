@@ -8,6 +8,7 @@ function createRedisMock() {
   const store = new Map<string, string>();
   const client = {
     get: vi.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+    mget: vi.fn((...keys: string[]) => Promise.resolve(keys.map((key) => store.get(key) ?? null))),
     set: vi.fn((key: string, value: string) => {
       store.set(key, value);
       return Promise.resolve("OK");

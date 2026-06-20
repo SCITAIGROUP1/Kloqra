@@ -9,12 +9,16 @@ describe("TimelogsService listOccupancy", () => {
   let service: TimelogsService;
   let mockPrisma: {
     timeLog: { findMany: ReturnType<typeof vi.fn> };
+    project: { findMany: ReturnType<typeof vi.fn> };
+    timesheetPeriod: { findMany: ReturnType<typeof vi.fn> };
   };
   let mockTimesheetLock: { getPeriodStatus: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     mockPrisma = {
-      timeLog: { findMany: vi.fn() }
+      timeLog: { findMany: vi.fn() },
+      project: { findMany: vi.fn().mockResolvedValue([]) },
+      timesheetPeriod: { findMany: vi.fn().mockResolvedValue([]) }
     };
     mockTimesheetLock = {
       getPeriodStatus: vi.fn().mockResolvedValue("DRAFT")
@@ -56,7 +60,21 @@ describe("TimelogsService listOccupancy", () => {
         }
       }
     ]);
-    mockTimesheetLock.getPeriodStatus.mockResolvedValue("SUBMITTED");
+    mockPrisma.project.findMany.mockResolvedValue([
+      {
+        id: "proj-1",
+        timesheetApprovalEnabled: true,
+        timesheetApprovalPeriod: "weekly",
+        workspace: { settings: {} }
+      }
+    ]);
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([
+      {
+        projectId: "proj-1",
+        periodStart: new Date("2024-12-30T00:00:00.000Z"),
+        status: "SUBMITTED"
+      }
+    ]);
 
     const res = await service.listOccupancy("user-1", "MEMBER", {
       from: "2025-01-01T00:00:00.000Z",
@@ -197,7 +215,7 @@ describe("TimelogsService list", () => {
     });
 
     expect(res.items).toHaveLength(1);
-    expect(res.nextCursor).toBe("log-2");
+    expect(res.nextCursor).toBe("log-2:2026-06-02T09:00:00.000Z");
   });
 });
 

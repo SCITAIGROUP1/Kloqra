@@ -1,4 +1,6 @@
+import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
+import { QUEUES } from "../../common/queues";
 import { TimeModule } from "../../common/time/time.module";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -10,12 +12,20 @@ import { ExportRowsBuilder } from "./application/export-rows.builder";
 import { ExportScheduleService } from "./application/export-schedule.service";
 import { ExportShareService } from "./application/export-share.service";
 import { ExportService } from "./application/export.service";
+import { ExportWorker } from "./application/export.worker";
 import { InvoiceService } from "./application/invoice.service";
 import { ExportShareController } from "./interface/http/export-share.controller";
 import { ExportController } from "./interface/http/export.controller";
 
 @Module({
-  imports: [AuthModule, TimeModule, ReportingModule, ProjectsModule, NotificationsModule],
+  imports: [
+    BullModule.registerQueue({ name: QUEUES.EXPORT }),
+    AuthModule,
+    TimeModule,
+    ReportingModule,
+    ProjectsModule,
+    NotificationsModule
+  ],
   controllers: [ExportController, ExportShareController],
   providers: [
     ExportService,
@@ -24,7 +34,8 @@ import { ExportController } from "./interface/http/export.controller";
     ExportScheduleService,
     ExportShareService,
     ExportJobService,
-    InvoiceService
+    InvoiceService,
+    ExportWorker
   ],
   exports: [ExportService, ExportJobService, InvoiceService]
 })

@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { emailSchema, uuidSchema, workspaceRoleSchema } from "./common.dto";
+import {
+  emailSchema,
+  uuidSchema,
+  workspaceRoleSchema,
+  passwordValidationSchema
+} from "./common.dto";
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -68,7 +73,7 @@ export const loginRequiresEmailVerificationResponseSchema = z.object({
 
 export const setInitialPasswordSchema = z.object({
   pendingToken: z.string().min(1),
-  newPassword: z.string().min(8).max(128)
+  newPassword: passwordValidationSchema
 });
 
 export const forgotPasswordSchema = z.object({
@@ -77,7 +82,7 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  newPassword: z.string().min(8).max(128)
+  newPassword: passwordValidationSchema
 });
 
 export const verifyEmailSchema = z.object({

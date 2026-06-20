@@ -13,7 +13,8 @@ import {
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
   extractFieldErrorsFromMessage,
-  resolveStartupPath
+  resolveStartupPath,
+  hasMultipleWorkspaces
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -41,6 +42,12 @@ export function SetPasswordPageForm() {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     setSession(switched.session, switched.accessToken, res.refreshToken);
     try {
+      const multi = await hasMultipleWorkspaces(switched.session.workspaceId);
+      if (multi) {
+        router.push("/select-workspace");
+        return;
+      }
+
       const profile = await api<{ preferences: { startupPage?: StartupPagePreference } }>(
         ROUTES.USERS.ME,
         { workspaceId: switched.session.workspaceId }

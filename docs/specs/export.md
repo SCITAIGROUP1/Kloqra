@@ -112,6 +112,20 @@ Parsed via [workspace-settings.ts](../../packages/contracts/src/workspace-settin
 | Excel  | One workbook, one sheet per report        |
 | PDF    | Summary layout; footer note from settings |
 
+## Asynchronous Export Jobs (Queue)
+
+For heavy or long-running exports that could timeout or block the main HTTP thread pool, clients submit an asynchronous job via `POST /export/jobs`.
+
+- **Queue Pipeline**: Creating a job creates an `exportJob` record in the database with the `queued` status and enqueues a task `{ jobId }` onto the **BullMQ** `export-queue` (defined as `QUEUES.EXPORT`).
+- **Worker Execution**: A background `ExportWorker` consumes the queue:
+  1. Updates status to `running`.
+  2. Calls `ExportService.generate(...)` to build the file buffer.
+  3. Saves the file to storage via `writeExportJobFile(...)`.
+  4. Marks status to `ready` with metadata (filename, contentType, byteSize, storageKey).
+  5. Sends a completion email via `MailerService` and dispatches a system notification.
+  6. On failure, updates status to `failed` and logs the error message.
+- **Retention & Cleanup**: Exported files are retained for 7 days. A daily cron task (`@Cron("0 4 * * *")`) purges expired files and sets status to `expired`.
+
 ## Scheduled exports
 
 `ExportSchedule` stores frozen `exportBodySchema` JSON, frequency (`daily` \| `weekly` \| `monthly`), and recipient emails. A background interval runs due schedules and calls `generate()`; delivery is logged (SMTP integration optional via env).

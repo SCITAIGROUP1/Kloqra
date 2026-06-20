@@ -2,6 +2,7 @@ import { z } from "zod";
 import { listPaginationQuerySchema } from "../pagination";
 import {
   assertMaxDateRange,
+  assertValidDateRange,
   currencyCodeSchema,
   isoDatetimeSchema,
   uuidSchema,
@@ -217,7 +218,7 @@ export const projectSummaryQuerySchema = z
     from: isoDatetimeSchema,
     to: isoDatetimeSchema
   })
-  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
+  .superRefine((v, ctx) => assertValidDateRange(v.from, v.to, ctx));
 
 export const projectSummaryCategoryHoursSchema = z.object({
   categoryId: uuidSchema,

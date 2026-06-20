@@ -189,6 +189,14 @@ describe("TimesheetsService", () => {
         reviewNote: "Looks good"
       })
     });
+    expect(service["notificationsDispatch"].notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: "timesheet.approved",
+        context: expect.objectContaining({
+          totalHours: 1
+        })
+      })
+    );
     expect(result).toEqual({ ok: true });
   });
 
@@ -244,6 +252,14 @@ describe("TimesheetsService", () => {
         reviewNote: "Missing notes"
       })
     });
+    expect(service["notificationsDispatch"].notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: "timesheet.rejected",
+        context: expect.objectContaining({
+          totalHours: 1
+        })
+      })
+    );
     expect(result).toEqual({ ok: true });
   });
 

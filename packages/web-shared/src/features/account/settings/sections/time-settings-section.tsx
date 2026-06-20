@@ -129,9 +129,9 @@ export function TimeSettingsSection({
         weekStart,
         daily: dailyTargetHours
       });
-      toast.success("Time settings saved");
+      toast.success("Time & date preferences saved successfully.");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save time settings");
+      toast.error(e instanceof Error ? e.message : "Could not save time & date preferences");
     } finally {
       setSaving(false);
     }

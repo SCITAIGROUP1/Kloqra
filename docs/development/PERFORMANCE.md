@@ -109,6 +109,14 @@ Client and admin use **Turbopack** in dev (`next dev --turbo`).
 - `GET /timelogs` returns `{ items, nextCursor? }` with default `limit` 500 and a 90-day lookback when `from`/`to` are omitted.
 - Admin dashboard responses may be cached in Redis for 120s; cache is invalidated on time log and hourly rate writes.
 
+## Database & Background Queue Optimizations
+
+- **N+1 Query Resolution**: `listOccupancy` batch-fetches project settings and workspace settings, computing and querying all corresponding `TimesheetPeriod` statuses in exactly 2 query segments instead of N queries.
+- **Redis Batching**: `activeCount` and `assertNoActiveTimerAnywhere` utilize Redis `mget` to check timer states for all members/workspaces in a single network round-trip.
+- **Index Optimization for Last Logs**: `buildUsersWithoutTime` utilizes PostgreSQL `DISTINCT ON` via Prisma's `distinct: ['userId']` and compound `orderBy` configurations, fetching exactly one row per user using the compound index `@@index([userId, startTime])`.
+- **Export Queueing via BullMQ**: Asynchronous data export jobs are enqueued onto the dedicated `export-queue` via BullMQ, offloading file processing from the web API thread. Expired job cleanups are scheduled once daily at 4 AM via `@Cron` instead of a 5-second `setInterval` database polling loop.
+- **Batch Team Lookups**: Project team member resolutions in the export module query all projects concurrently using the batch helper `teamMembersUserIds` rather than loops or parallel mapping.
+
 ## Frontend patterns
 
 - Admin dashboard route and **all** dashboard widgets load via `widgets-lazy.tsx` (charts already via `charts-lazy.tsx`).

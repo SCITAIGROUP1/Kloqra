@@ -6,16 +6,14 @@ import {
   type ExportJobDto,
   type ExportJobStatus
 } from "@kloqra/contracts";
-import {
-  HttpStatus,
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit
-} from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
+import { Queue } from "bullmq";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 import {
   buildExportJobStorageKey,
@@ -26,41 +24,18 @@ import {
 import { ExportService } from "./export.service";
 
 const JOB_RETENTION_DAYS = 7;
-const POLL_MS = 5_000;
-const BATCH_SIZE = 3;
 
 @Injectable()
-export class ExportJobService implements OnModuleInit, OnModuleDestroy {
+export class ExportJobService {
   private readonly logger = new Logger(ExportJobService.name);
-  private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private prisma: PrismaService,
     private exportService: ExportService,
     private mailer: MailerService,
-    private notificationsDispatch: NotificationsDispatchService
+    private notificationsDispatch: NotificationsDispatchService,
+    @InjectQueue(QUEUES.EXPORT) private readonly exportQueue: Queue
   ) {}
-
-  onModuleInit() {
-    if (!process.env.DATABASE_URL?.trim()) {
-      this.logger.warn("DATABASE_URL not set — export job worker disabled.");
-      return;
-    }
-    this.timer = setInterval(() => {
-      void this.processQueuedJobs().catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.error(`Export job tick failed: ${message}`);
-      });
-      void this.expireOldJobs().catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.error(`Export job expiry failed: ${message}`);
-      });
-    }, POLL_MS);
-  }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
-  }
 
   async list(workspaceId: string, limit = 20): Promise<ExportJobDto[]> {
     const rows = await this.prisma.exportJob.findMany({
@@ -99,6 +74,23 @@ export class ExportJobService implements OnModuleInit, OnModuleDestroy {
         expiresAt
       }
     });
+
+    try {
+      await this.exportQueue.add("runExport", { jobId: row.id });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to enqueue export job ${row.id}: ${message}`);
+      await this.prisma.exportJob.update({
+        where: { id: row.id },
+        data: { status: "failed", errorMessage: "Failed to queue export task" }
+      });
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Failed to enqueue export job",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+
     return this.toDto(row);
   }
 
@@ -123,21 +115,7 @@ export class ExportJobService implements OnModuleInit, OnModuleDestroy {
     return { buffer, contentType: row.contentType, filename: row.filename };
   }
 
-  private async processQueuedJobs() {
-    if (!process.env.DATABASE_URL?.trim()) return;
-
-    const queued = await this.prisma.exportJob.findMany({
-      where: { status: "queued" },
-      orderBy: { createdAt: "asc" },
-      take: BATCH_SIZE
-    });
-
-    for (const job of queued) {
-      await this.runJob(job.id);
-    }
-  }
-
-  private async runJob(jobId: string) {
+  async runJob(jobId: string) {
     const job = await this.prisma.exportJob.findUnique({ where: { id: jobId } });
     if (!job || job.status !== "queued") return;
 
@@ -206,7 +184,8 @@ export class ExportJobService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async expireOldJobs() {
+  @Cron("0 4 * * *")
+  async expireOldJobs() {
     const expired = await this.prisma.exportJob.findMany({
       where: {
         expiresAt: { lte: new Date() },

@@ -14,6 +14,11 @@ import { ProjectAccessService } from "../../../common/access/project-access.serv
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  getPeriodRange,
+  parseWorkspaceSettingsFromRaw,
+  resolveApprovalPeriod
+} from "../../../common/time/approval-period.util";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimesheetLockService } from "./timesheet-lock.service";
 
@@ -105,6 +110,20 @@ export class TimelogsService {
           ]
         }
       : undefined;
+    let cursorObj: { id_startTime: { id: string; startTime: Date } } | undefined = undefined;
+    if (query.cursor) {
+      const colonIdx = query.cursor.indexOf(":");
+      if (colonIdx !== -1) {
+        const id = query.cursor.slice(0, colonIdx);
+        const startTimeStr = query.cursor.slice(colonIdx + 1);
+        cursorObj = {
+          id_startTime: {
+            id,
+            startTime: new Date(startTimeStr)
+          }
+        };
+      }
+    }
 
     const logs = await this.prisma.timeLog.findMany({
       where: {
@@ -128,7 +147,7 @@ export class TimelogsService {
       },
       orderBy: { startTime: "desc" },
       take: limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {})
+      ...(cursorObj ? { cursor: cursorObj, skip: 1 } : {})
     });
 
     const hasMore = logs.length > limit;
@@ -136,7 +155,9 @@ export class TimelogsService {
 
     return {
       items: page.map((l) => this.toDto(l)),
-      nextCursor: hasMore ? page[page.length - 1]!.id : undefined
+      nextCursor: hasMore
+        ? `${page[page.length - 1]!.id}:${page[page.length - 1]!.startTime.toISOString()}`
+        : undefined
     };
   }
 
@@ -179,30 +200,105 @@ export class TimelogsService {
       orderBy: { startTime: "asc" }
     });
 
-    const lockCache = new Map<string, boolean>();
-    const items = await Promise.all(
-      logs.map(async (log) => {
-        const projectId = log.task.projectId;
-        const cacheKey = `${projectId}:${log.startTime.toISOString()}`;
-        let isLocked = lockCache.get(cacheKey);
-        if (isLocked === undefined) {
-          const status = await this.timesheetLock.getPeriodStatus(userId, projectId, log.startTime);
-          isLocked = status === "SUBMITTED" || status === "APPROVED";
-          lockCache.set(cacheKey, isLocked);
-        }
+    const projectIds = [...new Set(logs.map((log) => log.task.projectId))];
+    const projects =
+      projectIds.length > 0
+        ? await this.prisma.project.findMany({
+            where: { id: { in: projectIds } },
+            select: {
+              id: true,
+              timesheetApprovalEnabled: true,
+              timesheetApprovalPeriod: true,
+              workspace: { select: { settings: true } }
+            }
+          })
+        : [];
 
-        return {
-          id: log.id,
-          startTime: log.startTime.toISOString(),
-          endTime: log.endTime.toISOString(),
-          workspaceId: log.task.project.workspace.id,
-          workspaceName: log.task.project.workspace.name,
-          label: `${log.task.project.name} — ${log.task.taskName}`,
-          source: log.source as "manual" | "timer",
-          isLocked
-        };
-      })
-    );
+    const projectConfigMap = new Map<
+      string,
+      {
+        enabled: boolean;
+        workspaceSettings: any;
+        approvalPeriod: any;
+      }
+    >();
+
+    for (const proj of projects) {
+      const workspaceSettings = parseWorkspaceSettingsFromRaw(proj.workspace.settings);
+      const approvalPeriod = resolveApprovalPeriod(proj.timesheetApprovalPeriod, workspaceSettings);
+      projectConfigMap.set(proj.id, {
+        enabled: proj.timesheetApprovalEnabled,
+        workspaceSettings,
+        approvalPeriod
+      });
+    }
+
+    const uniquePeriodStarts = new Map<string, { projectId: string; periodStart: Date }>();
+    for (const log of logs) {
+      const projectId = log.task.projectId;
+      const config = projectConfigMap.get(projectId);
+      if (config?.enabled) {
+        const { periodStart } = getPeriodRange(
+          log.startTime,
+          config.approvalPeriod,
+          config.workspaceSettings
+        );
+        const key = `${projectId}:${periodStart.toISOString()}`;
+        uniquePeriodStarts.set(key, { projectId, periodStart });
+      }
+    }
+
+    const periodsList = Array.from(uniquePeriodStarts.values());
+    const periodStatuses = new Map<string, string>();
+
+    if (periodsList.length > 0) {
+      const periods = await this.prisma.timesheetPeriod.findMany({
+        where: {
+          userId,
+          OR: periodsList.map(({ projectId, periodStart }) => ({
+            projectId,
+            periodStart
+          }))
+        },
+        select: {
+          projectId: true,
+          periodStart: true,
+          status: true
+        }
+      });
+      for (const p of periods) {
+        const key = `${p.projectId}:${p.periodStart.toISOString()}`;
+        periodStatuses.set(key, p.status);
+      }
+    }
+
+    const items = logs.map((log) => {
+      const projectId = log.task.projectId;
+      const config = projectConfigMap.get(projectId);
+      let isLocked = false;
+
+      if (config?.enabled) {
+        const { periodStart } = getPeriodRange(
+          log.startTime,
+          config.approvalPeriod,
+          config.workspaceSettings
+        );
+        const key = `${projectId}:${periodStart.toISOString()}`;
+        const status = periodStatuses.get(key) ?? "DRAFT";
+        isLocked = status === "SUBMITTED" || status === "APPROVED";
+      }
+
+      return {
+        id: log.id,
+        startTime: log.startTime.toISOString(),
+        endTime: log.endTime.toISOString(),
+        workspaceId: log.task.project.workspace.id,
+        workspaceName: log.task.project.workspace.name,
+        label: `${log.task.project.name} — ${log.task.taskName}`,
+        source: log.source as "manual" | "timer",
+        isLocked
+      };
+    });
 
     return { items };
   }
@@ -314,7 +410,7 @@ export class TimelogsService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.timeLog.update({
-        where: { id },
+        where: { id_startTime: { id, startTime: log.startTime } },
         data: {
           ...(dto.taskId !== undefined ? { taskId: dto.taskId } : {}),
           startTime: start,
@@ -395,7 +491,7 @@ export class TimelogsService {
         before: this.audit.snapshotFromLog(log),
         after: null
       });
-      await tx.timeLog.delete({ where: { id } });
+      await tx.timeLog.delete({ where: { id_startTime: { id, startTime: log.startTime } } });
     });
 
     await this.reportCache.invalidateWorkspace(workspaceId);

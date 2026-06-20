@@ -181,6 +181,7 @@ export function ApprovalsPage() {
         projectOptions={projectOptions}
         memberOptions={memberOptions}
         loading={filterOptionsLoading}
+        showSort={tab === "review"}
         resultCount={
           tab === "review"
             ? pending.length

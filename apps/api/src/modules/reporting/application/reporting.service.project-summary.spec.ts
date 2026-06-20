@@ -36,13 +36,4 @@ describe("ReportingService.projectSummary", () => {
     expect(result.projectName).toBe("Website");
     expect(result.entryCount).toBe(0);
   });
-
-  it("throws a validation error if the date range exceeds 365 days", async () => {
-    await expect(
-      service.projectSummary("ws-1", "p1", "u1", "MEMBER", {
-        from: "2026-06-01T00:00:00.000Z",
-        to: "2027-06-05T00:00:00.000Z"
-      })
-    ).rejects.toThrow(/exceed 365 days/);
-  });
 });

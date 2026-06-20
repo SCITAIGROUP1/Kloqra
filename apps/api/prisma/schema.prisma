@@ -237,7 +237,7 @@ model UserProjectColor {
 }
 
 model TimeLog {
-  id          String   @id @default(uuid())
+  id          String   @default(uuid())
   userId      String   @map("user_id")
   taskId      String   @map("task_id")
   startTime   DateTime @map("start_time")
@@ -251,6 +251,7 @@ model TimeLog {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@id([id, startTime])
   @@index([userId, startTime])
   @@index([taskId, startTime])
   @@index([startTime])
@@ -449,7 +450,7 @@ model TimesheetAmendmentRequest {
 /// This is by design for compliance and dispute resolution purposes.
 /// Do NOT add onDelete cascade to this field.
 model TimeLogAuditEvent {
-  id          String   @id @default(uuid())
+  id          String   @default(uuid())
   workspaceId String   @map("workspace_id")
   timeLogId   String   @map("time_log_id")
   entryUserId String   @map("entry_user_id")
@@ -459,6 +460,7 @@ model TimeLogAuditEvent {
   after       Json?
   createdAt   DateTime @default(now()) @map("created_at")
 
+  @@id([id, createdAt])
   @@index([timeLogId, createdAt])
   @@index([workspaceId, createdAt])
   @@index([workspaceId, entryUserId, createdAt(sort: Desc)])

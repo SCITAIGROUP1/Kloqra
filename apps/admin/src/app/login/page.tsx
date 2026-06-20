@@ -11,7 +11,8 @@ import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
   applyDefaultWorkspaceIfNeeded,
   AuthShell,
-  extractFieldErrorsFromMessage
+  extractFieldErrorsFromMessage,
+  hasMultipleWorkspaces
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -52,6 +53,17 @@ export default function LoginPage() {
       return;
     }
     setSession(switched.session, switched.accessToken, res.refreshToken);
+
+    try {
+      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, "ADMIN");
+      if (multi) {
+        router.push("/select-workspace");
+        return;
+      }
+    } catch (err) {
+      console.error("Failed to check workspaces:", err);
+    }
+
     router.push("/dashboard");
   }
 

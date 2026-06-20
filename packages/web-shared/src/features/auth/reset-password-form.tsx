@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "../../api/client";
 import { AuthShell } from "../../components/auth-shell";
+import { PasswordStrengthIndicator } from "../../components/password-strength-indicator";
 import { extractFieldErrorsFromMessage } from "../../utils/form-errors";
 import { validateResetPasswordFields } from "./reset-password-validation";
 
@@ -86,6 +87,7 @@ export function ResetPasswordForm({
             required
             aria-invalid={Boolean(fieldErrors.password)}
           />
+          <PasswordStrengthIndicator password={password} />
           {fieldErrors.password ? (
             <p className="text-xs text-destructive">{fieldErrors.password}</p>
           ) : null}

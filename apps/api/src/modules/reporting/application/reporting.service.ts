@@ -113,15 +113,6 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
 
     const from = new Date(query.from);
     const to = new Date(query.to);
-    const diffMs = to.getTime() - from.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    if (diffDays > 365) {
-      throw new DomainException(
-        ErrorCodes.VALIDATION_ERROR,
-        "Date range cannot exceed 365 days",
-        HttpStatus.BAD_REQUEST
-      );
-    }
 
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
@@ -382,6 +373,19 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
 
     const weekly = new Map<string, HoursAgg>();
     const daily = new Map<string, HoursAgg>();
+
+    const startDay = new Date(query.from);
+    const endDay = new Date(query.to);
+    const temp = new Date(startDay);
+    while (temp <= endDay) {
+      const dateKey = temp.toISOString().slice(0, 10);
+      daily.set(dateKey, {
+        totalHours: 0,
+        billableHours: 0,
+        billableAmount: 0
+      });
+      temp.setUTCDate(temp.getUTCDate() + 1);
+    }
 
     for (const log of logs) {
       const hours = log.durationSec / 3600;

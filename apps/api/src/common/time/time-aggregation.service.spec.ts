@@ -59,3 +59,40 @@ describe("TimeAggregationService.resolveRateMaps", () => {
     expect(resolveRate("user-2", "proj-2", null, new Date("2024-02-15T00:00:00Z"))).toBe(0);
   });
 });
+
+describe("TimeAggregationService.teamMembersUserIds", () => {
+  it("fetches active user IDs for multiple projects in one query", async () => {
+    const mockTeams = [
+      {
+        projectId: "proj-1",
+        members: [
+          { userId: "user-1", isActive: true },
+          { userId: "user-2", isActive: false },
+          { userId: "user-3", isActive: true }
+        ]
+      },
+      {
+        projectId: "proj-2",
+        members: [
+          { userId: "user-3", isActive: true },
+          { userId: "user-4", isActive: true }
+        ]
+      }
+    ];
+
+    const mockPrisma = {
+      team: {
+        findMany: vi.fn().mockResolvedValue(mockTeams)
+      }
+    };
+
+    const service = new TimeAggregationService(mockPrisma as any);
+    const userIds = await service.teamMembersUserIds(["proj-1", "proj-2"]);
+
+    expect(mockPrisma.team.findMany).toHaveBeenCalledWith({
+      where: { projectId: { in: ["proj-1", "proj-2"] } },
+      include: { members: true }
+    });
+    expect(userIds).toEqual(["user-1", "user-3", "user-4"]);
+  });
+});

@@ -31,6 +31,7 @@ type ExportScopeFiltersProps = {
   teamOnly: boolean;
   onTeamOnlyChange: (teamOnly: boolean) => void;
   onClearAll: () => void;
+  onResetFilters?: () => void;
   className?: string;
 };
 
@@ -60,6 +61,7 @@ export function ExportScopeFilters({
   teamOnly,
   onTeamOnlyChange,
   onClearAll,
+  onResetFilters,
   className
 }: ExportScopeFiltersProps) {
   const activeCount = activeFilterCount({
@@ -295,8 +297,8 @@ export function ExportScopeFilters({
             </label>
           ) : null}
 
-          {chips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border/40 pt-3 mt-4">
+            <div className="flex flex-wrap gap-2">
               {chips.map((chip) => (
                 <Badge key={chip.key} variant="secondary" className="gap-1 pr-1 font-normal">
                   {chip.label}
@@ -310,17 +312,32 @@ export function ExportScopeFilters({
                   </button>
                 </Badge>
               ))}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={onClearAll}
-              >
-                Clear all
-              </Button>
             </div>
-          ) : null}
+            <div className="flex items-center gap-3">
+              {chips.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={onClearAll}
+                >
+                  Clear all
+                </Button>
+              )}
+              {onResetFilters && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-semibold"
+                  onClick={onResetFilters}
+                >
+                  Reset Filters
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

@@ -28,7 +28,8 @@ export const projectSchema = z.object({
   budgetHours: z.number().positive().nullable(),
   isActive: z.boolean(),
   timesheetApprovalEnabled: z.boolean().optional(),
-  timesheetApprovalPeriod: timesheetApprovalPeriodSchema.nullable()
+  timesheetApprovalPeriod: timesheetApprovalPeriodSchema.nullable(),
+  createdAt: z.string().optional()
 });
 
 /** Slim project row for lists and dropdowns. */

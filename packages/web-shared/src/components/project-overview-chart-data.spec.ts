@@ -6,8 +6,8 @@ import {
 } from "./project-overview-chart-data";
 
 describe("project overview chart data", () => {
-  it("formats hours with one decimal", () => {
-    expect(formatOverviewHours(44.25)).toBe("44.3h");
+  it("formats hours as a clock duration", () => {
+    expect(formatOverviewHours(44.25)).toBe("44.25");
   });
 
   it("sorts task bar rows by total hours descending", () => {

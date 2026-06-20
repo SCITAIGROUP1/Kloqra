@@ -198,7 +198,11 @@ export function WorkspacePage() {
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
-      setCreateError(message);
+      if (message.toLowerCase().includes("already exists")) {
+        setCreateFieldErrors({ name: message });
+      } else {
+        setCreateError(message);
+      }
       toast.error(message);
     } finally {
       setCreateLoading(false);

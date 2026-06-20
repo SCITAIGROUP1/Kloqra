@@ -40,7 +40,7 @@ import { Section, ToggleChip } from "@/components/admin-page";
 import { ExportColumnPicker } from "@/components/export-column-picker";
 import { ExportSchedulesPanel } from "@/components/export-schedules-panel";
 import { api } from "@/lib/api";
-import { applyDatePreset, type DatePreset } from "@/lib/export-date-presets";
+import { applyDatePreset, toDateInputValue, type DatePreset } from "@/lib/export-date-presets";
 import { groupBySummaryLabel, reportsForGroupBy } from "@/lib/export-group-by";
 import { normalizeExportBody } from "@/lib/export-normalize";
 import {
@@ -290,6 +290,16 @@ export function ExportCustomFlow({
     });
   }
 
+  function handleResetFilters() {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    onFromChange(toDateInputValue(d));
+    onToChange(toDateInputValue(new Date()));
+    onClearScope();
+    setBillable("all");
+    toast.success("Filters reset to defaults");
+  }
+
   function onGroupByDimensionsChange(next: ExportGroupByDimension[]) {
     setGroupBy(next);
     if (!next.length) return;
@@ -406,8 +416,8 @@ export function ExportCustomFlow({
 
   return (
     <>
-      <div className="grid min-w-0 gap-8 @min-[1280px]/shell:grid-cols-12">
-        <div className="order-2 min-w-0 space-y-6 @min-[1280px]/shell:order-1 @min-[1280px]/shell:col-span-8">
+      <div className="grid min-w-0 gap-8 @min-[1024px]/shell:grid-cols-12">
+        <div className="order-2 min-w-0 space-y-6 @min-[1024px]/shell:order-1 @min-[1024px]/shell:col-span-8">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base">Period & filters</CardTitle>
@@ -437,7 +447,7 @@ export function ExportCustomFlow({
                 </div>
               </Section>
 
-              <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2 @min-[1280px]/shell:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2 @min-[1024px]/shell:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="custom-from">From</Label>
                   <Input
@@ -496,6 +506,7 @@ export function ExportCustomFlow({
                 teamOnly={teamOnly}
                 onTeamOnlyChange={onTeamOnlyChange}
                 onClearAll={onClearScope}
+                onResetFilters={handleResetFilters}
               />
             </CardContent>
           </Card>
@@ -593,8 +604,8 @@ export function ExportCustomFlow({
           </Card>
         </div>
 
-        <div className="order-1 min-w-0 @min-[1280px]/shell:order-2 @min-[1280px]/shell:col-span-4">
-          <div className="space-y-4 @min-[1280px]/shell:sticky @min-[1280px]/shell:top-6">
+        <div className="order-1 min-w-0 @min-[1024px]/shell:order-2 @min-[1024px]/shell:col-span-4">
+          <div className="space-y-4 @min-[1024px]/shell:sticky @min-[1024px]/shell:top-6">
             <ExportDownloadPanel
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}

@@ -18,10 +18,10 @@ describe("dashboard-period-presets", () => {
     });
   });
 
-  it("returns Monday through today for this week preset", () => {
+  it("returns Monday through Sunday for this week preset", () => {
     expect(applyDashboardPeriodPreset("week", "UTC")).toEqual({
       from: "2026-06-08",
-      to: "2026-06-10"
+      to: "2026-06-14"
     });
   });
 
@@ -32,13 +32,21 @@ describe("dashboard-period-presets", () => {
     });
   });
 
+  it("returns 2000-01-01 through today for all time preset", () => {
+    expect(applyDashboardPeriodPreset("all", "UTC")).toEqual({
+      from: "2000-01-01",
+      to: "2026-06-10"
+    });
+  });
+
   it("matches a preset from custom date inputs", () => {
-    expect(matchDashboardPeriodPreset("2026-06-08", "2026-06-10", ["week", "month"], "UTC")).toBe(
+    expect(matchDashboardPeriodPreset("2026-06-08", "2026-06-14", ["week", "month"], "UTC")).toBe(
       "week"
     );
     expect(matchDashboardPeriodPreset("2026-06-01", "2026-06-10", ["week", "month"], "UTC")).toBe(
       "month"
     );
+    expect(matchDashboardPeriodPreset("2000-01-01", "2026-06-10", ["all"], "UTC")).toBe("all");
     expect(
       matchDashboardPeriodPreset("2026-06-05", "2026-06-10", ["week", "month"], "UTC")
     ).toBeNull();

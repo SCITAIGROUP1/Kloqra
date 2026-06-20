@@ -1,7 +1,16 @@
 "use client";
 
 import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
-import { Button, DateRangePicker, SearchableMultiSelect } from "@kloqra/ui";
+import {
+  Button,
+  DateRangePicker,
+  SearchableMultiSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@kloqra/ui";
 import { hasActiveApprovalsFilter } from "@kloqra/web-shared";
 import type { ApprovalsFilterOption } from "./use-approvals-filter-options";
 
@@ -13,6 +22,7 @@ export type ApprovalsFiltersBarProps = {
   memberOptions: ApprovalsFilterOption[];
   loading?: boolean;
   resultCount?: number;
+  showSort?: boolean;
 };
 
 function FilterFieldLabel({ children }: { children: React.ReactNode }) {
@@ -30,7 +40,8 @@ export function ApprovalsFiltersBar({
   projectOptions,
   memberOptions,
   loading = false,
-  resultCount
+  resultCount,
+  showSort = false
 }: ApprovalsFiltersBarProps) {
   const active = hasActiveApprovalsFilter(filters);
 
@@ -88,14 +99,33 @@ export function ApprovalsFiltersBar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          {typeof resultCount === "number"
-            ? `${resultCount} result${resultCount === 1 ? "" : "s"}`
-            : "Filter by project, member, or period start date"}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-border/40">
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-xs text-muted-foreground">
+            {typeof resultCount === "number"
+              ? `${resultCount} result${resultCount === 1 ? "" : "s"}`
+              : "Filter by project, member, or period start date"}
+          </p>
+          {showSort ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium shrink-0">Sort:</span>
+              <Select
+                value={filters.sortOrder ?? "asc"}
+                onValueChange={(val) => onChange({ ...filters, sortOrder: val as "asc" | "desc" })}
+              >
+                <SelectTrigger className="h-8 text-xs font-semibold bg-background w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">Submitted (oldest first)</SelectItem>
+                  <SelectItem value="desc">Submitted (newest first)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </div>
         {active ? (
-          <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={onClear}>
+          <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={onClear}>
             Clear filters
           </Button>
         ) : null}

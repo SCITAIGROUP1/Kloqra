@@ -15,13 +15,16 @@ import {
   Label,
   ProjectColorDot,
   SearchableSelect,
+  SegmentedControl,
   TimeEntryAuditTrail,
+  DatePicker,
+  dateKeyFromDate,
   cn
 } from "@kloqra/ui";
 import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import { Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatDraftDateLabel, formatDuration } from "./calendar-utils";
+import { formatDraftDateLabel, formatDuration, todayInZone } from "./calendar-utils";
 import {
   type TimeEntryDraft,
   canSaveTaskDraft,
@@ -403,40 +406,29 @@ export function TimeEntryDialog({
             <div className="border-t border-border pt-4 mt-4 space-y-4">
               <div className="space-y-2">
                 <Label>Repeat Entry</Label>
-                <div className="flex flex-wrap gap-4">
-                  {(["none", "daily", "weekdays", "weekly"] as const).map((r) => (
-                    <label
-                      key={r}
-                      className="flex cursor-pointer items-center gap-2 text-xs capitalize"
-                    >
-                      <input
-                        type="radio"
-                        name="entry-recurrence"
-                        className="size-3.5 border border-input accent-primary"
-                        checked={(draft.recurrence ?? "none") === r}
-                        onChange={() => patch({ recurrence: r })}
-                      />
-                      <span>{r === "none" ? "Do not repeat" : r}</span>
-                    </label>
-                  ))}
-                </div>
+                <SegmentedControl
+                  value={draft.recurrence ?? "none"}
+                  onChange={(val) => patch({ recurrence: val })}
+                  options={[
+                    { value: "none", label: "Do not repeat" },
+                    { value: "daily", label: "Daily" },
+                    { value: "weekdays", label: "Weekdays" },
+                    { value: "weekly", label: "Weekly" }
+                  ]}
+                  fullWidth
+                />
               </div>
 
               {(draft.recurrence ?? "none") !== "none" && (
                 <div className="space-y-2">
                   <Label htmlFor="entry-repeat-until">Repeat until</Label>
-                  <Input
-                    id="entry-repeat-until"
-                    type="date"
-                    value={draft.repeatUntil || ""}
-                    max={new Intl.DateTimeFormat("en-CA", {
-                      timeZone: timezone,
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit"
-                    }).format(new Date())}
-                    onChange={(e) => patch({ repeatUntil: e.target.value })}
-                    required
+                  <DatePicker
+                    value={draft.repeatUntil || dateKeyFromDate(todayInZone(timezone))}
+                    onChange={(dateKey) => patch({ repeatUntil: dateKey })}
+                    placeholder="Select date"
+                    maxDate={dateKeyFromDate(todayInZone(timezone))}
+                    className="w-full h-10 bg-background justify-start"
+                    disabled={!canEdit}
                   />
                   <p className="text-[10px] text-muted-foreground">
                     Capped at Today. Future dates cannot be logged.

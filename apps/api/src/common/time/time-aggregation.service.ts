@@ -191,6 +191,17 @@ export class TimeAggregationService {
     return team?.members.filter((m) => m.isActive).map((m) => m.userId) ?? [];
   }
 
+  async teamMembersUserIds(projectIds: string[]): Promise<string[]> {
+    if (projectIds.length === 0) return [];
+    const teams = await this.prisma.team.findMany({
+      where: { projectId: { in: projectIds } },
+      include: { members: true }
+    });
+    return [
+      ...new Set(teams.flatMap((t) => t.members.filter((m) => m.isActive).map((m) => m.userId)))
+    ];
+  }
+
   buildAggregates(
     logs: TimeLogWithRelations[],
     resolveRate: (

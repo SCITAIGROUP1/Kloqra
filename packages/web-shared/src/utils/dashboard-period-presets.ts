@@ -1,4 +1,4 @@
-export type DashboardPeriodPreset = "today" | "week" | "month";
+export type DashboardPeriodPreset = "today" | "week" | "month" | "all";
 
 export function getTimezoneOffsetMs(date: Date, timeZone: string): number {
   if (timeZone === "UTC") return 0;
@@ -87,7 +87,8 @@ export function toDateKeyInZone(d: Date, timezone: string): string {
 
 export function applyDashboardPeriodPreset(
   preset: DashboardPeriodPreset,
-  timezone?: string
+  timezone?: string,
+  _inceptionDate?: string
 ): {
   from: string;
   to: string;
@@ -102,6 +103,13 @@ export function applyDashboardPeriodPreset(
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
+  if (preset === "all") {
+    return {
+      from: "2000-01-01",
+      to: format(to)
+    };
+  }
+
   if (preset === "today") {
     const todayStr = format(to);
     return { from: todayStr, to: todayStr };
@@ -111,9 +119,11 @@ export function applyDashboardPeriodPreset(
     const day = to.getDay();
     const diff = day === 0 ? -6 : 1 - day; // Monday start
     from.setDate(from.getDate() + diff);
+    const toSunday = new Date(from);
+    toSunday.setDate(from.getDate() + 6);
     return {
       from: format(from),
-      to: format(to)
+      to: format(toSunday)
     };
   }
 
@@ -131,12 +141,14 @@ export function matchDashboardPeriodPreset<T extends DashboardPeriodPreset>(
   presets: readonly T[] = [
     "today",
     "week",
-    "month"
+    "month",
+    "all"
   ] as readonly DashboardPeriodPreset[] as readonly T[],
-  timezone?: string
+  timezone?: string,
+  inceptionDate?: string
 ): T | null {
   for (const preset of presets) {
-    const range = applyDashboardPeriodPreset(preset, timezone);
+    const range = applyDashboardPeriodPreset(preset, timezone, inceptionDate);
     if (range.from === start && range.to === end) return preset;
   }
   return null;

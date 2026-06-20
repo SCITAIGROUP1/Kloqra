@@ -1,5 +1,6 @@
 export * from "./pagination";
 export * from "./dto/common.dto";
+export { passwordValidationSchema } from "./dto/common.dto";
 export * from "./dto/auth.dto";
 export * from "./dto/user-profile.dto";
 export * from "./dto/workspace.dto";

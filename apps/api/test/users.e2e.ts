@@ -92,7 +92,7 @@ describe("Users E2E", () => {
   it("POST /users/me/password rejects wrong current password", async () => {
     const res = await authedAgent(app, session).post("/users/me/password").send({
       currentPassword: "wrong-password",
-      newPassword: "newpassword1"
+      newPassword: "Secret123!"
     });
     expect(res.status).toBe(401);
   });

@@ -143,7 +143,7 @@ describe("contracts", () => {
   it("validates change password", () => {
     const r = changePasswordSchema.safeParse({
       currentPassword: "old-secret",
-      newPassword: "new-secret"
+      newPassword: "Secret123!"
     });
     expect(r.success).toBe(true);
   });

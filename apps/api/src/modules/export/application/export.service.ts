@@ -211,11 +211,8 @@ export class ExportService {
         : undefined;
 
     if (filters.teamOnly && projectIds?.length) {
-      const teamUnion = new Set<string>();
-      for (const pid of projectIds) {
-        const ids = await this.aggregation.teamMemberUserIds(pid);
-        for (const id of ids) teamUnion.add(id);
-      }
+      const ids = await this.aggregation.teamMembersUserIds(projectIds);
+      const teamUnion = new Set(ids);
       userIds = userIds?.length ? userIds.filter((id) => teamUnion.has(id)) : [...teamUnion];
     }
 

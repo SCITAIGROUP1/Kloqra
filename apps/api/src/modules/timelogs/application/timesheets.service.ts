@@ -490,7 +490,8 @@ export class TimesheetsService {
           select: { id: true }
         }
       },
-      orderBy: status === "SUBMITTED" ? { submittedAt: "desc" } : { reviewedAt: "desc" }
+      orderBy:
+        status === "SUBMITTED" ? { submittedAt: filter.sortOrder ?? "asc" } : { reviewedAt: "desc" }
     });
 
     const batchCounts = new Map<string, number>();
@@ -503,6 +504,13 @@ export class TimesheetsService {
     }
 
     if (periods.length === 0) return { items: [] };
+
+    const reviewerIds = [...new Set(periods.map((p) => p.reviewedBy).filter(Boolean))] as string[];
+    const reviewers = await this.prisma.user.findMany({
+      where: { id: { in: reviewerIds } },
+      select: { id: true, name: true }
+    });
+    const reviewerMap = new Map(reviewers.map((r) => [r.id, r.name]));
 
     const projectIds = [...new Set(periods.map((p) => p.projectId))];
     const userIds = [...new Set(periods.map((p) => p.userId))];
@@ -562,7 +570,8 @@ export class TimesheetsService {
         note: p.note,
         totalHours: Math.round(totalHours * 100) / 100,
         cascadedCount: cascadedCount > 1 ? cascadedCount : undefined,
-        amendmentPending: p.amendments.length > 0
+        amendmentPending: p.amendments.length > 0,
+        submittedAt: p.submittedAt?.toISOString() ?? null
       };
 
       if (status === "SUBMITTED") {
@@ -573,7 +582,9 @@ export class TimesheetsService {
         ...base,
         status,
         reviewNote: p.reviewNote,
-        reviewedAt: p.reviewedAt?.toISOString() ?? new Date(0).toISOString()
+        reviewedAt: p.reviewedAt?.toISOString() ?? new Date(0).toISOString(),
+        reviewedBy: p.reviewedBy,
+        reviewedByName: p.reviewedBy ? (reviewerMap.get(p.reviewedBy) ?? null) : null
       };
     });
 
@@ -838,6 +849,17 @@ export class TimesheetsService {
       select: { name: true }
     });
 
+    const totalHoursAggregation = await this.prisma.timeLog.aggregate({
+      where: {
+        userId: period.userId,
+        task: { projectId: period.projectId },
+        startTime: { gte: period.periodStart, lte: period.periodEnd }
+      },
+      _sum: { durationSec: true }
+    });
+    const totalHours =
+      Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
+
     void this.notificationsDispatch
       .notify({
         userId: period.userId,
@@ -850,7 +872,8 @@ export class TimesheetsService {
           periodId: id,
           projectId: period.projectId,
           periodStart: period.periodStart.toISOString(),
-          reviewerName: reviewer?.name
+          reviewerName: reviewer?.name,
+          ...(totalHours > 0 ? { totalHours } : {})
         }
       })
       .catch((err: unknown) => {
@@ -927,6 +950,17 @@ export class TimesheetsService {
       select: { name: true }
     });
 
+    const totalHoursAggregation = await this.prisma.timeLog.aggregate({
+      where: {
+        userId: period.userId,
+        task: { projectId: period.projectId },
+        startTime: { gte: period.periodStart, lte: period.periodEnd }
+      },
+      _sum: { durationSec: true }
+    });
+    const totalHours =
+      Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
+
     void this.notificationsDispatch
       .notify({
         userId: period.userId,
@@ -940,7 +974,8 @@ export class TimesheetsService {
           projectId: period.projectId,
           periodStart: period.periodStart.toISOString(),
           reviewerName: reviewer?.name,
-          reviewNote: reviewNote || undefined
+          reviewNote: reviewNote || undefined,
+          ...(totalHours > 0 ? { totalHours } : {})
         }
       })
       .catch((err: unknown) => {

@@ -1,4 +1,5 @@
 export { applyDefaultWorkspaceIfNeeded } from "./auth/apply-default-workspace";
+export { hasMultipleWorkspaces } from "./auth/workspace-check";
 export { bootstrapSession, type BootstrapResult } from "./auth/bootstrap-session";
 export { logoutSession } from "./auth/logout";
 export { tryRefreshSession } from "./auth/refresh-session";
@@ -112,6 +113,7 @@ export { SetPasswordForm } from "./features/account/set-password-form";
 export { ForgotPasswordForm } from "./features/auth/forgot-password-form";
 export { ResetPasswordForm } from "./features/auth/reset-password-form";
 export { VerifyEmailPageContent } from "./features/auth/verify-email-page-content";
+export { WorkspaceSelectForm } from "./features/auth/workspace-select-form";
 export { AccountSettingsPage } from "./features/account/account-settings-page";
 export { NotificationsPage } from "./features/notifications/notifications-page";
 export { ProfilePage } from "./features/account/profile-page";
@@ -131,3 +133,7 @@ export {
   type AdminApprovalsDeepLink,
   type MemberSubmissionsDeepLink
 } from "./features/submissions/submission-deep-link";
+export {
+  PasswordStrengthIndicator,
+  calculatePasswordStrength
+} from "./components/password-strength-indicator";

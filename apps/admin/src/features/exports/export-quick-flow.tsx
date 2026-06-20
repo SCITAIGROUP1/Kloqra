@@ -27,6 +27,7 @@ import {
   SelectValue
 } from "@kloqra/ui";
 import { useMemo, useState, useEffect } from "react";
+import { toast } from "sonner";
 import { ExportDownloadPanel } from "./export-download-panel";
 import { ExportOrganizePicker } from "./export-organize-picker";
 import {
@@ -37,7 +38,7 @@ import {
 } from "./export-scenarios";
 import { ExportScopeFilters } from "./export-scope-filters";
 import { Section } from "@/components/admin-page";
-import { applyDatePreset, type DatePreset } from "@/lib/export-date-presets";
+import { applyDatePreset, toDateInputValue, type DatePreset } from "@/lib/export-date-presets";
 import { describeOrganize, type ExportOrganizePreset } from "@/lib/export-organize";
 import { applyOrganizePreset } from "@/lib/export-organize";
 import { sheetLayoutRequiresTimeEntries } from "@/lib/export-sheet-layout";
@@ -154,6 +155,16 @@ export function ExportQuickFlow({
     setOrganizePreset(next.defaultOrganizePreset);
     setFormat(next.format);
     setBillable(next.billable);
+  }
+
+  function handleResetFilters() {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    onFromChange(toDateInputValue(d));
+    onToChange(toDateInputValue(new Date()));
+    onClearScope();
+    setBillable("all");
+    toast.success("Filters reset to defaults");
   }
 
   const organize = useMemo(() => applyOrganizePreset(organizePreset), [organizePreset]);
@@ -298,8 +309,8 @@ export function ExportQuickFlow({
         ))}
       </div>
 
-      <div className="grid gap-8 @min-[1280px]/shell:grid-cols-12">
-        <div className="space-y-6 @min-[1280px]/shell:col-span-8">
+      <div className="grid gap-8 @min-[1024px]/shell:grid-cols-12">
+        <div className="space-y-6 @min-[1024px]/shell:col-span-8">
           {step === 0 ? (
             <Card>
               <CardHeader className="pb-4">
@@ -413,6 +424,7 @@ export function ExportQuickFlow({
                   teamOnly={teamOnly}
                   onTeamOnlyChange={onTeamOnlyChange}
                   onClearAll={onClearScope}
+                  onResetFilters={handleResetFilters}
                 />
               </CardContent>
             </Card>
@@ -491,8 +503,8 @@ export function ExportQuickFlow({
           </div>
         </div>
 
-        <div className="@min-[1280px]/shell:col-span-4">
-          <div className="@min-[1280px]/shell:sticky @min-[1280px]/shell:top-6">
+        <div className="@min-[1024px]/shell:col-span-4">
+          <div className="@min-[1024px]/shell:sticky @min-[1024px]/shell:top-6">
             <ExportDownloadPanel
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}

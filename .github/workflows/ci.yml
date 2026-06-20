@@ -135,10 +135,18 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-turbo-
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @kloqra/api exec prisma migrate deploy
-      - run: pnpm --filter @kloqra/contracts build
+      - run: pnpm build --filter=@kloqra/contracts
       - run: pnpm prisma:seed
       - run: pnpm test:integration
       - name: Upload integration JUnit
@@ -197,10 +205,18 @@ jobs:
           key: ${{ runner.os }}-nextjs-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-nextjs-
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-turbo-
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @kloqra/api exec prisma migrate deploy
-      - run: pnpm --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared build
+      - run: pnpm build --filter=@kloqra/contracts --filter=@kloqra/ui --filter=@kloqra/web-shared
       - run: pnpm prisma:seed
       - name: Cache Playwright Browsers
         uses: actions/cache@v4

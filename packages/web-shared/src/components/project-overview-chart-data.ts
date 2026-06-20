@@ -32,7 +32,7 @@ export type ProjectOverviewDistributionDonutRow = ProjectOverviewCategoryDonutRo
 };
 
 export function formatOverviewHours(hours: number) {
-  return `${hours.toFixed(1)}h`;
+  return hours.toFixed(2);
 }
 
 export function buildProjectOverviewTaskBarData(

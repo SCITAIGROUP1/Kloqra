@@ -78,7 +78,11 @@ export function MemberProjectOverview() {
           disabled={isImpersonating || savingColor}
         />
       </div>
-      <ProjectOverviewStats mode="member" loadSummary={loadSummary} />
+      <ProjectOverviewStats
+        mode="member"
+        loadSummary={loadSummary}
+        projectInceptionDate={project.createdAt}
+      />
     </div>
   );
 }

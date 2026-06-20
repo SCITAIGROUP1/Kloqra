@@ -5,7 +5,7 @@ import {
   timeFormatPreferenceSchema,
   userPreferencesSchema
 } from "../user-preferences";
-import { emailSchema, uuidSchema } from "./common.dto";
+import { emailSchema, uuidSchema, passwordValidationSchema } from "./common.dto";
 
 export const userActivityStatsSchema = z.object({
   totalHours: z.number().nonnegative(),
@@ -59,7 +59,7 @@ export const updateUserPreferencesSchema = userPreferencesSchema.partial();
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8).max(128)
+  newPassword: passwordValidationSchema
 });
 
 export const userSessionSchema = z.object({

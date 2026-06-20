@@ -86,7 +86,22 @@ export function ReviewedTimesheetCard({
             <span>{periodHeading(item)}</span>
           </div>
 
-          <p className="text-xs text-muted-foreground">Reviewed {reviewedLabel}</p>
+          <div className="text-xs text-muted-foreground space-y-1 font-medium">
+            <div>
+              <span className="text-muted-foreground/75">
+                {item.status === "APPROVED" ? "Date Approved: " : "Date Rejected: "}
+              </span>
+              <span className="text-foreground">{reviewedLabel}</span>
+            </div>
+            {item.reviewedByName ? (
+              <div>
+                <span className="text-muted-foreground/75">
+                  {item.status === "APPROVED" ? "Approved By: " : "Rejected By: "}
+                </span>
+                <span className="text-foreground font-semibold">{item.reviewedByName}</span>
+              </div>
+            ) : null}
+          </div>
 
           {batchLabel ? (
             <Badge variant="outline" className="text-[10px] w-fit">

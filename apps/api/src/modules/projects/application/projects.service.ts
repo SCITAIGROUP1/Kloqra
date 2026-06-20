@@ -110,6 +110,7 @@ export class ProjectsService {
       isActive: boolean;
       timesheetApprovalEnabled: boolean;
       timesheetApprovalPeriod: string | null;
+      createdAt?: Date;
     },
     workspaceName?: string,
     myColor?: string | null
@@ -128,9 +129,11 @@ export class ProjectsService {
       timesheetApprovalPeriod:
         p.timesheetApprovalPeriod === "daily" ||
         p.timesheetApprovalPeriod === "weekly" ||
-        p.timesheetApprovalPeriod === "monthly"
+        p.timesheetApprovalPeriod === "monthly" ||
+        p.timesheetApprovalPeriod === "custom"
           ? p.timesheetApprovalPeriod
-          : null
+          : null,
+      createdAt: p.createdAt ? p.createdAt.toISOString() : undefined
     };
   }
 

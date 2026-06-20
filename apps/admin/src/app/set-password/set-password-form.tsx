@@ -11,7 +11,8 @@ import {
   AuthShell,
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
-  extractFieldErrorsFromMessage
+  extractFieldErrorsFromMessage,
+  hasMultipleWorkspaces
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -41,6 +42,17 @@ export function AdminSetPasswordForm() {
       throw new Error("Admin access required");
     }
     setSession(switched.session, switched.accessToken, res.refreshToken);
+
+    try {
+      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, "ADMIN");
+      if (multi) {
+        router.push("/select-workspace");
+        return;
+      }
+    } catch (err) {
+      console.error("Failed to check workspaces:", err);
+    }
+
     router.push("/dashboard");
   }
 

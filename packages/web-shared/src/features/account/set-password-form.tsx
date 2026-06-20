@@ -1,7 +1,9 @@
 "use client";
 
+import { passwordValidationSchema } from "@kloqra/contracts";
 import { Button, PasswordInput, Label } from "@kloqra/ui";
 import { useState } from "react";
+import { PasswordStrengthIndicator } from "../../components/password-strength-indicator";
 import { extractFieldErrorsFromMessage } from "../../utils/form-errors";
 
 type SetPasswordFormProps = {
@@ -28,8 +30,9 @@ export function SetPasswordForm({
     e.preventDefault();
     setError("");
     setFieldErrors({});
-    if (newPassword.length < 8) {
-      setFieldErrors({ newPassword: "Password must be at least 8 characters." });
+    const result = passwordValidationSchema.safeParse(newPassword);
+    if (!result.success) {
+      setFieldErrors({ newPassword: result.error.errors[0]?.message ?? "Invalid password." });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -79,6 +82,7 @@ export function SetPasswordForm({
           minLength={8}
           aria-invalid={Boolean(fieldErrors.newPassword)}
         />
+        <PasswordStrengthIndicator password={newPassword} />
         {fieldErrors.newPassword ? (
           <p className="text-xs text-destructive">{fieldErrors.newPassword}</p>
         ) : null}

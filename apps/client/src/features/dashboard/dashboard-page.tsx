@@ -917,10 +917,10 @@ export function DashboardPage() {
                           return (
                             <div className="flex flex-col justify-center h-full">
                               <span className="text-2xl font-bold tracking-tight text-foreground">
-                                {periodStats.totalHours}h
+                                {periodStats.totalHours}
                               </span>
                               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
-                                {periodStats.billableHours}h billable
+                                {periodStats.billableHours} billable
                               </span>
                             </div>
                           );
@@ -928,7 +928,7 @@ export function DashboardPage() {
                           return (
                             <div className="flex flex-col justify-center h-full">
                               <span className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                                {periodStats.billableHours}h
+                                {periodStats.billableHours}
                               </span>
                               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
                                 {periodStats.totalHours > 0

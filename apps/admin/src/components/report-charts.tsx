@@ -76,9 +76,7 @@ export function formatChartDay(dateIso: string) {
 
 /** Clockify-style duration: hours as H:MM */
 export function formatDurationClock(hours: number) {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return `${h}:${String(m).padStart(2, "0")}`;
+  return hours.toFixed(2);
 }
 
 function formatMoney(n: number) {
