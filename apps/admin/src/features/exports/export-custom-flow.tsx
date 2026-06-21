@@ -23,24 +23,24 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  Input
 } from "@kloqra/ui";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ExportDownloadPanel } from "./export-download-panel";
 import { ExportOrganizePicker } from "./export-organize-picker";
+import { ExportPeriodFilter } from "./export-period-filter";
 import { ExportScopeFilters } from "./export-scope-filters";
 import { Section, ToggleChip } from "@/components/admin-page";
 import { ExportColumnPicker } from "@/components/export-column-picker";
 import { ExportSchedulesPanel } from "@/components/export-schedules-panel";
 import { api } from "@/lib/api";
-import { applyDatePreset, toDateInputValue, type DatePreset } from "@/lib/export-date-presets";
+import {
+  loadExportColumnPreferences,
+  mergeColumnPreferences,
+  saveExportColumnPreferences
+} from "@/lib/export-column-preferences";
+import { toDateInputValue, formatExportPeriodLabel } from "@/lib/export-date-presets";
 import { groupBySummaryLabel, reportsForGroupBy } from "@/lib/export-group-by";
 import { normalizeExportBody } from "@/lib/export-normalize";
 import {
@@ -93,30 +93,6 @@ const REPORT_GROUPS: { title: string; reports: { id: ExportReportType; label: st
     reports: [{ id: "timesheet_approval_status", label: "Timesheet approval status" }]
   }
 ];
-
-const PERIOD_PRESETS: { id: DatePreset; label: string }[] = [
-  { id: "today", label: "Today" },
-  { id: "week", label: "This week" },
-  { id: "7d", label: "7 days" },
-  { id: "30d", label: "30 days" },
-  { id: "90d", label: "90 days" },
-  { id: "month", label: "This month" }
-];
-
-function defaultColumnsMap(): Record<ExportReportType, string[]> {
-  return Object.fromEntries(
-    (Object.keys(DEFAULT_EXPORT_COLUMNS) as ExportReportType[]).map((k) => [
-      k,
-      [...DEFAULT_EXPORT_COLUMNS[k]]
-    ])
-  ) as Record<ExportReportType, string[]>;
-}
-
-function formatPeriodLabel(from: string, to: string) {
-  const f = new Date(from + "T12:00:00");
-  const t = new Date(to + "T12:00:00");
-  return `${f.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${t.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
-}
 
 export type ExportCustomFlowProps = {
   workspaceId: string;
@@ -191,9 +167,16 @@ export function ExportCustomFlow({
   const [sheetLayout, setSheetLayout] = useState<ExportBodyDto["sheetLayout"]>("standard");
   const [groupBy, setGroupBy] = useState<ExportGroupByDimension[]>([]);
   const [reportTypes, setReportTypes] = useState<ExportReportType[]>(["time_entries"]);
-  const [columnsByReport, setColumnsByReport] = useState(defaultColumnsMap);
+  const [columnsByReport, setColumnsByReport] = useState(() =>
+    mergeColumnPreferences(loadExportColumnPreferences(workspaceId))
+  );
   const [expandedReport, setExpandedReport] = useState<ExportReportType | null>("time_entries");
   const [presetName, setPresetName] = useState("");
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    saveExportColumnPreferences(workspaceId, columnsByReport);
+  }, [workspaceId, columnsByReport]);
 
   const safeReportTypes = useMemo(
     () => (Array.isArray(reportTypes) ? reportTypes : []),
@@ -255,7 +238,9 @@ export function ExportCustomFlow({
       columns: columnsPayload,
       exportPurpose: exportBody.exportPurpose,
       ...(exportBody.timezone ? { timezone: exportBody.timezone } : {}),
-      ...(expandedReport ? { sampleReportType: expandedReport } : {}),
+      ...(safeReportTypes.length === 1 && expandedReport
+        ? { sampleReportType: expandedReport }
+        : {}),
       ...(exportBody.projectIds?.length ? { projectIds: exportBody.projectIds } : {}),
       ...(exportBody.userIds?.length ? { userIds: exportBody.userIds } : {}),
       ...(exportBody.categoryId ? { categoryId: exportBody.categoryId } : {}),
@@ -413,11 +398,14 @@ export function ExportCustomFlow({
   const userNames = userIds
     .map((id) => members.find((m) => m.userId === id)?.userName)
     .filter((n): n is string => Boolean(n));
+  const categoryName = categoryId ? categories.find((c) => c.id === categoryId)?.name : undefined;
+  const taskName = taskId ? tasks.find((t) => t.id === taskId)?.taskName : undefined;
+  const scopeMembers = members.map((m) => ({ userId: m.userId, userName: m.userName }));
 
   return (
     <>
-      <div className="grid min-w-0 gap-8 @min-[1024px]/shell:grid-cols-12">
-        <div className="order-2 min-w-0 space-y-6 @min-[1024px]/shell:order-1 @min-[1024px]/shell:col-span-8">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-12 xl:gap-8">
+        <div className="order-2 min-w-0 space-y-5 xl:order-1 xl:col-span-8 xl:space-y-6">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base">Period & filters</CardTitle>
@@ -426,63 +414,16 @@ export function ExportCustomFlow({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <Section title="Quick range">
-                <div className="flex flex-wrap gap-2">
-                  {PERIOD_PRESETS.map(({ id, label }) => (
-                    <Button
-                      key={id}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => {
-                        const range = applyDatePreset(id);
-                        onFromChange(range.from);
-                        onToChange(range.to);
-                      }}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </Section>
-
-              <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2 @min-[1024px]/shell:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="custom-from">From</Label>
-                  <Input
-                    id="custom-from"
-                    type="date"
-                    value={from}
-                    onChange={(e) => onFromChange(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="custom-to">To</Label>
-                  <Input
-                    id="custom-to"
-                    type="date"
-                    value={to}
-                    onChange={(e) => onToChange(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Billable</Label>
-                  <Select
-                    value={billable}
-                    onValueChange={(v) => setBillable(v as ExportBodyDto["billable"])}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All entries</SelectItem>
-                      <SelectItem value="billable">Billable only</SelectItem>
-                      <SelectItem value="non_billable">Non-billable only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <ExportPeriodFilter
+                from={from}
+                to={to}
+                onFromChange={onFromChange}
+                onToChange={onToChange}
+                billable={billable}
+                onBillableChange={setBillable}
+                previewLoading={previewLoading}
+                dateRangeAriaLabel="Custom export date range"
+              />
 
               <ExportScopeFilters
                 projectIds={projectIds}
@@ -493,7 +434,7 @@ export function ExportCustomFlow({
                 }}
                 onUserIdsChange={onUserIdsChange}
                 projects={projects}
-                members={members.map((m) => ({ userId: m.userId, userName: m.userName }))}
+                members={scopeMembers}
                 categories={categories}
                 tasks={tasks}
                 categoryId={categoryId}
@@ -507,6 +448,7 @@ export function ExportCustomFlow({
                 onTeamOnlyChange={onTeamOnlyChange}
                 onClearAll={onClearScope}
                 onResetFilters={handleResetFilters}
+                previewLoading={previewLoading}
               />
             </CardContent>
           </Card>
@@ -604,12 +546,12 @@ export function ExportCustomFlow({
           </Card>
         </div>
 
-        <div className="order-1 min-w-0 @min-[1024px]/shell:order-2 @min-[1024px]/shell:col-span-4">
-          <div className="space-y-4 @min-[1024px]/shell:sticky @min-[1024px]/shell:top-6">
+        <div className="order-1 min-w-0 xl:order-2 xl:col-span-4">
+          <div className="space-y-4 xl:sticky xl:top-6">
             <ExportDownloadPanel
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}
-              periodLabel={formatPeriodLabel(from, to)}
+              periodLabel={formatExportPeriodLabel(from, to)}
               exportBody={exportBody}
               previewBody={previewBody}
               preview={preview}
@@ -618,6 +560,13 @@ export function ExportCustomFlow({
               format={format}
               onFormatChange={setFormat}
               purposeSlug={exportBody.exportPurpose ?? "custom-export"}
+              projectIds={projectIds}
+              userIds={userIds}
+              projects={projects}
+              members={scopeMembers}
+              categoryName={categoryName}
+              taskName={taskName}
+              teamOnly={teamOnly}
               projectNames={projectNames}
               userNames={userNames}
               downloadLabel={`Download ${format.toUpperCase()}`}

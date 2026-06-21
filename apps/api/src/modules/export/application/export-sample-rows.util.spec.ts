@@ -20,6 +20,15 @@ describe("buildExportPreviewSampleRows", () => {
     }
   ];
 
+  it("returns one sample per selected report when reportTypes is provided", () => {
+    const sample = buildExportPreviewSampleRows(sheets, {
+      reportTypes: ["time_entries", "by_member"]
+    });
+    expect(sample).toHaveLength(2);
+    expect(sample[0]?.reportType).toBe("time_entries");
+    expect(sample[1]?.reportType).toBe("by_member");
+  });
+
   it("uses projected sheet headers and row order", () => {
     const sample = buildExportPreviewSampleRows(sheets);
     expect(sample).toHaveLength(1);

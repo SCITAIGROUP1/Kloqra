@@ -75,7 +75,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
       <div className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
         <Label className="text-sm font-medium">{REPORT_LABELS[report]} columns</Label>
         <Button type="button" variant="ghost" size="sm" onClick={reset}>
-          Reset columns
+          Reset Columns
         </Button>
       </div>
       <p className="mb-3 text-xs text-muted-foreground break-words">

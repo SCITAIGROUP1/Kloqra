@@ -12,6 +12,7 @@ import {
 } from "@kloqra/ui";
 import { ChevronDown, Filter, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { ExportAppliedScopeSummary } from "./export-applied-scope-summary";
 
 export type ScopeMember = { userId: string; userName: string };
 
@@ -32,6 +33,7 @@ type ExportScopeFiltersProps = {
   onTeamOnlyChange: (teamOnly: boolean) => void;
   onClearAll: () => void;
   onResetFilters?: () => void;
+  previewLoading?: boolean;
   className?: string;
 };
 
@@ -62,6 +64,7 @@ export function ExportScopeFilters({
   onTeamOnlyChange,
   onClearAll,
   onResetFilters,
+  previewLoading = false,
   className
 }: ExportScopeFiltersProps) {
   const activeCount = activeFilterCount({
@@ -111,6 +114,8 @@ export function ExportScopeFilters({
   );
 
   const taskDisabled = projectIds.length === 0;
+  const categoryName = categoryId ? categories.find((c) => c.id === categoryId)?.name : undefined;
+  const taskName = taskId ? tasks.find((t) => t.id === taskId)?.taskName : undefined;
   const chips = useMemo(() => {
     const out: { key: string; label: string; onClear: () => void }[] = [];
     if (projectIds.length === 1) {
@@ -184,6 +189,17 @@ export function ExportScopeFilters({
 
   return (
     <div className={cn("space-y-3", className)}>
+      <ExportAppliedScopeSummary
+        projectIds={projectIds}
+        userIds={userIds}
+        projects={projects}
+        members={members}
+        categoryName={categoryName}
+        taskName={taskName}
+        teamOnly={teamOnly}
+        previewLoading={previewLoading}
+      />
+
       <button
         type="button"
         className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-left text-sm hover:bg-muted/40"
@@ -211,7 +227,7 @@ export function ExportScopeFilters({
             export.
           </p>
 
-          <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Projects</Label>
               <SearchableMultiSelect
@@ -255,7 +271,7 @@ export function ExportScopeFilters({
           </div>
 
           {moreOpen ? (
-            <div className="grid grid-cols-1 gap-4 @min-[960px]/shell:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Category</Label>
                 <SearchableSelect

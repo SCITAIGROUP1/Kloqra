@@ -255,6 +255,16 @@ describe("contracts", () => {
     expect(body.exportPurpose).toBe("payroll-timesheets");
   });
 
+  it("accepts json as an export format", () => {
+    const body = exportBodySchema.parse({
+      from: "2025-06-01T00:00:00.000Z",
+      to: "2025-06-30T23:59:59.000Z",
+      reportTypes: ["time_entries"],
+      format: "json"
+    });
+    expect(body.format).toBe("json");
+  });
+
   it("exposes export job routes", () => {
     expect(ROUTES.EXPORT.JOBS).toBe("/export/jobs");
     expect(ROUTES.EXPORT.JOB("abc")).toBe("/export/jobs/abc");

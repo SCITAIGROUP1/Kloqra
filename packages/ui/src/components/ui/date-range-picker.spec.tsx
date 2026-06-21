@@ -63,4 +63,22 @@ describe("DateRangePicker", () => {
 
     vi.useRealTimers();
   });
+
+  it("can keep two months visible on mobile when collapse is disabled", async () => {
+    const user = userEvent.setup();
+    render(
+      <DateRangePicker
+        from="2026-05-22"
+        to="2026-06-21"
+        onChange={vi.fn()}
+        ariaLabel="Date range"
+        numberOfMonths={2}
+        collapseToSingleMonthOnMobile={false}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Date range" }));
+    expect(screen.getByText("May 2026")).toBeInTheDocument();
+    expect(screen.getByText("June 2026")).toBeInTheDocument();
+  });
 });

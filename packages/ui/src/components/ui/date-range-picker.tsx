@@ -30,6 +30,8 @@ export type DateRangePickerProps = {
   numberOfMonths?: 1 | 2;
   /** Align popover to trigger edge — `end` keeps wide calendars inside the viewport. */
   popoverAlign?: "start" | "center" | "end";
+  /** When true (default), show one month in the popover below the `sm` breakpoint. */
+  collapseToSingleMonthOnMobile?: boolean;
 };
 
 type DraftRange = {
@@ -134,7 +136,8 @@ export function DateRangePicker({
   disabled = false,
   weekStartsOn = 1,
   numberOfMonths = 2,
-  popoverAlign = "end"
+  popoverAlign = "end",
+  collapseToSingleMonthOnMobile = true
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<DraftRange>({ from, to });
@@ -147,6 +150,10 @@ export function DateRangePicker({
   });
 
   React.useEffect(() => {
+    if (!collapseToSingleMonthOnMobile) {
+      setVisibleMonths(numberOfMonths);
+      return;
+    }
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       setVisibleMonths(numberOfMonths);
       return;
@@ -157,7 +164,7 @@ export function DateRangePicker({
     syncMonths();
     media.addEventListener("change", syncMonths);
     return () => media.removeEventListener("change", syncMonths);
-  }, [numberOfMonths]);
+  }, [numberOfMonths, collapseToSingleMonthOnMobile]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -255,7 +262,12 @@ export function DateRangePicker({
           </Button>
         </div>
 
-        <div className={cn("grid gap-6 p-4", showSecondMonth ? "sm:grid-cols-2" : "grid-cols-1")}>
+        <div
+          className={cn(
+            "grid gap-6 p-4",
+            showSecondMonth ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+          )}
+        >
           <MonthPanel
             year={visibleMonth.year}
             month={visibleMonth.month}

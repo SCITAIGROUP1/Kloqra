@@ -14,17 +14,6 @@ import {
 } from "@/lib/export-organize";
 import { groupByForSheetLayout, SHEET_LAYOUT_OPTIONS } from "@/lib/export-sheet-layout";
 
-const FILE_STRUCTURE_OPTIONS: {
-  layout: ExportSheetLayout;
-  label: string;
-}[] = [
-  { layout: "standard", label: "Everyone in one file" },
-  { layout: "tabs_per_member", label: "Separate sheet per team member" },
-  { layout: "tabs_per_project", label: "Separate sheet per project" },
-  { layout: "tabs_per_client", label: "Separate sheet per client" },
-  { layout: "tabs_per_category", label: "Separate sheet per category" }
-];
-
 const READING_ORDER_PRIMARY: ExportGroupByDimension[] = [
   "member",
   "project",
@@ -122,7 +111,7 @@ function CustomOrganizePicker({
   const secondary = safeGroupBy[1] ?? "";
 
   const layoutLabel =
-    SHEET_LAYOUT_OPTIONS.find((o) => o.id === sheetLayout)?.label ?? "Standard workbook";
+    SHEET_LAYOUT_OPTIONS.find((o) => o.id === sheetLayout)?.label ?? "Standard Workbook";
 
   function onFileStructureChange(layout: ExportSheetLayout) {
     onSheetLayoutChange(layout);
@@ -150,14 +139,14 @@ function CustomOrganizePicker({
     <div className="space-y-5">
       <div className="space-y-2">
         <p className="text-sm font-medium">File structure</p>
-        <div className="grid grid-cols-1 gap-2 @min-[960px]/shell:grid-cols-2">
-          {FILE_STRUCTURE_OPTIONS.map((opt) => (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {SHEET_LAYOUT_OPTIONS.map((opt) => (
             <button
-              key={opt.layout}
+              key={opt.id}
               type="button"
-              onClick={() => onFileStructureChange(opt.layout)}
+              onClick={() => onFileStructureChange(opt.id)}
               className={`rounded-lg border p-3 text-left transition-colors ${
-                sheetLayout === opt.layout
+                sheetLayout === opt.id
                   ? "border-primary bg-primary/10 ring-1 ring-primary/30"
                   : "border-border bg-muted/20 hover:bg-muted/40"
               }`}
@@ -169,7 +158,7 @@ function CustomOrganizePicker({
       </div>
 
       {showReadingOrder ? (
-        <div className="grid gap-4 @min-[960px]/shell:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Group first by</Label>
             <Select value={primary ?? "__none__"} onValueChange={onPrimaryChange}>

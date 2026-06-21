@@ -24,3 +24,24 @@ export function rowsToCsv(headers: string[], lines: ExportCellValue[][]): string
   };
   return [headers.map(escape).join(","), ...lines.map((r) => r.map(escape).join(","))].join("\n");
 }
+
+export type JsonExportSheet = {
+  name: string;
+  reportType: string;
+  headers: string[];
+  lines: ExportCellValue[][];
+};
+
+export function rowsToJsonExport(sheets: JsonExportSheet[]): string {
+  const payload = {
+    reports: sheets.map((sheet) => ({
+      name: sheet.name,
+      reportType: sheet.reportType,
+      columns: sheet.headers,
+      rows: sheet.lines.map((line) =>
+        Object.fromEntries(sheet.headers.map((header, index) => [header, line[index] ?? ""]))
+      )
+    }))
+  };
+  return JSON.stringify(payload, null, 2);
+}
