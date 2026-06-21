@@ -41,6 +41,14 @@ type CategoryWithCount = SeedCategory & { _count: { tasks: number } };
 
 const prisma = new PrismaClient();
 
+/** Approval policy starts far enough back that seeded history and periods qualify. */
+function seedApprovalPolicyStart(): Date {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 120);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
 /** Category delegate — typed at boundary for stale IDE Prisma clients (run `prisma generate`). */
 function categoryRepo() {
   return (
@@ -341,6 +349,7 @@ async function seedProjects(
   const fallbackCategory = categories.get("Uncategorized")!;
 
   for (const projectSpec of wsSpec.projects) {
+    const approvalPolicyStart = projectSpec.timesheetApproval ? seedApprovalPolicyStart() : null;
     const project = await prisma.project.create({
       data: {
         workspaceId: workspace.id,
@@ -351,8 +360,8 @@ async function seedProjects(
         isActive: true,
         timesheetApprovalEnabled: projectSpec.timesheetApproval ?? false,
         timesheetApprovalPeriod: projectSpec.timesheetApproval ? "weekly" : null,
-        timesheetApprovalEnabledAt: projectSpec.timesheetApproval ? new Date() : null,
-        timesheetApprovalPeriodEffectiveAt: projectSpec.timesheetApproval ? new Date() : null
+        timesheetApprovalEnabledAt: approvalPolicyStart,
+        timesheetApprovalPeriodEffectiveAt: approvalPolicyStart
       }
     });
 

@@ -136,6 +136,16 @@ export class TimesheetsService {
     return { project, workspaceSettings, approvalPeriod, workspaceName: project.workspace.name };
   }
 
+  private async dispatchNotification(work: Promise<void>) {
+    try {
+      await work;
+    } catch (err: unknown) {
+      this.logger.error(
+        `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
   private cascadePreviewToDto(row: CascadePeriodPreview) {
     return {
       periodStart: row.periodStart.toISOString(),
@@ -488,8 +498,8 @@ export class TimesheetsService {
 
     const templateId = "timesheet.submitted";
     const submittedHours = (totalHours._sum?.durationSec ?? 0) / 3600;
-    void this.notificationsDispatch
-      .notifyWorkspaceAdmins(workspaceId, {
+    await this.dispatchNotification(
+      this.notificationsDispatch.notifyWorkspaceAdmins(workspaceId, {
         templateId,
         context: {
           submitterName: submitter?.name ?? "A member",
@@ -502,11 +512,7 @@ export class TimesheetsService {
           ...(submittedHours > 0 ? { totalHours: submittedHours } : {})
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return {
       period: this.toPeriodDto(saved, project.name, approvalPeriod, false),
@@ -813,8 +819,8 @@ export class TimesheetsService {
       );
     }
 
-    void this.notificationsDispatch
-      .notify({
+    await this.dispatchNotification(
+      this.notificationsDispatch.notify({
         userId,
         workspaceId,
         templateId: "timesheet.reminder.manual",
@@ -828,11 +834,7 @@ export class TimesheetsService {
           adminMessage: message
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return { ok: true as const, remindedBy: adminUserId };
   }
@@ -936,8 +938,8 @@ export class TimesheetsService {
     const totalHours =
       Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
 
-    void this.notificationsDispatch
-      .notify({
+    await this.dispatchNotification(
+      this.notificationsDispatch.notify({
         userId: period.userId,
         workspaceId,
         templateId: "timesheet.approved",
@@ -952,11 +954,7 @@ export class TimesheetsService {
           ...(totalHours > 0 ? { totalHours } : {})
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return { ok: true as const };
   }
@@ -1037,8 +1035,8 @@ export class TimesheetsService {
     const totalHours =
       Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
 
-    void this.notificationsDispatch
-      .notify({
+    await this.dispatchNotification(
+      this.notificationsDispatch.notify({
         userId: period.userId,
         workspaceId,
         templateId: "timesheet.rejected",
@@ -1054,11 +1052,7 @@ export class TimesheetsService {
           ...(totalHours > 0 ? { totalHours } : {})
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return { ok: true as const };
   }
