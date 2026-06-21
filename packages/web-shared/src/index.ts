@@ -74,6 +74,7 @@ export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
 export { usePaginatedList } from "./hooks/use-paginated-list";
 export { useRefetchOnWindowFocus } from "./hooks/use-refetch-on-window-focus";
+export { useWorkspaceStaleRefetch } from "./hooks/use-workspace-stale-refetch";
 export {
   formatNotificationTimeAgo,
   markAllNotificationsRead,

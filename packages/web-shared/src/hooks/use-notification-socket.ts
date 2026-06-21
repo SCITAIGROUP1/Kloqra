@@ -40,6 +40,7 @@ export function useNotificationSocket(workspaceId: string, enabled = true) {
             "submissions",
             "timesheet",
             "projects",
+            "tasks",
             "pending_approvals"
           ]);
         }

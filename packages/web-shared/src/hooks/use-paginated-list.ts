@@ -1,8 +1,13 @@
 "use client";
 
-import { DEFAULT_TABLE_PAGE_SIZE, type PaginatedResponse } from "@kloqra/contracts";
+import {
+  DEFAULT_TABLE_PAGE_SIZE,
+  type PaginatedResponse,
+  type WorkspaceDataInvalidateScope
+} from "@kloqra/contracts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchPaginatedList } from "../api/fetch-list-items";
+import { useWorkspaceStaleRefetch } from "./use-workspace-stale-refetch";
 
 type UsePaginatedListOptions = {
   enabled?: boolean;
@@ -12,6 +17,8 @@ type UsePaginatedListOptions = {
   debounceMs?: number;
   /** Refetch when the user returns to this browser tab. */
   refreshOnFocus?: boolean;
+  /** Refetch when a realtime notification invalidates these scopes. */
+  refreshOnStaleScopes?: WorkspaceDataInvalidateScope[];
 };
 
 export function usePaginatedList<T>({
@@ -20,7 +27,8 @@ export function usePaginatedList<T>({
   basePath,
   filters,
   debounceMs = 300,
-  refreshOnFocus = false
+  refreshOnFocus = false,
+  refreshOnStaleScopes
 }: UsePaginatedListOptions) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
@@ -100,6 +108,15 @@ export function usePaginatedList<T>({
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refreshOnFocus, enabled, workspaceId, reload]);
+
+  useWorkspaceStaleRefetch(
+    workspaceId,
+    refreshOnStaleScopes ?? [],
+    () => {
+      void reload();
+    },
+    enabled && Boolean(refreshOnStaleScopes?.length)
+  );
 
   return {
     items,

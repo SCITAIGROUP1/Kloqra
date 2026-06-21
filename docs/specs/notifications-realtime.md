@@ -23,7 +23,7 @@ createInApp → Redis PUBLISH notifications:user:{userId}
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Socket namespace           | `NOTIFICATIONS_SOCKET_NAMESPACE` in [routes.ts](../../packages/contracts/src/routes.ts)                                  |
 | Push payload               | [notification-realtime.ts](../../packages/contracts/src/notification-realtime.ts)                                        |
-| Invalidate scopes          | `submissions`, `timesheet`, `projects`, `pending_approvals`                                                              |
+| Invalidate scopes          | `submissions`, `timesheet`, `projects`, `tasks`, `pending_approvals`                                                     |
 | Approval settings template | `project.approvalSettingsChanged` in [notification-templates.ts](../../packages/contracts/src/notification-templates.ts) |
 
 ## API
@@ -51,6 +51,10 @@ Publisher: [notifications-realtime.service.ts](../../apps/api/src/modules/notifi
 **Given** a member has submissions open  
 **When** an admin approves their timesheet  
 **Then** the member's bell unread count updates via WebSocket and submissions refetch.
+
+**Given** a member has the tasks page or timer open  
+**When** an admin assigns or unassigns them to a task or project  
+**Then** task pickers and paginated task lists refetch via the `tasks` scope.
 
 **Given** an admin toggles project approval settings  
 **When** the change is saved  

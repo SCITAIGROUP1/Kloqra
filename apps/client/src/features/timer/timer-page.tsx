@@ -26,6 +26,7 @@ import {
   fetchListItems,
   useRefetchOnWindowFocus,
   useUserProfile,
+  useWorkspaceStaleRefetch,
   todayInZone,
   localMidnightUtcInZone
 } from "@kloqra/web-shared";
@@ -248,6 +249,7 @@ export function TimerPage() {
   }, [ws, setProjects, setTasks]);
 
   useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
+  useWorkspaceStaleRefetch(ws, ["tasks", "projects"], reloadCatalog, Boolean(ws));
 
   // Handle active status ticks
   useEffect(() => {

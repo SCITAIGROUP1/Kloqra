@@ -37,7 +37,8 @@ export function MemberProjectTasksTab() {
     workspaceId,
     basePath: ROUTES.TASKS.LIST,
     filters,
-    refreshOnFocus: true
+    refreshOnFocus: true,
+    refreshOnStaleScopes: ["tasks"]
   });
 
   const grouped = useMemo(() => {

@@ -57,7 +57,8 @@ export function TasksPage() {
     workspaceId: ws,
     basePath: ROUTES.TASKS.LIST,
     filters: taskFilters,
-    refreshOnFocus: true
+    refreshOnFocus: true,
+    refreshOnStaleScopes: ["tasks"]
   });
 
   const projectsById = useMemo(() => {

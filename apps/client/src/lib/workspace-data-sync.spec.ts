@@ -8,6 +8,7 @@ const workspaceId = "22222222-2222-4222-8222-222222222222";
 const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
   setProjects: vi.fn(),
+  setTasks: vi.fn(),
   invalidateListItemsCache: vi.fn(),
   fetchListItems: vi.fn().mockResolvedValue([])
 }));
@@ -20,7 +21,7 @@ vi.mock("@/stores/member-data.store", () => ({
 
 vi.mock("@/stores/projects.store", () => ({
   useProjectsStore: {
-    getState: () => ({ setProjects: mocks.setProjects })
+    getState: () => ({ setProjects: mocks.setProjects, setTasks: mocks.setTasks })
   }
 }));
 
@@ -54,7 +55,7 @@ describe("useClientWorkspaceDataSync", () => {
     expect(mocks.invalidate).toHaveBeenCalledWith(workspaceId);
   });
 
-  it("refetches projects when projects scope is stale", async () => {
+  it("refetches projects and tasks when projects scope is stale", async () => {
     const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
     mocks.fetchListItems.mockResolvedValue([
       { id: "p1", name: "Alpha", color: "#236bfe", isActive: true, timesheetApprovalEnabled: false }
@@ -73,7 +74,31 @@ describe("useClientWorkspaceDataSync", () => {
         workspaceId,
         bypassCache: true
       });
+      expect(mocks.fetchListItems).toHaveBeenCalledWith(ROUTES.TASKS.LIST, {
+        workspaceId,
+        bypassCache: true
+      });
       expect(mocks.setProjects).toHaveBeenCalled();
+      expect(mocks.setTasks).toHaveBeenCalled();
+    });
+  });
+
+  it("refetches tasks when tasks scope is stale", async () => {
+    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
+
+    renderHook(() => useClientWorkspaceDataSync(workspaceId));
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+        detail: { workspaceId, scopes: ["tasks"] }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.fetchListItems).toHaveBeenCalledWith(ROUTES.TASKS.LIST, {
+        workspaceId,
+        bypassCache: true
+      });
+      expect(mocks.setTasks).toHaveBeenCalled();
     });
   });
 

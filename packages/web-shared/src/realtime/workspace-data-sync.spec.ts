@@ -16,8 +16,18 @@ describe("scopesForNotificationType", () => {
     ]);
   });
 
-  it("maps project assignment to projects scope", () => {
-    expect(scopesForNotificationType(NotificationType.PROJECT_ASSIGNMENT)).toEqual(["projects"]);
+  it("maps project assignment to projects and tasks scopes", () => {
+    expect(scopesForNotificationType(NotificationType.PROJECT_ASSIGNMENT)).toEqual([
+      "projects",
+      "tasks"
+    ]);
+  });
+
+  it("maps task assignment to projects and tasks scopes", () => {
+    expect(scopesForNotificationType(NotificationType.TASK_ASSIGNMENT)).toEqual([
+      "projects",
+      "tasks"
+    ]);
   });
 
   it("returns empty for unrelated types", () => {

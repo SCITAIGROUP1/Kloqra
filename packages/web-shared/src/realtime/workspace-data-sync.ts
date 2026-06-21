@@ -45,6 +45,7 @@ export function scopesForNotificationType(type: string): WorkspaceDataInvalidate
   }
   if (PROJECT_TYPES.has(type)) {
     scopes.add("projects");
+    scopes.add("tasks");
   }
   return [...scopes];
 }

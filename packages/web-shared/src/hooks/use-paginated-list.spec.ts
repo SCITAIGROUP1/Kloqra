@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
 import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
@@ -102,5 +103,29 @@ describe("usePaginatedList", () => {
       search: "",
       filters: undefined
     });
+  });
+
+  it("refetches when a watched workspace scope becomes stale", async () => {
+    const { WORKSPACE_DATA_STALE_EVENT } = await import("../realtime/workspace-data-sync");
+
+    renderHook(() =>
+      usePaginatedList<{ id: string }>({
+        workspaceId: "ws-1",
+        basePath: "/tasks",
+        refreshOnStaleScopes: ["tasks"]
+      })
+    );
+
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+          detail: { workspaceId: "ws-1", scopes: ["tasks"] }
+        })
+      );
+    });
+
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(2));
   });
 });

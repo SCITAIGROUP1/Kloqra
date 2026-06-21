@@ -42,6 +42,7 @@ import {
   type DashboardPeriodSelection,
   fetchListItems,
   useUserProfile,
+  useWorkspaceStaleRefetch,
   localMidnightUtcInZone,
   todayInZone
 } from "@kloqra/web-shared";
@@ -389,6 +390,21 @@ export function DashboardPage() {
       .then(setScopeTasks)
       .catch(() => setScopeTasks([]));
   }, [ws, filterProjectId, filterCategoryId]);
+
+  const refreshTaskCatalog = useCallback(() => {
+    if (!ws) return;
+    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
+      setTasks
+    );
+    if (!filterProjectId) return;
+    const filters: Record<string, string> = { projectId: filterProjectId };
+    if (filterCategoryId) filters.categoryId = filterCategoryId;
+    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters, bypassCache: true })
+      .then(setScopeTasks)
+      .catch(() => setScopeTasks([]));
+  }, [ws, filterProjectId, filterCategoryId, setTasks]);
+
+  useWorkspaceStaleRefetch(ws, ["tasks", "projects"], refreshTaskCatalog, Boolean(ws));
 
   useEffect(() => {
     if (!filterUserId) return;

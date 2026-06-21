@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES, type ProjectDto } from "@kloqra/contracts";
+import { ROUTES, type ProjectDto, type TaskDto } from "@kloqra/contracts";
 import {
   fetchListItems,
   invalidateListItemsCache,
@@ -10,6 +10,26 @@ import {
 import { useEffect } from "react";
 import { useMySubmissionsStore } from "@/stores/member-data.store";
 import { useProjectsStore } from "@/stores/projects.store";
+
+function refetchProjects(workspaceId: string) {
+  invalidateListItemsCache({ workspaceId });
+  void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
+    workspaceId,
+    bypassCache: true
+  }).then((items) => {
+    useProjectsStore.getState().setProjects(items);
+  });
+}
+
+function refetchTasks(workspaceId: string) {
+  invalidateListItemsCache({ workspaceId });
+  void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
+    workspaceId,
+    bypassCache: true
+  }).then((items) => {
+    useProjectsStore.getState().setTasks(items);
+  });
+}
 
 export function useClientWorkspaceDataSync(workspaceId: string) {
   useEffect(() => {
@@ -23,13 +43,10 @@ export function useClientWorkspaceDataSync(workspaceId: string) {
         useMySubmissionsStore.getState().invalidate(workspaceId);
       }
       if (detail.scopes.includes("projects")) {
-        invalidateListItemsCache({ workspaceId });
-        void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
-          workspaceId,
-          bypassCache: true
-        }).then((items) => {
-          useProjectsStore.getState().setProjects(items);
-        });
+        refetchProjects(workspaceId);
+      }
+      if (detail.scopes.includes("tasks") || detail.scopes.includes("projects")) {
+        refetchTasks(workspaceId);
       }
     };
 
