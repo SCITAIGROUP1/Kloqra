@@ -1,6 +1,6 @@
 import { EXPORT_COLUMN_LABELS, resolveExportColumns } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
-import { projectRows, rowsToCsv } from "./export-render.util";
+import { projectRows, rowsToCsv, rowsToJsonExport } from "./export-render.util";
 
 describe("export-render.util", () => {
   it("orders CSV headers by column keys", () => {
@@ -16,6 +16,22 @@ describe("export-render.util", () => {
   it("escapes commas in CSV cells", () => {
     const csv = rowsToCsv(["Description"], [['Say "hello", world']]);
     expect(csv).toContain('"Say ""hello"", world"');
+  });
+
+  it("serializes sheets to JSON with column labels as keys", () => {
+    const json = rowsToJsonExport([
+      {
+        name: "Time entries",
+        reportType: "time_entries",
+        headers: ["Project", "Hours"],
+        lines: [["Acme", 2]]
+      }
+    ]);
+    const parsed = JSON.parse(json) as {
+      reports: Array<{ columns: string[]; rows: Record<string, string | number>[] }>;
+    };
+    expect(parsed.reports[0]?.columns).toEqual(["Project", "Hours"]);
+    expect(parsed.reports[0]?.rows[0]).toEqual({ Project: "Acme", Hours: 2 });
   });
 });
 

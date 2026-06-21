@@ -12,13 +12,12 @@ test.describe("Member Submissions", () => {
     await expect(page).toHaveURL(/\/submissions/);
   });
 
-  test("shows cards and table view toggle", async ({ page }) => {
+  test("shows status tabs and table view", async ({ page }) => {
     await page.goto("/submissions");
-    await expect(page.getByRole("button", { name: "Cards" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Table" })).toBeVisible();
-    await page.getByRole("button", { name: "Table" }).click();
-    await expect(page).toHaveURL(/view=table/);
-    await expect(page.getByRole("columnheader", { name: "Project / period" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "All" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Action needed/i })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Period" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Project" })).toBeVisible();
   });
 
   test("timesheet page links to submissions when actionable", async ({ page }) => {

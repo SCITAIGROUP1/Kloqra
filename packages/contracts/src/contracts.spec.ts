@@ -45,6 +45,8 @@ import {
   memberEmailDeliverySchema,
   bulkInviteMemberSchema,
   bulkInviteResponseSchema,
+  bulkCategoryImportSchema,
+  bulkCategoryImportResponseSchema,
   teamMembersOverviewSchema,
   teamActivitiesSchema,
   timesheetSubmissionsQuerySchema,
@@ -113,6 +115,14 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
     if (r.success) {
       expect(r.data.scope).toBe("assigned");
+    }
+  });
+
+  it("validates timesheet submissions query lookbackWeeks default", () => {
+    const r = timesheetSubmissionsQuerySchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.lookbackWeeks).toBe(26);
     }
   });
 
@@ -253,6 +263,16 @@ describe("contracts", () => {
     expect(body.exportPurpose).toBe("payroll-timesheets");
   });
 
+  it("accepts json as an export format", () => {
+    const body = exportBodySchema.parse({
+      from: "2025-06-01T00:00:00.000Z",
+      to: "2025-06-30T23:59:59.000Z",
+      reportTypes: ["time_entries"],
+      format: "json"
+    });
+    expect(body.format).toBe("json");
+  });
+
   it("exposes export job routes", () => {
     expect(ROUTES.EXPORT.JOBS).toBe("/export/jobs");
     expect(ROUTES.EXPORT.JOB("abc")).toBe("/export/jobs/abc");
@@ -366,6 +386,28 @@ describe("contracts", () => {
   it("exposes categories routes", () => {
     expect(ROUTES.CATEGORIES.LIST).toBe("/categories");
     expect(ROUTES.CATEGORIES.BY_ID("abc")).toBe("/categories/abc");
+    expect(ROUTES.CATEGORIES.BULK).toBe("/categories/bulk");
+    expect(ROUTES.CATEGORIES.BULK_TEMPLATE).toBe("/categories/bulk/template");
+    expect(ROUTES.CATEGORIES.BULK_UPLOAD).toBe("/categories/bulk/upload");
+  });
+
+  it("validates bulk category import schema", () => {
+    const valid = bulkCategoryImportSchema.safeParse({
+      categories: [{ name: "Development", description: "Engineering work" }]
+    });
+    expect(valid.success).toBe(true);
+
+    const invalid = bulkCategoryImportSchema.safeParse({ categories: [] });
+    expect(invalid.success).toBe(false);
+  });
+
+  it("validates bulk category import response schema", () => {
+    const valid = bulkCategoryImportResponseSchema.safeParse({
+      jobId: "job-123",
+      status: "queued",
+      enqueuedCount: 3
+    });
+    expect(valid.success).toBe(true);
   });
 
   it("exposes categories heatmap route", () => {

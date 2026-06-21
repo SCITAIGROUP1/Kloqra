@@ -15,6 +15,13 @@ import {
   resolveApprovalPeriod
 } from "../../../common/time/approval-period.util";
 import {
+  enumeratePeriodAnchors,
+  isPeriodWithinApprovalPolicy,
+  resolveApprovalEffectiveStart,
+  resolveStoredApprovalPeriod,
+  sumHoursInPeriod
+} from "../../../common/time/timesheet-approval-policy.util";
+import {
   buildPeriodStartRange,
   matchesPeriodStartFilter
 } from "../../../common/time/timesheet-approvals-filter.util";
@@ -56,11 +63,16 @@ export class TimesheetsService {
       reviewedBy: string | null;
       submittedAt: Date | null;
       reviewedAt: Date | null;
+      approvalPeriod?: string | null;
     },
     projectName: string,
-    approvalPeriod: "daily" | "weekly" | "monthly",
+    fallbackApprovalPeriod: "daily" | "weekly" | "monthly",
     amendmentPending?: boolean
   ): TimesheetPeriodDto {
+    const approvalPeriod = resolveStoredApprovalPeriod(
+      period.approvalPeriod,
+      fallbackApprovalPeriod
+    );
     return {
       id: period.id,
       userId: period.userId,
@@ -124,6 +136,16 @@ export class TimesheetsService {
     return { project, workspaceSettings, approvalPeriod, workspaceName: project.workspace.name };
   }
 
+  private async dispatchNotification(work: Promise<void>) {
+    try {
+      await work;
+    } catch (err: unknown) {
+      this.logger.error(
+        `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
   private cascadePreviewToDto(row: CascadePeriodPreview) {
     return {
       periodStart: row.periodStart.toISOString(),
@@ -151,7 +173,7 @@ export class TimesheetsService {
       }
     });
 
-    if (!period) {
+    if (!period || period.status === "WAIVED") {
       return this.virtualDraft(
         userId,
         workspaceId,
@@ -167,16 +189,11 @@ export class TimesheetsService {
     return this.toPeriodDto(period, project.name, approvalPeriod, amendmentPending);
   }
 
-  async listSubmissions(
+  private async resolveSubmissionProjectIds(
     workspaceId: string,
     userId: string,
-    dateStr: string,
-    scope: "logged" | "assigned" = "logged"
-  ) {
-    const date = dateStr || new Date().toISOString();
-
-    let uniqueProjectIds: string[];
-
+    scope: "logged" | "assigned"
+  ): Promise<string[]> {
     if (scope === "assigned") {
       const memberships = await this.prisma.teamMember.findMany({
         where: {
@@ -192,24 +209,133 @@ export class TimesheetsService {
         },
         select: { team: { select: { projectId: true } } }
       });
-      uniqueProjectIds = [...new Set(memberships.map((row) => row.team.projectId))];
-    } else {
-      const projectIds = await this.prisma.timeLog.findMany({
-        where: {
-          userId,
-          task: { project: { workspaceId, timesheetApprovalEnabled: true } }
-        },
-        select: { task: { select: { projectId: true } } },
-        distinct: ["taskId"]
-      });
-      uniqueProjectIds = [...new Set(projectIds.map((row) => row.task.projectId))];
+      return [...new Set(memberships.map((row) => row.team.projectId))];
     }
+
+    const projectIds = await this.prisma.timeLog.findMany({
+      where: {
+        userId,
+        task: { project: { workspaceId, timesheetApprovalEnabled: true } }
+      },
+      select: { task: { select: { projectId: true } } },
+      distinct: ["taskId"]
+    });
+    return [...new Set(projectIds.map((row) => row.task.projectId))];
+  }
+
+  async listSubmissions(
+    workspaceId: string,
+    userId: string,
+    dateStr: string,
+    scope: "logged" | "assigned" = "logged",
+    lookbackWeeks = 26
+  ) {
+    const anchorDate = new Date(dateStr || Date.now());
+    const uniqueProjectIds = await this.resolveSubmissionProjectIds(workspaceId, userId, scope);
+    if (uniqueProjectIds.length === 0) return { items: [] };
+
+    const lookbackStart = new Date(anchorDate);
+    lookbackStart.setDate(lookbackStart.getDate() - lookbackWeeks * 7);
+
+    const projects = await this.prisma.project.findMany({
+      where: {
+        id: { in: uniqueProjectIds },
+        workspaceId,
+        timesheetApprovalEnabled: true
+      },
+      include: { workspace: { select: { settings: true } } }
+    });
+
+    const dbPeriods = await this.prisma.timesheetPeriod.findMany({
+      where: {
+        userId,
+        workspaceId,
+        projectId: { in: uniqueProjectIds },
+        status: { not: "WAIVED" },
+        periodStart: { gte: lookbackStart }
+      }
+    });
+    const dbByKey = new Map(
+      dbPeriods.map((period) => [`${period.projectId}:${period.periodStart.getTime()}`, period])
+    );
 
     const items: TimesheetPeriodDto[] = [];
-    for (const projectId of uniqueProjectIds) {
-      items.push(await this.getStatus(workspaceId, userId, projectId, date));
+
+    for (const project of projects) {
+      const workspaceSettings = parseWorkspaceSettingsFromRaw(project.workspace.settings);
+      const approvalPeriod = resolveApprovalPeriod(
+        project.timesheetApprovalPeriod,
+        workspaceSettings
+      );
+      const policyStart = resolveApprovalEffectiveStart(project);
+      const scanFrom =
+        lookbackStart.getTime() > policyStart.getTime() ? lookbackStart : policyStart;
+
+      const anchors = enumeratePeriodAnchors(
+        scanFrom,
+        anchorDate,
+        approvalPeriod,
+        workspaceSettings
+      );
+      const handledKeys = new Set<string>();
+
+      const logs = await this.prisma.timeLog.findMany({
+        where: {
+          userId,
+          task: { projectId: project.id },
+          startTime: { gte: scanFrom, lte: anchorDate }
+        },
+        select: { startTime: true, durationSec: true }
+      });
+
+      for (const anchor of anchors) {
+        const { periodStart, periodEnd } = getPeriodRange(
+          anchor,
+          approvalPeriod,
+          workspaceSettings
+        );
+        if (!isPeriodWithinApprovalPolicy(periodEnd, project)) continue;
+
+        const key = `${project.id}:${periodStart.getTime()}`;
+        handledKeys.add(key);
+        const period = dbByKey.get(key);
+
+        if (period) {
+          if (period.status === "DRAFT") {
+            const totalHours = sumHoursInPeriod(logs, periodStart, periodEnd);
+            if (totalHours <= 0) continue;
+          }
+          const amendmentPending = await this.amendmentPendingForPeriod(period.id);
+          items.push(this.toPeriodDto(period, project.name, approvalPeriod, amendmentPending));
+          continue;
+        }
+
+        const totalHours = sumHoursInPeriod(logs, periodStart, periodEnd);
+        if (totalHours <= 0) continue;
+        items.push(
+          this.virtualDraft(
+            userId,
+            workspaceId,
+            project.id,
+            project.name,
+            periodStart,
+            periodEnd,
+            approvalPeriod
+          )
+        );
+      }
+
+      for (const period of dbPeriods.filter((row) => row.projectId === project.id)) {
+        const key = `${project.id}:${period.periodStart.getTime()}`;
+        if (handledKeys.has(key)) continue;
+        if (period.status === "DRAFT") continue;
+        if (!isPeriodWithinApprovalPolicy(period.periodEnd, project)) continue;
+        const amendmentPending = await this.amendmentPendingForPeriod(period.id);
+        items.push(this.toPeriodDto(period, project.name, approvalPeriod, amendmentPending));
+      }
     }
 
+    items.sort((a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
     return { items };
   }
 
@@ -257,7 +383,7 @@ export class TimesheetsService {
     projectId: string,
     dateStr: string,
     note?: string,
-    confirmCascade?: boolean
+    _confirmCascade?: boolean
   ): Promise<SubmitTimesheetResponseDto> {
     const { project, workspaceSettings, approvalPeriod, workspaceName } = await this.loadProject(
       workspaceId,
@@ -289,15 +415,15 @@ export class TimesheetsService {
       );
     }
 
-    if (plan.cascaded.length > 0 && !confirmCascade) {
+    const { periodStart, periodEnd } = plan.target;
+
+    if (!isPeriodWithinApprovalPolicy(periodEnd, project)) {
       throw new DomainException(
-        ErrorCodes.TIMESHEET_CASCADE_REQUIRED,
-        "Confirm cascade submit to include earlier periods with logged time",
+        ErrorCodes.VALIDATION_ERROR,
+        "Timesheet approval does not apply to this period",
         HttpStatus.BAD_REQUEST
       );
     }
-
-    const { periodStart, periodEnd } = plan.target;
 
     const existingTarget = await this.prisma.timesheetPeriod.findUnique({
       where: {
@@ -322,48 +448,8 @@ export class TimesheetsService {
     }
 
     const submittedAt = new Date();
-    const cascadedPeriodIds: string[] = [];
 
     const saved = await this.prisma.$transaction(async (tx) => {
-      for (const cascaded of plan.cascaded) {
-        const existing = await tx.timesheetPeriod.findUnique({
-          where: {
-            userId_projectId_periodStart: {
-              userId,
-              projectId,
-              periodStart: cascaded.periodStart
-            }
-          }
-        });
-        if (existing?.id) await assertNoPendingAmendment(this.prisma, [existing.id]);
-
-        const row = existing
-          ? await tx.timesheetPeriod.update({
-              where: { id: existing.id },
-              data: {
-                status: "SUBMITTED",
-                submittedAt,
-                reviewNote: null,
-                reviewedBy: null,
-                reviewedAt: null,
-                note: null
-              }
-            })
-          : await tx.timesheetPeriod.create({
-              data: {
-                userId,
-                workspaceId,
-                projectId,
-                periodStart: cascaded.periodStart,
-                periodEnd: cascaded.periodEnd,
-                status: "SUBMITTED",
-                note: null,
-                submittedAt
-              }
-            });
-        cascadedPeriodIds.push(row.id);
-      }
-
       if (existingTarget?.id) await assertNoPendingAmendment(this.prisma, [existingTarget.id]);
 
       const targetRow = existingTarget
@@ -375,7 +461,8 @@ export class TimesheetsService {
               reviewNote: null,
               reviewedBy: null,
               submittedAt,
-              reviewedAt: null
+              reviewedAt: null,
+              approvalPeriod
             }
           })
         : await tx.timesheetPeriod.create({
@@ -387,7 +474,8 @@ export class TimesheetsService {
               periodEnd,
               status: "SUBMITTED",
               note: note || null,
-              submittedAt
+              submittedAt,
+              approvalPeriod
             }
           });
 
@@ -408,11 +496,10 @@ export class TimesheetsService {
       _sum: { durationSec: true }
     });
 
-    const templateId =
-      plan.cascaded.length > 0 ? "timesheet.submitted.batch" : "timesheet.submitted";
+    const templateId = "timesheet.submitted";
     const submittedHours = (totalHours._sum?.durationSec ?? 0) / 3600;
-    void this.notificationsDispatch
-      .notifyWorkspaceAdmins(workspaceId, {
+    await this.dispatchNotification(
+      this.notificationsDispatch.notifyWorkspaceAdmins(workspaceId, {
         templateId,
         context: {
           submitterName: submitter?.name ?? "A member",
@@ -422,21 +509,15 @@ export class TimesheetsService {
           periodId: saved.id,
           projectId,
           periodStart: saved.periodStart.toISOString(),
-          ...(submittedHours > 0 ? { totalHours: submittedHours } : {}),
-          cascadedCount: plan.cascaded.length + 1,
-          cascadedPeriodLabels: [...plan.cascaded.map((c) => c.periodLabel), periodLabel]
+          ...(submittedHours > 0 ? { totalHours: submittedHours } : {})
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return {
       period: this.toPeriodDto(saved, project.name, approvalPeriod, false),
-      cascadedPeriodIds,
-      cascadedCount: cascadedPeriodIds.length
+      cascadedPeriodIds: [],
+      cascadedCount: 0
     };
   }
 
@@ -643,7 +724,8 @@ export class TimesheetsService {
           }
         });
         const status = period?.status ?? "DRAFT";
-        if (status === "SUBMITTED" || status === "APPROVED") continue;
+        if (status === "SUBMITTED" || status === "APPROVED" || status === "WAIVED") continue;
+        if (!isPeriodWithinApprovalPolicy(periodEnd, project)) continue;
 
         const aggregation = await this.prisma.timeLog.aggregate({
           where: {
@@ -737,8 +819,8 @@ export class TimesheetsService {
       );
     }
 
-    void this.notificationsDispatch
-      .notify({
+    await this.dispatchNotification(
+      this.notificationsDispatch.notify({
         userId,
         workspaceId,
         templateId: "timesheet.reminder.manual",
@@ -752,11 +834,7 @@ export class TimesheetsService {
           adminMessage: message
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return { ok: true as const, remindedBy: adminUserId };
   }
@@ -860,8 +938,8 @@ export class TimesheetsService {
     const totalHours =
       Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
 
-    void this.notificationsDispatch
-      .notify({
+    await this.dispatchNotification(
+      this.notificationsDispatch.notify({
         userId: period.userId,
         workspaceId,
         templateId: "timesheet.approved",
@@ -876,11 +954,7 @@ export class TimesheetsService {
           ...(totalHours > 0 ? { totalHours } : {})
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return { ok: true as const };
   }
@@ -961,8 +1035,8 @@ export class TimesheetsService {
     const totalHours =
       Math.round(((totalHoursAggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
 
-    void this.notificationsDispatch
-      .notify({
+    await this.dispatchNotification(
+      this.notificationsDispatch.notify({
         userId: period.userId,
         workspaceId,
         templateId: "timesheet.rejected",
@@ -978,11 +1052,7 @@ export class TimesheetsService {
           ...(totalHours > 0 ? { totalHours } : {})
         }
       })
-      .catch((err: unknown) => {
-        this.logger.error(
-          `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      });
+    );
 
     return { ok: true as const };
   }

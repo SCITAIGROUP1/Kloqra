@@ -5,6 +5,7 @@ import type { CategoryDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarListToolbar,
+  AppModal,
   Badge,
   Button,
   DataTableCard,
@@ -20,8 +21,8 @@ import {
   TableRow,
   TableLoadingState
 } from "@kloqra/ui";
-import { usePaginatedList } from "@kloqra/web-shared";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { apiDownloadGet, saveDownloadResponse, usePaginatedList } from "@kloqra/web-shared";
+import { Download, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -54,6 +55,9 @@ export function AdminCategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -138,6 +142,49 @@ export function AdminCategoriesPage() {
     }
   }
 
+  async function handleDownloadTemplate() {
+    try {
+      const res = await apiDownloadGet(ROUTES.CATEGORIES.BULK_TEMPLATE, ws);
+      await saveDownloadResponse(res, "categories_template.xlsx");
+      toast.success("Template downloaded successfully.");
+    } catch {
+      toast.error("Failed to download template.");
+    }
+  }
+
+  async function handleBulkUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedFile) {
+      toast.error("Please select a file to upload.");
+      return;
+    }
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const res = await api<{ jobId: string; status: string; enqueuedCount: number }>(
+        ROUTES.CATEGORIES.BULK_UPLOAD,
+        {
+          method: "POST",
+          workspaceId: ws,
+          body: formData
+        }
+      );
+      toast.success(
+        `Queued import for ${res.enqueuedCount} categories. They will be created shortly.`
+      );
+      setBulkOpen(false);
+      setSelectedFile(null);
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to import categories.";
+      toast.error(message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <AppBar
@@ -176,10 +223,21 @@ export function AdminCategoriesPage() {
             placeholder="Optional"
           />
         </div>
-        <Button type="submit" disabled={saving} className="gap-2">
-          <Plus className="size-4" aria-hidden />
-          Add category
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 w-full gap-2 sm:w-auto"
+            onClick={() => setBulkOpen(true)}
+          >
+            <Upload className="size-4" aria-hidden />
+            Bulk import
+          </Button>
+          <Button type="submit" disabled={saving} className="h-10 w-full gap-2 sm:w-auto">
+            <Plus className="size-4" aria-hidden />
+            Add category
+          </Button>
+        </div>
       </form>
 
       <DataTableCard>
@@ -291,6 +349,78 @@ export function AdminCategoriesPage() {
       </DataTableCard>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <AppModal
+        open={bulkOpen}
+        onOpenChange={(open) => {
+          setBulkOpen(open);
+          if (!open) setSelectedFile(null);
+        }}
+        title="Bulk import categories"
+        description="Create multiple categories at once using an Excel spreadsheet template."
+        icon={<Upload className="size-5" />}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBulkOpen(false);
+                setSelectedFile(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" form="bulk-category-form" disabled={uploading || !selectedFile}>
+              {uploading ? "Importing…" : "Import categories"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">1. Get the template</h4>
+              <p className="text-xs text-muted-foreground">
+                Download the Excel sheet with Name and Description columns.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 shrink-0"
+              onClick={() => void handleDownloadTemplate()}
+            >
+              <Download className="size-3.5" />
+              Template
+            </Button>
+          </div>
+
+          <form id="bulk-category-form" onSubmit={handleBulkUpload} className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">2. Upload completed file</h4>
+              <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 p-6 transition-colors hover:bg-accent/5">
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+                  }}
+                />
+                <FileSpreadsheet className="mb-2 size-10 text-muted-foreground" />
+                <p className="text-center text-sm font-medium">
+                  {selectedFile ? selectedFile.name : "Click or drag Excel template here to upload"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Only .xlsx files up to 2MB are supported
+                </p>
+              </div>
+            </div>
+          </form>
+        </div>
+      </AppModal>
     </div>
   );
 }

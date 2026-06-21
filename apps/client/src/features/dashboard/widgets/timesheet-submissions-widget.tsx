@@ -13,7 +13,7 @@ import {
   TableRow,
   TimesheetApprovalStatusBadge
 } from "@kloqra/ui";
-import { localMidnightUtcInZone } from "@kloqra/web-shared";
+import { localMidnightUtcInZone, buildMemberSubmissionsHref } from "@kloqra/web-shared";
 import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import React from "react";
@@ -45,7 +45,7 @@ export function TimesheetSubmissionsWidget({
         <ListTodo className="size-8 text-muted-foreground/45 mb-2" />
         <p className="text-xs text-muted-foreground">No timesheet submissions found.</p>
         <Button variant="link" size="sm" className="h-7 text-xs mt-2" asChild>
-          <Link href="/submissions">Go to Submissions</Link>
+          <Link href={buildMemberSubmissionsHref({ tab: "action" })}>Go to Submissions</Link>
         </Button>
       </div>
     );
@@ -97,7 +97,7 @@ export function TimesheetSubmissionsWidget({
       </div>
       <div className="pt-2 mt-2 border-t border-border/40">
         <Button variant="ghost" size="sm" className="w-full h-7 text-[10px]" asChild>
-          <Link href="/submissions">Go to Submissions</Link>
+          <Link href={buildMemberSubmissionsHref({ tab: "action" })}>Go to Submissions</Link>
         </Button>
       </div>
     </div>

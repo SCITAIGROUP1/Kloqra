@@ -15,16 +15,15 @@ import {
   Label,
   ProjectColorDot,
   SearchableSelect,
-  SegmentedControl,
   TimeEntryAuditTrail,
   DatePicker,
-  dateKeyFromDate,
   cn
 } from "@kloqra/ui";
 import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
-import { Clock } from "lucide-react";
+import { ChevronDown, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatDraftDateLabel, formatDuration, todayInZone } from "./calendar-utils";
+import { formatDuration } from "./calendar-utils";
+import { RepeatEntryPanel } from "./repeat-entry-panel";
 import {
   type TimeEntryDraft,
   canSaveTaskDraft,
@@ -74,7 +73,6 @@ export function TimeEntryDialog({
   draft,
   projects,
   tasks,
-  taskLabel,
   workspaceNames,
   editingLog,
   saving,
@@ -90,6 +88,8 @@ export function TimeEntryDialog({
 }: TimeEntryDialogProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
 
   const fetchAuditEvents = useCallback(async () => {
     if (!editingLog || !workspaceId) return [];
@@ -107,6 +107,9 @@ export function TimeEntryDialog({
   useEffect(() => {
     if (open) {
       setActiveTab("details");
+    } else {
+      setRepeatOpen(false);
+      setMoreOptionsOpen(false);
     }
   }, [open, editingLog]);
 
@@ -130,9 +133,12 @@ export function TimeEntryDialog({
 
   const canDelete = Boolean(editingLog && onDelete && !readOnly);
   const canEdit = !readOnly && editingLog?.source !== "timer";
-  const dateLabel = draft ? formatDraftDateLabel(draft, editingLog, timezone) : "";
+  const canRepeat = canEdit && !editingLog;
+  const showJiraMoreOptions = canEdit && jiraSuggestions.length > 0;
   const canSave = draft ? canSaveTaskDraft(draft) : false;
   const saveHint = draft ? taskSaveHint(draft) : null;
+  const recurrenceActive = draft ? (draft.recurrence ?? "none") !== "none" : false;
+  const showRepeatAffordance = canRepeat && !repeatOpen && !recurrenceActive;
 
   const parsedValidation = error
     ? extractFieldErrorsFromMessage<"project" | "task" | "start" | "end" | "description">(error, {
@@ -159,14 +165,32 @@ export function TimeEntryDialog({
     if (draft) onDraftChange({ ...draft, ...partial });
   }
 
-  const description = (
-    <>
-      {dateLabel}
-      {editingLog?.source === "timer" ? (
-        <span className="mt-1 block text-xs">Started with the stopwatch</span>
-      ) : null}
-    </>
-  );
+  function handleDateChange(dateKey: string) {
+    const partial: Partial<TimeEntryDraft> = { date: dateKey };
+    if (
+      (draft?.recurrence ?? "none") !== "none" &&
+      draft?.repeatUntil &&
+      draft.repeatUntil < dateKey
+    ) {
+      partial.repeatUntil = dateKey;
+    }
+    patch(partial);
+  }
+
+  function openRepeatPanel() {
+    setRepeatOpen(true);
+    if ((draft?.recurrence ?? "none") === "none") {
+      patch({
+        recurrence: "weekdays",
+        repeatUntil: draft?.repeatUntil ?? draft?.date
+      });
+    }
+  }
+
+  const description =
+    editingLog?.source === "timer" ? (
+      <span className="block text-xs">Started with the stopwatch</span>
+    ) : undefined;
 
   const footer =
     activeTab === "details" ? (
@@ -247,7 +271,7 @@ export function TimeEntryDialog({
       {draft && activeTab === "details" ? (
         <form
           id="time-entry-form"
-          className="space-y-4"
+          className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
             onSave();
@@ -349,13 +373,23 @@ export function TimeEntryDialog({
             )}
           </div>
 
-          {draft.taskSelection && (
-            <p className="text-xs text-muted-foreground">{taskLabel(draft.taskSelection)}</p>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="entry-start">Start</Label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>When</Label>
+              {durationHint ? (
+                <span className="text-xs text-muted-foreground">· {durationHint}</span>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_1fr_1fr]">
+              <DatePicker
+                value={draft.date}
+                onChange={handleDateChange}
+                placeholder="Select date"
+                ariaLabel="Entry date"
+                disabled={!canEdit}
+                className="h-10 w-full justify-start bg-background"
+                popoverAlign="start"
+              />
               <Input
                 id="entry-start"
                 type="time"
@@ -363,14 +397,9 @@ export function TimeEntryDialog({
                 disabled={!canEdit}
                 onChange={(e) => patch({ startTime: e.target.value })}
                 required
+                aria-label="Start time"
                 aria-invalid={Boolean(parsedValidation.fieldErrors.start)}
               />
-              {parsedValidation.fieldErrors.start ? (
-                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.start}</p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="entry-end">End</Label>
               <Input
                 id="entry-end"
                 type="time"
@@ -378,18 +407,31 @@ export function TimeEntryDialog({
                 disabled={!canEdit}
                 onChange={(e) => patch({ endTime: e.target.value })}
                 required
+                aria-label="End time"
                 aria-invalid={Boolean(parsedValidation.fieldErrors.end)}
               />
-              {parsedValidation.fieldErrors.end ? (
-                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.end}</p>
+            </div>
+            {parsedValidation.fieldErrors.start ? (
+              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.start}</p>
+            ) : null}
+            {parsedValidation.fieldErrors.end ? (
+              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.end}</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="entry-description">Description</Label>
+              {showRepeatAffordance ? (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={openRepeatPanel}
+                >
+                  + Repeat on more days
+                </button>
               ) : null}
             </div>
-          </div>
-          {durationHint && (
-            <p className="text-xs text-muted-foreground">Duration: {durationHint}</p>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="entry-description">Description</Label>
             <Input
               id="entry-description"
               value={draft.description}
@@ -402,47 +444,40 @@ export function TimeEntryDialog({
               <p className="text-xs text-destructive">{parsedValidation.fieldErrors.description}</p>
             ) : null}
           </div>
-          {canEdit && !editingLog && (
-            <div className="border-t border-border pt-4 mt-4 space-y-4">
-              <div className="space-y-2">
-                <Label>Repeat Entry</Label>
-                <SegmentedControl
-                  value={draft.recurrence ?? "none"}
-                  onChange={(val) => patch({ recurrence: val })}
-                  options={[
-                    { value: "none", label: "Do not repeat" },
-                    { value: "daily", label: "Daily" },
-                    { value: "weekdays", label: "Weekdays" },
-                    { value: "weekly", label: "Weekly" }
-                  ]}
-                  fullWidth
-                />
-              </div>
 
-              {(draft.recurrence ?? "none") !== "none" && (
-                <div className="space-y-2">
-                  <Label htmlFor="entry-repeat-until">Repeat until</Label>
-                  <DatePicker
-                    value={draft.repeatUntil || dateKeyFromDate(todayInZone(timezone))}
-                    onChange={(dateKey) => patch({ repeatUntil: dateKey })}
-                    placeholder="Select date"
-                    maxDate={dateKeyFromDate(todayInZone(timezone))}
-                    className="w-full h-10 bg-background justify-start"
-                    disabled={!canEdit}
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Capped at Today. Future dates cannot be logged.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-          {canEdit && (
-            <JiraIssuePicker
-              issues={jiraSuggestions}
-              onSelect={(value) => patch({ description: value })}
+          {canRepeat ? (
+            <RepeatEntryPanel
+              open={repeatOpen}
+              draft={draft}
+              disabled={!canEdit}
+              onPatch={patch}
+              onOpenChange={setRepeatOpen}
             />
-          )}
+          ) : null}
+
+          {showJiraMoreOptions ? (
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={moreOptionsOpen}
+                onClick={() => setMoreOptionsOpen((prev) => !prev)}
+              >
+                More options
+                <ChevronDown
+                  className={cn("size-3.5 transition-transform", moreOptionsOpen && "rotate-180")}
+                  aria-hidden
+                />
+              </button>
+              {moreOptionsOpen ? (
+                <JiraIssuePicker
+                  issues={jiraSuggestions}
+                  onSelect={(value) => patch({ description: value })}
+                />
+              ) : null}
+            </div>
+          ) : null}
+
           {readOnly && editingLog ? (
             <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
               This timesheet period is locked (submitted or approved). Entries cannot be edited or

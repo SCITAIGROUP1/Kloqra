@@ -25,13 +25,15 @@ One active timer per user at a time.
 
 ## Submit for approval
 
-If your project requires approval:
+If your project requires approval, see the full guide: **[Timesheet submissions and approval](../timesheet-submissions-and-approval.md)**.
+
+Short version:
 
 1. Go to **Submissions** (`/submissions`).
-2. Review each project card for the current period.
-3. Add an optional note → **Send to Approvals**.
+2. Use **Action needed** for periods you still need to submit or fix.
+3. Add an optional note → **Submit** for that period only.
 
-Locked entries cannot be edited until approved or rejected.
+Locked entries cannot be edited until approved, rejected, or an edit request is granted.
 
 ## Add a manual entry
 

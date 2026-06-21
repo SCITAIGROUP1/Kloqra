@@ -4,7 +4,8 @@ import {
   buildMemberSubmissionsHref,
   hasActiveApprovalsFilter,
   parseAdminApprovalsSearch,
-  parseMemberSubmissionsSearch
+  parseMemberSubmissionsSearch,
+  resolveMemberSubmissionsTab
 } from "./submission-deep-link";
 
 describe("submission deep links", () => {
@@ -16,6 +17,8 @@ describe("submission deep links", () => {
         highlight: "remind"
       })
     ).toBe("/submissions?projectId=p1&periodStart=2026-06-09T00%3A00%3A00.000Z&highlight=remind");
+    expect(buildMemberSubmissionsHref({ tab: "action" })).toBe("/submissions?tab=action");
+    expect(buildMemberSubmissionsHref({ tab: "all" })).toBe("/submissions");
   });
 
   it("builds admin approvals href", () => {
@@ -39,14 +42,14 @@ describe("submission deep links", () => {
         projectId: "p1",
         periodStart: "iso",
         highlight: "rejected",
-        view: undefined
+        tab: undefined
       }
     );
-    expect(parseMemberSubmissionsSearch("view=table")).toEqual({
+    expect(parseMemberSubmissionsSearch("tab=pending")).toEqual({
       projectId: undefined,
       periodStart: undefined,
       highlight: undefined,
-      view: "table"
+      tab: "pending"
     });
     expect(parseAdminApprovalsSearch("tab=review&periodId=x&projectId=p1&userId=u1")).toEqual({
       tab: "review",
@@ -58,6 +61,13 @@ describe("submission deep links", () => {
       from: undefined,
       to: undefined
     });
+  });
+
+  it("resolves tab from highlight when tab is omitted", () => {
+    expect(resolveMemberSubmissionsTab({ highlight: "rejected" })).toBe("action");
+    expect(resolveMemberSubmissionsTab({ highlight: "amendment-approved" })).toBe("approved");
+    expect(resolveMemberSubmissionsTab({ tab: "pending" })).toBe("pending");
+    expect(resolveMemberSubmissionsTab({})).toBe("all");
   });
 
   it("detects active filters", () => {

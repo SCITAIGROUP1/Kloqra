@@ -26,8 +26,10 @@ describe("SubmissionsTable", () => {
       <SubmissionsTable submissions={[draftSubmission]} onSubmitted={() => {}} />
     );
 
-    expect(html).toContain("Project / period");
+    expect(html).toContain("Period");
+    expect(html).toContain("Project");
     expect(html).toContain("Support Retainer");
     expect(html).toContain("Submit");
+    expect(html).toContain("date=2025-06-02");
   });
 });

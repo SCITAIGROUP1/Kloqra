@@ -41,7 +41,9 @@ Members must belong to the workspace (invite via **Team management** first if ne
 
 ## Timesheet approval
 
-On **Project → Settings**, enable timesheet approval and choose daily, weekly, or monthly period. Members submit from the client **Approvals** page; admins review on **Approvals** (`/approvals`).
+On **Project → Settings**, enable timesheet approval and choose daily, weekly, or monthly period (or use the workspace default). Members submit from the client **Submissions** page; admins review on **Approvals** (`/approvals`).
+
+For the full workflow — statuses, locks, missing reminders, edit requests, and what happens when you change settings — see **[Timesheet submissions and approval](../timesheet-submissions-and-approval.md)**.
 
 ## What members see
 

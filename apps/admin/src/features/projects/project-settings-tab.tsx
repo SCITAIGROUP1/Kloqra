@@ -4,6 +4,7 @@ import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, ROUTES } from "@kloqra/contracts
 import type { ProjectDto } from "@kloqra/contracts";
 import {
   Button,
+  ConfirmDialog,
   Input,
   Label,
   ProjectColorEditor,
@@ -54,6 +55,8 @@ export function ProjectSettingsTab() {
   const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [approvalConfirmOpen, setApprovalConfirmOpen] = useState(false);
+  const [pendingSaveEvent, setPendingSaveEvent] = useState<React.FormEvent | null>(null);
 
   useEffect(() => {
     if (!project) return;
@@ -78,7 +81,12 @@ export function ProjectSettingsTab() {
       editApprovalPeriod !== snapshot.approvalPeriod ||
       editColor !== snapshot.color);
 
-  async function handleSave(e: React.FormEvent) {
+  const approvalSettingsDirty =
+    snapshot !== null &&
+    (editApprovalEnabled !== snapshot.approvalEnabled ||
+      editApprovalPeriod !== snapshot.approvalPeriod);
+
+  async function performSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setFieldErrors({});
@@ -109,7 +117,19 @@ export function ProjectSettingsTab() {
       );
     } finally {
       setSaving(false);
+      setApprovalConfirmOpen(false);
+      setPendingSaveEvent(null);
     }
+  }
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (approvalSettingsDirty) {
+      setPendingSaveEvent(e);
+      setApprovalConfirmOpen(true);
+      return;
+    }
+    void performSave(e);
   }
 
   return (
@@ -215,6 +235,20 @@ export function ProjectSettingsTab() {
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </SettingsSaveBar>
+
+      <ConfirmDialog
+        open={approvalConfirmOpen}
+        title="Update timesheet approval settings?"
+        description="Open draft and rejected timesheets on this project will be waived. Members only need to submit from the current period onward — no backlog catch-up is required."
+        confirmLabel="Save changes"
+        onConfirm={() => {
+          if (pendingSaveEvent) void performSave(pendingSaveEvent);
+        }}
+        onCancel={() => {
+          setApprovalConfirmOpen(false);
+          setPendingSaveEvent(null);
+        }}
+      />
     </form>
   );
 }

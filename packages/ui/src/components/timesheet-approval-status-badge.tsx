@@ -1,7 +1,7 @@
 import { cn } from "../lib/utils.js";
 import { Badge } from "./ui/badge.js";
 
-export type TimesheetApprovalStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+export type TimesheetApprovalStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "WAIVED";
 
 const STATUS_CONFIG: Record<TimesheetApprovalStatus, { label: string; className: string }> = {
   DRAFT: {
@@ -19,6 +19,10 @@ const STATUS_CONFIG: Record<TimesheetApprovalStatus, { label: string; className:
   REJECTED: {
     label: "Rejected",
     className: "bg-status-danger-bg text-status-danger-fg border-status-danger-border"
+  },
+  WAIVED: {
+    label: "Waived",
+    className: "bg-muted text-muted-foreground border-border"
   }
 };
 

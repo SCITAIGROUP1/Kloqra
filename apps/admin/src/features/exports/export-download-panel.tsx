@@ -9,6 +9,7 @@ import {
   type ExportJobDto,
   type ExportPreviewBodyDto,
   type ExportPreviewResponseDto,
+  type ProjectDto,
   type ReportShareDto
 } from "@kloqra/contracts";
 import {
@@ -29,6 +30,9 @@ import {
 import { ChevronDown, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ExportAppliedScopeSummary } from "./export-applied-scope-summary";
+import { ExportPreviewStatus } from "./export-preview-status";
+import type { ScopeMember } from "./export-scope-filters";
 import { SegmentedControl } from "@/components/admin-page";
 import { ExportLayoutPreview } from "@/components/export-layout-preview";
 import { ExportSamplePreview } from "@/components/export-sample-preview";
@@ -39,8 +43,12 @@ import { describeOrganize } from "@/lib/export-organize";
 const FORMAT_HINTS: Record<ExportBodyDto["format"], string> = {
   xlsx: "Best for payroll and billing",
   csv: "Opens in any spreadsheet · multiple sections become a ZIP",
-  pdf: "Summary only — use Excel for full detail"
+  pdf: "Summary only — use Excel for full detail",
+  json: "Machine-readable data for integrations and scripts"
 };
+
+export const LARGE_EXPORT_BANNER =
+  "Large exports are prepared in the background and appear under Recent exports (kept 7 days).";
 
 type Props = {
   workspaceId: string;
@@ -54,6 +62,13 @@ type Props = {
   format: ExportBodyDto["format"];
   onFormatChange: (format: ExportBodyDto["format"]) => void;
   purposeSlug: string;
+  projectIds?: string[];
+  userIds?: string[];
+  projects?: Pick<ProjectDto, "id" | "name" | "color">[];
+  members?: ScopeMember[];
+  categoryName?: string;
+  taskName?: string;
+  teamOnly?: boolean;
   projectNames?: string[];
   userNames?: string[];
   downloadLabel?: string;
@@ -76,6 +91,13 @@ export function ExportDownloadPanel({
   format,
   onFormatChange,
   purposeSlug,
+  projectIds = [],
+  userIds = [],
+  projects = [],
+  members = [],
+  categoryName,
+  taskName,
+  teamOnly = false,
   projectNames,
   userNames,
   downloadLabel = "Download",
@@ -99,7 +121,8 @@ export function ExportDownloadPanel({
   const [scheduleEmails, setScheduleEmails] = useState("");
   const [scheduling, setScheduling] = useState(false);
 
-  const ext = format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv";
+  const ext =
+    format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : format === "json" ? "json" : "csv";
   const scopeHint = buildExportScopeHint({
     projectIds: exportBody.projectIds,
     userIds: exportBody.userIds,
@@ -259,14 +282,48 @@ export function ExportDownloadPanel({
     }
   }
 
-  const alertMessage =
-    layoutWarning ?? (warnLarge ? "Large export — prepared in the background." : null);
+  const alertMessage = layoutWarning ?? (warnLarge ? LARGE_EXPORT_BANNER : null);
 
   return (
     <Card className="min-w-0 overflow-hidden border-primary/10 shadow-md">
-      <CardHeader className="pb-2 bg-muted/20 border-b border-border/60">
-        <CardTitle className="text-base">Review & download</CardTitle>
-        <CardDescription>{periodLabel}</CardDescription>
+      <CardHeader className="pb-3 bg-muted/20 border-b border-border/60 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="text-base">Review & download</CardTitle>
+            <CardDescription>Live preview reflects the filters and period below.</CardDescription>
+          </div>
+          <ExportPreviewStatus
+            loading={previewLoading}
+            preview={preview}
+            error={previewError}
+            className="w-fit max-w-full"
+          />
+        </div>
+        <div
+          className={`rounded-lg border px-3 py-2.5 transition-colors ${
+            previewLoading
+              ? "border-primary/25 bg-primary/5"
+              : "border-primary/35 bg-primary/10 ring-1 ring-primary/15"
+          }`}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Applied period
+          </p>
+          <p className="break-words text-sm font-semibold text-foreground">{periodLabel}</p>
+        </div>
+        <ExportAppliedScopeSummary
+          compact
+          projectIds={projectIds}
+          userIds={userIds}
+          projectNames={projectNames}
+          userNames={userNames}
+          projects={projects}
+          members={members}
+          categoryName={categoryName}
+          taskName={taskName}
+          teamOnly={teamOnly}
+          previewLoading={previewLoading}
+        />
       </CardHeader>
 
       <CardContent className="space-y-0 p-0">
@@ -280,6 +337,7 @@ export function ExportDownloadPanel({
             error={previewError}
             format={format}
             organizeDescription={organizeCopy}
+            selectedReportTypes={previewBody.reportTypes}
           />
           {!previewLoading && !previewError && !isEmpty ? (
             <ExportSamplePreview sampleRows={preview?.sampleRows} />
@@ -291,7 +349,6 @@ export function ExportDownloadPanel({
           {alertMessage ? (
             <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
               {alertMessage}
-              {warnLarge ? " You'll find it under Recent exports when ready." : null}
             </p>
           ) : null}
 
@@ -305,7 +362,8 @@ export function ExportDownloadPanel({
               options={[
                 { value: "xlsx", label: "Excel" },
                 { value: "csv", label: "CSV" },
-                { value: "pdf", label: "PDF" }
+                { value: "pdf", label: "PDF" },
+                { value: "json", label: "JSON" }
               ]}
             />
             <p className="text-[11px] text-muted-foreground">{FORMAT_HINTS[format]}</p>

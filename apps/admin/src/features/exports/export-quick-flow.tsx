@@ -18,7 +18,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
   Label,
   Select,
   SelectContent,
@@ -30,6 +29,7 @@ import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ExportDownloadPanel } from "./export-download-panel";
 import { ExportOrganizePicker } from "./export-organize-picker";
+import { ExportPeriodFilter } from "./export-period-filter";
 import {
   EXPORT_SCENARIOS,
   getExportScenario,
@@ -37,30 +37,14 @@ import {
   type ExportScenarioId
 } from "./export-scenarios";
 import { ExportScopeFilters } from "./export-scope-filters";
-import { Section } from "@/components/admin-page";
-import { applyDatePreset, toDateInputValue, type DatePreset } from "@/lib/export-date-presets";
+import { toDateInputValue, formatExportPeriodLabel } from "@/lib/export-date-presets";
 import { describeOrganize, type ExportOrganizePreset } from "@/lib/export-organize";
 import { applyOrganizePreset } from "@/lib/export-organize";
 import { sheetLayoutRequiresTimeEntries } from "@/lib/export-sheet-layout";
 
-const PERIOD_PRESETS: { id: DatePreset; label: string }[] = [
-  { id: "today", label: "Today" },
-  { id: "week", label: "This week" },
-  { id: "7d", label: "7 days" },
-  { id: "30d", label: "30 days" },
-  { id: "90d", label: "90 days" },
-  { id: "month", label: "This month" }
-];
-
 const STEPS = ["What do you need?", "When?", "Who & projects", "Preview & download"] as const;
 
 const POPULAR_SCENARIOS = new Set<ExportScenarioId>(["payroll", "team_summary", "missing_time"]);
-
-function formatPeriodLabel(from: string, to: string) {
-  const f = new Date(from + "T12:00:00");
-  const t = new Date(to + "T12:00:00");
-  return `${f.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${t.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
-}
 
 function defaultColumnsForReports(reportTypes: ExportReportType[]) {
   const out: Partial<Record<ExportReportType, string[]>> = {};
@@ -243,6 +227,9 @@ export function ExportQuickFlow({
   const userNames = userIds
     .map((id) => members.find((m) => m.userId === id)?.userName)
     .filter((n): n is string => Boolean(n));
+  const categoryName = categoryId ? categories.find((c) => c.id === categoryId)?.name : undefined;
+  const taskName = taskId ? tasks.find((t) => t.id === taskId)?.taskName : undefined;
+  const scopeMembers = members.map((m) => ({ userId: m.userId, userName: m.userName }));
 
   const layoutNeedsTimeEntries =
     !!scenario &&
@@ -289,14 +276,14 @@ export function ExportQuickFlow({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 @min-[960px]/shell:gap-3">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
         {STEPS.map((label, index) => (
           <button
             key={label}
             type="button"
             onClick={() => goToStep(index)}
             disabled={index > step && !canAdvanceFromStep(step)}
-            className={`max-w-full truncate rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`shrink-0 truncate rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               step === index
                 ? "bg-primary text-primary-foreground"
                 : index < step
@@ -309,8 +296,8 @@ export function ExportQuickFlow({
         ))}
       </div>
 
-      <div className="grid gap-8 @min-[1024px]/shell:grid-cols-12">
-        <div className="space-y-6 @min-[1024px]/shell:col-span-8">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-12 xl:gap-8">
+        <div className="min-w-0 space-y-5 xl:col-span-8 xl:space-y-6">
           {step === 0 ? (
             <Card>
               <CardHeader className="pb-4">
@@ -355,46 +342,14 @@ export function ExportQuickFlow({
                 <CardDescription>Choose a quick range or set custom dates.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <Section title="Quick range">
-                  <div className="flex flex-wrap gap-2">
-                    {PERIOD_PRESETS.map(({ id, label }) => (
-                      <Button
-                        key={id}
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => {
-                          const range = applyDatePreset(id);
-                          onFromChange(range.from);
-                          onToChange(range.to);
-                        }}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-                  </div>
-                </Section>
-                <div className="grid gap-4 @min-[960px]/shell:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="quick-from">From</Label>
-                    <Input
-                      id="quick-from"
-                      type="date"
-                      value={from}
-                      onChange={(e) => onFromChange(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="quick-to">To</Label>
-                    <Input
-                      id="quick-to"
-                      type="date"
-                      value={to}
-                      onChange={(e) => onToChange(e.target.value)}
-                    />
-                  </div>
-                </div>
+                <ExportPeriodFilter
+                  from={from}
+                  to={to}
+                  onFromChange={onFromChange}
+                  onToChange={onToChange}
+                  previewLoading={previewLoading}
+                  dateRangeAriaLabel="Quick export date range"
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -414,7 +369,7 @@ export function ExportQuickFlow({
                   onProjectIdsChange={onProjectIdsChange}
                   onUserIdsChange={onUserIdsChange}
                   projects={projects}
-                  members={members.map((m) => ({ userId: m.userId, userName: m.userName }))}
+                  members={scopeMembers}
                   categories={categories}
                   tasks={tasks}
                   categoryId={categoryId}
@@ -425,6 +380,7 @@ export function ExportQuickFlow({
                   onTeamOnlyChange={onTeamOnlyChange}
                   onClearAll={onClearScope}
                   onResetFilters={handleResetFilters}
+                  previewLoading={previewLoading}
                 />
               </CardContent>
             </Card>
@@ -503,12 +459,12 @@ export function ExportQuickFlow({
           </div>
         </div>
 
-        <div className="@min-[1024px]/shell:col-span-4">
-          <div className="@min-[1024px]/shell:sticky @min-[1024px]/shell:top-6">
+        <div className="min-w-0 xl:col-span-4">
+          <div className="xl:sticky xl:top-6">
             <ExportDownloadPanel
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}
-              periodLabel={formatPeriodLabel(from, to)}
+              periodLabel={formatExportPeriodLabel(from, to)}
               exportBody={exportBody}
               previewBody={previewBody!}
               preview={preview}
@@ -517,6 +473,13 @@ export function ExportQuickFlow({
               format={format}
               onFormatChange={setFormat}
               purposeSlug={scenario.purposeSlug}
+              projectIds={projectIds}
+              userIds={userIds}
+              projects={projects}
+              members={scopeMembers}
+              categoryName={categoryName}
+              taskName={taskName}
+              teamOnly={teamOnly}
               projectNames={projectNames}
               userNames={userNames}
               downloadLabel={scenario.downloadLabel}

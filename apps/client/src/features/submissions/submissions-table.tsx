@@ -1,12 +1,13 @@
 "use client";
 
-import type { TimesheetPeriodDto } from "@kloqra/contracts";
+import type { ProjectDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import {
   Button,
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
   Input,
+  ProjectColorDot,
   Table,
   TableBody,
   TableHeader,
@@ -14,22 +15,27 @@ import {
   TimesheetApprovalStatusBadge,
   cn
 } from "@kloqra/ui";
+import { buildMemberTimesheetHrefFromSubmission } from "@kloqra/web-shared";
 import Link from "next/link";
+import { useMemo } from "react";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
 
 export type SubmissionsTableProps = {
   submissions: TimesheetPeriodDto[];
+  projects?: ProjectDto[];
   onSubmitted: () => void;
   highlightedProjectId?: string;
 };
 
 function SubmissionTableRow({
   statusInfo,
+  projectColor,
   onSubmitted,
   highlighted
 }: {
   statusInfo: TimesheetPeriodDto;
+  projectColor?: string;
   onSubmitted: () => void;
   highlighted?: boolean;
 }) {
@@ -37,6 +43,11 @@ function SubmissionTableRow({
     statusInfo,
     new Date(statusInfo.periodStart),
     onSubmitted
+  );
+
+  const timesheetHref = useMemo(
+    () => buildMemberTimesheetHrefFromSubmission(statusInfo),
+    [statusInfo]
   );
 
   return (
@@ -47,10 +58,17 @@ function SubmissionTableRow({
           highlighted && "bg-primary/5 ring-1 ring-inset ring-primary/30 animate-highlight-pulse"
         )}
       >
-        <DataTableCell className="font-medium">
-          <div className="min-w-[140px]">
-            <p className="truncate">{actions.projectName}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{actions.periodLabel}</p>
+        <DataTableCell className="whitespace-nowrap font-medium">
+          {actions.periodLabel}
+        </DataTableCell>
+        <DataTableCell>
+          <div className="flex max-w-[220px] items-center gap-1.5 truncate">
+            <ProjectColorDot
+              color={projectColor ?? "var(--muted)"}
+              size="sm"
+              className="shrink-0"
+            />
+            <span className="truncate">{actions.projectName}</span>
           </div>
         </DataTableCell>
         <DataTableCell>
@@ -105,7 +123,7 @@ function SubmissionTableRow({
               </Button>
             ) : null}
             <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" asChild>
-              <Link href={`/timesheet?projectId=${statusInfo.projectId}`}>View timesheet</Link>
+              <Link href={timesheetHref}>View timesheet</Link>
             </Button>
           </div>
         </DataTableCell>
@@ -131,17 +149,24 @@ function SubmissionTableRow({
 
 export function SubmissionsTable({
   submissions,
+  projects = [],
   onSubmitted,
   highlightedProjectId
 }: SubmissionsTableProps) {
+  const projectColorById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project.color])),
+    [projects]
+  );
+
   return (
     <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in motion-reduce:animate-none">
       <Table className="text-sm">
         <TableHeader>
           <DataTableHeaderRow>
-            <DataTableHead>Project / period</DataTableHead>
+            <DataTableHead>Period</DataTableHead>
+            <DataTableHead>Project</DataTableHead>
             <DataTableHead>Status</DataTableHead>
-            <DataTableHead>Note</DataTableHead>
+            <DataTableHead>Note / feedback</DataTableHead>
             <DataTableHead className="text-right">Actions</DataTableHead>
           </DataTableHeaderRow>
         </TableHeader>
@@ -152,6 +177,7 @@ export function SubmissionsTable({
               <SubmissionTableRow
                 key={`${sub.projectId}:${sub.periodStart}`}
                 statusInfo={sub}
+                projectColor={projectColorById.get(sub.projectId)}
                 onSubmitted={onSubmitted}
                 highlighted={highlighted}
               />

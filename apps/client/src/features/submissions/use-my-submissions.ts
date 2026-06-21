@@ -22,6 +22,40 @@ export function countAmendmentPendingSubmissions(submissions: TimesheetPeriodDto
   return submissions.filter((s) => s.amendmentPending).length;
 }
 
+export type MemberSubmissionsTabFilter = "action" | "pending" | "approved" | "all";
+
+export function filterSubmissionsByTab(
+  submissions: TimesheetPeriodDto[],
+  tab: MemberSubmissionsTabFilter
+): TimesheetPeriodDto[] {
+  switch (tab) {
+    case "action":
+      return submissions.filter((s) => s.status === "DRAFT" || s.status === "REJECTED");
+    case "pending":
+      return submissions.filter((s) => s.status === "SUBMITTED");
+    case "approved":
+      return submissions.filter((s) => s.status === "APPROVED");
+    case "all":
+    default:
+      return submissions;
+  }
+}
+
+/** Keep rows whose period start falls within an inclusive YYYY-MM-DD range. */
+export function filterSubmissionsByPeriodRange(
+  submissions: TimesheetPeriodDto[],
+  from: string,
+  to: string
+): TimesheetPeriodDto[] {
+  if (!from && !to) return submissions;
+  return submissions.filter((row) => {
+    const periodKey = row.periodStart.slice(0, 10);
+    if (from && periodKey < from) return false;
+    if (to && periodKey > to) return false;
+    return true;
+  });
+}
+
 function buildScopedQueryKey(anchorDate: Date, scope: SubmissionsScope) {
   return `date=${anchorDate.toISOString()}&scope=${scope}`;
 }

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { TimeLogDto } from "@kloqra/contracts";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimeEntryDialog } from "./time-entry-dialog";
 import type { TimeEntryDraft } from "./time-entry-draft";
@@ -83,6 +83,91 @@ describe("TimeEntryDialog", () => {
       expect(screen.getByText(/start time is required/i)).toBeTruthy();
       expect(screen.getByText(/end time is required/i)).toBeTruthy();
       expect(screen.getByText(/description is required/i)).toBeTruthy();
+    });
+  });
+
+  it("renders When row with entry date picker", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("When")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Entry date" })).toBeTruthy();
+      expect(screen.getByLabelText("Start time")).toBeTruthy();
+      expect(screen.getByLabelText("End time")).toBeTruthy();
+    });
+  });
+
+  it("shows repeat affordance on create but not on edit", async () => {
+    const { rerender } = render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "+ Repeat on more days" })).toBeTruthy();
+    });
+
+    rerender(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        editingLog={editingLog}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "+ Repeat on more days" })).toBeNull();
+  });
+
+  it("opens repeat panel and patches draft when repeat affordance is clicked", () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Repeat on more days" }));
+
+    expect(onDraftChange).toHaveBeenCalledWith({
+      ...draft,
+      recurrence: "weekdays",
+      repeatUntil: "2026-06-09"
     });
   });
 });

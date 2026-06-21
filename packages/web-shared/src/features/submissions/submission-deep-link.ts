@@ -1,10 +1,12 @@
 import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 
+export type MemberSubmissionsTab = "action" | "pending" | "approved" | "all";
+
 export type MemberSubmissionsDeepLink = {
   projectId?: string;
   periodStart?: string;
   highlight?: "remind" | "rejected" | "amendment-approved";
-  view?: "cards" | "table";
+  tab?: MemberSubmissionsTab;
 };
 
 export type AdminApprovalsDeepLink = {
@@ -19,12 +21,21 @@ export type AdminApprovalsDeepLink = {
   sortOrder?: string;
 };
 
+export function resolveMemberSubmissionsTab(
+  deepLink: MemberSubmissionsDeepLink
+): MemberSubmissionsTab {
+  if (deepLink.tab) return deepLink.tab;
+  if (deepLink.highlight === "rejected") return "action";
+  if (deepLink.highlight === "amendment-approved") return "approved";
+  return "all";
+}
+
 export function buildMemberSubmissionsHref(params: MemberSubmissionsDeepLink): string {
   const search = new URLSearchParams();
   if (params.projectId) search.set("projectId", params.projectId);
   if (params.periodStart) search.set("periodStart", params.periodStart);
   if (params.highlight) search.set("highlight", params.highlight);
-  if (params.view) search.set("view", params.view);
+  if (params.tab && params.tab !== "all") search.set("tab", params.tab);
   const q = search.toString();
   return q ? `/submissions?${q}` : "/submissions";
 }
@@ -47,7 +58,7 @@ export function buildAdminApprovalsHref(params: AdminApprovalsDeepLink): string 
 export function parseMemberSubmissionsSearch(search: string): MemberSubmissionsDeepLink {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const highlight = params.get("highlight");
-  const view = params.get("view");
+  const tab = params.get("tab");
   return {
     projectId: params.get("projectId") ?? undefined,
     periodStart: params.get("periodStart") ?? undefined,
@@ -55,7 +66,8 @@ export function parseMemberSubmissionsSearch(search: string): MemberSubmissionsD
       highlight === "remind" || highlight === "rejected" || highlight === "amendment-approved"
         ? highlight
         : undefined,
-    view: view === "table" || view === "cards" ? view : undefined
+    tab:
+      tab === "action" || tab === "pending" || tab === "approved" || tab === "all" ? tab : undefined
   };
 }
 

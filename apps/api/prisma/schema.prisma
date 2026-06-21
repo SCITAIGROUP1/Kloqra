@@ -131,9 +131,11 @@ model Project {
   clientName               String?           @map("client_name")
   budgetHours              Decimal?          @map("budget_hours") @db.Decimal(10, 2)
   isActive                 Boolean           @default(true) @map("is_active")
-  timesheetApprovalEnabled Boolean           @default(false) @map("timesheet_approval_enabled")
-  timesheetApprovalPeriod  String?           @map("timesheet_approval_period")
-  createdAt                DateTime          @default(now()) @map("created_at")
+  timesheetApprovalEnabled             Boolean           @default(false) @map("timesheet_approval_enabled")
+  timesheetApprovalPeriod              String?           @map("timesheet_approval_period")
+  timesheetApprovalEnabledAt           DateTime?         @map("timesheet_approval_enabled_at")
+  timesheetApprovalPeriodEffectiveAt   DateTime?         @map("timesheet_approval_period_effective_at")
+  createdAt                            DateTime          @default(now()) @map("created_at")
   updatedAt                DateTime          @updatedAt @map("updated_at")
   workspace                Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   team                     Team?
@@ -388,6 +390,7 @@ enum TimesheetStatus {
   SUBMITTED
   APPROVED
   REJECTED
+  WAIVED
 }
 
 enum AmendmentStatus {
@@ -401,9 +404,10 @@ model TimesheetPeriod {
   userId      String          @map("user_id")
   workspaceId String          @map("workspace_id")
   projectId   String          @map("project_id")
-  periodStart DateTime        @map("period_start")
-  periodEnd   DateTime        @map("period_end")
-  status      TimesheetStatus @default(DRAFT)
+  periodStart    DateTime        @map("period_start")
+  periodEnd      DateTime        @map("period_end")
+  approvalPeriod String?         @map("approval_period")
+  status         TimesheetStatus @default(DRAFT)
   note        String?
   reviewNote  String?         @map("review_note")
   reviewedBy  String?         @map("reviewed_by")

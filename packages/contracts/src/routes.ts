@@ -77,7 +77,10 @@ export const ROUTES = {
   CATEGORIES: {
     LIST: "/categories",
     CREATE: "/categories",
-    BY_ID: (id: string) => `/categories/${id}`
+    BY_ID: (id: string) => `/categories/${id}`,
+    BULK: "/categories/bulk",
+    BULK_TEMPLATE: "/categories/bulk/template",
+    BULK_UPLOAD: "/categories/bulk/upload"
   },
   TIMELOGS: {
     LIST: "/timelogs",

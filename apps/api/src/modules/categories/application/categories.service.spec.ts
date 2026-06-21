@@ -5,6 +5,9 @@ type AnyMock = ReturnType<typeof vi.fn>;
 
 function makePrisma() {
   return {
+    workspace: {
+      findUnique: vi.fn() as AnyMock
+    },
     category: {
       findMany: vi.fn() as AnyMock,
       findFirst: vi.fn() as AnyMock,
@@ -26,7 +29,12 @@ describe("CategoriesService", () => {
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new CategoriesService(prisma as any);
+    service = new CategoriesService(
+      prisma as any,
+      {
+        add: vi.fn().mockResolvedValue({ id: "job-1" })
+      } as any
+    );
   });
 
   describe("toDto", () => {
@@ -236,6 +244,37 @@ describe("CategoriesService", () => {
         include: { _count: { select: { tasks: true } } }
       });
       expect(result.taskCount).toBe(4);
+    });
+  });
+
+  describe("bulkImport", () => {
+    it("enqueues a bulk category job", async () => {
+      prisma.workspace.findUnique.mockResolvedValue({ id: "w1" });
+      const queue = { add: vi.fn().mockResolvedValue({ id: "job-42" }) };
+      service = new CategoriesService(prisma as any, queue as any);
+
+      const result = await service.bulkImport("w1", [
+        { name: "Development", description: "Build" },
+        { name: "Design" }
+      ]);
+
+      expect(queue.add).toHaveBeenCalledWith(
+        "bulkCategoryJob",
+        {
+          workspaceId: "w1",
+          categories: [{ name: "Development", description: "Build" }, { name: "Design" }]
+        },
+        { removeOnComplete: true, removeOnFail: false }
+      );
+      expect(result).toEqual({
+        jobId: "job-42",
+        status: "queued",
+        enqueuedCount: 2
+      });
+    });
+
+    it("rejects empty category batches", async () => {
+      await expect(service.bulkImport("w1", [])).rejects.toThrow(/No categories to import/i);
     });
   });
 });

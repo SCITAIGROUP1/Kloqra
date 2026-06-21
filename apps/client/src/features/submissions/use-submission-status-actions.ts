@@ -63,18 +63,16 @@ export function useSubmissionStatusActions(
     if (!ws) return;
     setSubmitting(true);
     try {
-      const res = await api<SubmitTimesheetResponseDto>(ROUTES.TIMESHEETS.SUBMIT, {
+      await api<SubmitTimesheetResponseDto>(ROUTES.TIMESHEETS.SUBMIT, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
           date: anchorDate.toISOString(),
           projectId: statusInfo.projectId,
-          note: note.trim() || undefined,
-          confirmCascade: true
+          note: note.trim() || undefined
         })
       });
-      const count = res.cascadedCount + 1;
-      toast.success(`Submitted ${count} period${count === 1 ? "" : "s"} for review.`);
+      toast.success("Submitted for review.");
       setPreviewOpen(false);
       onSubmitted();
     } catch (e) {

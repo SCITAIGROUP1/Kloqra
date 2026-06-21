@@ -22,17 +22,19 @@ Default workspace after seed: **Acme Corporation** (switch workspaces from the s
 
 1. [Getting started](member/getting-started.md)
 2. [Timer and timesheet](member/timer-and-timesheet.md)
-3. [Export my data](member/export-my-data.md)
-4. [Profile and settings](member/profile-and-settings.md)
+3. [Timesheet submissions and approval](timesheet-submissions-and-approval.md) — submit, review, and what happens when settings change
+4. [Export my data](member/export-my-data.md)
+5. [Profile and settings](member/profile-and-settings.md)
 
 ## Admin guides
 
 1. [Getting started](admin/getting-started.md)
 2. [Projects and teams](admin/projects-and-teams.md)
-3. [Dashboard and team live](admin/dashboard-and-team-live.md)
-4. [Billing](admin/billing.md)
-5. [Exports](admin/exports.md)
-6. [Public reporting API](admin/public-reporting-api.md) — API keys for third-party clients
+3. [Timesheet submissions and approval](timesheet-submissions-and-approval.md) — enable approval, review, reminders, edit requests
+4. [Dashboard and team live](admin/dashboard-and-team-live.md)
+5. [Billing](admin/billing.md)
+6. [Exports](admin/exports.md)
+7. [Public reporting API](admin/public-reporting-api.md) — API keys for third-party clients
 
 Profile and settings use the same `/profile` and `/settings` pages as the member app — see [member/profile-and-settings.md](member/profile-and-settings.md).
 

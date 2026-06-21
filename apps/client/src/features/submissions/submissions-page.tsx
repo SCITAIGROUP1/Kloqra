@@ -1,39 +1,78 @@
 "use client";
 
-import type { TimesheetPeriodDto, UserProfileDto } from "@kloqra/contracts";
+import type { ProjectDto, TimesheetPeriodDto, UserProfileDto } from "@kloqra/contracts";
 import { resolveEffectiveTimezone, ROUTES } from "@kloqra/contracts";
 import {
   AppBar,
-  Button,
-  Input,
+  AppBarSecondary,
+  Card,
   LoadingCrossfade,
   MotionReveal,
-  SegmentedControl,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  SegmentedControl
 } from "@kloqra/ui";
-import { parseMemberSubmissionsSearch } from "@kloqra/web-shared";
+import {
+  fetchListItems,
+  parseMemberSubmissionsSearch,
+  resolveMemberSubmissionsTab,
+  type MemberSubmissionsTab
+} from "@kloqra/web-shared";
+import { Check } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SubmissionStatusCard } from "./submissions-lazy";
+import { SubmissionsFiltersBar } from "./submissions-filters-bar";
 import { SubmissionsTable } from "./submissions-table";
 import {
   countActionableSubmissions,
-  countAmendmentPendingSubmissions,
   countPendingReviewSubmissions,
-  useMySubmissions
+  filterSubmissionsByPeriodRange,
+  filterSubmissionsByTab
 } from "./use-my-submissions";
-import {
-  addDays,
-  formatWeekRange,
-  startOfWeekWithPreference,
-  todayInZone
-} from "@/features/timesheet/calendar-utils";
+import { todayInZone } from "@/features/timesheet/calendar-utils";
 import { api } from "@/lib/api";
+import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+
+const TAB_OPTIONS: { value: MemberSubmissionsTab; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "action", label: "Action needed" },
+  { value: "pending", label: "Pending review" },
+  { value: "approved", label: "Approved" }
+];
+
+function emptyStateCopy(
+  tab: MemberSubmissionsTab,
+  hasActiveFilters: boolean
+): { title: string; detail: string } {
+  if (hasActiveFilters) {
+    return {
+      title: "No matching submissions",
+      detail: "Try clearing filters or choosing a different period."
+    };
+  }
+  switch (tab) {
+    case "action":
+      return {
+        title: "Nothing to submit",
+        detail: "You're caught up for this period."
+      };
+    case "pending":
+      return {
+        title: "No timesheets waiting for approval",
+        detail: "Submitted timesheets will appear here until reviewed."
+      };
+    case "approved":
+      return {
+        title: "No approved timesheets",
+        detail: "Approved submissions for this period will appear here."
+      };
+    case "all":
+    default:
+      return {
+        title: "No submissions found",
+        detail: "Timesheets for approval-enabled projects will appear here."
+      };
+  }
+}
 
 export function SubmissionsPage() {
   const router = useRouter();
@@ -42,30 +81,39 @@ export function SubmissionsPage() {
     () => parseMemberSubmissionsSearch(searchParams.toString()),
     [searchParams]
   );
-  const view = deepLink.view ?? "cards";
+  const tab = resolveMemberSubmissionsTab(deepLink);
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [periodMode, setPeriodMode] = useState<"week" | "all">("week");
+  const { projects, setProjects } = useProjectsStore();
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
-  const [anchor, setAnchor] = useState(() => new Date());
   const [allSubmissions, setAllSubmissions] = useState<TimesheetPeriodDto[]>([]);
   const [allLoading, setAllLoading] = useState(false);
-  const [projectFilter, setProjectFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchText, setSearchText] = useState("");
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
+
+  const [timezone, setTimezone] = useState(() =>
+    resolveEffectiveTimezone({}, Intl.DateTimeFormat().resolvedOptions().timeZone)
+  );
 
   useEffect(() => {
-    if (deepLink.periodStart) {
-      setAnchor(new Date(deepLink.periodStart));
-    }
+    if (!deepLink.periodStart) return;
+    const periodStart = new Date(deepLink.periodStart);
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodEnd.getDate() + 6);
+    setRangeFrom(periodStart.toISOString().slice(0, 10));
+    setRangeTo(periodEnd.toISOString().slice(0, 10));
   }, [deepLink.periodStart]);
 
   useEffect(() => {
     if (!deepLink.projectId) return;
-    const el =
-      document.getElementById(`submission-row-${deepLink.projectId}`) ??
-      document.getElementById(`submission-${deepLink.projectId}`);
+    setProjectFilter([deepLink.projectId]);
+  }, [deepLink.projectId]);
+
+  useEffect(() => {
+    if (!deepLink.projectId) return;
+    const el = document.getElementById(`submission-row-${deepLink.projectId}`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [deepLink.projectId, deepLink.highlight, view]);
+  }, [deepLink.projectId, deepLink.highlight, tab]);
 
   useEffect(() => {
     if (!ws) return;
@@ -74,16 +122,6 @@ export function SubmissionsPage() {
       if (pref === "monday" || pref === "sunday") {
         setWeekStartPref(pref);
       }
-    });
-  }, [ws]);
-
-  const [timezone, setTimezone] = useState(() =>
-    resolveEffectiveTimezone({}, Intl.DateTimeFormat().resolvedOptions().timeZone)
-  );
-
-  useEffect(() => {
-    if (!ws) return;
-    void api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws }).then((profile) => {
       setTimezone(
         resolveEffectiveTimezone(
           profile.preferences ?? {},
@@ -94,27 +132,16 @@ export function SubmissionsPage() {
   }, [ws]);
 
   useEffect(() => {
-    if (!deepLink.periodStart) {
-      setAnchor(todayInZone(timezone));
-    }
-  }, [timezone, deepLink.periodStart]);
+    if (!ws) return;
+    if (projects.length > 0) return;
+    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+  }, [ws, projects.length, setProjects]);
 
-  const weekStart = useMemo(
-    () => startOfWeekWithPreference(anchor, weekStartPref),
-    [anchor, weekStartPref]
-  );
-
-  const { submissions, loading, refresh } = useMySubmissions(ws, anchor, "assigned");
-
-  const goPrev = useCallback(() => setAnchor((d) => addDays(d, -7)), []);
-  const goNext = useCallback(() => setAnchor((d) => addDays(d, 7)), []);
-  const goToday = useCallback(() => setAnchor(todayInZone(timezone)), [timezone]);
-
-  const setView = useCallback(
-    (next: "cards" | "table") => {
+  const setTab = useCallback(
+    (next: MemberSubmissionsTab) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next === "cards") params.delete("view");
-      else params.set("view", next);
+      if (next === "all") params.delete("tab");
+      else params.set("tab", next);
       const q = params.toString();
       router.replace(q ? `/submissions?${q}` : "/submissions");
     },
@@ -123,227 +150,135 @@ export function SubmissionsPage() {
 
   const refreshAll = useCallback(async () => {
     if (!ws) return;
-    const weeks = 26;
-    const starts = Array.from({ length: weeks }, (_, i) => {
-      const d = new Date(anchor);
-      d.setDate(d.getDate() - i * 7);
-      return startOfWeekWithPreference(d, weekStartPref);
+    const anchor = todayInZone(timezone);
+    const params = new URLSearchParams({
+      date: anchor.toISOString(),
+      scope: "assigned",
+      lookbackWeeks: "26"
     });
-    const batches = await Promise.all(
-      starts.map((date) => {
-        const params = new URLSearchParams({
-          date: date.toISOString(),
-          scope: "assigned"
-        });
-        return api<{ items: TimesheetPeriodDto[] }>(
-          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params.toString()}`,
-          { workspaceId: ws }
-        ).then((res) => res.items ?? []);
-      })
+    const res = await api<{ items: TimesheetPeriodDto[] }>(
+      `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params.toString()}`,
+      { workspaceId: ws }
     );
-    const byKey = new Map<string, TimesheetPeriodDto>();
-    for (const row of batches.flat()) {
-      byKey.set(`${row.projectId}:${row.periodStart}`, row);
-    }
+    const items = res.items ?? [];
     setAllSubmissions(
-      [...byKey.values()].sort(
+      [...items].sort(
         (a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
       )
     );
-  }, [ws, anchor, weekStartPref]);
+  }, [ws, timezone]);
 
   useEffect(() => {
-    if (periodMode !== "all" || !ws) return;
+    if (!ws) return;
     setAllLoading(true);
     void refreshAll().finally(() => setAllLoading(false));
-  }, [periodMode, ws, refreshAll]);
+  }, [ws, refreshAll]);
 
   const handleSubmitted = useCallback(async () => {
-    await refresh();
-    if (periodMode === "all") {
-      await refreshAll();
-    }
-  }, [refresh, periodMode, refreshAll]);
+    await refreshAll();
+  }, [refreshAll]);
 
-  const activeSubmissions = useMemo(
-    () => (periodMode === "all" ? allSubmissions : submissions),
-    [periodMode, allSubmissions, submissions]
+  const periodFilteredSubmissions = useMemo(
+    () => filterSubmissionsByPeriodRange(allSubmissions, rangeFrom, rangeTo),
+    [allSubmissions, rangeFrom, rangeTo]
+  );
+
+  const tabFilteredSubmissions = useMemo(
+    () => filterSubmissionsByTab(periodFilteredSubmissions, tab),
+    [periodFilteredSubmissions, tab]
   );
 
   const filteredSubmissions = useMemo(() => {
-    return activeSubmissions.filter((row) => {
-      if (projectFilter !== "all" && row.projectId !== projectFilter) return false;
-      if (statusFilter === "edit_pending" && !row.amendmentPending) return false;
-      if (
-        statusFilter !== "all" &&
-        statusFilter !== "edit_pending" &&
-        row.status.toLowerCase() !== statusFilter
-      ) {
-        return false;
-      }
-      if (searchText.trim()) {
-        const q = searchText.toLowerCase();
-        if (!(row.projectName ?? "").toLowerCase().includes(q)) return false;
-      }
+    return tabFilteredSubmissions.filter((row) => {
+      if (projectFilter.length > 0 && !projectFilter.includes(row.projectId)) return false;
       return true;
     });
-  }, [activeSubmissions, projectFilter, statusFilter, searchText]);
+  }, [tabFilteredSubmissions, projectFilter]);
 
-  const readyCount = countActionableSubmissions(filteredSubmissions);
-  const pendingCount = countPendingReviewSubmissions(filteredSubmissions);
-  const amendmentPendingCount = countAmendmentPendingSubmissions(filteredSubmissions);
   const projectOptions = useMemo(() => {
     const map = new Map<string, string>();
-    for (const row of activeSubmissions) {
+    for (const row of periodFilteredSubmissions) {
       map.set(row.projectId, row.projectName ?? "Project");
     }
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [activeSubmissions]);
+    return [...map.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([value, label]) => ({ value, label }));
+  }, [periodFilteredSubmissions]);
 
-  const summaryParts: string[] = [];
-  if (readyCount > 0) summaryParts.push(`${readyCount} ready to submit`);
-  if (pendingCount > 0) summaryParts.push(`${pendingCount} pending review`);
-  if (amendmentPendingCount > 0) {
-    summaryParts.push(
-      `${amendmentPendingCount} edit request${amendmentPendingCount === 1 ? "" : "s"} pending`
-    );
-  }
+  const hasActiveFilters = projectFilter.length > 0 || rangeFrom.length > 0 || rangeTo.length > 0;
+
+  const clearFilters = useCallback(() => {
+    setProjectFilter([]);
+    setRangeFrom("");
+    setRangeTo("");
+  }, []);
+
+  const handleRangeChange = useCallback((from: string, to: string) => {
+    setRangeFrom(from);
+    setRangeTo(to);
+  }, []);
+
+  const actionCount = countActionableSubmissions(periodFilteredSubmissions);
+  const pendingCount = countPendingReviewSubmissions(periodFilteredSubmissions);
+  const approvedCount = periodFilteredSubmissions.filter((s) => s.status === "APPROVED").length;
+
+  const tabOptions = TAB_OPTIONS.map((opt) => {
+    if (opt.value === "action" && actionCount > 0) {
+      return { ...opt, label: `Action needed (${actionCount})` };
+    }
+    if (opt.value === "pending" && pendingCount > 0) {
+      return { ...opt, label: `Pending review (${pendingCount})` };
+    }
+    if (opt.value === "approved" && approvedCount > 0) {
+      return { ...opt, label: `Approved (${approvedCount})` };
+    }
+    return opt;
+  });
+
+  const emptyCopy = emptyStateCopy(tab, hasActiveFilters);
+  const weekStartsOn = weekStartPref === "sunday" ? 0 : 1;
 
   return (
     <div className="space-y-6">
       <AppBar
         title="Submissions"
         description="Submit timesheets for review and track status by project."
+        secondary={
+          <AppBarSecondary
+            trailing={<SegmentedControl value={tab} onChange={setTab} options={tabOptions} />}
+          />
+        }
       />
 
       <MotionReveal>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <SegmentedControl
-              value={periodMode}
-              onChange={setPeriodMode}
-              options={[
-                { value: "week", label: "Current week" },
-                { value: "all", label: "All recent" }
-              ]}
-            />
-            {periodMode === "week" ? (
-              <>
-                <Button type="button" variant="outline" size="sm" onClick={goToday}>
-                  Today
-                </Button>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={goPrev}
-                  >
-                    ‹
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={goNext}
-                  >
-                    ›
-                  </Button>
-                </div>
-                <span className="text-sm font-medium">{formatWeekRange(weekStart)}</span>
-              </>
-            ) : (
-              <span className="text-sm font-medium">Last 26 weeks</span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search project"
-              className="h-8 w-[180px]"
-            />
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="h-8 w-[180px]">
-                <SelectValue placeholder="All projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All projects</SelectItem>
-                {projectOptions.map(([id, name]) => (
-                  <SelectItem key={id} value={id}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-8 w-[160px]">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="submitted">Pending review</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="edit_pending">Edit pending</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs text-muted-foreground">
-              {summaryParts.length > 0 ? summaryParts.join(" · ") : "All caught up for this period"}
-            </p>
-            {periodMode === "week" ? (
-              <SegmentedControl
-                value={view}
-                onChange={setView}
-                options={[
-                  { value: "cards", label: "Cards" },
-                  { value: "table", label: "Table" }
-                ]}
-              />
-            ) : null}
-          </div>
-        </div>
+        <SubmissionsFiltersBar
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+          onRangeChange={handleRangeChange}
+          weekStartsOn={weekStartsOn}
+          projectFilter={projectFilter}
+          onProjectFilterChange={setProjectFilter}
+          projectOptions={projectOptions}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          resultCount={filteredSubmissions.length}
+        />
       </MotionReveal>
 
-      <LoadingCrossfade
-        loading={periodMode === "all" ? allLoading : loading}
-        loaderLabel="Loading submissions…"
-      >
+      <LoadingCrossfade loading={allLoading} loaderLabel="Loading submissions…">
         {filteredSubmissions.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border py-16 text-center">
-            <p className="text-sm font-medium">No matching submissions</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              Try clearing filters or switching period mode.
-            </p>
-          </div>
-        ) : periodMode === "all" || view === "table" ? (
+          <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
+            <Check className="size-10 text-emerald-500 bg-emerald-500/10 p-2 rounded-full mb-3" />
+            <p className="font-medium text-sm">{emptyCopy.title}</p>
+            <p className="text-xs text-muted-foreground max-w-xs mt-1">{emptyCopy.detail}</p>
+          </Card>
+        ) : (
           <SubmissionsTable
             submissions={filteredSubmissions}
+            projects={projects}
             onSubmitted={handleSubmitted}
             highlightedProjectId={deepLink.projectId}
           />
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 animate-fade-in motion-reduce:animate-none">
-            {filteredSubmissions.map((sub) => {
-              const highlighted =
-                deepLink.projectId === sub.projectId && Boolean(deepLink.highlight);
-              return (
-                <div key={`${sub.projectId}:${sub.periodStart}`}>
-                  <SubmissionStatusCard
-                    statusInfo={sub}
-                    onSubmitted={handleSubmitted}
-                    anchorDate={anchor}
-                    highlighted={highlighted}
-                  />
-                </div>
-              );
-            })}
-          </div>
         )}
       </LoadingCrossfade>
     </div>

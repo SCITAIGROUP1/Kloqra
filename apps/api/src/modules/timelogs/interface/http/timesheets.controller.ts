@@ -49,7 +49,13 @@ export class TimesheetsController {
     query: z.infer<typeof timesheetSubmissionsQuerySchema>
   ) {
     const targetDate = query.date || new Date().toISOString();
-    return this.timesheets.listSubmissions(user.workspaceId, user.userId, targetDate, query.scope);
+    return this.timesheets.listSubmissions(
+      user.workspaceId,
+      user.userId,
+      targetDate,
+      query.scope,
+      query.lookbackWeeks
+    );
   }
 
   @Get(ROUTES.TIMESHEETS.SUBMIT_PREVIEW)

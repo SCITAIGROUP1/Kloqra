@@ -19,6 +19,7 @@ import {
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { waiveOpenTimesheetPeriods } from "../../../common/time/timesheet-approval-policy.util";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 
 @Injectable()
@@ -110,6 +111,7 @@ export class ProjectsService {
       isActive: boolean;
       timesheetApprovalEnabled: boolean;
       timesheetApprovalPeriod: string | null;
+      timesheetApprovalEnabledAt?: Date | null;
       createdAt?: Date;
     },
     workspaceName?: string,
@@ -133,6 +135,9 @@ export class ProjectsService {
         p.timesheetApprovalPeriod === "custom"
           ? p.timesheetApprovalPeriod
           : null,
+      timesheetApprovalEnabledAt: p.timesheetApprovalEnabledAt
+        ? p.timesheetApprovalEnabledAt.toISOString()
+        : null,
       createdAt: p.createdAt ? p.createdAt.toISOString() : undefined
     };
   }
@@ -205,6 +210,7 @@ export class ProjectsService {
   async create(workspaceId: string, dto: CreateProjectDto) {
     await this.assertNameAvailable(workspaceId, dto.name);
     const existingCount = await this.prisma.project.count({ where: { workspaceId } });
+    const approvalEnabled = dto.timesheetApprovalEnabled ?? false;
     const p = await this.prisma.project.create({
       data: {
         workspaceId,
@@ -213,8 +219,10 @@ export class ProjectsService {
         clientName: dto.clientName,
         budgetHours: dto.budgetHours,
         isActive: dto.isActive ?? true,
-        timesheetApprovalEnabled: dto.timesheetApprovalEnabled ?? false,
+        timesheetApprovalEnabled: approvalEnabled,
         timesheetApprovalPeriod: dto.timesheetApprovalPeriod ?? null,
+        timesheetApprovalEnabledAt: approvalEnabled ? new Date() : null,
+        timesheetApprovalPeriodEffectiveAt: approvalEnabled ? new Date() : null,
         team: { create: {} }
       },
       include: { workspace: { select: { name: true } } }
@@ -242,6 +250,17 @@ export class ProjectsService {
     if (dto.name && dto.name !== before.name) {
       await this.assertNameAvailable(workspaceId, dto.name, id);
     }
+
+    const approvalEnabling =
+      dto.timesheetApprovalEnabled === true && !before.timesheetApprovalEnabled;
+    const approvalDisabling =
+      dto.timesheetApprovalEnabled === false && before.timesheetApprovalEnabled;
+    const periodChanging =
+      dto.timesheetApprovalPeriod !== undefined &&
+      dto.timesheetApprovalPeriod !== before.timesheetApprovalPeriod &&
+      (before.timesheetApprovalEnabled || dto.timesheetApprovalEnabled === true);
+
+    const now = new Date();
     const p = await this.prisma.project.update({
       where: { id },
       data: {
@@ -255,10 +274,27 @@ export class ProjectsService {
           : {}),
         ...(dto.timesheetApprovalPeriod !== undefined
           ? { timesheetApprovalPeriod: dto.timesheetApprovalPeriod }
-          : {})
+          : {}),
+        ...(approvalEnabling
+          ? {
+              timesheetApprovalEnabledAt: now,
+              timesheetApprovalPeriodEffectiveAt: now
+            }
+          : {}),
+        ...(approvalDisabling
+          ? {
+              timesheetApprovalEnabledAt: null,
+              timesheetApprovalPeriodEffectiveAt: null
+            }
+          : {}),
+        ...(periodChanging && !approvalEnabling ? { timesheetApprovalPeriodEffectiveAt: now } : {})
       },
       include: { workspace: { select: { name: true } } }
     });
+
+    if (approvalDisabling || approvalEnabling || periodChanging) {
+      await waiveOpenTimesheetPeriods(this.prisma, id);
+    }
 
     if (dto.isActive === false && before.isActive) {
       void this.notifyProjectDeactivated(workspaceId, id, p.name).catch(() => undefined);

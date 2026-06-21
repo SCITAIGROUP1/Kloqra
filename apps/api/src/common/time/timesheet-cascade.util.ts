@@ -24,24 +24,6 @@ function periodKey(start: Date): string {
   return start.toISOString();
 }
 
-async function hoursInPeriod(
-  prisma: PrismaService,
-  userId: string,
-  projectId: string,
-  periodStart: Date,
-  periodEnd: Date
-): Promise<number> {
-  const aggregation = await prisma.timeLog.aggregate({
-    where: {
-      userId,
-      task: { projectId },
-      startTime: { gte: periodStart, lte: periodEnd }
-    },
-    _sum: { durationSec: true }
-  });
-  return Math.round(((aggregation._sum?.durationSec ?? 0) / 3600) * 100) / 100;
-}
-
 async function statusForPeriod(
   prisma: PrismaService,
   userId: string,
@@ -54,6 +36,7 @@ async function statusForPeriod(
     },
     select: { status: true }
   });
+  if (row?.status === "WAIVED") return "DRAFT";
   return (row?.status ?? "DRAFT") as "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
 }
 
@@ -99,31 +82,10 @@ export async function buildCascadePlan(
         break;
       }
 
-      if (status === "DRAFT") {
-        const totalHours = await hoursInPeriod(
-          prisma,
-          userId,
-          projectId,
-          range.periodStart,
-          range.periodEnd
-        );
-        if (totalHours > 0) {
-          cascaded.push({
-            periodStart: range.periodStart,
-            periodEnd: range.periodEnd,
-            approvalPeriod,
-            periodLabel: label,
-            totalHours
-          });
-        }
-      }
-
       cursor = new Date(range.periodStart.getTime() - 1);
       if (range.periodStart.getTime() <= earliestRange.periodStart.getTime()) break;
     }
   }
-
-  cascaded.sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime());
 
   return {
     target,

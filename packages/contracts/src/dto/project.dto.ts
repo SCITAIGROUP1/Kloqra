@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
 import { PROJECT_COLORS } from "../project-colors";
 import { timesheetApprovalPeriodSchema } from "../workspace-settings";
-import { uuidSchema } from "./common.dto";
+import { uuidSchema, isoDatetimeSchema } from "./common.dto";
 
 export const projectColorSchema = z
   .string()
@@ -29,6 +29,7 @@ export const projectSchema = z.object({
   isActive: z.boolean(),
   timesheetApprovalEnabled: z.boolean().optional(),
   timesheetApprovalPeriod: timesheetApprovalPeriodSchema.nullable(),
+  timesheetApprovalEnabledAt: isoDatetimeSchema.nullable().optional(),
   createdAt: z.string().optional()
 });
 

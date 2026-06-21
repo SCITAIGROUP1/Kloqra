@@ -31,4 +31,9 @@ describe("TimesheetApprovalStatusBadge", () => {
     expect(html).toContain("status-success-bg");
     expect(html).toContain("status-success-fg");
   });
+
+  it("renders waived status", () => {
+    const html = renderToStaticMarkup(<TimesheetApprovalStatusBadge status="WAIVED" />);
+    expect(html).toContain("Waived");
+  });
 });

@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-
-// Tests for the Jira URL normalization logic used in workspace-page.tsx
-function extractAtlassianOrigin(url: string): string {
-  try {
-    return new URL(url.trim()).origin;
-  } catch {
-    return url.trim();
-  }
-}
+import { extractAtlassianOrigin } from "./jira-url";
 
 describe("Jira workspace settings — URL normalization", () => {
   it("extracts origin from a full Atlassian URL with path", () => {

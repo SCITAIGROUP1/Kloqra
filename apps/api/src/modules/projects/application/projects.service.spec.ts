@@ -19,6 +19,7 @@ describe("ProjectsService", () => {
         create: vi.fn(),
         findMany: vi.fn(),
         findFirst: vi.fn(),
+        update: vi.fn(),
         delete: vi.fn()
       },
       task: {
@@ -29,6 +30,9 @@ describe("ProjectsService", () => {
       timeLog: {
         groupBy: vi.fn().mockResolvedValue([]),
         updateMany: vi.fn()
+      },
+      timesheetPeriod: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 })
       },
       category: {
         findFirst: vi.fn(),
@@ -235,6 +239,46 @@ describe("ProjectsService", () => {
       });
       expect(mockPrisma.project.delete).toHaveBeenCalledWith({ where: { id: "p-deleted" } });
       expect(result).toEqual({ ok: true });
+    });
+  });
+
+  it("update waives open periods when approval settings change", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({
+      id: "p1",
+      workspaceId,
+      name: "Alpha",
+      color: "#236bfe",
+      clientName: null,
+      budgetHours: null,
+      isActive: true,
+      timesheetApprovalEnabled: true,
+      timesheetApprovalPeriod: "weekly",
+      timesheetApprovalEnabledAt: new Date("2025-01-01T00:00:00.000Z"),
+      createdAt: new Date("2025-01-01T00:00:00.000Z")
+    });
+    mockPrisma.project.update.mockResolvedValue({
+      id: "p1",
+      workspaceId,
+      name: "Alpha",
+      color: "#236bfe",
+      clientName: null,
+      budgetHours: null,
+      isActive: true,
+      timesheetApprovalEnabled: false,
+      timesheetApprovalPeriod: null,
+      timesheetApprovalEnabledAt: null,
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      workspace: { name: "Kloqra" }
+    });
+
+    await service.update(workspaceId, "p1", { timesheetApprovalEnabled: false });
+
+    expect(mockPrisma.timesheetPeriod.updateMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "p1",
+        status: { in: ["DRAFT", "REJECTED"] }
+      },
+      data: { status: "WAIVED" }
     });
   });
 });

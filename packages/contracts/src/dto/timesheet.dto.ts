@@ -2,7 +2,13 @@ import { z } from "zod";
 import { timesheetApprovalPeriodSchema } from "../workspace-settings";
 import { isoDatetimeSchema, uuidSchema, queryUuidArraySchema } from "./common.dto";
 
-export const timesheetPeriodStatusSchema = z.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"]);
+export const timesheetPeriodStatusSchema = z.enum([
+  "DRAFT",
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+  "WAIVED"
+]);
 
 export const amendmentRequestStatusSchema = z.enum(["PENDING", "APPROVED", "DENIED"]);
 
@@ -66,7 +72,8 @@ export const timesheetSubmissionsScopeSchema = z.enum(["logged", "assigned"]);
 
 export const timesheetSubmissionsQuerySchema = z.object({
   date: z.string().optional(),
-  scope: timesheetSubmissionsScopeSchema.optional().default("logged")
+  scope: timesheetSubmissionsScopeSchema.optional().default("logged"),
+  lookbackWeeks: z.coerce.number().int().min(1).max(52).optional().default(26)
 });
 
 export const pendingTimesheetSchema = z.object({

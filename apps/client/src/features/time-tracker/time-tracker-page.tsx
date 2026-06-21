@@ -2,6 +2,7 @@
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
+  BatchTimeLogsResponseDto,
   CategoryDto,
   ListTimesheetSubmissionsResponseDto,
   ProjectDto,
@@ -23,6 +24,7 @@ import {
   draftToIsoRange,
   type TimeEntryDraft
 } from "../timesheet/time-entry-draft";
+import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { isTimeEntryLocked, LOCKED_ENTRY_MESSAGE } from "./entry-approval-status";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
@@ -330,12 +332,52 @@ export function TimeTrackerPage() {
       setError("End time must be after start time.");
       return;
     }
+    const overlapMsg = await validateTimeEntryOverlap(ws, start, end, timezone, editingLog?.id);
+    if (overlapMsg) {
+      setError(overlapMsg);
+      toast.error(overlapMsg);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const taskId = draft.taskSelection;
       if (!taskId) {
         setError("Select a task to log time.");
+        return;
+      }
+      const isRecurring = !editingLog && draft.recurrence && draft.recurrence !== "none";
+      if (isRecurring) {
+        if (!draft.repeatUntil) {
+          setError("Please select an end date for the recurrence.");
+          setSaving(false);
+          return;
+        }
+        const body = {
+          taskId,
+          localStartTime: draft.startTime,
+          localEndTime: draft.endTime,
+          startDate: draft.date,
+          endDate: draft.repeatUntil,
+          recurrence: draft.recurrence,
+          timezone,
+          description: draft.description || undefined,
+          isBillable: draft.isBillable
+        };
+        const res = await api<BatchTimeLogsResponseDto>(ROUTES.TIMELOGS.CREATE_BATCH, {
+          method: "POST",
+          workspaceId: ws,
+          body: JSON.stringify(body)
+        });
+        await Promise.all([refreshLogs(), refreshSubmissions()]);
+        closeDialog();
+        if (res.skippedCount > 0) {
+          toast.success(
+            `Logged ${res.createdCount} entries. Skipped ${res.skippedCount} conflicts.`
+          );
+        } else {
+          toast.success(`Logged ${res.createdCount} recurring entries!`);
+        }
         return;
       }
       const body = {

@@ -1,28 +1,31 @@
 ---
 name: Timesheet Submissions Workflow
-overview: Production-hardened manual submission workflow with two-step cascade preview, logged-time-only batch close, cron + admin reminders, full member Submissions and admin Approvals UI/UX wired to the notification inbox, amendment requests with concurrency guards, and explicit reject-vs-amendment policy.
+overview: Production-hardened manual submission workflow with single-period submit (cascade batch removed), logged-time-only draft rows, cron + admin reminders, full member Submissions and admin Approvals UI/UX wired to the notification inbox, amendment requests with concurrency guards, and approval policy hardening on settings change. See also timesheet_approval_policy_hardening.plan.md.
 todos:
   - id: contracts
-    content: DTOs/routes/error codes; notification templates + types (reminder.manual, amendment.*, batch submit); listPending { items }; docs/specs/timelogs.md
-    status: pending
+    content: DTOs/routes/error codes; notification templates + types (reminder.manual, amendment.*); listPending { items }; docs/specs/timelogs.md
+    status: completed
   - id: prisma-amendment
     content: TimesheetAmendmentRequest model + migration; periodId+status index
-    status: pending
+    status: completed
   - id: api-core
-    content: Preview/submit cascade, amendments, missing, remind, status guards, notify util; per-project cron
-    status: pending
+    content: Preview/submit, amendments, missing, remind, status guards, notify util; per-project cron
+    status: completed
+  - id: approval-policy
+    content: WAIVED status, effective dates, settings-change waiver, hours-only listSubmissions — see timesheet_approval_policy_hardening.plan.md
+    status: completed
   - id: ui-shared
-    content: packages/ui — SubmitCascadeDialog, AmendmentRequestDialog, SubmissionStatusBadge (+ amendment pending); extend notification icon map in web-shared
-    status: pending
+    content: packages/ui — SubmitCascadeDialog (single-period), AmendmentRequestDialog, SubmissionStatusBadge (+ amendment pending); extend notification icon map in web-shared
+    status: completed
   - id: client-ux
-    content: Submissions page/shell/widgets/time-tracker/timesheet deep links; cascade + amendment flows; notification href handlers
-    status: pending
+    content: Submissions table page/shell/widgets; tab + period deep links; timesheet href from rows; no cascade confirm
+    status: completed
   - id: admin-ux
-    content: Approvals 3-tab page, missing remind modal, amendment queue, nav badges, dashboard widget; notification deep links
-    status: pending
+    content: Approvals tabs, missing remind modal, amendment queue, nav badges; project settings confirm on policy change
+    status: completed
   - id: tests
-    content: Unit/e2e/RTL/Playwright for UX flows, notification metadata hrefs, timezone boundaries, concurrency
-    status: pending
+    content: Unit/e2e/RTL for UX flows, policy util, notification metadata hrefs, concurrency
+    status: completed
 isProject: false
 ---
 
@@ -33,8 +36,8 @@ isProject: false
 | Topic           | Decision                                                                     |
 | --------------- | ---------------------------------------------------------------------------- |
 | Member submit   | Always **manual** — no cron auto-submit                                      |
-| Lock Option B   | Cascade earlier **DRAFT periods with logged time** to `SUBMITTED` on confirm |
-| Cascade UX      | **Preview → confirm modal → submit**                                         |
+| Submit scope    | **Single period only** — cascade batch removed (see approval policy plan)    |
+| Cascade UX      | **Preview → confirm modal → submit** (one period; no batch list)             |
 | Reminders       | Cron (per user + project + period) + admin manual remind (24h dedupe)        |
 | Amendment       | Member requests on `SUBMITTED` / `APPROVED`; admin approve → `DRAFT`         |
 | Reject vs amend | Reject = admin correction; Amendment = member unlock request                 |

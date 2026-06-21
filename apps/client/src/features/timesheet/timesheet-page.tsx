@@ -24,9 +24,15 @@ import {
   dateFromKey,
   dateKeyFromDate
 } from "@kloqra/ui";
-import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
+import {
+  api as sharedApi,
+  buildMemberSubmissionsHref,
+  fetchListItems,
+  parseMemberTimesheetSearch
+} from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { CalendarTaskInfo } from "./calendar-entry-content";
@@ -63,6 +69,7 @@ import {
   type TimeEntryDraft
 } from "./time-entry-draft";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
+import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
 import {
   countActionableSubmissions,
   useMySubmissions
@@ -104,6 +111,11 @@ function buildOccupancyQuery(from: Date, to: Date): string {
 }
 
 export function TimesheetPage() {
+  const searchParams = useSearchParams();
+  const deepLink = useMemo(
+    () => parseMemberTimesheetSearch(searchParams.toString()),
+    [searchParams]
+  );
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const isImpersonating = useIsImpersonating();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
@@ -132,10 +144,16 @@ export function TimesheetPage() {
   const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
 
-  const [view, setView] = useState<ViewMode>("week");
+  const [view, setView] = useState<ViewMode>(() => deepLink.view ?? "week");
   const [mobileBannerDismissed, setMobileBannerDismissed] = useState(true);
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
+  const [anchor, setAnchor] = useState(() => {
+    if (deepLink.date) {
+      const parsed = new Date(deepLink.date);
+      if (!Number.isNaN(parsed.getTime())) return startOfDay(parsed);
+    }
+    return startOfDay(new Date());
+  });
   const { submissions: submissionNavItems } = useMySubmissions(ws, anchor, "assigned", Boolean(ws));
   const actionableSubmissionCount = useMemo(
     () => countActionableSubmissions(submissionNavItems),
@@ -165,10 +183,11 @@ export function TimesheetPage() {
 
   useEffect(() => {
     if (!isMobile) return;
+    if (deepLink.view) return;
     if (sessionStorage.getItem(TIMESHEET_MOBILE_VIEW_INIT_KEY) === "1") return;
     setView("day");
     sessionStorage.setItem(TIMESHEET_MOBILE_VIEW_INIT_KEY, "1");
-  }, [isMobile]);
+  }, [isMobile, deepLink.view]);
 
   function dismissMobileBanner() {
     sessionStorage.setItem(TIMESHEET_MOBILE_BANNER_KEY, "1");
@@ -391,10 +410,24 @@ export function TimesheetPage() {
   }, [ws, refreshLogs, refreshOccupancy]);
 
   useEffect(() => {
-    if (timezone) {
+    if (!deepLink.date) return;
+    const parsed = new Date(deepLink.date);
+    if (!Number.isNaN(parsed.getTime())) {
+      setAnchor(startOfDay(parsed));
+    }
+  }, [deepLink.date]);
+
+  useEffect(() => {
+    if (deepLink.view) {
+      setView(deepLink.view);
+    }
+  }, [deepLink.view]);
+
+  useEffect(() => {
+    if (timezone && !deepLink.date) {
       setAnchor(todayInZone(timezone));
     }
-  }, [timezone]);
+  }, [timezone, deepLink.date]);
 
   useEffect(() => {
     if (!ws) return;
@@ -497,14 +530,11 @@ export function TimesheetPage() {
       return;
     }
     const isRecurring = !editingLog && draft.recurrence && draft.recurrence !== "none";
-    if (!isRecurring) {
-      const conflict = findOccupancyConflict(occupancy, start, end, editingLog?.id);
-      if (conflict) {
-        const msg = overlapConflictMessage(conflict);
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
+    const overlapMsg = await validateTimeEntryOverlap(ws, start, end, timezone, editingLog?.id);
+    if (overlapMsg) {
+      setError(overlapMsg);
+      toast.error(overlapMsg);
+      return;
     }
     setSaving(true);
     setError(null);
@@ -736,7 +766,7 @@ export function TimesheetPage() {
             submit for review.
           </p>
           <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
-            <Link href="/submissions">Go to Submissions</Link>
+            <Link href={buildMemberSubmissionsHref({ tab: "action" })}>Go to Submissions</Link>
           </Button>
         </div>
       ) : null}

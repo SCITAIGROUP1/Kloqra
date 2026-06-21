@@ -23,7 +23,7 @@
 | GET    | `/timesheets/status?projectId=&date=` | [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts) |
 | GET    | `/timesheets/submissions?date=`       | timesheet.dto                                                         |
 | GET    | `/timesheets/submit-preview`          | timesheet.dto (member)                                                |
-| POST   | `/timesheets/submit`                  | timesheet.dto (requires `confirmCascade` when cascade applies)        |
+| POST   | `/timesheets/submit`                  | timesheet.dto (single period submit)                                  |
 | POST   | `/timesheets/:periodId/amendments`    | timesheet.dto (member)                                                |
 | GET    | `/timesheets/amendments/pending`      | timesheet.dto (admin)                                                 |
 | PATCH  | `/timesheets/amendments/:id/approve`  | timesheet.dto (admin)                                                 |
@@ -85,8 +85,11 @@ Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interfa
 **When** the member’s period for that project is `SUBMITTED` or `APPROVED`  
 **Then** create/update/delete on entries in that project and period returns `TIMELOG_NOT_EDITABLE` for **all roles** (including admins).
 
-**When** a member submits period N with `confirmCascade: true`  
-**Then** earlier DRAFT periods with logged time on the same project are also marked `SUBMITTED` in one transaction.
+**When** a member submits a period  
+**Then** only that period is marked `SUBMITTED` (no automatic batch submit of earlier drafts).
+
+**When** an admin enables approval, disables approval, or changes the approval period  
+**Then** open `DRAFT` and `REJECTED` periods on that project are marked `WAIVED`; members only see actionable periods from the policy effective date with logged hours.
 
 **When** an admin rejects the period  
 **Then** entries become editable again.

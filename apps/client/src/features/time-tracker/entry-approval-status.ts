@@ -21,7 +21,8 @@ export function resolveEntryApprovalStatus(
     const pStart = new Date(sub.periodStart);
     const pEnd = new Date(sub.periodEnd);
     if (start >= pStart && start <= pEnd) {
-      return { showApproval: true, status: sub.status };
+      const status = sub.status === "WAIVED" ? "DRAFT" : sub.status;
+      return { showApproval: true, status };
     }
   }
 

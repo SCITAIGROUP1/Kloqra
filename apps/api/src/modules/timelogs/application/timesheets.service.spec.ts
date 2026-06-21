@@ -22,6 +22,8 @@ describe("TimesheetsService", () => {
     workspaceId,
     timesheetApprovalEnabled: true,
     timesheetApprovalPeriod: "weekly" as const,
+    timesheetApprovalEnabledAt: new Date("2025-01-01T00:00:00.000Z"),
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
     workspace: { name: "Acme", settings: { weekStart: "monday" } }
   };
 
@@ -32,7 +34,8 @@ describe("TimesheetsService", () => {
     mockPrisma = {
       project: {
         findFirst: vi.fn().mockResolvedValue(projectRow),
-        findUniqueOrThrow: vi.fn().mockResolvedValue(projectRow)
+        findUniqueOrThrow: vi.fn().mockResolvedValue(projectRow),
+        findMany: vi.fn().mockResolvedValue([projectRow])
       },
       user: {
         findUnique: vi.fn().mockResolvedValue({ name: "Sam" })
@@ -201,7 +204,12 @@ describe("TimesheetsService", () => {
   });
 
   it("listSubmissions with logged scope queries time logs", async () => {
-    mockPrisma.timesheetPeriod.findUnique.mockResolvedValue(null);
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    mockPrisma.timeLog.findMany
+      .mockResolvedValueOnce([{ task: { projectId } }])
+      .mockResolvedValueOnce([
+        { startTime: new Date("2025-06-03T10:00:00.000Z"), durationSec: 3600 }
+      ]);
 
     const result = await service.listSubmissions(workspaceId, userId, "2025-06-05", "logged");
 
@@ -211,13 +219,26 @@ describe("TimesheetsService", () => {
     expect(result.items[0]?.status).toBe("DRAFT");
   });
 
+  it("listSubmissions omits draft periods with zero logged hours", async () => {
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    mockPrisma.timeLog.findMany
+      .mockResolvedValueOnce([{ task: { projectId } }])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.listSubmissions(workspaceId, userId, "2025-06-05", "logged");
+
+    expect(result.items).toHaveLength(0);
+  });
+
   it("listSubmissions with assigned scope queries team memberships", async () => {
-    mockPrisma.timesheetPeriod.findUnique.mockResolvedValue(null);
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    mockPrisma.timeLog.findMany.mockResolvedValue([
+      { startTime: new Date("2025-06-03T10:00:00.000Z"), durationSec: 3600 }
+    ]);
 
     const result = await service.listSubmissions(workspaceId, userId, "2025-06-05", "assigned");
 
     expect(mockPrisma.teamMember.findMany).toHaveBeenCalled();
-    expect(mockPrisma.timeLog.findMany).not.toHaveBeenCalled();
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.projectName).toBe("Website");
   });

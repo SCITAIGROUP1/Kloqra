@@ -1,7 +1,9 @@
 import {
+  bulkCategoryImportSchema,
   createCategorySchema,
   listCategoriesQuerySchema,
   updateCategorySchema,
+  type BulkCategoryImportItemDto,
   type ListCategoriesQuery,
   ROUTES
 } from "@kloqra/contracts";
@@ -14,8 +16,13 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import {
   CurrentUser,
   type RequestUser
@@ -49,6 +56,35 @@ export class CategoriesController {
       user.workspaceId,
       body as Parameters<CategoriesService["create"]>[1]
     );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.CATEGORIES.BULK_TEMPLATE)
+  async getBulkCategoryTemplate(@CurrentUser() _user: RequestUser, @Res() res: Response) {
+    await this.categories.generateBulkCategoryTemplate(res);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.CATEGORIES.BULK_UPLOAD)
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
+  async bulkCategoryUpload(
+    @UploadedFile() file: { buffer: Buffer } | undefined,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (!file) throw new Error("No file uploaded");
+
+    const categories = await this.categories.parseBulkCategoryExcel(file.buffer);
+    return this.categories.bulkImport(user.workspaceId, categories);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.CATEGORIES.BULK)
+  bulkCategoryImport(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(bulkCategoryImportSchema))
+    body: { categories: BulkCategoryImportItemDto[] }
+  ) {
+    return this.categories.bulkImport(user.workspaceId, body.categories);
   }
 
   @Roles("ADMIN")

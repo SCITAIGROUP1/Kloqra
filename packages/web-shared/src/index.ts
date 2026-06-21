@@ -130,9 +130,19 @@ export {
   parseAdminApprovalsSearch,
   parseApprovalsFilterSearch,
   parseMemberSubmissionsSearch,
+  resolveMemberSubmissionsTab,
   type AdminApprovalsDeepLink,
-  type MemberSubmissionsDeepLink
+  type MemberSubmissionsDeepLink,
+  type MemberSubmissionsTab
 } from "./features/submissions/submission-deep-link";
+export {
+  buildMemberTimesheetHref,
+  buildMemberTimesheetHrefFromSubmission,
+  parseMemberTimesheetSearch,
+  viewForApprovalPeriod,
+  type MemberTimesheetDeepLink,
+  type MemberTimesheetView
+} from "./features/timesheet/timesheet-deep-link";
 export {
   PasswordStrengthIndicator,
   calculatePasswordStrength

@@ -1,4 +1,4 @@
-import type { ProjectListItemDto } from "@kloqra/contracts";
+import type { ProjectListItemDto, TaskDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -42,10 +42,28 @@ describe("Timesheets E2E", () => {
     await app.close();
   });
 
-  it("GET /timesheets/submissions?scope=assigned returns approval-enabled projects", async () => {
+  it("GET /timesheets/submissions?scope=assigned returns periods with logged hours", async () => {
+    const tasksRes = await authedAgent(app, memberSession)
+      .get("/tasks")
+      .query({ projectId: approvalProjectId });
+    expect(tasksRes.status).toBe(200);
+    const taskId = listItems<TaskDto>(tasksRes.body)[0]?.id;
+    expect(taskId).toBeTruthy();
+
+    const start = new Date("2036-03-10T10:00:00.000Z");
+    const end = new Date("2036-03-10T11:00:00.000Z");
+
+    const logRes = await authedAgent(app, memberSession).post("/timelogs").send({
+      taskId,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      description: "E2E submissions list"
+    });
+    expect(logRes.status).toBe(201);
+
     const res = await authedAgent(app, memberSession)
       .get("/timesheets/submissions")
-      .query({ scope: "assigned" });
+      .query({ scope: "assigned", date: start.toISOString() });
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.items)).toBe(true);
     expect(
@@ -66,8 +84,7 @@ describe("Timesheets E2E", () => {
       submitRes = await authedAgent(app, memberSession).post("/timesheets/submit").send({
         projectId: approvalProjectId,
         date,
-        note: "E2E submission",
-        confirmCascade: true
+        note: "E2E submission"
       });
       if (submitRes.status !== 403) break;
     }

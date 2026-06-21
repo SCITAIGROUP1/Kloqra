@@ -1,7 +1,12 @@
 "use client";
 
-import type { ExportPreviewResponseDto, ExportPreviewSheetDto } from "@kloqra/contracts";
+import type {
+  ExportPreviewResponseDto,
+  ExportPreviewSheetDto,
+  ExportReportType
+} from "@kloqra/contracts";
 import { cn } from "@kloqra/ui";
+import { exportReportLabel } from "@/lib/export-report-labels";
 
 const MAX_VISIBLE_CHIPS = 6;
 
@@ -43,8 +48,9 @@ type Props = {
   preview: ExportPreviewResponseDto | null;
   loading: boolean;
   error: string | null;
-  format: "csv" | "xlsx" | "pdf";
+  format: "csv" | "xlsx" | "pdf" | "json";
   organizeDescription?: string;
+  selectedReportTypes?: ExportReportType[];
 };
 
 export function ExportLayoutPreview({
@@ -52,7 +58,8 @@ export function ExportLayoutPreview({
   loading,
   error,
   format,
-  organizeDescription
+  organizeDescription,
+  selectedReportTypes = []
 }: Props) {
   if (loading) {
     return (
@@ -115,6 +122,12 @@ export function ExportLayoutPreview({
     statParts.push(`${preview.estimatedRowCount.toLocaleString()} total rows`);
   }
 
+  const includedReports = selectedReportTypes.map((reportType) => ({
+    reportType,
+    label: exportReportLabel(reportType),
+    count: preview.counts?.[reportType] ?? 0
+  }));
+
   return (
     <div className="space-y-3 py-0.5">
       <div className="space-y-1.5">
@@ -128,6 +141,28 @@ export function ExportLayoutPreview({
           <p className="text-xs text-muted-foreground leading-relaxed">{preview.detail}</p>
         )}
       </div>
+
+      {includedReports.length > 1 ? (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Included reports ({includedReports.length})
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {includedReports.map((entry) => (
+              <div
+                key={entry.reportType}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs"
+                title={`${entry.count.toLocaleString()} rows`}
+              >
+                <span className="truncate font-medium">{entry.label}</span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {entry.count.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {sheets.length > 0 ? (
         <div className="space-y-2">

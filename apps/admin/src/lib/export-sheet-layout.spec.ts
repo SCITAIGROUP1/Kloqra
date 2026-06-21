@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { groupByForSheetLayout } from "./export-sheet-layout";
+import { groupByForSheetLayout, SHEET_LAYOUT_OPTIONS } from "./export-sheet-layout";
+
+describe("export-sheet-layout", () => {
+  it("uses AC workbook option labels", () => {
+    expect(SHEET_LAYOUT_OPTIONS.map((option) => option.label)).toEqual([
+      "Standard Workbook",
+      "One Tab per Person",
+      "One Tab per Project",
+      "One Tab per Client",
+      "One Tab per Category"
+    ]);
+  });
+});
 
 describe("groupByForSheetLayout", () => {
   it("replaces layout dimension when switching tab split", () => {

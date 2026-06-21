@@ -31,6 +31,8 @@ test.describe("Time Tracker", () => {
   test("opens add entry dialog", async ({ page }) => {
     await page.getByRole("button", { name: "Add Entry" }).click();
     await expect(page.getByRole("heading", { name: "Add time entry" })).toBeVisible();
+    await expect(page.getByText("When", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Entry date" })).toBeVisible();
   });
 
   test("expands filters panel with category and task controls", async ({ page }) => {

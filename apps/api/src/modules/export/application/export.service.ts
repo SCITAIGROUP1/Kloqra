@@ -28,7 +28,7 @@ import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
 import { formatExportClockTime, formatExportDateKey } from "./export-format.util";
 import { buildExportPreviewCopy } from "./export-preview-copy.util";
-import { projectRows, rowsToCsv } from "./export-render.util";
+import { projectRows, rowsToCsv, rowsToJsonExport } from "./export-render.util";
 import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
 import { buildExportPreviewSampleRows } from "./export-sample-rows.util";
 import {
@@ -164,7 +164,9 @@ export class ExportService {
       ? []
       : buildExportPreviewSampleRows(sheetPlan, {
           focusReport: body.sampleReportType,
-          maxRows: 5
+          reportTypes: body.sampleReportType ? undefined : body.reportTypes,
+          maxRows: 5,
+          maxSamples: 8
         });
 
     return {
@@ -277,6 +279,9 @@ export class ExportService {
         scopeHint: fileBase.scopeHint,
         settings
       });
+    }
+    if (body.format === "json") {
+      return this.renderJson(sheets, fileBase);
     }
     return this.renderPdf(sheets, fileBase, body, ctx.workspaceName, settings);
   }
@@ -575,6 +580,26 @@ export class ExportService {
       }
       archive.finalize();
     });
+  }
+
+  private renderJson(
+    sheets: SheetData[],
+    fileBase: ExportFileBase
+  ): { buffer: Buffer; contentType: string; filename: string } {
+    const json = rowsToJsonExport(
+      sheets.map((sheet) => ({
+        name: sheet.name,
+        reportType: sheet.report,
+        headers: sheet.headers,
+        lines: sheet.lines
+      }))
+    );
+
+    return {
+      buffer: Buffer.from(json, "utf-8"),
+      contentType: "application/json",
+      filename: buildExportFilename({ ...fileBase, ext: "json" })
+    };
   }
 
   private async renderXlsx(

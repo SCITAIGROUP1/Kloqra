@@ -49,31 +49,31 @@ export const SHEET_LAYOUT_OPTIONS: {
 }[] = [
   {
     id: "standard",
-    label: "Standard workbook",
+    label: "Standard Workbook",
     description: "One tab per report type (Time entries, summaries, etc.).",
     bestFor: "Overview reports and finance exports."
   },
   {
     id: "tabs_per_member",
-    label: "One tab per person",
+    label: "One Tab per Person",
     description: "Each team member gets their own tab for time-style reports.",
     bestFor: "Monthly timesheets you hand to each person or payroll."
   },
   {
     id: "tabs_per_project",
-    label: "One tab per project",
+    label: "One Tab per Project",
     description: "Each project gets its own tab for time-style reports.",
     bestFor: "Client or project manager reviews."
   },
   {
     id: "tabs_per_client",
-    label: "One tab per client",
-    description: "Each client gets its own tab for time-style reports.",
+    label: "One Tab per Client",
+    description: "Each client gets their own tab for time-style reports.",
     bestFor: "Agency billing packs by client."
   },
   {
     id: "tabs_per_category",
-    label: "One tab per category",
+    label: "One Tab per Category",
     description: "Each work category gets its own tab for time-style reports.",
     bestFor: "Work-type breakdowns (meetings, dev, QA, etc.)."
   }

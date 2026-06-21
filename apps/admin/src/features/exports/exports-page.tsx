@@ -14,7 +14,8 @@ import {
 } from "@kloqra/contracts";
 import { fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ExportCustomFlow } from "./export-custom-flow";
 import { ExportHistoryPanel } from "./export-history-panel";
 import { ExportQuickFlow } from "./export-quick-flow";
@@ -22,7 +23,7 @@ import type { ExportScenarioId } from "./export-scenarios";
 import { InvoiceWizard } from "./invoice-wizard";
 import { AppBar, SegmentedControl } from "@/components/admin-page";
 import { api } from "@/lib/api";
-import { toDateInputValue } from "@/lib/export-date-presets";
+import { describeExportPeriodApplied, toDateInputValue } from "@/lib/export-date-presets";
 import { normalizeExportPreview } from "@/lib/export-normalize";
 import { listLocalExportPresets, type StoredExportPreset } from "@/lib/export-presets";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -237,18 +238,21 @@ export function ExportsPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedControl
-          value={exportMode}
-          onChange={setExportMode}
-          options={[
-            { value: "quick", label: "Quick reports" },
-            { value: "custom", label: "Custom export" }
-          ]}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="w-full min-w-0 sm:w-auto">
+          <SegmentedControl
+            value={exportMode}
+            onChange={setExportMode}
+            fullWidth
+            options={[
+              { value: "quick", label: "Quick reports" },
+              { value: "custom", label: "Custom export" }
+            ]}
+          />
+        </div>
         <button
           type="button"
-          className="text-sm text-muted-foreground hover:text-primary hover:underline"
+          className="shrink-0 text-left text-sm text-muted-foreground hover:text-primary hover:underline sm:text-right"
           onClick={() => setExportMode("invoice")}
         >
           Need a formal invoice PDF?
@@ -304,6 +308,9 @@ function ExportPreviewLoader({
   onLoading: (loading: boolean) => void;
   onError: (error: string | null) => void;
 }) {
+  const skipPreviewToast = useRef(true);
+  const lastToastKey = useRef<string | null>(null);
+
   useEffect(() => {
     if (!workspaceId || !previewBody) {
       onPreview(null);
@@ -318,12 +325,35 @@ function ExportPreviewLoader({
         body: JSON.stringify(previewBody)
       })
         .then((data) => {
-          onPreview(normalizeExportPreview(data));
+          const normalized = normalizeExportPreview(data);
+          onPreview(normalized);
           onError(null);
+
+          if (!normalized) return;
+
+          if (skipPreviewToast.current) {
+            skipPreviewToast.current = false;
+            return;
+          }
+
+          const from = previewBody.from.slice(0, 10);
+          const to = previewBody.to.slice(0, 10);
+          const toastKey = `${from}|${to}|${normalized.totalLogRows ?? 0}|${previewBody.reportTypes.join(",")}`;
+          if (lastToastKey.current === toastKey) return;
+          lastToastKey.current = toastKey;
+
+          const rows = normalized.totalLogRows ?? 0;
+          toast.success("Preview updated", {
+            description: `${describeExportPeriodApplied(from, to)} · ${rows.toLocaleString()} ${rows === 1 ? "entry" : "entries"}`,
+            duration: 2600
+          });
         })
         .catch((e) => {
           onPreview(null);
           onError(e instanceof Error ? e.message : "Could not reach the export preview API.");
+          toast.error("Preview could not update", {
+            description: "Check your filters and try again."
+          });
         })
         .finally(() => onLoading(false));
     }, 400);

@@ -84,14 +84,16 @@ export function TimesheetStatusCard({
     DRAFT: "bg-muted text-muted-foreground border-muted-foreground/20",
     SUBMITTED: "bg-status-warning-bg text-status-warning-fg border-status-warning-border",
     APPROVED: "bg-status-success-bg text-status-success-fg border-status-success-border",
-    REJECTED: "bg-status-danger-bg text-status-danger-fg border-status-danger-border"
+    REJECTED: "bg-status-danger-bg text-status-danger-fg border-status-danger-border",
+    WAIVED: "bg-muted text-muted-foreground border-muted-foreground/20"
   };
 
   const statusLabels = {
     DRAFT: "Draft (Not Submitted)",
     SUBMITTED: "Submitted (Pending Approval)",
     APPROVED: "Approved",
-    REJECTED: "Rejected"
+    REJECTED: "Rejected",
+    WAIVED: "Waived"
   };
 
   return (

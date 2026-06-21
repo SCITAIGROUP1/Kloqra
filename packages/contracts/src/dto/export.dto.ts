@@ -83,7 +83,7 @@ export const exportBillableFilterSchema = z.enum(["all", "billable", "non_billab
 
 export type ExportBillableFilter = z.infer<typeof exportBillableFilterSchema>;
 
-export const exportFormatSchema = z.enum(["csv", "xlsx", "pdf"]);
+export const exportFormatSchema = z.enum(["csv", "xlsx", "pdf", "json"]);
 
 export const TIME_ENTRIES_COLUMNS = [
   "workspace",

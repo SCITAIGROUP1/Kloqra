@@ -53,7 +53,11 @@ export class TimesheetLockService {
       }
     });
 
-    return (period?.status ?? "DRAFT") as "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+    return (period?.status === "WAIVED" ? "DRAFT" : (period?.status ?? "DRAFT")) as
+      | "DRAFT"
+      | "SUBMITTED"
+      | "APPROVED"
+      | "REJECTED";
   }
 
   async assertPeriodEditable(userId: string, projectId: string, entryStart: Date) {

@@ -1,9 +1,19 @@
-import type { CreateCategoryDto, ListCategoriesQuery, UpdateCategoryDto } from "@kloqra/contracts";
+import type {
+  BulkCategoryImportItemDto,
+  CreateCategoryDto,
+  ListCategoriesQuery,
+  UpdateCategoryDto
+} from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
+import { InjectQueue } from "@nestjs/bullmq";
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { Queue } from "bullmq";
+import ExcelJS from "exceljs";
+import type { Response } from "express";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 
 type CategoryRow = {
   id: string;
@@ -14,7 +24,10 @@ type CategoryRow = {
 
 @Injectable()
 export class CategoriesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @InjectQueue(QUEUES.BULK_CATEGORY) private readonly bulkCategoryQueue: Queue
+  ) {}
 
   toListItem(c: CategoryRow, taskCount?: number) {
     return {
@@ -145,5 +158,101 @@ export class CategoriesService {
         HttpStatus.CONFLICT
       );
     }
+  }
+
+  async generateBulkCategoryTemplate(res: Response) {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Categories");
+
+    sheet.columns = [
+      { header: "Name", key: "name", width: 30 },
+      { header: "Description", key: "description", width: 40 }
+    ];
+
+    sheet.addRow({ name: "Development", description: "Engineering and coding work" });
+    sheet.addRow({ name: "Design", description: "UX and visual design" });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=categories_template.xlsx");
+
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  async parseBulkCategoryExcel(buffer: Buffer): Promise<BulkCategoryImportItemDto[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as any);
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Excel file is empty",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const categories: BulkCategoryImportItemDto[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const name = row.getCell(1).text?.trim();
+      const description = row.getCell(2).text?.trim();
+
+      if (!name) return;
+
+      categories.push({
+        name,
+        ...(description ? { description } : {})
+      });
+    });
+
+    if (categories.length === 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "No valid categories found in the file",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    if (categories.length > 500) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Maximum 500 categories allowed per batch",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    return categories;
+  }
+
+  async bulkImport(workspaceId: string, categories: BulkCategoryImportItemDto[]) {
+    if (categories.length === 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "No categories to import",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+
+    const job = await this.bulkCategoryQueue.add(
+      "bulkCategoryJob",
+      { workspaceId, categories },
+      { removeOnComplete: true, removeOnFail: false }
+    );
+
+    return {
+      jobId: String(job.id!),
+      status: "queued",
+      enqueuedCount: categories.length
+    };
   }
 }

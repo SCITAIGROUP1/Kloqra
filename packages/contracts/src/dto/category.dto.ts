@@ -27,9 +27,27 @@ export const listCategoriesQuerySchema = listPaginationQuerySchema;
 export const listCategoriesResponseSchema =
   createPaginatedListResponseSchema(categoryListItemSchema);
 
+export const bulkCategoryImportItemSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(500).optional()
+});
+
+export const bulkCategoryImportSchema = z.object({
+  categories: z.array(bulkCategoryImportItemSchema).min(1).max(500)
+});
+
+export const bulkCategoryImportResponseSchema = z.object({
+  jobId: z.string(),
+  status: z.string(),
+  enqueuedCount: z.number().int().nonnegative()
+});
+
 export type CategoryDto = z.infer<typeof categorySchema>;
 export type CategoryListItemDto = z.infer<typeof categoryListItemSchema>;
 export type CreateCategoryDto = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;
 export type ListCategoriesResponse = z.infer<typeof listCategoriesResponseSchema>;
+export type BulkCategoryImportItemDto = z.infer<typeof bulkCategoryImportItemSchema>;
+export type BulkCategoryImportDto = z.infer<typeof bulkCategoryImportSchema>;
+export type BulkCategoryImportResponseDto = z.infer<typeof bulkCategoryImportResponseSchema>;

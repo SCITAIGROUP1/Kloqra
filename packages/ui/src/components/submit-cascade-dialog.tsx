@@ -22,8 +22,6 @@ export function SubmitCascadeDialog({
   submitting = false,
   onConfirm
 }: SubmitCascadeDialogProps) {
-  const cascaded = preview?.cascadedPeriods ?? [];
-  const totalPeriods = cascaded.length + 1;
   const blocked = Boolean(preview?.blockedReason);
 
   return (
@@ -44,9 +42,7 @@ export function SubmitCascadeDialog({
             disabled={loading || submitting || blocked || !preview}
             onClick={onConfirm}
           >
-            {submitting
-              ? "Submitting…"
-              : `Submit ${totalPeriods} period${totalPeriods === 1 ? "" : "s"}`}
+            {submitting ? "Submitting…" : "Submit for review"}
           </Button>
         </div>
       }
@@ -58,27 +54,13 @@ export function SubmitCascadeDialog({
       ) : preview ? (
         <div className="space-y-4 text-sm">
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-            <p className="font-medium">Primary period</p>
+            <p className="font-medium">{preview.targetPeriod.projectName}</p>
             <p className="text-muted-foreground mt-1">
-              {preview.targetPeriod.projectName} ·{" "}
-              {new Date(preview.targetPeriod.periodStart).toLocaleDateString()}
+              {preview.targetPeriod.periodStart.slice(0, 10)}
             </p>
           </div>
-          {cascaded.length > 0 ? (
-            <div className="space-y-2">
-              <p className="font-medium">Also submitting</p>
-              <ul className="space-y-1 text-muted-foreground">
-                {cascaded.map((row: TimesheetSubmitPreviewDto["cascadedPeriods"][number]) => (
-                  <li key={row.periodStart} className="flex justify-between gap-3">
-                    <span>{row.periodLabel}</span>
-                    <span className="font-mono">{row.totalHours.toFixed(1)} hrs</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
           <p className="text-xs text-muted-foreground">
-            Entries in these periods will be locked until approved or unlocked by an admin.
+            Entries in this period will be locked until approved or unlocked by an admin.
           </p>
         </div>
       ) : null}
