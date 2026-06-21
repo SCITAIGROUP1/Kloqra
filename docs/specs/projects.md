@@ -26,6 +26,15 @@ See [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 1. Creating a project auto-creates an empty **team**.
 2. Only **team members** (or workspace admins) may log time on that project’s tasks.
 3. Invite flow: admin creates link → member opens `/invite/[token]` on client → accepts → `TeamMember` row created.
+4. **Project color:** admins set a workspace color from the curated palette or a custom hex (`projectColorSchema`). Members may override display color per project (`displayColor` on list responses).
+5. **Common tasks:** tasks with `isCommon: true` are workspace-wide; any member can log time without being on the project team (see `project-access.service.ts`).
+6. **Delete with logged time:** deleting a project moves its task logs to an **Uncategorized** fallback project/task so hours are preserved.
+
+## Jira integration
+
+- Workspace admins configure Jira Cloud credentials under **Admin → Workspace**.
+- Members link Jira issues when creating time entries (optional).
+- API: `GET /jira/my-issues`, `POST /jira/verify-user`. Admin: `/jira/credentials`, `/jira/verify`.
 
 ## Given / When / Then
 
@@ -57,4 +66,6 @@ See [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 ## Edge cases
 
 - Project names unique per workspace.
-- Deleting a project cascades team, tasks, and invites (see DATA_MODEL).
+- Deleting a project re-associates time logs to uncategorized fallback before cascade delete.
+- Deleting a task with logged hours re-associates logs to an uncategorized task in the same project.
+- Toggling timesheet approval settings waives open drafts — see [submissions.md](./submissions.md).

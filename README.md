@@ -70,7 +70,8 @@ pnpm dev:admin      # terminal 4 → :3002
 | ----------------------------------------- | -------------------- | --------------- |
 | Timer, timesheet, time tracker            | Yes                  | No              |
 | Member dashboard widgets                  | Yes (`/dashboard`)   | No              |
-| Submit timesheets for approval            | Yes (`/approvals`)   | No              |
+| Submit timesheets for approval            | Yes (`/submissions`) | No              |
+| Notifications inbox (bell)                | Yes                  | Yes             |
 | View assigned projects & tasks            | Yes                  | No              |
 | Profile & account settings                | Yes                  | Yes             |
 | Create projects, categories, team invites | No                   | Yes             |

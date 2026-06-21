@@ -9,30 +9,19 @@
 
 ## API
 
-| Method | Route                        | Contract                                                                              |
-| ------ | ---------------------------- | ------------------------------------------------------------------------------------- |
-| GET    | `/timelogs`                  | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts)                     |
-| GET    | `/timelogs/occupancy`        | [timelog-occupancy.dto.ts](../../packages/contracts/src/dto/timelog-occupancy.dto.ts) |
-| POST   | `/timelogs`                  | timelog.dto                                                                           |
-| PATCH  | `/timelogs/:id`              | timelog.dto                                                                           |
-| DELETE | `/timelogs/:id`              | timelog.dto                                                                           |
-| GET    | `/timelogs/:id/audit-events` | [timelog-audit.dto.ts](../../packages/contracts/src/dto/timelog-audit.dto.ts)         |
+| Method | Route                         | Contract                                                                              |
+| ------ | ----------------------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/timelogs`                   | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts)                     |
+| GET    | `/timelogs/occupancy`         | [timelog-occupancy.dto.ts](../../packages/contracts/src/dto/timelog-occupancy.dto.ts) |
+| GET    | `/timelogs/yesterday-summary` | timelog.dto (member)                                                                  |
+| GET    | `/timelogs/audit`             | [timelog-audit.dto.ts](../../packages/contracts/src/dto/timelog-audit.dto.ts) (admin) |
+| GET    | `/timelogs/:id/audit-events`  | timelog-audit.dto                                                                     |
+| POST   | `/timelogs`                   | timelog.dto                                                                           |
+| POST   | `/timelogs/batch`             | timelog.dto (recurring entries)                                                       |
+| PATCH  | `/timelogs/:id`               | timelog.dto                                                                           |
+| DELETE | `/timelogs/:id`               | timelog.dto                                                                           |
 
-| Method | Route                                 | Contract                                                              |
-| ------ | ------------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/timesheets/status?projectId=&date=` | [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts) |
-| GET    | `/timesheets/submissions?date=`       | timesheet.dto                                                         |
-| GET    | `/timesheets/submit-preview`          | timesheet.dto (member)                                                |
-| POST   | `/timesheets/submit`                  | timesheet.dto (single period submit)                                  |
-| POST   | `/timesheets/:periodId/amendments`    | timesheet.dto (member)                                                |
-| GET    | `/timesheets/amendments/pending`      | timesheet.dto (admin)                                                 |
-| PATCH  | `/timesheets/amendments/:id/approve`  | timesheet.dto (admin)                                                 |
-| PATCH  | `/timesheets/amendments/:id/deny`     | timesheet.dto (admin)                                                 |
-| GET    | `/timesheets/missing`                 | timesheet.dto (admin)                                                 |
-| POST   | `/timesheets/remind`                  | timesheet.dto (admin)                                                 |
-| GET    | `/timesheets/pending`                 | timesheet.dto (admin, `{ items }`)                                    |
-
-Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts)
+Timesheet routes are documented in [submissions.md](./submissions.md). Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts), [timesheets.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timesheets.controller.ts).
 
 ## Given / When / Then
 
@@ -60,8 +49,13 @@ Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interfa
 ### Create manual entry
 
 **Given** a task in a project the user can access  
-**When** they POST `/timelogs` with `startTime`, `endTime`, optional `description`, `isBillable`  
+**When** they POST `/timelogs` with `startTime`, `endTime`, optional `description`, `isBillable`, optional `date` override  
 **Then** a log is created with `source: manual` and `durationSec` computed from the interval; an audit `CREATE` event is stored.
+
+### Recurring batch create
+
+**When** they POST `/timelogs/batch` with `recurrence` (`daily` | `weekdays` | `weekly`), `startDate`, `endDate`, and time-of-day fields  
+**Then** the API expands dates in range (skipping weekends for `weekdays`), creates non-overlapping entries, and returns `{ created, skipped }`. End date cannot extend into the future.
 
 ### Overlap protection
 
@@ -106,11 +100,14 @@ Entries created via `POST /timer/stop` have `source: timer`. Timer entries canno
 
 ## UI
 
-- Client: [apps/client/src/features/timesheet/timesheet-page.tsx](../../apps/client/src/features/timesheet/timesheet-page.tsx)
-- Admin project approval settings: [apps/admin/src/features/projects/projects-page.tsx](../../apps/admin/src/features/projects/projects-page.tsx)
+- Client: [timesheet-page.tsx](../../apps/client/src/features/timesheet/timesheet-page.tsx), [time-tracker-page.tsx](../../apps/client/src/features/time-tracker/time-tracker-page.tsx)
+- Client submissions: [submissions-page.tsx](../../apps/client/src/features/submissions/submissions-page.tsx) — see [submissions.md](./submissions.md)
+- Admin project approval settings: [projects-page.tsx](../../apps/admin/src/features/projects/projects-page.tsx)
 
 ## Edge cases
 
 - Task must belong to a project in the active workspace.
 - Date range filters use interval overlap (`startTime` / `endTime`).
+- **Deletion preservation:** deleting a project, task, or category re-associates logged hours to an **Uncategorized** fallback project/task so history is never lost.
+- **Partitioning:** `time_logs` and audit events use PostgreSQL range partitions — see [DATABASE_PARTITIONING.md](../architecture/DATABASE_PARTITIONING.md).
 - Moving an entry between projects validates lock status on both source and target when approval is enabled.

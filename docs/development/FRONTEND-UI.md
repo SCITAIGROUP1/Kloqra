@@ -138,4 +138,21 @@ apps/{client|admin}/src/
   lib/api.ts        # re-exports web-shared api with app scope
 ```
 
-New UI features: read `.cursor/skills/kloqra-fe-feature/SKILL.md`.
+New UI features: read `.cursor/skills/chronomint-fe-feature/SKILL.md`.
+
+## Realtime workspace sync
+
+REST is source of truth; Socket.IO pushes **invalidation hints** only. See [notifications-realtime.md](../specs/notifications-realtime.md).
+
+1. Mount `useNotificationSocket` once in the authenticated shell (client + admin).
+2. Register store refetch handlers in `apps/*/src/lib/workspace-data-sync.ts` for scopes: `submissions`, `timesheet`, `projects`, `tasks`, `pending_approvals`.
+3. List pages use `useWorkspaceStaleRefetch(scope, reload)` alongside `usePaginatedList`.
+
+```tsx
+import { useWorkspaceStaleRefetch } from "@kloqra/web-shared";
+
+const { reload } = usePaginatedList({ ... });
+useWorkspaceStaleRefetch("tasks", reload);
+```
+
+Bell unread count updates via WebSocket; when disconnected, polls every 60s as a safety net.

@@ -65,7 +65,9 @@ Additional filter params (e.g. `projectId`) are endpoint-specific.
 - `GET /workspaces/:id/members/overview`
 - `GET /reporting/utilization`
 
-Non-paginated list endpoints (date-bounded or small sets): `GET /timelogs` (use `from`/`to`), workspace member lists, etc.
+Non-paginated list endpoints (date-bounded or small sets): `GET /timelogs` (use `from`/`to`), `GET /timesheets/*`, workspace member lists, etc.
+
+**Realtime:** Socket.IO namespace `/notifications` — see [notifications-realtime.md](../specs/notifications-realtime.md).
 
 Frontend: `usePaginatedList` and `fetchPaginatedList` in `@kloqra/web-shared`. See [FRONTEND-UI.md](../development/FRONTEND-UI.md).
 

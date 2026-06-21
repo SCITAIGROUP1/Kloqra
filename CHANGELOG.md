@@ -19,6 +19,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Realtime notifications:** Socket.IO `/notifications` namespace pushes `notification.created`; scoped workspace cache invalidation (`submissions`, `timesheet`, `projects`, `tasks`, `pending_approvals`) via `@kloqra/web-shared`. Spec: `docs/specs/notifications-realtime.md`.
+- **Timesheet submissions (client):** Redesigned `/submissions` page with filters, status tabs, and amendment flows. Spec: `docs/specs/submissions.md`.
+- **Approval policy hardening:** Hours-only draft rows, WAIVED status on settings change, ordered submit with cascade preview, required reject notes.
+- **Database partitioning:** Monthly `time_logs` and yearly `time_log_audit_events` range partitions. Guide: `docs/architecture/DATABASE_PARTITIONING.md`.
+- **BullMQ export jobs:** Large exports run asynchronously with job polling and download endpoints.
+- **Bulk category import:** Excel template, upload, and JSON bulk API with background worker.
+- **Project custom colors:** Curated palette plus custom hex on create/edit; member display color override.
+- **Common tasks:** Workspace-wide tasks (`isCommon`) assignable to any member; deletion preserves logged time via uncategorized fallback.
+- **Recurring time entries:** `POST /timelogs/batch` with `daily` / `weekdays` / `weekly` recurrence from the time-entry dialog.
+- **Timer enhancements:** Pause/resume, discard, stale auto-stop, active-timer count for admin team live.
+- **Time tracker:** Day-tab week view with week-based pagination at `/time-tracker`.
+- **Admin export UX:** Custom export reset filters, improved preset flows.
+- **Jira workspace redesign** and bulk member provisioning improvements.
+- **CI/CD:** Pipeline architecture guide (`docs/architecture/ci-cd-pipeline.md`); Turborepo remote cache; conditional DB migrate on deploy.
 - **Paginated list APIs:** `GET /projects`, `/tasks`, `/categories`, `/billing/rates`, `/projects/:id/team`, `/workspaces/:id/members/overview`, `/reporting/utilization` return `{ items, page, limit, total, totalPages }` with optional `search`.
 - **Shared data tables:** `DataTableCard`, `TableToolbar`, `TablePagination`, `TableLoadingState` in `@kloqra/ui`; `usePaginatedList` in `@kloqra/web-shared`.
 - **Modal system:** `AppModal`, shared `Dialog`/`ConfirmDialog` styling (accent bar, overlay blur, icon badges).

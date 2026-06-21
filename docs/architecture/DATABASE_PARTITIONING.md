@@ -1,6 +1,6 @@
 # Database Table Partitioning Architecture
 
-This document describes the design, implementation, and operational runbook for PostgreSQL table range partitioning in ChronoMint.
+This document describes the design, implementation, and operational runbook for PostgreSQL table range partitioning in Kloqra.
 
 ---
 

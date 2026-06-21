@@ -29,7 +29,7 @@ NEXT_PUBLIC_HARD_AUTO_STOP_HOURS=12
 | `/timesheet`              | Calendar week/day/month view; manual entries |
 | `/time-tracker`           | Week-grouped log list with edit/delete       |
 | `/dashboard`              | Member dashboard widgets                     |
-| `/approvals`              | Submit timesheets for project approval       |
+| `/submissions`            | Submit timesheets for project approval       |
 | `/tasks`                  | Task list (paginated, filter by project)     |
 | `/projects`               | Assigned projects                            |
 | `/profile`                | User profile                                 |
