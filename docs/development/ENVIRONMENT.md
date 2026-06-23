@@ -27,6 +27,8 @@ Copy `apps/api/.env.example` to `apps/api/.env`.
 | `STRIPE_WEBHOOK_SECRET`        | Paid SaaS webhooks  | Signing secret from Stripe Dashboard or `stripe listen`.                                                                                                   |
 | `STRIPE_PRICE_STARTER`         | No                  | Overrides seeded `starter` price id (default `price_test_starter`).                                                                                        |
 | `STRIPE_PRICE_PRO`             | No                  | Overrides seeded `pro` price id (default `price_test_pro`).                                                                                                |
+| `STRIPE_PRODUCT_STARTER`       | No                  | Overrides seeded `starter` product id (default `prod_test_starter`).                                                                                       |
+| `STRIPE_PRODUCT_PRO`           | No                  | Overrides seeded `pro` product id (default `prod_test_pro`).                                                                                               |
 | `EMAIL_TRANSPORT`              | No                  | `brevo_api` forces HTTPS API; `smtp` forces SMTP (local). Default: auto (API on Railway + Brevo, else SMTP).                                               |
 | `PUBLIC_ADMIN_URL`             | No                  | Admin app URL for billing checkout return links and emails. Default dev: `http://localhost:3002`                                                           |
 | `PLATFORM_SUPERADMIN_EMAIL`    | No                  | Seed email for platform superadmin (`platform@kloqra.dev` default). SaaS-F14.                                                                              |
