@@ -26,8 +26,8 @@ test.describe("Project lead admin access", () => {
     await page.getByRole("tab", { name: "Team" }).click();
     const sageRow = page.getByRole("row").filter({ hasText: LEAD_EMAIL });
     await sageRow.getByRole("combobox", { name: "Project role" }).click();
-    await page.getByRole("option", { name: "Project lead" }).click();
-    await expect(sageRow.getByText("Project lead")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("option", { name: "Project manager" }).click();
+    await expect(sageRow.getByText("Project manager")).toBeVisible({ timeout: 10_000 });
     await page.close();
   });
 

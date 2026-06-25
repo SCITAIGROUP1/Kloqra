@@ -41,7 +41,7 @@ test.describe("Admin context picker", () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
     await expect(page.getByRole("navigation", { name: "Current context" })).toBeVisible();
     await expect(
-      page.getByRole("navigation", { name: "Current context" }).getByText("Owner · Admin")
+      page.getByRole("navigation", { name: "Current context" }).getByText("Owner · Workspace admin")
     ).toBeVisible();
   });
 });

@@ -76,6 +76,7 @@ model Tenant {
   dataExportJobs TenantDataExportJob[]
   salesInquiries TenantSalesInquiry[]
   subscriptionEvents TenantSubscriptionEvent[]
+  helpDeskTickets    HelpDeskTicket[]
   churnedAt    DateTime? @map("churned_at")
 
   @@map("tenants")
@@ -226,6 +227,9 @@ model PlatformUser {
   refreshTokens PlatformRefreshToken[]
   auditEvents   PlatformAuditEvent[]
   notifications PlatformNotification[]
+  ticketsAssigned HelpDeskTicket[] @relation("TicketsAssigned")
+  helpDeskAgentEntries HelpDeskAgent[]
+  helpDeskMessages HelpDeskTicketMessage[]
 
   @@map("platform_users")
 }
@@ -760,4 +764,154 @@ model ReportingApiCredential {
 
   @@index([workspaceId])
   @@map("reporting_api_credentials")
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketChannel {
+  WEB_FORM
+  EMAIL
+  PLATFORM_ADMIN
+  API
+}
+
+enum TicketType {
+  BUG_REPORT
+  BILLING
+  PLAN_QUESTION
+  FEATURE_REQUEST
+  IN_APP_REPORT
+  SECURITY
+  GENERAL
+
+  @@map("ticket_type")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+model HelpDeskQueue {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String   @default("#6366f1")
+  isActive    Boolean  @default(true)  @map("is_active")
+  sortOrder   Int      @default(0)     @map("sort_order")
+  slaPolicy   Json?    @map("sla_policy")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  tickets     HelpDeskTicket[]
+  agents      HelpDeskAgent[]
+
+  @@map("helpdesk_queues")
+}
+
+model HelpDeskAgent {
+  id        String        @id @default(uuid())
+  queueId   String        @map("queue_id")
+  platformUserId String   @map("platform_user_id")
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  queue        HelpDeskQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  platformUser PlatformUser  @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@unique([queueId, platformUserId])
+  @@index([platformUserId])
+  @@map("helpdesk_agents")
+}
+
+model HelpDeskTicket {
+  id              String          @id @default(uuid())
+  ticketNumber    Int             @unique @default(autoincrement()) @map("ticket_number")
+  queueId         String          @map("queue_id")
+  status          TicketStatus    @default(OPEN)
+  priority        TicketPriority  @default(MEDIUM)
+  ticketType      TicketType      @default(GENERAL) @map("ticket_type")
+  channel         TicketChannel   @default(WEB_FORM)
+  subject         String
+  requesterName   String          @map("requester_name")
+  requesterEmail  String          @map("requester_email")
+  tenantId        String?         @map("tenant_id")
+  assignedToId    String?         @map("assigned_to_id")
+  tags            Json            @default("[]")
+  metadata        Json?           // type-specific dynamic fields
+  firstResponseAt DateTime?       @map("first_response_at")
+  resolvedAt      DateTime?       @map("resolved_at")
+  closedAt        DateTime?       @map("closed_at")
+  slaBreached     Boolean         @default(false) @map("sla_breached")
+  firstResponseDue DateTime?      @map("first_response_due")
+  resolutionDue   DateTime?       @map("resolution_due")
+  internalNote    String?         @map("internal_note")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt      @map("updated_at")
+
+  queue           HelpDeskQueue   @relation(fields: [queueId], references: [id])
+  assignedTo      PlatformUser?   @relation("TicketsAssigned", fields: [assignedToId], references: [id])
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  messages        HelpDeskTicketMessage[]
+  history         HelpDeskTicketHistory[]
+
+  @@index([queueId, status])
+  @@index([assignedToId, status])
+  @@index([tenantId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([requesterEmail])
+  @@index([slaBreached, status])
+  @@map("helpdesk_tickets")
+}
+
+model HelpDeskTicketMessage {
+  id          String           @id @default(uuid())
+  ticketId    String           @map("ticket_id")
+  direction   MessageDirection
+  authorId    String?          @map("author_id")
+  authorName  String           @map("author_name")
+  authorEmail String           @map("author_email")
+  body        String
+  htmlBody    String?          @map("html_body")
+  emailMessageId String?       @unique @map("email_message_id")
+  attachments Json             @default("[]")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  ticket  HelpDeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author  PlatformUser?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("helpdesk_ticket_messages")
+}
+
+model HelpDeskTicketHistory {
+  id          String   @id @default(uuid())
+  ticketId    String   @map("ticket_id")
+  actorId     String?  @map("actor_id")
+  actorName   String   @map("actor_name")
+  action      String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket HelpDeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt(sort: Desc)])
+  @@map("helpdesk_ticket_history")
 }

@@ -2,7 +2,7 @@ import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
 
 export interface PlatformRequestUser {
   platformUserId: string;
-  platformRole: "SUPERADMIN";
+  platformRole: "SUPERADMIN" | "SUPPORT";
 }
 
 export const CurrentPlatformUser = createParamDecorator(

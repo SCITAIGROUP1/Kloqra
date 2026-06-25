@@ -24,6 +24,7 @@ import {
   SEED_PLANS,
   SEED_PRICING_BASELINE_FEATURES,
   SEED_PLATFORM_SUPERADMIN,
+  SEED_PLATFORM_SUPPORT,
   SEED_TENANT,
   SEED_TENANT_SUBSCRIPTION,
   SEED_USERS,
@@ -212,6 +213,8 @@ async function main() {
     `  timesheet workflow demo: ${workflowDemo.amendments} amendment(s), ${workflowDemo.notifications} notification(s)`
   );
 
+  await seedHelpdesk(tenant.id);
+
   printCredentials();
   await printSummary(workspaces, users);
 }
@@ -248,6 +251,11 @@ async function resetDatabase() {
   await notificationRepo().deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
+  await prisma.helpDeskAgent.deleteMany();
+  await prisma.helpDeskTicketHistory.deleteMany();
+  await prisma.helpDeskTicketMessage.deleteMany();
+  await prisma.helpDeskTicket.deleteMany();
+  await prisma.helpDeskQueue.deleteMany();
   await prisma.tenantMember.deleteMany();
   await prisma.tenantDataExportJob.deleteMany();
   await (
@@ -260,6 +268,176 @@ async function resetDatabase() {
   await prisma.tenant.deleteMany();
   await prisma.plan.deleteMany();
   await prisma.user.deleteMany();
+}
+
+async function seedHelpdesk(tenantId: string) {
+  const superadmin = await prisma.platformUser.findUnique({ where: { email: SEED_PLATFORM_SUPERADMIN.email } });
+  if (!superadmin) return;
+
+  const QUEUE_CONFIGS = [
+    {
+      name: "General Support",
+      slug: "general-support",
+      description: "Default queue for general inquiries and catch-all tickets.",
+      color: "#6366f1",
+      sortOrder: 0,
+      slaPolicy: { firstResponseMinutes: 480, resolutionMinutes: 2880 }
+    },
+    {
+      name: "Technical Support",
+      slug: "technical-support",
+      description: "Application bugs, in-app quality reports, and technical issues.",
+      color: "#ef4444",
+      sortOrder: 1,
+      slaPolicy: { firstResponseMinutes: 60, resolutionMinutes: 480 }
+    },
+    {
+      name: "Billing & Accounts",
+      slug: "billing-accounts",
+      description: "Payment issues, invoices, refunds, and plan changes.",
+      color: "#f59e0b",
+      sortOrder: 2,
+      slaPolicy: { firstResponseMinutes: 120, resolutionMinutes: 240 }
+    },
+    {
+      name: "Product Feedback",
+      slug: "product-feedback",
+      description: "Feature requests and product improvement suggestions.",
+      color: "#10b981",
+      sortOrder: 3,
+      slaPolicy: { firstResponseMinutes: 480, resolutionMinutes: 4320 }
+    },
+    {
+      name: "Security Response",
+      slug: "security-response",
+      description: "Security incidents, vulnerability reports, and data concerns. Highest priority SLA.",
+      color: "#dc2626",
+      sortOrder: 4,
+      slaPolicy: { firstResponseMinutes: 15, resolutionMinutes: 120 }
+    }
+  ];
+
+  const queues: { id: string; slug: string }[] = [];
+  for (const config of QUEUE_CONFIGS) {
+    const queue = await prisma.helpDeskQueue.create({
+      data: {
+        name: config.name,
+        slug: config.slug,
+        description: config.description,
+        color: config.color,
+        sortOrder: config.sortOrder,
+        slaPolicy: config.slaPolicy
+      }
+    });
+    queues.push({ id: queue.id, slug: queue.slug });
+  }
+
+  // Assign superadmin to ALL queues so they receive tickets from any type
+  for (const queue of queues) {
+    await prisma.helpDeskAgent.create({
+      data: { platformUserId: superadmin.id, queueId: queue.id, isActive: true }
+    });
+  }
+
+  // --- Seed Sample Tickets ---
+  const sampleTickets = [
+    {
+      subject: "Unable to save time log on iOS",
+      requesterName: "Alice Mobile",
+      requesterEmail: "alice@example.com",
+      channel: "WEB_FORM" as any,
+      ticketType: "BUG_REPORT" as any,
+      priority: "HIGH" as any,
+      status: "OPEN" as any,
+      queueSlug: "technical-support",
+      metadata: { severity: "high", stepsToReproduce: "Open app, click save, it spins forever", browserEnv: "iOS Safari" }
+    },
+    {
+      subject: "Charged twice for March invoice",
+      requesterName: "Bob Finance",
+      requesterEmail: "bob@acme.com",
+      channel: "EMAIL" as any,
+      ticketType: "BILLING" as any,
+      priority: "CRITICAL" as any,
+      status: "OPEN" as any,
+      queueSlug: "billing-accounts",
+      metadata: { billingIssueType: "payment_failed", invoiceId: "INV-2026-003", transactionDate: "2026-03-01" }
+    },
+    {
+      subject: "Security vulnerability in custom domain",
+      requesterName: "Security Researcher",
+      requesterEmail: "researcher@hacker.org",
+      channel: "API" as any,
+      ticketType: "SECURITY" as any,
+      priority: "CRITICAL" as any,
+      status: "IN_PROGRESS" as any,
+      queueSlug: "security-response",
+      metadata: { incidentType: "vulnerability", affectedArea: "Public checkout flow" }
+    },
+    {
+      subject: "Requesting Dark Mode",
+      requesterName: "Charlie Designer",
+      requesterEmail: "charlie@design.com",
+      channel: "WEB_FORM" as any,
+      ticketType: "FEATURE_REQUEST" as any,
+      priority: "LOW" as any,
+      status: "OPEN" as any,
+      queueSlug: "product-feedback",
+      metadata: { productArea: "UI/UX Design", businessImpact: "My eyes hurt at night" }
+    },
+    {
+      subject: "How do I upgrade to Enterprise?",
+      requesterName: "David CEO",
+      requesterEmail: "david@bigcorp.com",
+      channel: "WEB_FORM" as any,
+      ticketType: "PLAN_QUESTION" as any,
+      priority: "MEDIUM" as any,
+      status: "PENDING" as any,
+      queueSlug: "billing-accounts",
+      metadata: { currentPlan: "pro", interestedPlan: "enterprise", questionDetail: "upgrade" }
+    }
+  ];
+
+  let ticketCount = 0;
+  for (const t of sampleTickets) {
+    const queue = queues.find(q => q.slug === t.queueSlug) || queues[0];
+    
+    // Assign one ticket to superadmin for demo purposes
+    const assignedToId = t.ticketType === "SECURITY" ? superadmin.id : null;
+    
+    await prisma.helpDeskTicket.create({
+      data: {
+        subject: t.subject,
+        requesterName: t.requesterName,
+        requesterEmail: t.requesterEmail,
+        channel: t.channel,
+        ticketType: t.ticketType,
+        priority: t.priority,
+        status: t.status,
+        queueId: queue.id,
+        assignedToId,
+        metadata: t.metadata,
+        messages: {
+          create: {
+            direction: "INBOUND",
+            authorName: t.requesterName,
+            authorEmail: t.requesterEmail,
+            body: `Description for: ${t.subject}\n\nPlease help resolve this as soon as possible.`,
+          }
+        },
+        history: {
+          create: {
+            actorName: "System",
+            action: "ticket_created",
+            after: { queueId: queue.id, status: t.status }
+          }
+        }
+      }
+    });
+    ticketCount++;
+  }
+
+  console.log(`  helpdesk seeded: ${queues.length} queues, superadmin (${superadmin.email}) assigned to all, ${ticketCount} sample tickets created`);
 }
 
 async function seedDashboardLayouts(
@@ -442,23 +620,38 @@ async function seedTenantSubscription(tenantId: string) {
   console.log(`  subscription: ${plan.slug} (${SEED_TENANT_SUBSCRIPTION.status})`);
 }
 
-async function seedPlatformSuperadmin(passwordHash: string) {
+async function seedPlatformSuperadmin(superadminHash: string) {
   await prisma.platformUser.upsert({
     where: { email: SEED_PLATFORM_SUPERADMIN.email },
-    create: {
-      email: SEED_PLATFORM_SUPERADMIN.email,
-      passwordHash,
+    update: {
+      passwordHash: superadminHash,
       name: SEED_PLATFORM_SUPERADMIN.name,
       role: "SUPERADMIN"
     },
-    update: {
-      passwordHash,
+    create: {
+      email: SEED_PLATFORM_SUPERADMIN.email,
+      passwordHash: superadminHash,
       name: SEED_PLATFORM_SUPERADMIN.name,
-      role: "SUPERADMIN",
-      isActive: true
+      role: "SUPERADMIN"
     }
   });
   console.log(`  platform superadmin: ${SEED_PLATFORM_SUPERADMIN.email}`);
+
+  await prisma.platformUser.upsert({
+    where: { email: SEED_PLATFORM_SUPPORT.email },
+    update: {
+      passwordHash: superadminHash,
+      name: SEED_PLATFORM_SUPPORT.name,
+      role: "SUPPORT"
+    },
+    create: {
+      email: SEED_PLATFORM_SUPPORT.email,
+      passwordHash: superadminHash,
+      name: SEED_PLATFORM_SUPPORT.name,
+      role: "SUPPORT"
+    }
+  });
+  console.log(`  platform support agent: ${SEED_PLATFORM_SUPPORT.email}`);
 }
 
 async function seedWorkspace(

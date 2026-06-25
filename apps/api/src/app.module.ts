@@ -17,6 +17,7 @@ import { CategoriesModule } from "./modules/categories/categories.module";
 import { ComplianceModule } from "./modules/compliance/compliance.module";
 import { ExportModule } from "./modules/export/export.module";
 import { HealthModule } from "./modules/health/health.module";
+import { HelpDeskModule } from "./modules/helpdesk/helpdesk.module";
 import { JiraModule } from "./modules/jira/jira.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PlatformModule } from "./modules/platform/platform.module";
@@ -74,6 +75,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     NotificationsModule,
     JiraModule,
     QueuesModule,
+    HelpDeskModule,
     BullModule.forRoot({
       connection: {
         url: process.env.REDIS_URL ?? "redis://localhost:6379"

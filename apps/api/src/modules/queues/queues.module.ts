@@ -19,6 +19,22 @@ import { MailWorker } from "./workers/mail.worker";
     BullModule.registerQueue({
       name: QUEUES.BULK_CATEGORY
     }),
+    BullModule.registerQueue({
+      name: QUEUES.HELPDESK_INGEST,
+      defaultJobOptions: { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
+    }),
+    BullModule.registerQueue({
+      name: QUEUES.HELPDESK_REPLY,
+      defaultJobOptions: { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
+    }),
+    BullModule.registerQueue({
+      name: QUEUES.HELPDESK_SLA,
+      defaultJobOptions: { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
+    }),
+    BullModule.registerQueue({
+      name: QUEUES.HELPDESK_NOTIFY,
+      defaultJobOptions: { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
+    }),
     AuthModule,
     NotificationsModule
   ],

@@ -27,5 +27,5 @@ test("provisioned owner sees organization setup form", async ({ page }) => {
     timeout: 30_000
   });
   await expect(page.getByLabel("Organization name")).toBeVisible();
-  await expect(page.getByLabel("Organization slug")).toBeVisible();
+  await expect(page.getByLabel("Organization ID")).toBeVisible();
 });

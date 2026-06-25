@@ -15,7 +15,7 @@ test.describe("Account workspace admins", () => {
     await expect(page.getByRole("heading", { name: /workspace admins/i })).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.getByRole("searchbox", { name: /search workspace admins/i })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: /search workspace admins/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /assign workspace admin/i })).toBeVisible();
   });
 

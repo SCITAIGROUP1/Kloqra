@@ -29,6 +29,7 @@ import { PlatformSalesInquiriesController } from "./interface/http/platform-sale
 import { PlatformSubscriptionsController } from "./interface/http/platform-subscriptions.controller";
 import { PlatformTenantsController } from "./interface/http/platform-tenants.controller";
 import { PlatformUsersController } from "./interface/http/platform-users.controller";
+import { PlatformStaffController } from "./interface/http/platform-staff.controller";
 import { PlatformAuditModule } from "./platform-audit.module";
 
 @Module({
@@ -55,6 +56,7 @@ import { PlatformAuditModule } from "./platform-audit.module";
     PlatformAuditController,
     PlatformOpsController,
     PlatformUsersController,
+    PlatformStaffController,
     PlatformNotificationsController
   ],
   providers: [
@@ -77,7 +79,8 @@ import { PlatformAuditModule } from "./platform-audit.module";
     PlatformTenantsService,
     PlatformSubscriptionsService,
     PlatformOpsService,
-    PlatformNotificationsDispatchService
+    PlatformNotificationsDispatchService,
+    PlatformNotificationsRealtimeService
   ]
 })
 export class PlatformModule {}

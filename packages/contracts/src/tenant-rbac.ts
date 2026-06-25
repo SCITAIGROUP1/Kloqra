@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Kloqra staff — `apps/platform-admin` only. */
-export const platformRoleSchema = z.enum(["SUPERADMIN"]);
+export const platformRoleSchema = z.enum(["SUPERADMIN", "SUPPORT"]);
 
 /** Organization purchaser — one row per user globally (D08). */
 export const tenantMemberRoleSchema = z.enum(["OWNER", "ADMIN"]);

@@ -31,7 +31,7 @@ test.describe("Admin nav scope by role", () => {
     ).toBeVisible();
 
     await openContextSwitcher(page);
-    await expect(page.getByRole("option", { name: /organization · owner/i })).toBeVisible();
+    await expect(page.getByRole("option", { name: /organization.*owner/i })).toBeVisible();
     await expect(page.getByText("Switch context")).toBeVisible();
   });
 
@@ -52,7 +52,7 @@ test.describe("Admin nav scope by role", () => {
     ).toBeVisible();
 
     await openContextSwitcher(page);
-    await expect(page.getByRole("option", { name: /organization · owner/i })).toBeVisible();
+    await expect(page.getByRole("option", { name: /organization.*owner/i })).toBeVisible();
     await expect(page.getByRole("option", { name: /acme corporation/i })).toBeVisible();
   });
 

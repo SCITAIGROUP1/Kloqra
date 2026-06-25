@@ -11,6 +11,7 @@ const CONSOLE_PATH_PREFIXES = [
   "/tenants",
   "/subscriptions",
   "/plans",
+  "/helpdesk",
   "/audit",
   "/notifications"
 ] as const;
@@ -35,6 +36,7 @@ export function resolvePlatformShellNav(options: {
   pathname: string;
   consoleNavItems: readonly SidebarNavItem[];
   notificationUnreadCount: number;
+  platformRole?: string;
 }): { mode: PlatformShellMode; navItems: SidebarNavItem[] } {
   const mode = resolvePlatformShellMode(options.pathname);
 
@@ -42,9 +44,17 @@ export function resolvePlatformShellNav(options: {
     return { mode, navItems: mapAccountNav(PLATFORM_ACCOUNT_NAV_ITEMS) };
   }
 
+  let visibleItems = [...options.consoleNavItems];
+  
+  if (options.platformRole === "SUPPORT") {
+    // Support agents only see specific modules
+    const allowedHrefs = ["/helpdesk", "/notifications", "/profile", "/settings"];
+    visibleItems = visibleItems.filter(item => allowedHrefs.includes(item.href));
+  }
+
   return {
     mode,
-    navItems: options.consoleNavItems.map((item) =>
+    navItems: visibleItems.map((item) =>
       item.href === "/notifications" ? { ...item, badge: options.notificationUnreadCount } : item
     )
   };

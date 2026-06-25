@@ -11,7 +11,8 @@ import {
   LayoutDashboard,
   Settings2,
   Tags,
-  Users
+  Users,
+  LifeBuoy
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -68,5 +69,6 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     label: "Workspace settings",
     Icon: Settings2,
     keywords: ["workspace", "timezone", "organization"]
-  }
+  },
+  { href: "/support", label: "Support", Icon: LifeBuoy, keywords: ["help", "ticket"] }
 ] as const;

@@ -12,16 +12,18 @@ import {
   usePlatformNotificationUnreadCount,
   usePlatformSessionStore
 } from "@kloqra/web-shared";
-import { Building2, Bell, CreditCard, Gauge, ScrollText, Layers } from "lucide-react";
+import { Building2, Bell, CreditCard, Gauge, ScrollText, Layers, LifeBuoy, Users } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { resolvePlatformShellNav } from "@/lib/resolve-platform-shell-nav";
 
 const CONSOLE_NAV_ITEMS: SidebarNavItem[] = [
   { href: "/ops", label: "Ops", Icon: Gauge },
+  { href: "/staff", label: "Staff", Icon: Users },
   { href: "/tenants", label: "Tenants", Icon: Building2 },
   { href: "/subscriptions", label: "Subscriptions", Icon: CreditCard },
   { href: "/plans", label: "Plans", Icon: Layers },
+  { href: "/helpdesk", label: "Help Desk", Icon: LifeBuoy },
   { href: "/audit", label: "Audit log", Icon: ScrollText },
   { href: "/notifications", label: "Notifications", Icon: Bell }
 ];
@@ -39,9 +41,10 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
       resolvePlatformShellNav({
         pathname,
         consoleNavItems: CONSOLE_NAV_ITEMS,
-        notificationUnreadCount
+        notificationUnreadCount,
+        platformRole: session?.platformRole
       }),
-    [pathname, notificationUnreadCount]
+    [pathname, notificationUnreadCount, session?.platformRole]
   );
 
   const isAccountMode = mode === "account";
@@ -64,6 +67,16 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // Role Guard
+  if (session.platformRole === "SUPPORT") {
+    const allowedPrefixes = ["/helpdesk", "/notifications", "/profile", "/settings"];
+    const isAllowed = allowedPrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+    if (!isAllowed) {
+      router.replace("/helpdesk");
+      return null;
+    }
   }
 
   return (

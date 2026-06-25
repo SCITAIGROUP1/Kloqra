@@ -268,11 +268,17 @@ export const SEED_DEMO_HIERARCHY = [
   }
 ] as const;
 
-/** Kloqra platform superadmin — `apps/platform-admin` (SaaS-F14). */
 export const SEED_PLATFORM_SUPERADMIN = {
   email: process.env.PLATFORM_SUPERADMIN_EMAIL ?? "platform@kloqra.dev",
   password: process.env.PLATFORM_SUPERADMIN_PASSWORD ?? SEED_PASSWORD,
   name: "Kloqra Platform Admin"
+} as const;
+
+/** Kloqra platform support agent — `apps/platform-admin` (SaaS-F14). */
+export const SEED_PLATFORM_SUPPORT = {
+  email: process.env.PLATFORM_SUPPORT_EMAIL ?? "support@kloqra.dev",
+  password: process.env.PLATFORM_SUPPORT_PASSWORD ?? SEED_PASSWORD,
+  name: "Kloqra Support Agent"
 } as const;
 
 /** Demo users — workspace role is set per workspace via workspaceAdminEmails, not user.role. */
