@@ -4,7 +4,16 @@ import { reactLayers } from "@kloqra/config-eslint/react";
 
 export default [
   {
-    ignores: ["**/prisma/generated/**/*.map", "**/prisma/*.map"]
+    ignores: [
+      "**/prisma/generated/**",
+      "**/prisma/generated/**/*",
+      "**/generated/**",
+      "**/edge.js",
+      "**/index-browser.js",
+      "**/wasm.js",
+      "**/query_engine_bg.js",
+      "**/prisma/*.map"
+    ]
   },
   ...base,
   ...nestLayers,

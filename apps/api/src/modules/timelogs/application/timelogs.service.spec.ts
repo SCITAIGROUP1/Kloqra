@@ -363,7 +363,7 @@ describe("TimelogsService createBatch", () => {
   let service: TimelogsService;
   let mockPrisma: any;
   let mockTimesheetLock: any;
-  let _mockAccess: any;
+  let mockAccess: any;
   let mockAudit: any;
   let mockReportCache: any;
 
@@ -379,7 +379,7 @@ describe("TimelogsService createBatch", () => {
     mockTimesheetLock = {
       assertTaskPeriodEditable: vi.fn().mockResolvedValue(undefined)
     };
-    _mockAccess = {
+    mockAccess = {
       assertCanLogTask: vi.fn().mockResolvedValue(undefined),
       manageableProjectIds: vi.fn().mockResolvedValue([])
     };

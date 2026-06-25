@@ -84,7 +84,7 @@ describe("TenantWorkspaceAdminsOverviewService", () => {
 
   it("filters by workspaceId", async () => {
     mockPrisma.workspaceMember.findMany.mockImplementation(({ where }: { where: any }) => {
-      const workspaceId = where.workspaceId;
+      const workspaceIds = where.workspaceId?.in ?? [];
       const rows = [
         {
           id: "wm-1",
@@ -96,13 +96,13 @@ describe("TenantWorkspaceAdminsOverviewService", () => {
           workspace: { id: "ws-1", name: "Acme Corporation", settings: {} }
         }
       ];
-      return Promise.resolve(workspaceId === "ws-1" ? rows : []);
+      return Promise.resolve(workspaceIds.includes("ws-1") ? rows : []);
     });
 
     const result = await service.getOverview(tenantId, {
       page: 1,
       limit: 25,
-      workspaceId: "ws-1"
+      workspaceIds: ["ws-1"]
     });
 
     expect(result.admins).toHaveLength(1);
