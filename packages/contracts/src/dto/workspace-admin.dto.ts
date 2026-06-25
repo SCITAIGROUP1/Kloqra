@@ -25,7 +25,13 @@ export const workspaceAdminsOverviewSummarySchema = z.object({
 });
 
 export const workspaceAdminsOverviewQuerySchema = listPaginationQuerySchema.extend({
-  workspaceId: uuidSchema.optional(),
+  workspaceIds: z
+    .union([z.string(), z.array(z.string())])
+    .optional()
+    .transform((val) => {
+      if (!val) return undefined;
+      return typeof val === "string" ? val.split(",") : val;
+    }),
   status: teamMemberStatusSchema.optional(),
   membershipActive: z
     .enum(["true", "false"])

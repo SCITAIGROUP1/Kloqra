@@ -24,7 +24,7 @@ describe("Platform audit E2E", () => {
 
   it("has no platform impersonation routes in contracts", () => {
     const platformRoutes = Object.values(ROUTES.PLATFORM).flatMap((route) =>
-      typeof route === "function" ? [route("test-id")] : [route]
+      typeof route === "function" ? [route("test-id", "test-id", "test-id")] : [route]
     );
     expect(platformRoutes.some((route) => route.includes("impersonate"))).toBe(false);
     expect(ROUTES.AUTH.IMPERSONATE).toBe("/auth/impersonate");

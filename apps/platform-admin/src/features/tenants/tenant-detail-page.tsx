@@ -240,7 +240,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 <SelectContent>
                   {plans.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name} ({plan.slug})
+                      {plan.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

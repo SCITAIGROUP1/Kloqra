@@ -58,12 +58,12 @@ export class WorkspaceController {
     @Body(new ZodValidationPipe(createWorkspaceSchema)) body: unknown,
     @CurrentUser() _user: RequestUser
   ) {
-    return this.workspace.create(user.userId, body as Parameters<WorkspaceService["create"]>[1]);
+    return this.workspace.create(_user.userId, body as Parameters<WorkspaceService["create"]>[1]);
   }
 
   @Get(ROUTES.WORKSPACES.LIST)
   list(@CurrentUser() _user: RequestUser) {
-    return this.workspace.listForUser(user.userId);
+    return this.workspace.listForUser(_user.userId);
   }
 
   @Roles("ADMIN")
@@ -113,7 +113,7 @@ export class WorkspaceController {
       id,
       memberId,
       body as Parameters<WorkspaceService["updateMember"]>[2],
-      user.userId
+      _user.userId
     );
   }
 
@@ -124,7 +124,7 @@ export class WorkspaceController {
     @Param("memberId") memberId: string,
     @CurrentUser() _user: RequestUser
   ) {
-    return this.workspace.removeMember(id, memberId, user.userId);
+    return this.workspace.removeMember(id, memberId, _user.userId);
   }
 
   @Roles("ADMIN")
@@ -137,7 +137,7 @@ export class WorkspaceController {
     return this.workspace.invite(
       id,
       body as Parameters<WorkspaceService["invite"]>[1],
-      user.userId
+      _user.userId
     );
   }
 
@@ -162,7 +162,7 @@ export class WorkspaceController {
     if (!file) throw new Error("No file uploaded");
 
     const members = await this.workspace.parseBulkInviteExcel(file.buffer);
-    return this.workspace.bulkInvite(id, members, user.userId);
+    return this.workspace.bulkInvite(id, members, _user.userId);
   }
 
   @Roles("ADMIN")
@@ -172,7 +172,7 @@ export class WorkspaceController {
     @Body(new ZodValidationPipe(bulkInviteMemberSchema)) body: { members: InviteMemberDto[] },
     @CurrentUser() _user: RequestUser
   ) {
-    return this.workspace.bulkInvite(id, body.members, user.userId);
+    return this.workspace.bulkInvite(id, body.members, _user.userId);
   }
 
   @Roles("ADMIN")

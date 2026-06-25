@@ -20,6 +20,7 @@ import {
   DataTableHead,
   DataTableHeaderRow,
   EmptyState,
+  SearchableMultiSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -52,7 +53,7 @@ export function WorkspaceAdminsPage() {
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
   const canManage = canManageOrganization(session);
 
-  const [workspaceFilter, setWorkspaceFilter] = useState("ALL");
+  const [workspaceFilter, setWorkspaceFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
   const [membershipFilter, setMembershipFilter] = useState<"ALL" | "active" | "inactive">("ALL");
   const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
@@ -72,7 +73,7 @@ export function WorkspaceAdminsPage() {
     error,
     reload
   } = useWorkspaceAdminsOverview({
-    workspaceId: workspaceFilter === "ALL" ? undefined : workspaceFilter,
+    workspaceIds: workspaceFilter,
     status: statusFilter === "ALL" ? undefined : statusFilter,
     membershipActive: membershipFilter === "ALL" ? undefined : membershipFilter === "active"
   });
@@ -86,7 +87,7 @@ export function WorkspaceAdminsPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void fetchListItems<WorkspaceListItemDto>(ROUTES.WORKSPACES.LIST, { workspaceId: ws })
+    void fetchListItems<WorkspaceListItemDto>(ROUTES.TENANTS.WORKSPACES, { workspaceId: ws })
       .then(setWorkspaces)
       .catch(() => setWorkspaces([]));
   }, [ws]);
@@ -188,22 +189,15 @@ export function WorkspaceAdminsPage() {
             searchAriaLabel="Search workspace admins"
             filters={
               <>
-                <Select value={workspaceFilter} onValueChange={setWorkspaceFilter}>
-                  <SelectTrigger
-                    className={appBarListFilterTriggerClass}
-                    aria-label="Filter by workspace"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All workspaces</SelectItem>
-                    {workspaces.map((workspace) => (
-                      <SelectItem key={workspace.id} value={workspace.id}>
-                        {workspace.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableMultiSelect
+                  options={workspaces.map((w) => ({ value: w.id, label: w.name }))}
+                  value={workspaceFilter}
+                  onChange={setWorkspaceFilter}
+                  placeholder="Filter workspaces…"
+                  searchPlaceholder="Search workspaces…"
+                  emptyMessage="No workspaces found."
+                  triggerClassName={appBarListFilterTriggerClass}
+                />
                 <Select
                   value={statusFilter}
                   onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
@@ -254,6 +248,10 @@ export function WorkspaceAdminsPage() {
           />
         }
       />
+
+      <div className="bg-muted p-4 font-mono text-xs text-muted-foreground overflow-auto">
+        DEBUG workspaces: {JSON.stringify(workspaces)}
+      </div>
 
       {summary ? (
         <div className="grid gap-4 sm:grid-cols-3">

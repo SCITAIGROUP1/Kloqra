@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
 type WorkspaceAdminsOverviewFilters = {
-  workspaceId?: string;
+  workspaceIds?: string[];
   status?: "active" | "inactive";
   membershipActive?: boolean;
 };
@@ -28,9 +28,12 @@ export function useWorkspaceAdminsOverview(filters: WorkspaceAdminsOverviewFilte
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Using JSON.stringify for deep comparison of workspaceIds array
+  const workspaceIdsStr = JSON.stringify(filters.workspaceIds ?? []);
+
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filters.workspaceId, filters.status, filters.membershipActive, limit]);
+  }, [debouncedSearch, workspaceIdsStr, filters.status, filters.membershipActive, limit]);
 
   const setLimitAndResetPage = useCallback((nextLimit: number) => {
     setPage(1);
@@ -46,7 +49,9 @@ export function useWorkspaceAdminsOverview(filters: WorkspaceAdminsOverviewFilte
         page,
         debouncedSearch,
         {
-          ...(filters.workspaceId ? { workspaceId: filters.workspaceId } : {}),
+          ...(filters.workspaceIds && filters.workspaceIds.length > 0
+            ? { workspaceIds: filters.workspaceIds.join(",") }
+            : {}),
           ...(filters.status ? { status: filters.status } : {}),
           ...(filters.membershipActive !== undefined
             ? { membershipActive: String(filters.membershipActive) }
@@ -65,15 +70,7 @@ export function useWorkspaceAdminsOverview(filters: WorkspaceAdminsOverviewFilte
     } finally {
       setLoading(false);
     }
-  }, [
-    ws,
-    page,
-    limit,
-    debouncedSearch,
-    filters.workspaceId,
-    filters.status,
-    filters.membershipActive
-  ]);
+  }, [ws, page, limit, debouncedSearch, workspaceIdsStr, filters.status, filters.membershipActive]);
 
   useEffect(() => {
     void reload();

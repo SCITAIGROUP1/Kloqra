@@ -36,7 +36,9 @@ export class TenantWorkspaceAdminsOverviewService {
     const memberWhere: Prisma.WorkspaceMemberWhereInput = {
       role: "ADMIN",
       workspace: { tenantId },
-      ...(query.workspaceId ? { workspaceId: query.workspaceId } : {}),
+      ...(query.workspaceIds && query.workspaceIds.length > 0
+        ? { workspaceId: { in: query.workspaceIds } }
+        : {}),
       ...(query.membershipActive !== undefined ? { isActive: query.membershipActive } : {}),
       ...(query.search
         ? {

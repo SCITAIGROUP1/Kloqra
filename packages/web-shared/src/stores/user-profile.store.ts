@@ -16,11 +16,14 @@ type UserProfileStoreState = {
   refresh: (workspaceId: string) => Promise<UserProfileDto | null>;
   setProfile: (workspaceId: string, profile: UserProfileDto) => void;
   subscribe: (workspaceId: string) => () => void;
+  clear: () => void;
 };
 
 export const useUserProfileStore = create<UserProfileStoreState>((set, get) => ({
   byWorkspace: {},
   refCounts: {},
+
+  clear: () => set({ byWorkspace: {}, refCounts: {} }),
 
   refresh: async (workspaceId) => {
     if (!workspaceId) return null;

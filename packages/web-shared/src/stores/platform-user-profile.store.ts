@@ -15,6 +15,7 @@ type PlatformUserProfileStoreState = {
   refresh: () => Promise<PlatformUserProfileDto | null>;
   setProfile: (profile: PlatformUserProfileDto) => void;
   subscribe: () => () => void;
+  clear: () => void;
 };
 
 export const usePlatformUserProfileStore = create<PlatformUserProfileStoreState>((set, get) => ({
@@ -45,5 +46,7 @@ export const usePlatformUserProfileStore = create<PlatformUserProfileStoreState>
     return () => {
       set({ refCount: Math.max(0, get().refCount - 1) });
     };
-  }
+  },
+
+  clear: () => set({ profile: { profile: null, loading: false }, refCount: 0 })
 }));

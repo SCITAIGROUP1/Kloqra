@@ -55,7 +55,7 @@ export class WorkspaceService {
     if (!tenantId) return [];
 
     const memberships = await this.prisma.workspaceMember.findMany({
-      where: { userId, workspace: { tenantId } },
+      where: { userId, workspace: { tenantId } as any },
       include: { workspace: true }
     });
     return Promise.all(
@@ -68,6 +68,17 @@ export class WorkspaceService {
         return this.toListItem(m.workspace, role, managedProjectIds);
       })
     );
+  }
+
+  async listForTenant(tenantId: string) {
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { tenantId } as any,
+      orderBy: { name: "asc" }
+    });
+    return workspaces.map((w) => ({
+      id: w.id,
+      name: w.name
+    }));
   }
 
   async listMembers(workspaceId: string): Promise<WorkspaceMemberPickerDto[]> {
@@ -326,7 +337,7 @@ export class WorkspaceService {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
 
-    await this.planLimit.assertSeatsForEmails(workspace.tenantId, [email]);
+    await this.planLimit.assertSeatsForEmails((workspace as any).tenantId, [email]);
 
     const inviter = await this.prisma.user.findUnique({ where: { id: invitedByUserId } });
     const inviterName = inviter?.name;
@@ -557,7 +568,7 @@ export class WorkspaceService {
     }
 
     const emails = members.map((member) => member.email.trim().toLowerCase());
-    await this.planLimit.assertSeatsForEmails(workspace.tenantId, emails);
+    await this.planLimit.assertSeatsForEmails((workspace as any).tenantId, emails);
 
     const job = await this.bulkInviteQueue.add(
       "bulkInviteJob",
@@ -592,7 +603,7 @@ export class WorkspaceService {
           HttpStatus.NOT_FOUND
         );
       }
-      await this.assertNameAvailable(dto.name, ws.tenantId, id);
+      await this.assertNameAvailable(dto.name, (ws as any).tenantId, id);
       data.name = dto.name;
     }
     if (dto.settings !== undefined) {
@@ -651,7 +662,7 @@ export class WorkspaceService {
           name: dto.name,
           slug,
           settings: {}
-        }
+        } as any
       });
 
       await tx.workspaceMember.create({
@@ -678,7 +689,7 @@ export class WorkspaceService {
     if (!workspace) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
-    if (workspace.tenantId !== tenantId) {
+    if ((workspace as any).tenantId !== tenantId) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Workspace does not belong to your organization",
@@ -729,7 +740,7 @@ export class WorkspaceService {
         tenantId,
         name: { equals: name, mode: "insensitive" },
         ...(excludeWorkspaceId ? { id: { not: excludeWorkspaceId } } : {})
-      }
+      } as any
     });
     if (existing) {
       throw new DomainException(
@@ -820,14 +831,14 @@ export class WorkspaceService {
     if (!workspace) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
-    if (workspace.tenantId !== tenantId) {
+    if ((workspace as any).tenantId !== tenantId) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Workspace does not belong to your organization",
         HttpStatus.FORBIDDEN
       );
     }
-    return workspace;
+    return workspace as any;
   }
 
   async updateMemberAsTenantOperator(

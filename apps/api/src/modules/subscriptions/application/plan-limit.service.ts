@@ -17,7 +17,7 @@ export class PlanLimitService {
   }
 
   async getWorkspaceCount(tenantId: string): Promise<number> {
-    return this.prisma.workspace.count({ where: { tenantId } });
+    return this.prisma.workspace.count({ where: { tenantId } as any });
   }
 
   private async loadSeatUserIds(tenantId: string): Promise<Set<string>> {
@@ -27,7 +27,7 @@ export class PlanLimitService {
         select: { userId: true }
       }),
       this.prisma.workspaceMember.findMany({
-        where: { isActive: true, workspace: { tenantId } },
+        where: { isActive: true, workspace: { tenantId } as any },
         select: { userId: true }
       })
     ]);

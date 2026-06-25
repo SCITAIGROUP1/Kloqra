@@ -35,6 +35,7 @@ type PlatformNotificationsStoreState = {
   subscribeRecent: (limit: number) => () => void;
   applyNotificationPush: (payload: PlatformNotificationCreatedEvent) => void;
   setSocketConnected: (connected: boolean) => void;
+  clear: () => void;
 };
 
 export const usePlatformNotificationsStore = create<PlatformNotificationsStoreState>(
@@ -45,6 +46,19 @@ export const usePlatformNotificationsStore = create<PlatformNotificationsStoreSt
     recentRefCounts: {},
     unreadPollTimer: null,
     socketConnected: false,
+
+    clear: () => {
+      const timer = get().unreadPollTimer;
+      if (timer) clearInterval(timer);
+      set({
+        unread: { count: 0, loading: false },
+        recentByLimit: {},
+        unreadRefCount: 0,
+        recentRefCounts: {},
+        unreadPollTimer: null,
+        socketConnected: false
+      });
+    },
 
     refreshUnread: async () => {
       set((state) => ({ unread: { ...state.unread, loading: true } }));

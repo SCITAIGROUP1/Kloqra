@@ -36,7 +36,7 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
     () =>
       plans.map((plan) => ({
         value: plan.id,
-        label: `${plan.name} (${plan.slug})`,
+        label: plan.name,
         keywords: `${plan.name} ${plan.slug}`
       })),
     [plans]
