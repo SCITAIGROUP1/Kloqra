@@ -494,7 +494,6 @@ describe("TasksService", () => {
         id: "t1",
         projectId: "p1",
         categoryId: "c1",
-        isCommon: false,
         taskName: "Frontend",
         billableDefault: true,
         isCommon: true,

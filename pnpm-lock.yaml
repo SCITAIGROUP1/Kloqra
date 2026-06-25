@@ -130,7 +130,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
       vitest:
-        specifier: ^2.1.8
+        specifier: ^2.1.9
         version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
 
   apps/api:
@@ -269,8 +269,8 @@ importers:
         specifier: ^6.0.2
         version: 6.0.3
       '@vitest/coverage-v8':
-        specifier: ^2.1.8
-        version: 2.1.8(vitest@2.1.9)
+        specifier: ^2.1.9
+        version: 2.1.9(vitest@2.1.9)
       '@vitest/ui':
         specifier: ^2.1.8
         version: 2.1.9(vitest@2.1.9)
@@ -287,7 +287,7 @@ importers:
         specifier: ^1.5.9
         version: 1.5.9(@swc/core@1.15.41)(rollup@4.61.0)
       vitest:
-        specifier: ^2.1.8
+        specifier: ^2.1.9
         version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
   apps/client:
@@ -496,8 +496,8 @@ importers:
         specifier: workspace:*
         version: link:../config-typescript
       '@vitest/coverage-v8':
-        specifier: ^2.1.8
-        version: 2.1.8(vitest@2.1.9)
+        specifier: ^2.1.9
+        version: 2.1.9(vitest@2.1.9)
       tsup:
         specifier: ^8.3.5
         version: 8.5.1(@swc/core@1.15.41)(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
@@ -505,7 +505,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
       vitest:
-        specifier: ^2.1.8
+        specifier: ^2.1.9
         version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
   packages/ui:
@@ -572,8 +572,8 @@ importers:
         specifier: ^19.0.2
         version: 19.2.3(@types/react@19.2.16)
       '@vitest/coverage-v8':
-        specifier: 2.1.8
-        version: 2.1.8(vitest@2.1.8(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0))
+        specifier: 2.1.9
+        version: 2.1.9(vitest@2.1.9)
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1(@noble/hashes@2.2.0)
@@ -593,8 +593,8 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
       vitest:
-        specifier: 2.1.8
-        version: 2.1.8(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
+        specifier: 2.1.9
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
   packages/web-shared:
     dependencies:
@@ -654,8 +654,8 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
       vitest:
-        specifier: 2.1.8
-        version: 2.1.8(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
+        specifier: 2.1.9
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
 packages:
 
@@ -3186,11 +3186,11 @@ packages:
   '@vercel/static-config@3.0.0':
     resolution: {integrity: sha512-2qtvcBJ1bGY0dYGYh3iM7yGKkk971FujLEDXzuW5wcZsPr1GSEjO/w2iSr3qve6nDDtBImsGoDEnus5FI4+fIw==}
 
-  '@vitest/coverage-v8@2.1.8':
-    resolution: {integrity: sha512-2Y7BPlKH18mAZYAW1tYByudlCYrQyl5RGvnnDYJKW5tCiO5qg3KSAy3XAxcxKz900a0ZXxWtKrMuZLe3lKBpJw==}
+  '@vitest/coverage-v8@2.1.9':
+    resolution: {integrity: sha512-Z2cOr0ksM00MpEfyVE8KXIYPEcBFxdbLSs56L8PO0QQMxt/6bDj45uQfxoc96v05KW3clk7vvgP0qfDit9DmfQ==}
     peerDependencies:
-      '@vitest/browser': 2.1.8
-      vitest: 2.1.8
+      '@vitest/browser': 2.1.9
+      vitest: 2.1.9
     peerDependenciesMeta:
       '@vitest/browser':
         optional: true
@@ -10140,25 +10140,7 @@ snapshots:
       json-schema-to-ts: 1.6.4
       ts-morph: 12.0.0
 
-  '@vitest/coverage-v8@2.1.8(vitest@2.1.8(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0))':
-    dependencies:
-      '@ampproject/remapping': 2.3.0
-      '@bcoe/v8-coverage': 0.2.3
-      debug: 4.4.3
-      istanbul-lib-coverage: 3.2.2
-      istanbul-lib-report: 3.0.1
-      istanbul-lib-source-maps: 5.0.6
-      istanbul-reports: 3.2.0
-      magic-string: 0.30.21
-      magicast: 0.3.5
-      std-env: 3.10.0
-      test-exclude: 7.0.2
-      tinyrainbow: 1.2.0
-      vitest: 2.1.8(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@vitest/coverage-v8@2.1.8(vitest@2.1.9)':
+  '@vitest/coverage-v8@2.1.9(vitest@2.1.9)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
@@ -10253,7 +10235,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
+      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
 
   '@vitest/utils@2.1.8':
     dependencies:

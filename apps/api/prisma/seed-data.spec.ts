@@ -44,8 +44,16 @@ describe("seed-data", () => {
     const acme = SEED_WORKSPACES.find((ws) => ws.slug === "acme")!;
     const meridian = SEED_WORKSPACES.find((ws) => ws.slug === "meridian")!;
 
-    expect(acme.workspaceAdminEmails).toEqual([SEED_DEMO_PERSONAS.acmeWorkspaceAdmin]);
-    expect(meridian.workspaceAdminEmails).toEqual([SEED_DEMO_PERSONAS.meridianWorkspaceAdmin]);
+    expect(acme.workspaceAdminEmails).toEqual([
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.acmeWorkspaceAdmin
+    ]);
+    expect(meridian.workspaceAdminEmails).toEqual([
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.meridianWorkspaceAdmin
+    ]);
     expect(acme.memberEmails).toContain(SEED_DEMO_PERSONAS.tenantAdmin);
     expect(meridian.memberEmails).not.toContain(SEED_DEMO_PERSONAS.tenantAdmin);
     expect(acme.memberEmails).toContain(SEED_DEMO_PERSONAS.tenantOwner);
