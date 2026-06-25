@@ -77,7 +77,7 @@ describe("Project lead E2E", () => {
 
     const roleRes = await authedAgent(app, adminSession)
       .patch(`/projects/${ledProjectId}/team/members/${leadMember.id}`)
-      .send({ role: "LEAD" });
+      .send({ role: "PROJECT_MANAGER" });
     expect(roleRes.status).toBe(200);
 
     const secondLedRes = await authedAgent(app, adminSession)
@@ -117,7 +117,7 @@ describe("Project lead E2E", () => {
     }
     const secondRoleRes = await authedAgent(app, adminSession)
       .patch(`/projects/${secondLedProjectId}/team/members/${secondLeadMember.id}`)
-      .send({ role: "LEAD" });
+      .send({ role: "PROJECT_MANAGER" });
     expect(secondRoleRes.status).toBe(200);
 
     const otherTeamRes = await authedAgent(app, adminSession).get(
@@ -126,7 +126,7 @@ describe("Project lead E2E", () => {
     const otherMember = otherTeamRes.body.members.find(
       (m: { userEmail?: string }) => m.userEmail === leadEmail
     );
-    if (otherMember?.role === "LEAD") {
+    if (otherMember?.role === "PROJECT_MANAGER") {
       await authedAgent(app, adminSession)
         .patch(`/projects/${otherProjectId}/team/members/${otherMember.id}`)
         .send({ role: "MEMBER" });
@@ -137,14 +137,14 @@ describe("Project lead E2E", () => {
     await app.close();
   });
 
-  it("GET /auth/me includes ledProjectIds for project lead MEMBER", async () => {
+  it("GET /auth/me includes managedProjectIds for project lead MEMBER", async () => {
     const res = await authedAgent(app, leadSession).get("/auth/me");
     expect(res.status).toBe(200);
     expect(res.body.workspaceRole).toBe("MEMBER");
-    expect(res.body.ledProjectIds).toContain(ledProjectId);
-    expect(res.body.ledProjectIds).toContain(secondLedProjectId);
-    expect(res.body.ledProjectIds.length).toBeGreaterThanOrEqual(2);
-    expect(res.body.ledProjectIds).not.toContain(otherProjectId);
+    expect(res.body.managedProjectIds).toContain(ledProjectId);
+    expect(res.body.managedProjectIds).toContain(secondLedProjectId);
+    expect(res.body.managedProjectIds.length).toBeGreaterThanOrEqual(2);
+    expect(res.body.managedProjectIds).not.toContain(otherProjectId);
   });
 
   it("project lead can create task on led project", async () => {

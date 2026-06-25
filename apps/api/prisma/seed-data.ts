@@ -352,6 +352,51 @@ export const SEED_USERS: SeedUserSpec[] = [
     historyDays: 90,
     intensity: 0.85,
     categoryBias: { "UI/UX Design": 2.2, Meetings: 1.1 }
+  },
+  {
+    email: "riley@kloqra.dev",
+    name: "Riley Kim",
+    role: "MEMBER",
+    defaultHourlyRate: 105,
+    historyDays: 90,
+    intensity: 0.87,
+    categoryBias: { "QA & Testing": 2.1, "Software Development": 0.75 }
+  },
+  {
+    email: "casey@kloqra.dev",
+    name: "Casey Nguyen",
+    role: "MEMBER",
+    defaultHourlyRate: 92,
+    historyDays: 90,
+    intensity: 0.84,
+    categoryBias: { Documentation: 1.6, "Software Development": 1.1, Meetings: 1.2 }
+  },
+  {
+    email: "drew@kloqra.dev",
+    name: "Drew Martinez",
+    role: "MEMBER",
+    defaultHourlyRate: 102,
+    historyDays: 90,
+    intensity: 0.82,
+    categoryBias: { DevOps: 2.0, "Software Development": 1.0 }
+  },
+  {
+    email: "sage@kloqra.dev",
+    name: "Sage Patel",
+    role: "MEMBER",
+    defaultHourlyRate: 94,
+    historyDays: 90,
+    intensity: 0.8,
+    categoryBias: { Documentation: 1.8, Meetings: 1.15 }
+  },
+  {
+    email: "blake@kloqra.dev",
+    name: "Blake Wilson",
+    role: "MEMBER",
+    defaultHourlyRate: 108,
+    historyDays: 90,
+    intensity: 0.78,
+    categoryBias: { "UI/UX Design": 1.5, Meetings: 1.25, Documentation: 1.1 }
   }
 ];
 
@@ -367,8 +412,8 @@ export type SeedWorkspaceSpec = {
 };
 
 function projectTeam(
-  leads: string[],
-  members: string[]
+  leads: [string, string],
+  members: [string, string, string]
 ): Pick<SeedProjectSpec, "memberEmails" | "leadEmails"> {
   return { memberEmails: [...leads, ...members], leadEmails: [...leads] };
 }
@@ -384,7 +429,11 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       timezone: "America/New_York",
       exportFooterNote: "Acme Corporation — Kloqra confidential billing export"
     },
-    workspaceAdminEmails: [SEED_DEMO_PERSONAS.acmeWorkspaceAdmin],
+    workspaceAdminEmails: [
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.acmeWorkspaceAdmin
+    ],
     memberEmails: [
       SEED_DEMO_PERSONAS.tenantOwner,
       SEED_DEMO_PERSONAS.tenantAdmin,
@@ -392,7 +441,12 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       SEED_DEMO_PERSONAS.projectManager,
       SEED_DEMO_PERSONAS.member,
       "jordan@kloqra.dev",
-      "taylor@kloqra.dev"
+      "taylor@kloqra.dev",
+      "riley@kloqra.dev",
+      "casey@kloqra.dev",
+      "drew@kloqra.dev",
+      "sage@kloqra.dev",
+      "blake@kloqra.dev"
     ],
     projects: [
       {
@@ -401,7 +455,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Northwind Traders",
         budgetHours: 480,
         budgetBurnPct: 0.82,
-        ...projectTeam(["alex@kloqra.dev"], ["member@kloqra.dev", "jordan@kloqra.dev"]),
+        ...projectTeam(
+          ["alex@kloqra.dev", "jordan@kloqra.dev"],
+          ["member@kloqra.dev", "taylor@kloqra.dev", "riley@kloqra.dev"]
+        ),
         memberColorOverrides: {
           "member@kloqra.dev": "#8b5cf6"
         },
@@ -465,7 +522,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Fabrikam Media",
         budgetHours: 220,
         budgetBurnPct: 0.94,
-        ...projectTeam(["acme-admin@kloqra.dev"], ["taylor@kloqra.dev"]),
+        ...projectTeam(
+          ["casey@kloqra.dev", "drew@kloqra.dev"],
+          ["taylor@kloqra.dev", "sage@kloqra.dev", "blake@kloqra.dev"]
+        ),
         memberColorOverrides: {
           "taylor@kloqra.dev": "#ec4899"
         },
@@ -510,7 +570,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Contoso Retail",
         budgetHours: 160,
         budgetBurnPct: 1.08,
-        ...projectTeam(["ops@kloqra.dev"], ["member@kloqra.dev", "taylor@kloqra.dev"]),
+        ...projectTeam(
+          ["member@kloqra.dev", "drew@kloqra.dev"],
+          ["alex@kloqra.dev", "jordan@kloqra.dev", "riley@kloqra.dev"]
+        ),
         tasks: [
           {
             name: "Ticket triage",
@@ -543,14 +606,23 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       timezone: "America/Los_Angeles",
       timesheetApprovalPeriod: "weekly"
     },
-    workspaceAdminEmails: [SEED_DEMO_PERSONAS.meridianWorkspaceAdmin],
+    workspaceAdminEmails: [
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.meridianWorkspaceAdmin
+    ],
     memberEmails: [
       SEED_DEMO_PERSONAS.tenantOwner,
       SEED_DEMO_PERSONAS.meridianWorkspaceAdmin,
       SEED_DEMO_PERSONAS.projectManager,
       SEED_DEMO_PERSONAS.member,
       "jordan@kloqra.dev",
-      "taylor@kloqra.dev"
+      "taylor@kloqra.dev",
+      "riley@kloqra.dev",
+      "casey@kloqra.dev",
+      "drew@kloqra.dev",
+      "sage@kloqra.dev",
+      "blake@kloqra.dev"
     ],
     projects: [
       {
@@ -559,7 +631,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 620,
         budgetBurnPct: 0.68,
-        ...projectTeam(["alex@kloqra.dev"], ["member@kloqra.dev", "jordan@kloqra.dev"]),
+        ...projectTeam(
+          ["alex@kloqra.dev", "taylor@kloqra.dev"],
+          ["member@kloqra.dev", "riley@kloqra.dev", "drew@kloqra.dev"]
+        ),
         tasks: [
           {
             name: "iOS features",
@@ -607,7 +682,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 400,
         budgetBurnPct: 0.76,
-        ...projectTeam(["meridian-admin@kloqra.dev"], ["alex@kloqra.dev", "taylor@kloqra.dev"]),
+        ...projectTeam(
+          ["alex@kloqra.dev", "casey@kloqra.dev"],
+          ["blake@kloqra.dev", "sage@kloqra.dev", "drew@kloqra.dev"]
+        ),
         memberColorOverrides: {
           "alex@kloqra.dev": "#06b6d4"
         },
@@ -617,7 +695,7 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
             category: "Software Development",
             billableDefault: false,
             weight: 1.8,
-            assigneeEmails: ["alex@kloqra.dev", "taylor@kloqra.dev"]
+            assigneeEmails: ["alex@kloqra.dev", "drew@kloqra.dev"]
           },
           {
             name: "Auth hardening",
@@ -659,7 +737,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 200,
         budgetBurnPct: 0.91,
-        ...projectTeam(["alex@kloqra.dev"], ["member@kloqra.dev"]),
+        ...projectTeam(
+          ["alex@kloqra.dev", "member@kloqra.dev"],
+          ["casey@kloqra.dev", "riley@kloqra.dev", "blake@kloqra.dev"]
+        ),
         tasks: [
           {
             name: "Pen test remediation",

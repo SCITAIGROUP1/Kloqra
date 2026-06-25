@@ -165,6 +165,12 @@ describe("Tenants E2E", () => {
       .send({ isActive: false });
     expect(res.status).toBe(200);
     expect(res.body.isActive).toBe(false);
+
+    // Reactivate to avoid side-effects on subsequent tests
+    const reactivateRes = await authedAgent(app, adminSession)
+      .patch(ROUTES.TENANTS.MEMBER(opsMemberId))
+      .send({ isActive: true });
+    expect(reactivateRes.status).toBe(200);
   });
 
   it("blocks deactivating the last organization owner", async () => {

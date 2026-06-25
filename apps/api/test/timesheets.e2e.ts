@@ -50,8 +50,11 @@ describe("Timesheets E2E", () => {
     const taskId = listItems<TaskDto>(tasksRes.body)[0]?.id;
     expect(taskId).toBeTruthy();
 
-    const start = new Date("2036-03-10T10:00:00.000Z");
-    const end = new Date("2036-03-10T11:00:00.000Z");
+    const salt = Date.now();
+    const year = 2040 + (salt % 20);
+    const month = Math.floor(salt / 20) % 12;
+    const start = new Date(Date.UTC(year, month, 15, 10, 0, 0));
+    const end = new Date(Date.UTC(year, month, 15, 11, 0, 0));
 
     const logRes = await authedAgent(app, memberSession).post("/timelogs").send({
       taskId,
