@@ -63,7 +63,7 @@ describe("seed-data", () => {
       expect(workspace.projects).toHaveLength(3);
       for (const project of workspace.projects) {
         expect(project.memberEmails.length).toBeGreaterThan(0);
-        expect(project.leadEmails.length).toBeGreaterThan(0);
+        expect(project.leadEmails?.length ?? 0).toBeGreaterThan(0);
         for (const lead of project.leadEmails ?? []) {
           expect(project.memberEmails).toContain(lead);
         }
