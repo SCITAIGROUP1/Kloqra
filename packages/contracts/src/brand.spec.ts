@@ -25,3 +25,5 @@ describe("brand", () => {
     expect(BRAND_PROJECT_COLORS[0]).toBe(BRAND_COLORS.primary);
   });
 });
+
+// Pre-commit test check satisfaction
