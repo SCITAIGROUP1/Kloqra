@@ -26,7 +26,7 @@ export function useHelpdeskTickets(initialFilters?: HelpdeskTicketsFilters) {
     try {
       const query = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString(),
+        limit: limit.toString()
       });
       if (search) query.append("search", search);
       if (statusFilter && statusFilter !== "ALL") query.append("status", statusFilter);
@@ -68,6 +68,6 @@ export function useHelpdeskTickets(initialFilters?: HelpdeskTicketsFilters) {
     setStatusFilter,
     channelFilter,
     setChannelFilter,
-    reload: fetchTickets,
+    reload: fetchTickets
   };
 }

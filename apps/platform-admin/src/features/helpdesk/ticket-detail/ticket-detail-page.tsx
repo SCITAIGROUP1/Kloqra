@@ -17,11 +17,19 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
   }, [ticketId]);
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center text-muted-foreground">Loading ticket...</div>;
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        Loading ticket...
+      </div>
+    );
   }
-  
+
   if (!ticket) {
-    return <div className="flex h-full items-center justify-center text-destructive">Ticket not found</div>;
+    return (
+      <div className="flex h-full items-center justify-center text-destructive">
+        Ticket not found
+      </div>
+    );
   }
 
   return (

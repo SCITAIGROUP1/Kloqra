@@ -15,7 +15,7 @@ import {
   UserPlus,
   FileSpreadsheet,
   Lock,
-  Coins,
+  Coins
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -29,10 +29,34 @@ function DashboardMockup() {
   }, []);
 
   const kpis = [
-    { label: "Total Hours", value: "1,284h", sub: "this month", icon: Clock, color: "text-primary" },
-    { label: "Billable", value: "$48,200", sub: "revenue", icon: DollarSign, color: "text-success" },
-    { label: "Active Projects", value: "14", sub: "workspaces", icon: FolderKanban, color: "text-premium" },
-    { label: "Active Members", value: "32", sub: "tracking now", icon: Users, color: "text-warning" },
+    {
+      label: "Total Hours",
+      value: "1,284h",
+      sub: "this month",
+      icon: Clock,
+      color: "text-primary"
+    },
+    {
+      label: "Billable",
+      value: "$48,200",
+      sub: "revenue",
+      icon: DollarSign,
+      color: "text-success"
+    },
+    {
+      label: "Active Projects",
+      value: "14",
+      sub: "workspaces",
+      icon: FolderKanban,
+      color: "text-premium"
+    },
+    {
+      label: "Active Members",
+      value: "32",
+      sub: "tracking now",
+      icon: Users,
+      color: "text-warning"
+    }
   ];
   const bars = [42, 68, 55, 80, 63, 91, 74];
   const days = ["M", "T", "W", "T", "F", "S", "S"];
@@ -43,7 +67,12 @@ function DashboardMockup() {
         <span className="font-bold text-sm">Command Dashboard</span>
         <div className="flex gap-1">
           {["Week", "Month", "Quarter"].map((p, i) => (
-            <button key={p} className={`text-[10px] px-2.5 py-1 rounded-lg border transition-colors ${i === 1 ? "bg-primary/10 text-primary border-primary/30" : "border-border bg-background hover:bg-muted"}`}>{p}</button>
+            <button
+              key={p}
+              className={`text-[10px] px-2.5 py-1 rounded-lg border transition-colors ${i === 1 ? "bg-primary/10 text-primary border-primary/30" : "border-border bg-background hover:bg-muted"}`}
+            >
+              {p}
+            </button>
           ))}
         </div>
       </div>
@@ -53,7 +82,9 @@ function DashboardMockup() {
         {kpis.map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="bg-background/60 rounded-xl p-3.5 border border-border/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {label}
+              </span>
               <Icon className={`w-3.5 h-3.5 ${color}`} />
             </div>
             <div className={`text-xl font-bold ${color}`}>{value}</div>
@@ -88,7 +119,8 @@ function DashboardMockup() {
           <span className="font-medium text-success">7 members tracking live</span>
         </div>
         <span className="font-mono text-xs text-muted-foreground tabular-nums">
-          {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")} elapsed
+          {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+          {String(seconds % 60).padStart(2, "0")} elapsed
         </span>
       </div>
     </div>
@@ -104,11 +136,46 @@ function PresenceMockup() {
   }, []);
 
   const members = [
-    { name: "Chamal D.", project: "API Redesign", task: "Auth module", base: 8040, active: true, color: "bg-blue-500" },
-    { name: "Sarah K.", project: "Mobile App", task: "UI Components", base: 3720, active: true, color: "bg-purple-500" },
-    { name: "Alex M.", project: "Design Review", task: "Figma audit", base: 2700, active: true, color: "bg-emerald-500" },
-    { name: "Jamie L.", project: "—", task: "Not tracking", base: 0, active: false, color: "bg-muted" },
-    { name: "Priya N.", project: "Backend API", task: "Database layer", base: 5400, active: true, color: "bg-orange-500" },
+    {
+      name: "Chamal D.",
+      project: "API Redesign",
+      task: "Auth module",
+      base: 8040,
+      active: true,
+      color: "bg-blue-500"
+    },
+    {
+      name: "Sarah K.",
+      project: "Mobile App",
+      task: "UI Components",
+      base: 3720,
+      active: true,
+      color: "bg-purple-500"
+    },
+    {
+      name: "Alex M.",
+      project: "Design Review",
+      task: "Figma audit",
+      base: 2700,
+      active: true,
+      color: "bg-emerald-500"
+    },
+    {
+      name: "Jamie L.",
+      project: "—",
+      task: "Not tracking",
+      base: 0,
+      active: false,
+      color: "bg-muted"
+    },
+    {
+      name: "Priya N.",
+      project: "Backend API",
+      task: "Database layer",
+      base: 5400,
+      active: true,
+      color: "bg-orange-500"
+    }
   ];
 
   const fmt = (base: number) => {
@@ -127,22 +194,35 @@ function PresenceMockup() {
           <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
           Live Team Presence
         </span>
-        <span className="text-xs text-muted-foreground bg-success/10 text-success px-2 py-0.5 rounded-full">4 of 8 active</span>
+        <span className="text-xs text-muted-foreground bg-success/10 text-success px-2 py-0.5 rounded-full">
+          4 of 8 active
+        </span>
       </div>
       <div className="space-y-1">
         {members.map((m) => (
-          <div key={m.name} className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-background/50 transition-colors">
+          <div
+            key={m.name}
+            className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-background/50 transition-colors"
+          >
             <div className="flex items-center gap-3">
-              <div className={`w-7 h-7 rounded-lg ${m.active ? m.color : "bg-muted"} flex items-center justify-center text-white text-xs font-bold`}>
+              <div
+                className={`w-7 h-7 rounded-lg ${m.active ? m.color : "bg-muted"} flex items-center justify-center text-white text-xs font-bold`}
+              >
                 {m.name[0]}
               </div>
               <div>
-                <div className={`text-sm font-medium ${!m.active ? "text-muted-foreground" : ""}`}>{m.name}</div>
-                <div className="text-[10px] text-muted-foreground">{m.active ? `${m.project} · ${m.task}` : "Not tracking"}</div>
+                <div className={`text-sm font-medium ${!m.active ? "text-muted-foreground" : ""}`}>
+                  {m.name}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {m.active ? `${m.project} · ${m.task}` : "Not tracking"}
+                </div>
               </div>
             </div>
             {m.active && (
-              <span className="font-mono text-xs text-muted-foreground tabular-nums">{fmt(m.base)}</span>
+              <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                {fmt(m.base)}
+              </span>
             )}
           </div>
         ))}
@@ -157,7 +237,7 @@ function ApprovalsMockup() {
   const timesheets = [
     { name: "Chamal D.", period: "June 2025", hours: "57h 30m", status: "pending" },
     { name: "Sarah K.", period: "June 2025", hours: "42h 0m", status: "pending" },
-    { name: "Alex M.", period: "June 2025", hours: "38h 15m", status: "pending" },
+    { name: "Alex M.", period: "June 2025", hours: "38h 15m", status: "pending" }
   ];
   const tabs = ["Pending (3)", "Missing (2)", "Amendments (1)", "Approved"];
 
@@ -166,7 +246,12 @@ function ApprovalsMockup() {
       {/* Tabs */}
       <div className="flex gap-1 mb-5 overflow-x-auto">
         {tabs.map((t, i) => (
-          <button key={t} className={`text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap border transition-colors ${i === 0 ? "bg-warning/10 text-warning border-warning/30" : "border-border bg-background hover:bg-muted text-muted-foreground"}`}>{t}</button>
+          <button
+            key={t}
+            className={`text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap border transition-colors ${i === 0 ? "bg-warning/10 text-warning border-warning/30" : "border-border bg-background hover:bg-muted text-muted-foreground"}`}
+          >
+            {t}
+          </button>
         ))}
       </div>
 
@@ -178,20 +263,36 @@ function ApprovalsMockup() {
             <div key={t.name} className="bg-background/60 rounded-xl border border-border/50 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">{t.name[0]}</div>
+                  <div className="w-7 h-7 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
+                    {t.name[0]}
+                  </div>
                   <div>
                     <div className="text-sm font-medium">{t.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{t.period} · {t.hours}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {t.period} · {t.hours}
+                    </div>
                   </div>
                 </div>
                 {s ? (
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${s === "approved" ? "bg-success/10 text-success" : "bg-red-500/10 text-red-400"}`}>
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded-full ${s === "approved" ? "bg-success/10 text-success" : "bg-red-500/10 text-red-400"}`}
+                  >
                     {s === "approved" ? "✓ Approved" : "✗ Rejected"}
                   </span>
                 ) : (
                   <div className="flex gap-1.5">
-                    <button onClick={() => setStatuses(p => ({ ...p, [t.name]: "rejected" }))} className="px-3 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs hover:bg-red-500/20 transition-colors">Reject</button>
-                    <button onClick={() => setStatuses(p => ({ ...p, [t.name]: "approved" }))} className="px-3 py-1 rounded-lg bg-success/10 text-success border border-success/20 text-xs hover:bg-success/20 transition-colors">Approve</button>
+                    <button
+                      onClick={() => setStatuses((p) => ({ ...p, [t.name]: "rejected" }))}
+                      className="px-3 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs hover:bg-red-500/20 transition-colors"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => setStatuses((p) => ({ ...p, [t.name]: "approved" }))}
+                      className="px-3 py-1 rounded-lg bg-success/10 text-success border border-success/20 text-xs hover:bg-success/20 transition-colors"
+                    >
+                      Approve
+                    </button>
                   </div>
                 )}
               </div>
@@ -199,7 +300,10 @@ function ApprovalsMockup() {
           );
         })}
       </div>
-      <div className="mt-4 text-center text-xs text-muted-foreground">Missing timesheets: <span className="text-warning font-medium">2 members haven't submitted</span></div>
+      <div className="mt-4 text-center text-xs text-muted-foreground">
+        Missing timesheets:{" "}
+        <span className="text-warning font-medium">2 members haven't submitted</span>
+      </div>
     </div>
   );
 }
@@ -208,8 +312,15 @@ function ApprovalsMockup() {
 function ProjectsMockup() {
   const projects = [
     { name: "API Redesign", budget: 80, spent: 62, members: 5, revenue: "$12,400", health: "good" },
-    { name: "Mobile App", budget: 120, spent: 104, members: 8, revenue: "$20,800", health: "warning" },
-    { name: "Design System", budget: 40, spent: 18, members: 3, revenue: "$3,600", health: "good" },
+    {
+      name: "Mobile App",
+      budget: 120,
+      spent: 104,
+      members: 8,
+      revenue: "$20,800",
+      health: "warning"
+    },
+    { name: "Design System", budget: 40, spent: 18, members: 3, revenue: "$3,600", health: "good" }
   ];
   const healthColor = { good: "bg-success", warning: "bg-warning", danger: "bg-red-500" };
 
@@ -217,23 +328,34 @@ function ProjectsMockup() {
     <div className="glass-card p-6 rounded-2xl border-l-4 border-l-primary">
       <div className="flex items-center justify-between mb-5">
         <span className="font-bold">Project Health Matrix</span>
-        <button className="text-xs text-primary hover:underline flex items-center gap-1">New Project <ChevronRight className="w-3 h-3" /></button>
+        <button className="text-xs text-primary hover:underline flex items-center gap-1">
+          New Project <ChevronRight className="w-3 h-3" />
+        </button>
       </div>
       <div className="space-y-4">
         {projects.map((p) => (
-          <div key={p.name} className="bg-background/60 rounded-xl border border-border/50 p-4 hover:border-primary/30 transition-colors cursor-pointer">
+          <div
+            key={p.name}
+            className="bg-background/60 rounded-xl border border-border/50 p-4 hover:border-primary/30 transition-colors cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="font-medium text-sm">{p.name}</div>
-                <div className="text-[10px] text-muted-foreground">{p.members} members · {p.revenue} revenue</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {p.members} members · {p.revenue} revenue
+                </div>
               </div>
-              <div className={`w-2.5 h-2.5 rounded-full ${healthColor[p.health as keyof typeof healthColor]}`} />
+              <div
+                className={`w-2.5 h-2.5 rounded-full ${healthColor[p.health as keyof typeof healthColor]}`}
+              />
             </div>
             {/* Budget burndown */}
             <div className="space-y-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>Budget burn-down</span>
-                <span>{p.spent}h / {p.budget}h</span>
+                <span>
+                  {p.spent}h / {p.budget}h
+                </span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
@@ -256,7 +378,7 @@ function TeamMockup() {
     { name: "Chamal D.", role: "Admin", hours: "57h", status: "active" },
     { name: "Sarah K.", role: "Member", hours: "42h", status: "active" },
     { name: "Alex M.", role: "Member", hours: "38h", status: "active" },
-    { name: "new@company.com", role: "Member", hours: "—", status: "invited" },
+    { name: "new@company.com", role: "Member", hours: "—", status: "invited" }
   ];
   return (
     <div className="glass-card p-6 rounded-2xl border-l-4 border-l-blue-400">
@@ -272,17 +394,30 @@ function TeamMockup() {
       </div>
       <div className="space-y-2">
         {members.map((m) => (
-          <div key={m.name} className="flex items-center justify-between bg-background/60 px-4 py-3 rounded-xl border border-border/50 hover:border-blue-400/30 transition-colors">
+          <div
+            key={m.name}
+            className="flex items-center justify-between bg-background/60 px-4 py-3 rounded-xl border border-border/50 hover:border-blue-400/30 transition-colors"
+          >
             <div className="flex items-center gap-3">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${m.status === "invited" ? "bg-muted text-muted-foreground border border-dashed border-border" : "bg-blue-500/20 text-blue-400"}`}>
+              <div
+                className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${m.status === "invited" ? "bg-muted text-muted-foreground border border-dashed border-border" : "bg-blue-500/20 text-blue-400"}`}
+              >
                 {m.status === "invited" ? "?" : m.name[0]}
               </div>
               <div>
-                <div className={`text-sm ${m.status === "invited" ? "text-muted-foreground italic" : "font-medium"}`}>{m.name}</div>
-                <div className="text-[10px] text-muted-foreground">{m.role} · {m.hours} this month</div>
+                <div
+                  className={`text-sm ${m.status === "invited" ? "text-muted-foreground italic" : "font-medium"}`}
+                >
+                  {m.name}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {m.role} · {m.hours} this month
+                </div>
               </div>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${m.status === "invited" ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${m.status === "invited" ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}
+            >
               {m.status === "invited" ? "Invited" : "Active"}
             </span>
           </div>
@@ -311,9 +446,14 @@ function ExportsMockup() {
         {(["quick", "custom", "invoice"] as const).map((m) => (
           <button
             key={m}
-            onClick={() => { setMode(m); setDone(false); }}
+            onClick={() => {
+              setMode(m);
+              setDone(false);
+            }}
             className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors capitalize ${mode === m ? "bg-primary/10 text-primary border-primary/30" : "bg-background border-border hover:bg-muted"}`}
-          >{m}</button>
+          >
+            {m}
+          </button>
         ))}
       </div>
 
@@ -328,7 +468,11 @@ function ExportsMockup() {
           </div>
           <div className="flex gap-2">
             {["CSV", "PDF", "Excel"].map((f) => (
-              <button key={f} onClick={() => setDone(true)} className="flex-1 py-2 rounded-lg text-xs border border-border bg-background hover:bg-muted transition-colors flex items-center justify-center gap-1">
+              <button
+                key={f}
+                onClick={() => setDone(true)}
+                className="flex-1 py-2 rounded-lg text-xs border border-border bg-background hover:bg-muted transition-colors flex items-center justify-center gap-1"
+              >
                 <Download className="w-3 h-3" /> {f}
               </button>
             ))}
@@ -340,36 +484,60 @@ function ExportsMockup() {
         <div className="space-y-3 text-xs">
           {[
             { label: "Scope", options: ["All Members", "Project: API Redesign", "Team: Backend"] },
-            { label: "Group by", options: ["Project", "Member", "Category", "Task"] },
+            { label: "Group by", options: ["Project", "Member", "Category", "Task"] }
           ].map(({ label, options }) => (
             <div key={label} className="bg-background/60 border border-border rounded-xl p-3">
               <div className="text-[10px] text-muted-foreground mb-1">{label}</div>
               <select className="w-full bg-transparent text-sm outline-none">
-                {options.map(o => <option key={o}>{o}</option>)}
+                {options.map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
               </select>
             </div>
           ))}
-          <button onClick={() => setDone(true)} className="w-full py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors text-xs font-medium">Preview & Export</button>
+          <button
+            onClick={() => setDone(true)}
+            className="w-full py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors text-xs font-medium"
+          >
+            Preview & Export
+          </button>
         </div>
       )}
 
       {mode === "invoice" && (
         <div className="space-y-3">
           <div className="bg-background/60 border border-border rounded-xl p-4 space-y-2">
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Client</span><span className="font-medium">Acme Corp.</span></div>
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Billable Hours</span><span className="font-medium">84h 30m</span></div>
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Rate</span><span className="font-medium">$120/hr</span></div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Client</span>
+              <span className="font-medium">Acme Corp.</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Billable Hours</span>
+              <span className="font-medium">84h 30m</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Rate</span>
+              <span className="font-medium">$120/hr</span>
+            </div>
             <div className="h-px bg-border my-1" />
-            <div className="flex justify-between text-sm font-bold"><span>Invoice Total</span><span className="text-success">$10,140.00</span></div>
+            <div className="flex justify-between text-sm font-bold">
+              <span>Invoice Total</span>
+              <span className="text-success">$10,140.00</span>
+            </div>
           </div>
-          <button onClick={() => setDone(true)} className="w-full py-2.5 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors text-xs font-medium flex items-center justify-center gap-2">
+          <button
+            onClick={() => setDone(true)}
+            className="w-full py-2.5 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors text-xs font-medium flex items-center justify-center gap-2"
+          >
             <FileSpreadsheet className="w-3.5 h-3.5" /> Generate Invoice PDF
           </button>
         </div>
       )}
 
       {done && (
-        <div className="mt-3 text-xs text-success bg-success/10 border border-success/20 rounded-xl p-3 text-center">✓ Export ready — download starting…</div>
+        <div className="mt-3 text-xs text-success bg-success/10 border border-success/20 rounded-xl p-3 text-center">
+          ✓ Export ready — download starting…
+        </div>
       )}
     </div>
   );
@@ -395,16 +563,21 @@ function WorkspaceMockup() {
           { label: "Weekly Goal", value: "40 hours" },
           { label: "Daily Target", value: "8 hours" },
           { label: "Time Rounding", value: "15-minute intervals" },
-          { label: "Week Start", value: "Monday" },
+          { label: "Week Start", value: "Monday" }
         ].map(({ label, value }) => (
-          <div key={label} className="flex items-center justify-between bg-background/60 px-4 py-2.5 rounded-xl border border-border/50">
+          <div
+            key={label}
+            className="flex items-center justify-between bg-background/60 px-4 py-2.5 rounded-xl border border-border/50"
+          >
             <span className="text-xs text-muted-foreground">{label}</span>
             <span className="text-xs font-medium">{value}</span>
           </div>
         ))}
       </div>
       <div className="mt-4 flex items-center gap-3 bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
-        <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold text-xs">J</div>
+        <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold text-xs">
+          J
+        </div>
         <div>
           <div className="text-xs font-medium">Jira Integration</div>
           <div className="text-[10px] text-success">Connected · 3 projects synced</div>
@@ -422,7 +595,7 @@ function CategoriesMockup() {
     { name: "Design", billable: true, hours: "218h", color: "bg-purple-500" },
     { name: "Meetings", billable: false, hours: "96h", color: "bg-orange-500" },
     { name: "Research", billable: true, hours: "64h", color: "bg-emerald-500" },
-    { name: "Admin", billable: false, hours: "38h", color: "bg-muted" },
+    { name: "Admin", billable: false, hours: "38h", color: "bg-muted" }
   ];
   return (
     <div className="glass-card p-6 rounded-2xl border-l-4 border-l-orange-500">
@@ -434,10 +607,15 @@ function CategoriesMockup() {
       </div>
       <div className="space-y-2.5">
         {cats.map((c) => (
-          <div key={c.name} className="flex items-center gap-3 bg-background/60 px-4 py-3 rounded-xl border border-border/50 hover:border-orange-500/30 transition-colors">
+          <div
+            key={c.name}
+            className="flex items-center gap-3 bg-background/60 px-4 py-3 rounded-xl border border-border/50 hover:border-orange-500/30 transition-colors"
+          >
             <div className={`w-2.5 h-2.5 rounded-full ${c.color}`} />
             <span className="flex-1 text-sm font-medium">{c.name}</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${c.billable ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${c.billable ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}
+            >
               {c.billable ? "Billable" : "Non-billable"}
             </span>
             <span className="text-xs font-mono text-muted-foreground">{c.hours}</span>
@@ -448,8 +626,26 @@ function CategoriesMockup() {
       <div className="mt-4 flex items-center gap-3 bg-background/60 border border-border rounded-xl p-3">
         <div className="relative w-10 h-10 shrink-0">
           <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
-            <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/30" />
-            <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="4" className="text-success" strokeDasharray="76 88" strokeLinecap="round" />
+            <circle
+              cx="18"
+              cy="18"
+              r="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="4"
+              className="text-muted/30"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="4"
+              className="text-success"
+              strokeDasharray="76 88"
+              strokeLinecap="round"
+            />
           </svg>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -467,7 +663,7 @@ function GlobalSearchMockup() {
     { type: "project", icon: "📁", label: "API Redesign", sub: "14 members · 284h logged" },
     { type: "member", icon: "👤", label: "Alex M. — API Lead", sub: "38h this month · Active now" },
     { type: "task", icon: "✅", label: "Auth module refactor", sub: "API Redesign · Chamal D." },
-    { type: "member", icon: "👤", label: "Sam T. — API Developer", sub: "22h this month" },
+    { type: "member", icon: "👤", label: "Sam T. — API Developer", sub: "22h this month" }
   ];
   return (
     <div className="glass-card p-6 rounded-2xl border-l-4 border-l-indigo-500">
@@ -488,11 +684,16 @@ function GlobalSearchMockup() {
           className="flex-1 bg-transparent text-sm outline-none"
           placeholder="Search anything…"
         />
-        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">⌘K</span>
+        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
+          ⌘K
+        </span>
       </div>
       <div className="space-y-1.5">
         {results.map((r) => (
-          <div key={r.label} className="flex items-center gap-3 bg-background/60 px-3 py-2.5 rounded-xl border border-border/50 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-colors cursor-pointer">
+          <div
+            key={r.label}
+            className="flex items-center gap-3 bg-background/60 px-3 py-2.5 rounded-xl border border-border/50 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-colors cursor-pointer"
+          >
             <span className="text-base">{r.icon}</span>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{r.label}</div>
@@ -523,15 +724,19 @@ function BillingMockup() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="font-bold text-lg">Enterprise Plan</div>
-            <div className="text-xs text-muted-foreground">Billed annually · Next renewal Jul 1</div>
+            <div className="text-xs text-muted-foreground">
+              Billed annually · Next renewal Jul 1
+            </div>
           </div>
-          <span className="text-xs px-2.5 py-1 bg-success/10 text-success border border-success/20 rounded-full font-medium">Active</span>
+          <span className="text-xs px-2.5 py-1 bg-success/10 text-success border border-success/20 rounded-full font-medium">
+            Active
+          </span>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "Seats Used", value: "32 / 100" },
             { label: "Workspaces", value: "4 / 25" },
-            { label: "API Keys", value: "3 / 50" },
+            { label: "API Keys", value: "3 / 50" }
           ].map(({ label, value }) => (
             <div key={label} className="text-center bg-background/40 rounded-lg p-2">
               <div className="text-xs font-bold">{value}</div>
@@ -545,7 +750,7 @@ function BillingMockup() {
           { label: "Dedicated account manager", icon: "👤" },
           { label: "Custom integrations", icon: "🔌" },
           { label: "Enterprise SLAs", icon: "🛡️" },
-          { label: "Priority support queue", icon: "⚡" },
+          { label: "Priority support queue", icon: "⚡" }
         ].map(({ label, icon }) => (
           <div key={label} className="flex items-center gap-2.5 text-sm">
             <span>{icon}</span>
@@ -578,7 +783,10 @@ function ReportingApiMockup() {
         <div className="text-success">Authorization: Bearer {key.slice(0, 20)}…</div>
       </div>
       <button
-        onClick={() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+        onClick={() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}
         className={`w-full py-2.5 rounded-xl text-xs font-medium border transition-colors mb-4 ${copied ? "bg-success/10 text-success border-success/20" : "bg-background border-border hover:bg-muted"}`}
       >
         {copied ? "✓ API Key Copied!" : "Copy API Key"}
@@ -588,7 +796,7 @@ function ReportingApiMockup() {
           { label: "Endpoints", value: "Hours, Members, Projects, Revenue" },
           { label: "Formats", value: "JSON, CSV stream" },
           { label: "Rate Limit", value: "1000 req / hour" },
-          { label: "Keys", value: "3 of 50 active" },
+          { label: "Keys", value: "3 of 50 active" }
         ].map(({ label, value }) => (
           <div key={label} className="flex justify-between text-xs">
             <span className="text-muted-foreground">{label}</span>
@@ -602,15 +810,35 @@ function ReportingApiMockup() {
 
 /* ─── Feature Section Layout ─── */
 function FeatureSection({
-  id, badge, badgeColor, title, subtitle, bullets, mockup, reverse = false,
+  id,
+  badge,
+  badgeColor,
+  title,
+  subtitle,
+  bullets,
+  mockup,
+  reverse = false
 }: {
-  id: string; badge: string; badgeColor: string; title: string; subtitle: string;
-  bullets: string[]; mockup: React.ReactNode; reverse?: boolean;
+  id: string;
+  badge: string;
+  badgeColor: string;
+  title: string;
+  subtitle: string;
+  bullets: string[];
+  mockup: React.ReactNode;
+  reverse?: boolean;
 }) {
   return (
-    <section id={id} className={`flex flex-col ${reverse ? "md:flex-row-reverse" : "md:flex-row"} items-center gap-12 md:gap-16 py-8`}>
+    <section
+      id={id}
+      className={`flex flex-col ${reverse ? "md:flex-row-reverse" : "md:flex-row"} items-center gap-12 md:gap-16 py-8`}
+    >
       <div className="flex-1 space-y-6">
-        <span className={`inline-block text-xs font-bold px-3 py-1.5 rounded-full tracking-widest uppercase ${badgeColor}`}>{badge}</span>
+        <span
+          className={`inline-block text-xs font-bold px-3 py-1.5 rounded-full tracking-widest uppercase ${badgeColor}`}
+        >
+          {badge}
+        </span>
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">{title}</h2>
         <p className="text-lg text-muted-foreground leading-relaxed">{subtitle}</p>
         <ul className="space-y-3">
@@ -641,18 +869,25 @@ export default function ForAdminsPage() {
             Built for Workspace Admins & Org Leaders
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
-            Full visibility.{" "}
-            <span className="text-gradient">Zero chasing.</span>
+            Full visibility. <span className="text-gradient">Zero chasing.</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
-            A complete command center for running your team. Approve timesheets, track live activity, drill into project financials, and export payroll-ready reports — all from a single, beautiful dashboard.
+            A complete command center for running your team. Approve timesheets, track live
+            activity, drill into project financials, and export payroll-ready reports — all from a
+            single, beautiful dashboard.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" asChild className="h-12 px-8 text-base bg-white text-black hover:bg-white/90">
+            <Button
+              size="lg"
+              asChild
+              className="h-12 px-8 text-base bg-white text-black hover:bg-white/90"
+            >
               <Link href="http://localhost:3000/register">Start Free — No Credit Card</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="h-12 px-8 text-base glass-card">
-              <Link href="/pricing">See Enterprise Pricing <ArrowRight className="ml-2 w-4 h-4" /></Link>
+              <Link href="/pricing">
+                See Enterprise Pricing <ArrowRight className="ml-2 w-4 h-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -664,7 +899,6 @@ export default function ForAdminsPage() {
 
       {/* Feature Sections */}
       <div className="container mx-auto px-4 max-w-5xl space-y-24 pb-32">
-
         <FeatureSection
           id="dashboard"
           badge="📊 Command Dashboard"
@@ -676,7 +910,7 @@ export default function ForAdminsPage() {
             "Drag-and-drop layout saved per-user with react-grid-layout",
             "Shareable widget links — send a chart snapshot to stakeholders instantly",
             "Real-time KPIs: total hours, billable revenue, active members, active projects",
-            "14 report types: utilization, profitability, WIP ledger, uninvoiced hours, and more",
+            "14 report types: utilization, profitability, WIP ledger, uninvoiced hours, and more"
           ]}
           mockup={<DashboardMockup />}
         />
@@ -691,7 +925,7 @@ export default function ForAdminsPage() {
             "Real-time SSE feed: no polling, no stale data",
             "See member name, project, task, and elapsed time per entry",
             "Instantly spot who hasn't started their day or gone idle",
-            "Live timer counter widget embeddable in your main dashboard",
+            "Live timer counter widget embeddable in your main dashboard"
           ]}
           mockup={<PresenceMockup />}
           reverse
@@ -708,7 +942,7 @@ export default function ForAdminsPage() {
             "Bulk approve multiple timesheets with a single action",
             "Automated reminder emails to members who haven't submitted",
             "Inline amendment review: see the delta, approve or push back with a note",
-            "Full audit trail with timestamps for every approval action",
+            "Full audit trail with timestamps for every approval action"
           ]}
           mockup={<ApprovalsMockup />}
         />
@@ -724,7 +958,7 @@ export default function ForAdminsPage() {
             "Revenue by project: compare billing across your entire portfolio",
             "Project health matrix: hours, budget progress, and margin in one view",
             "Rate efficiency scatter chart: hours vs revenue vs billability",
-            "Per-project team tab: assign and manage membership with roles",
+            "Per-project team tab: assign and manage membership with roles"
           ]}
           mockup={<ProjectsMockup />}
           reverse
@@ -741,7 +975,7 @@ export default function ForAdminsPage() {
             "Set workspace roles: Admin or Member — with scoped permissions",
             "View-as (impersonation) to see exactly what any member sees",
             "Last-active timestamps and weekly hours at a glance",
-            "Manage hourly rates per member or per project for precise billing",
+            "Manage hourly rates per member or per project for precise billing"
           ]}
           mockup={<TeamMockup />}
         />
@@ -757,7 +991,7 @@ export default function ForAdminsPage() {
             "Custom Export: filter by member, project, category, task, and billing type",
             "Invoice Wizard: generates formatted client invoices with calculated billable totals",
             "Saved export presets: configure once, re-run on a schedule",
-            "Export history panel: re-download any past export job",
+            "Export history panel: re-download any past export job"
           ]}
           mockup={<ExportsMockup />}
           reverse
@@ -774,7 +1008,7 @@ export default function ForAdminsPage() {
             "Configurable timesheet periods: daily, weekly, or monthly",
             "Time rounding: snap entries to 5, 10, or 15-minute intervals",
             "Expected weekly hours and daily targets per workspace",
-            "Native Jira integration: connect your site, map projects, auto-create tasks",
+            "Native Jira integration: connect your site, map projects, auto-create tasks"
           ]}
           mockup={<WorkspaceMockup />}
         />
@@ -790,7 +1024,7 @@ export default function ForAdminsPage() {
             "Mark categories as billable or non-billable — affects all reports instantly",
             "Bulk CSV import to set up hundreds of categories in seconds",
             "Category × Project heatmap: see exactly where time is going at the intersection level",
-            "Category distribution donut widget on the main dashboard",
+            "Category distribution donut widget on the main dashboard"
           ]}
           mockup={<CategoriesMockup />}
           reverse
@@ -806,7 +1040,7 @@ export default function ForAdminsPage() {
             "Cmd+K keyboard shortcut launches the search dialog instantly",
             "Searches across members, projects, tasks simultaneously",
             "Navigates directly to the exact record — no extra clicks",
-            "Results show key context: hours, status, role, last active",
+            "Results show key context: hours, status, role, last active"
           ]}
           mockup={<GlobalSearchMockup />}
         />
@@ -822,7 +1056,7 @@ export default function ForAdminsPage() {
             "Instant plan upgrades: Starter → Pro → Enterprise with zero downtime",
             "Dedicated account manager for Enterprise customers",
             "Invoice history and downloadable PDF receipts",
-            "Organization-level billing with workspace-level cost allocation",
+            "Organization-level billing with workspace-level cost allocation"
           ]}
           mockup={<BillingMockup />}
           reverse
@@ -839,25 +1073,34 @@ export default function ForAdminsPage() {
             "Endpoints for hours, members, projects, categories, and revenue",
             "JSON and streaming CSV response formats",
             "Per-key rate limiting and automatic expiry management",
-            "Integrates directly with Tableau, Power BI, Looker, and custom ETL pipelines",
+            "Integrates directly with Tableau, Power BI, Looker, and custom ETL pipelines"
           ]}
           mockup={<ReportingApiMockup />}
         />
-
       </div>
 
       {/* Final CTA */}
       <section className="py-32 relative overflow-hidden border-t border-border">
         <div className="absolute inset-0 bg-premium/5" />
         <div className="container relative z-10 mx-auto px-4 text-center max-w-3xl">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to take control of your team's time?</h2>
-          <p className="text-xl text-muted-foreground mb-10">14-day free trial · No credit card · Cancel anytime</p>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            Ready to take control of your team's time?
+          </h2>
+          <p className="text-xl text-muted-foreground mb-10">
+            14-day free trial · No credit card · Cancel anytime
+          </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" asChild className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90">
+            <Button
+              size="lg"
+              asChild
+              className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90"
+            >
               <Link href="http://localhost:3000/register">Get Started Free</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="h-14 px-10 text-lg glass-card">
-              <Link href="/pricing">View Plans <ChevronRight className="ml-1 w-5 h-5" /></Link>
+              <Link href="/pricing">
+                View Plans <ChevronRight className="ml-1 w-5 h-5" />
+              </Link>
             </Button>
           </div>
         </div>

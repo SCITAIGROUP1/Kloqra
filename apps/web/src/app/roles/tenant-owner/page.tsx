@@ -7,10 +7,13 @@ export default function TenantOwnerPage() {
   return (
     <div className="pt-32 pb-24 min-h-screen">
       <div className="container mx-auto px-4 max-w-4xl">
-        <Link href="/roles" className="text-muted-foreground hover:text-foreground flex items-center gap-2 mb-12 w-fit">
+        <Link
+          href="/roles"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-2 mb-12 w-fit"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to Roles
         </Link>
-        
+
         <div className="flex flex-col md:flex-row gap-8 items-start mb-16">
           <div className="w-20 h-20 rounded-2xl bg-premium/20 text-premium flex items-center justify-center text-4xl shrink-0">
             👑
@@ -19,11 +22,10 @@ export default function TenantOwnerPage() {
             <div className="inline-flex px-3 py-1 rounded-full bg-premium/10 text-premium text-xs font-bold mb-4 tracking-wider">
               ORGANIZATIONAL LEADER
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-              Tenant Owner
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Tenant Owner</h1>
             <p className="text-xl text-muted-foreground">
-              The agency principal or company founder. They hold the keys to the entire organization, billing, and top-level analytics.
+              The agency principal or company founder. They hold the keys to the entire
+              organization, billing, and top-level analytics.
             </p>
           </div>
         </div>
@@ -31,7 +33,9 @@ export default function TenantOwnerPage() {
         <div className="grid md:grid-cols-2 gap-12 mb-16">
           <div className="space-y-8">
             <section>
-              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">What they can do</h3>
+              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">
+                What they can do
+              </h3>
               <ul className="space-y-4">
                 {[
                   "Edit organization profile (name, slug, branding)",
@@ -53,7 +57,9 @@ export default function TenantOwnerPage() {
 
           <div className="space-y-8">
             <section>
-              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">What they CANNOT do</h3>
+              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">
+                What they CANNOT do
+              </h3>
               <ul className="space-y-4">
                 {[
                   "Cannot view detailed time entries in a workspace unless explicitly added as a member of that workspace",
@@ -70,7 +76,8 @@ export default function TenantOwnerPage() {
             <div className="glass-card p-6 rounded-2xl border-l-4 border-l-premium">
               <h4 className="font-bold mb-2">App Access</h4>
               <p className="text-sm text-muted-foreground">
-                Tenant Owners use the <strong>Admin App</strong> and land on the Account Overview (`/account`) by default.
+                Tenant Owners use the <strong>Admin App</strong> and land on the Account Overview
+                (`/account`) by default.
               </p>
             </div>
           </div>

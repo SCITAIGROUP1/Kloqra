@@ -61,12 +61,7 @@ export function usePlatformStaff({
       if (isActive !== undefined) customFilters.isActive = String(isActive);
 
       const params = new URLSearchParams(
-        tablePaginationQuery(
-          page,
-          debouncedSearch,
-          customFilters,
-          limit
-        )
+        tablePaginationQuery(page, debouncedSearch, customFilters, limit)
       );
       const result = await api<PlatformStaffListResponseDto>(
         `/platform/staff?${params.toString()}`

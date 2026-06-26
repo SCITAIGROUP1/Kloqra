@@ -7,10 +7,13 @@ export default function WorkspaceAdminPage() {
   return (
     <div className="pt-32 pb-24 min-h-screen">
       <div className="container mx-auto px-4 max-w-4xl">
-        <Link href="/roles" className="text-muted-foreground hover:text-foreground flex items-center gap-2 mb-12 w-fit">
+        <Link
+          href="/roles"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-2 mb-12 w-fit"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to Roles
         </Link>
-        
+
         <div className="flex flex-col md:flex-row gap-8 items-start mb-16">
           <div className="w-20 h-20 rounded-2xl bg-success/20 text-success flex items-center justify-center text-4xl shrink-0">
             🛠
@@ -19,11 +22,10 @@ export default function WorkspaceAdminPage() {
             <div className="inline-flex px-3 py-1 rounded-full bg-success/10 text-success text-xs font-bold mb-4 tracking-wider">
               WORKSPACE OPERATOR
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-              Workspace Admin
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Workspace Admin</h1>
             <p className="text-xl text-muted-foreground">
-              A client manager or department head responsible for the day-to-day operations of a single workspace.
+              A client manager or department head responsible for the day-to-day operations of a
+              single workspace.
             </p>
           </div>
         </div>
@@ -31,7 +33,9 @@ export default function WorkspaceAdminPage() {
         <div className="grid md:grid-cols-2 gap-12 mb-16">
           <div className="space-y-8">
             <section>
-              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">What they can do</h3>
+              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">
+                What they can do
+              </h3>
               <ul className="space-y-4">
                 {[
                   "Manage all projects, tasks, and categories",
@@ -53,7 +57,9 @@ export default function WorkspaceAdminPage() {
 
           <div className="space-y-8">
             <section>
-              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">What they CANNOT do</h3>
+              <h3 className="text-2xl font-bold mb-6 border-b border-border pb-4">
+                What they CANNOT do
+              </h3>
               <ul className="space-y-4">
                 {[
                   "Cannot access other workspaces without a separate invite",

@@ -12,7 +12,16 @@ import {
   usePlatformNotificationUnreadCount,
   usePlatformSessionStore
 } from "@kloqra/web-shared";
-import { Building2, Bell, CreditCard, Gauge, ScrollText, Layers, LifeBuoy, Users } from "lucide-react";
+import {
+  Building2,
+  Bell,
+  CreditCard,
+  Gauge,
+  ScrollText,
+  Layers,
+  LifeBuoy,
+  Users
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { resolvePlatformShellNav } from "@/lib/resolve-platform-shell-nav";
@@ -72,7 +81,9 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   // Role Guard
   if (session.platformRole === "SUPPORT") {
     const allowedPrefixes = ["/helpdesk", "/notifications", "/profile", "/settings"];
-    const isAllowed = allowedPrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+    const isAllowed = allowedPrefixes.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
     if (!isAllowed) {
       router.replace("/helpdesk");
       return null;

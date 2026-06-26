@@ -2,7 +2,6 @@
 
 import { Check, Shield } from "lucide-react";
 
-
 export default function RolesOverviewPage() {
   return (
     <div className="pt-32 pb-24 min-h-screen">
@@ -12,8 +11,8 @@ export default function RolesOverviewPage() {
             Built for real organizations.
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Every role has exactly the right access. Nothing more. Nothing less.
-            No more over-permissioning just to let someone pull a report.
+            Every role has exactly the right access. Nothing more. Nothing less. No more
+            over-permissioning just to let someone pull a report.
           </p>
         </div>
 
@@ -31,10 +30,18 @@ export default function RolesOverviewPage() {
                 </div>
                 <h2 className="text-3xl font-bold mb-4">Tenant Owner</h2>
                 <p className="text-lg text-muted-foreground mb-6 max-w-xl">
-                  The agency principal or company founder. Only the Tenant Owner sees the organization-wide rollup dashboard — total hours, billable revenue, and active member counts across every workspace.
+                  The agency principal or company founder. Only the Tenant Owner sees the
+                  organization-wide rollup dashboard — total hours, billable revenue, and active
+                  member counts across every workspace.
                 </p>
                 <ul className="space-y-3 mb-8">
-                  {["Full edit (name, slug, branding)", "Unlimited workspace creation", "Subscription & billing management", "Cross-workspace analytics rollup", "Organization data export (GDPR)"].map((feature, i) => (
+                  {[
+                    "Full edit (name, slug, branding)",
+                    "Unlimited workspace creation",
+                    "Subscription & billing management",
+                    "Cross-workspace analytics rollup",
+                    "Organization data export (GDPR)"
+                  ].map((feature, i) => (
                     <li key={i} className="flex items-center text-foreground">
                       <Check className="h-5 w-5 text-premium mr-3 flex-shrink-0" />
                       {feature}
@@ -54,10 +61,17 @@ export default function RolesOverviewPage() {
                 </div>
                 <h2 className="text-3xl font-bold mb-4">Workspace Admin</h2>
                 <p className="text-lg text-muted-foreground mb-6 max-w-xl">
-                  A client manager or department head responsible for one workspace. They handle the day-to-day operations for their team.
+                  A client manager or department head responsible for one workspace. They handle the
+                  day-to-day operations for their team.
                 </p>
                 <ul className="space-y-3 mb-8">
-                  {["Projects and tasks CRUD", "Timesheet approval workflow", "Team live presence (SSE)", "Billing rates (hourly, per-member)", "Export wizard (14 report types)"].map((feature, i) => (
+                  {[
+                    "Projects and tasks CRUD",
+                    "Timesheet approval workflow",
+                    "Team live presence (SSE)",
+                    "Billing rates (hourly, per-member)",
+                    "Export wizard (14 report types)"
+                  ].map((feature, i) => (
                     <li key={i} className="flex items-center text-foreground">
                       <Check className="h-5 w-5 text-success mr-3 flex-shrink-0" />
                       {feature}
@@ -68,7 +82,6 @@ export default function RolesOverviewPage() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

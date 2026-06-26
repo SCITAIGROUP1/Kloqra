@@ -38,7 +38,7 @@ export class HelpdeskGateway implements OnGatewayConnection, OnGatewayDisconnect
     try {
       const auth = client.handshake.auth as { token?: string; scope?: string };
       const token = typeof auth.token === "string" ? auth.token.trim() : "";
-      
+
       if (!token || auth.scope !== "platform") {
         throw new UnauthorizedException("Missing platform access token");
       }
@@ -52,7 +52,9 @@ export class HelpdeskGateway implements OnGatewayConnection, OnGatewayDisconnect
       await client.join("helpdesk_agents"); // Broadcast room for all agents
       this.logger.debug(`Agent ${client.data.userId} connected to helpdesk socket`);
     } catch (err) {
-      this.logger.debug(`Helpdesk socket rejected: ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.debug(
+        `Helpdesk socket rejected: ${err instanceof Error ? err.message : String(err)}`
+      );
       client.disconnect(true);
     }
   }

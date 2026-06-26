@@ -6,26 +6,26 @@ import { TicketPriority, TicketType } from "@prisma/client";
  * worker falls back to the first available queue.
  */
 export const TICKET_TYPE_QUEUE: Record<TicketType, string> = {
-  BUG_REPORT:      "technical-support",
-  IN_APP_REPORT:   "technical-support",
-  BILLING:         "billing-accounts",
-  PLAN_QUESTION:   "billing-accounts",
+  BUG_REPORT: "technical-support",
+  IN_APP_REPORT: "technical-support",
+  BILLING: "billing-accounts",
+  PLAN_QUESTION: "billing-accounts",
   FEATURE_REQUEST: "product-feedback",
-  SECURITY:        "security-response",
-  GENERAL:         "general-support",
+  SECURITY: "security-response",
+  GENERAL: "general-support"
 };
 
 /**
  * Default priority per ticket type, before any metadata-based escalation.
  */
 export const TICKET_TYPE_DEFAULT_PRIORITY: Record<TicketType, TicketPriority> = {
-  SECURITY:        TicketPriority.CRITICAL,
-  BUG_REPORT:      TicketPriority.HIGH,
-  BILLING:         TicketPriority.HIGH,
-  IN_APP_REPORT:   TicketPriority.MEDIUM,
-  PLAN_QUESTION:   TicketPriority.MEDIUM,
+  SECURITY: TicketPriority.CRITICAL,
+  BUG_REPORT: TicketPriority.HIGH,
+  BILLING: TicketPriority.HIGH,
+  IN_APP_REPORT: TicketPriority.MEDIUM,
+  PLAN_QUESTION: TicketPriority.MEDIUM,
   FEATURE_REQUEST: TicketPriority.LOW,
-  GENERAL:         TicketPriority.LOW,
+  GENERAL: TicketPriority.LOW
 };
 
 /**
@@ -67,11 +67,11 @@ export const TICKET_TYPE_SLA_MINUTES: Record<
   TicketType,
   { firstResponseMinutes: number; resolutionMinutes: number }
 > = {
-  SECURITY:        { firstResponseMinutes: 15,   resolutionMinutes: 120 },
-  BILLING:         { firstResponseMinutes: 120,  resolutionMinutes: 240 },
-  BUG_REPORT:      { firstResponseMinutes: 60,   resolutionMinutes: 480 },
-  IN_APP_REPORT:   { firstResponseMinutes: 120,  resolutionMinutes: 720 },
-  PLAN_QUESTION:   { firstResponseMinutes: 240,  resolutionMinutes: 1440 },
-  FEATURE_REQUEST: { firstResponseMinutes: 480,  resolutionMinutes: 4320 },
-  GENERAL:         { firstResponseMinutes: 480,  resolutionMinutes: 2880 },
+  SECURITY: { firstResponseMinutes: 15, resolutionMinutes: 120 },
+  BILLING: { firstResponseMinutes: 120, resolutionMinutes: 240 },
+  BUG_REPORT: { firstResponseMinutes: 60, resolutionMinutes: 480 },
+  IN_APP_REPORT: { firstResponseMinutes: 120, resolutionMinutes: 720 },
+  PLAN_QUESTION: { firstResponseMinutes: 240, resolutionMinutes: 1440 },
+  FEATURE_REQUEST: { firstResponseMinutes: 480, resolutionMinutes: 4320 },
+  GENERAL: { firstResponseMinutes: 480, resolutionMinutes: 2880 }
 };

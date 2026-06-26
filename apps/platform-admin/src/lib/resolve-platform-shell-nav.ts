@@ -45,11 +45,11 @@ export function resolvePlatformShellNav(options: {
   }
 
   let visibleItems = [...options.consoleNavItems];
-  
+
   if (options.platformRole === "SUPPORT") {
     // Support agents only see specific modules
     const allowedHrefs = ["/helpdesk", "/notifications", "/profile", "/settings"];
-    visibleItems = visibleItems.filter(item => allowedHrefs.includes(item.href));
+    visibleItems = visibleItems.filter((item) => allowedHrefs.includes(item.href));
   }
 
   return {

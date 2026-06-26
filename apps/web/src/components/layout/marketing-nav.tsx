@@ -12,7 +12,7 @@ const navItems = [
   { href: "/for-admins", label: "For Admins" },
   { href: "/roles", label: "Roles" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/integrations", label: "Integrations" },
+  { href: "/integrations", label: "Integrations" }
 ];
 
 export function MarketingNav() {
@@ -54,13 +54,13 @@ export function MarketingNav() {
               key={item.href}
               href={item.href}
               className={`px-3 py-2 text-sm font-medium rounded-md transition-colors relative ${
-                pathname === item.href || pathname.startsWith(item.href + '/')
+                pathname === item.href || pathname.startsWith(item.href + "/")
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}
             >
               {item.label}
-              {(pathname === item.href || pathname.startsWith(item.href + '/')) && (
+              {(pathname === item.href || pathname.startsWith(item.href + "/")) && (
                 <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-t-full" />
               )}
             </Link>
@@ -68,10 +68,16 @@ export function MarketingNav() {
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
-          <Link href="http://localhost:3000/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="http://localhost:3000/login"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
             Log In
           </Link>
-          <Button asChild className="bg-white text-black hover:bg-white/90 relative overflow-hidden group">
+          <Button
+            asChild
+            className="bg-white text-black hover:bg-white/90 relative overflow-hidden group"
+          >
             <Link href="http://localhost:3000/register">
               <span className="relative z-10 font-semibold">Start Free Trial</span>
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-shimmer" />

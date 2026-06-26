@@ -6,32 +6,32 @@ const footerLinks = {
     { label: "Features Hub", href: "/features" },
     { label: "Reporting", href: "/features/reporting-and-dashboards" },
     { label: "Calendar", href: "/features/calendar-and-timezones" },
-    { label: "Integrations", href: "/integrations" },
+    { label: "Integrations", href: "/integrations" }
   ],
   "For Teams": [
     { label: "For Members", href: "/for-members" },
     { label: "For Admins", href: "/for-admins" },
     { label: "Roles Overview", href: "/roles" },
-    { label: "Enterprise", href: "/pricing#enterprise" },
+    { label: "Enterprise", href: "/pricing#enterprise" }
   ],
   Resources: [
     { label: "Help Desk", href: "/support" },
     { label: "Documentation", href: "#" },
     { label: "API Reference", href: "#" },
-    { label: "Changelog", href: "#" },
+    { label: "Changelog", href: "#" }
   ],
   Company: [
     { label: "About", href: "#" },
     { label: "Blog", href: "#" },
     { label: "Careers", href: "#" },
-    { label: "Contact", href: "/support" },
+    { label: "Contact", href: "/support" }
   ],
   Legal: [
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms of Service", href: "/terms" },
     { label: "Subprocessors", href: "/privacy" },
-    { label: "Refund Policy", href: "/terms" },
-  ],
+    { label: "Refund Policy", href: "/terms" }
+  ]
 };
 
 export function MarketingFooter() {
@@ -47,7 +47,8 @@ export function MarketingFooter() {
               <span className="font-bold text-xl tracking-tight">Kloqra</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Time tracking that actually saves time. Built for modern engineering teams and agencies.
+              Time tracking that actually saves time. Built for modern engineering teams and
+              agencies.
             </p>
           </div>
 
@@ -74,7 +75,7 @@ export function MarketingFooter() {
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} Kloqra Inc. All rights reserved.
           </p>
-          
+
           <div className="flex items-center gap-4">
             <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
               <span className="sr-only">Twitter</span>

@@ -9,13 +9,13 @@ import { MarketingNav } from "../components/layout/marketing-nav";
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-inter"
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-mono",
+  variable: "--font-mono"
 });
 
 export const metadata: Metadata = {
@@ -23,17 +23,17 @@ export const metadata: Metadata = {
   description:
     "Built for modern engineering teams. Kloqra automates timesheets while your team works. Start the timer, we handle the rest.",
   icons: {
-    icon: "/favicon.ico",
-  },
+    icon: "/favicon.ico"
+  }
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+    >
       <body className="min-h-screen bg-background font-sans antialiased selection:bg-primary/20 selection:text-primary">
         <ThemeProvider
           attribute="class"

@@ -22,7 +22,14 @@ export default function RoadmapPage() {
               <CheckCircle2 className="text-success" /> Shipped
             </h3>
             <div className="glass-card p-8 rounded-3xl space-y-4">
-              {["Live timer engine with pause/resume", "Timesheet calendar", "Timesheet approvals & amendments", "Admin analytics dashboard", "Team live presence (SSE)", "Export wizard (14 report types)"].map(feature => (
+              {[
+                "Live timer engine with pause/resume",
+                "Timesheet calendar",
+                "Timesheet approvals & amendments",
+                "Admin analytics dashboard",
+                "Team live presence (SSE)",
+                "Export wizard (14 report types)"
+              ].map((feature) => (
                 <div key={feature} className="flex gap-3 text-foreground">
                   <CheckCircle2 className="text-success w-5 h-5 shrink-0" />
                   {feature}
@@ -38,7 +45,13 @@ export default function RoadmapPage() {
             </h3>
             <div className="glass-card p-8 rounded-3xl space-y-4 opacity-80 animate-shimmer relative overflow-hidden">
               <div className="absolute inset-0 bg-primary/5" />
-              {["Budget burn-down widget", "Native mobile apps (iOS + Android)", "AI auto-categorization", "SSO (SAML/OIDC)", "QuickBooks / Xero sync"].map(feature => (
+              {[
+                "Budget burn-down widget",
+                "Native mobile apps (iOS + Android)",
+                "AI auto-categorization",
+                "SSO (SAML/OIDC)",
+                "QuickBooks / Xero sync"
+              ].map((feature) => (
                 <div key={feature} className="flex gap-3 text-muted-foreground relative z-10">
                   <div className="w-5 h-5 rounded-full border-2 border-muted-foreground shrink-0" />
                   {feature}

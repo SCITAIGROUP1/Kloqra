@@ -1,6 +1,16 @@
 "use client";
 
-import { AppModal, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kloqra/ui";
+import {
+  AppModal,
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@kloqra/ui";
 import { api } from "@kloqra/web-shared";
 import { Users } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -16,7 +26,7 @@ const createStaffSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   role: z.enum(["SUPERADMIN", "SUPPORT"]),
-  password: z.string().min(8),
+  password: z.string().min(8)
 });
 
 export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateModalProps) {
@@ -40,8 +50,13 @@ export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateM
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    
-    const parsed = createStaffSchema.safeParse({ email: email.trim(), name: name.trim(), role, password });
+
+    const parsed = createStaffSchema.safeParse({
+      email: email.trim(),
+      name: name.trim(),
+      role,
+      password
+    });
     if (!parsed.success) {
       setError("Please fill all fields correctly. Password must be at least 8 characters.");
       return;
@@ -89,12 +104,7 @@ export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateM
       <form id="staff-create-form" onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="staff-name">Name</Label>
-          <Input
-            id="staff-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+          <Input id="staff-name" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="staff-email">Email</Label>

@@ -7,7 +7,7 @@ export function PresenceMockup() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSeconds(s => s + 1);
+      setSeconds((s) => s + 1);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -16,7 +16,7 @@ export function PresenceMockup() {
     const total = baseSeconds + seconds;
     const h = Math.floor(total / 3600);
     const m = Math.floor((total % 3600) / 60);
-    const s = (total % 60);
+    const s = total % 60;
     if (h > 0) return `${h}h ${m}m`;
     return `${m}m ${s}s`;
   };
@@ -25,7 +25,7 @@ export function PresenceMockup() {
     { name: "Chamal D.", project: "API Redesign", base: 8040, active: true },
     { name: "Sarah K.", project: "Mobile App", base: 3720, active: true },
     { name: "Alex M.", project: "Design Review", base: 2700, active: true },
-    { name: "Jamie L.", project: "(Not tracking)", base: 0, active: false },
+    { name: "Jamie L.", project: "(Not tracking)", base: 0, active: false }
   ];
 
   return (
@@ -38,11 +38,18 @@ export function PresenceMockup() {
       </h4>
       <div className="space-y-1">
         {members.map((m, i) => (
-          <div key={i} className="flex items-center justify-between text-sm py-3 px-2 rounded-lg hover:bg-background/50 transition-colors">
+          <div
+            key={i}
+            className="flex items-center justify-between text-sm py-3 px-2 rounded-lg hover:bg-background/50 transition-colors"
+          >
             <div className="flex items-center gap-3">
-              <div className={`w-2 h-2 rounded-full ${m.active ? "bg-success shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-muted"}`} />
+              <div
+                className={`w-2 h-2 rounded-full ${m.active ? "bg-success shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-muted"}`}
+              />
               <div className="flex flex-col">
-                <span className={`font-medium ${!m.active && "text-muted-foreground"}`}>{m.name}</span>
+                <span className={`font-medium ${!m.active && "text-muted-foreground"}`}>
+                  {m.name}
+                </span>
                 <span className="text-xs text-muted-foreground">{m.project}</span>
               </div>
             </div>

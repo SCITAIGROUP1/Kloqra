@@ -230,7 +230,10 @@ export { usePlatformTenantDetail } from "./features/platform/use-platform-tenant
 export { usePlatformSubscriptions } from "./features/platform/use-platform-subscriptions";
 export { usePlatformSubscriptionDetail } from "./features/platform/use-platform-subscription-detail";
 export { usePlatformSubscriptionWorkQueue } from "./features/platform/use-platform-subscription-work-queue";
-export { usePlatformStaff, type PlatformStaffListResponseDto } from "./features/platform/use-platform-staff";
+export {
+  usePlatformStaff,
+  type PlatformStaffListResponseDto
+} from "./features/platform/use-platform-staff";
 export { PlatformProfilePage } from "./features/platform-account/platform-profile-page";
 export { PlatformAccountSettingsPage } from "./features/platform-account/platform-account-settings-page";
 export { PlatformNotificationsPage } from "./features/platform-notifications/platform-notifications-page";
