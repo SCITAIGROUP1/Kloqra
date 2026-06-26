@@ -16,11 +16,8 @@ export async function loginPlatformAdmin(page: Page) {
     const code = await generateSync({ secret: cachedTotpSecret });
     await page.getByLabel(/authentication code/i).fill(code);
     await page.getByRole("button", { name: /enable and continue/i }).click();
-    await page.waitForURL(/\/tenants/);
-    return;
-  }
-
-  if (
+    await page.waitForURL(/.*(select-context|tenants)/);
+  } else if (
     await page
       .getByLabel("Authentication code")
       .isVisible()
@@ -32,9 +29,13 @@ export async function loginPlatformAdmin(page: Page) {
     const code = await generateSync({ secret: cachedTotpSecret });
     await page.getByLabel("Authentication code").fill(code);
     await page.getByRole("button", { name: "Verify" }).click();
-    await page.waitForURL(/\/tenants/);
-    return;
+    await page.waitForURL(/.*(select-context|tenants)/);
+  } else {
+    await page.waitForURL(/.*(select-context|tenants)/);
   }
 
-  await page.waitForURL(/\/tenants/);
+  if (page.url().includes("select-context")) {
+    await page.locator("button").filter({ hasText: "Kloqra" }).first().click();
+    await page.waitForURL(/\/tenants/);
+  }
 }
