@@ -1,11 +1,14 @@
 import { ROUTES } from "@kloqra/contracts";
+import { getQueueToken } from "@nestjs/bullmq";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import { Queue } from "bullmq";
 import cookieParser from "cookie-parser";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
 import { generatedPrisma } from "../src/common/prisma/generated-prisma.util";
 import { PrismaService } from "../src/common/prisma/prisma.service";
+import { QUEUES } from "../src/common/queues";
 import {
   buildExportJobStorageKey,
   writeExportJobFile
@@ -25,6 +28,9 @@ describe("Tenant data export E2E", () => {
 
     prisma = app.get(PrismaService);
     ownerSession = await loginAs(app, "admin@kloqra.dev");
+
+    const exportQueue = app.get<Queue>(getQueueToken(QUEUES.TENANT_DATA_EXPORT));
+    await exportQueue.pause();
   });
 
   afterAll(async () => {
