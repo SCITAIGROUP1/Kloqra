@@ -159,6 +159,10 @@ jobs:
   e2e:
     needs: [integration]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, client, platform-admin]
     services:
       postgres:
         image: postgres:16-alpine
@@ -226,31 +230,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-chromium-
       - name: Install Playwright Chromium
-        run: pnpm --filter @kloqra/client exec playwright install chromium --with-deps
+        run: pnpm --filter @kloqra/${{ matrix.app }} exec playwright install chromium --with-deps
       - name: Run E2E tests (Playwright)
         run: |
-          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @kloqra/api dev &
-          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @kloqra/admin dev &
-          NEXT_PUBLIC_AUTH_SCOPE=platform pnpm --filter @kloqra/platform-admin dev &
-          for i in {1..60}; do
-            curl -sf http://localhost:3001/api/docs >/dev/null &&
-            curl -sf http://localhost:3002/login >/dev/null &&
-            curl -sf http://localhost:3003/login >/dev/null &&
-            break || sleep 2
-          done
-          pnpm --filter @kloqra/admin test:e2e
-          pnpm --filter @kloqra/client test:e2e
-          pnpm --filter @kloqra/platform-admin test:e2e
+          pnpm --filter @kloqra/${{ matrix.app }} test:e2e
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.app }}
           retention-days: 7
           path: |
-            apps/admin/playwright-report/**
-            apps/admin/test-results/playwright-junit.xml
-            apps/client/playwright-report/**
-            apps/client/test-results/playwright-junit.xml
-            apps/platform-admin/playwright-report/**
-            apps/platform-admin/test-results/playwright-junit.xml
+            apps/${{ matrix.app }}/playwright-report/**
+            apps/${{ matrix.app }}/test-results/playwright-junit.xml
