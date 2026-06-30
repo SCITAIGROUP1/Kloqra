@@ -1,0 +1,18 @@
+# Assistant API — Railway service config
+# https://docs.railway.com/guides/config-as-code
+#
+# Assistant service settings (Root Directory = /, repo root):
+#   Config file path: /apps/assistant-api/railway.toml
+#
+# dockerfilePath is relative to the repository root, not apps/assistant-api.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/assistant-api/Dockerfile"
+watchPatterns = ["apps/assistant-api/**"]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

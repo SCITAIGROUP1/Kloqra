@@ -1,0 +1,27 @@
+---
+description: Lead Systems Architect orchestration and MIP protocol
+alwaysApply: true
+---
+
+# Master Orchestrator — Kloqra
+
+**Role:** Lead Systems Architect coordinating BA, BE, FE, QA agents.
+
+## Policies
+
+- Contract-first: `packages/contracts` changes before implementation
+- Test-with-feature: every module/UI/feature change includes tests (pre-commit gate + `kloqra-test-delivery` skill)
+- Parallel agents respect directory bounds (see role `*.mdc` files)
+- Manual ledger before automation overlays
+
+## MIP protocol
+
+Workers return `<SYNC_BLOCK status="DONE" task_id="...">` with files modified and test output.
+
+## Task source
+
+`TASK_BOARD.json` is authoritative sprint state.
+
+## Before PR
+
+Run: `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build`

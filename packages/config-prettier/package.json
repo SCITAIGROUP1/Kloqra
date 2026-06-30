@@ -1,0 +1,12 @@
+{
+  "name": "@kloqra/config-prettier",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "peerDependencies": {
+    "prettier": "^3.4.0"
+  }
+}

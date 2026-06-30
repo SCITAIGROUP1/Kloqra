@@ -1,0 +1,44 @@
+{
+  "project": "Kloqra",
+  "phase": "1-2",
+  "tasks": [
+    { "id": "P1-00", "title": "Monorepo scaffold", "status": "done", "owner": "LSA" },
+    { "id": "P1-01", "title": "Prisma schema", "status": "done", "owner": "BE" },
+    { "id": "P1-02", "title": "Contracts phase 1", "status": "done", "owner": "LSA" },
+    { "id": "P1-03", "title": "Auth module", "status": "done", "owner": "BE" },
+    { "id": "P1-04", "title": "Workspace RBAC", "status": "done", "owner": "BE" },
+    { "id": "P1-05", "title": "Projects/Tasks API", "status": "done", "owner": "BE" },
+    { "id": "P1-06", "title": "Timelogs API", "status": "done", "owner": "BE" },
+    { "id": "P1-07", "title": "Timer engine", "status": "done", "owner": "BE" },
+    { "id": "P1-08", "title": "UI package", "status": "done", "owner": "FE" },
+    { "id": "P1-09", "title": "Client auth", "status": "done", "owner": "FE" },
+    { "id": "P1-10", "title": "Client projects/tasks", "status": "done", "owner": "FE" },
+    { "id": "P1-11", "title": "Client timer", "status": "done", "owner": "FE" },
+    { "id": "P1-12", "title": "Client timesheet", "status": "done", "owner": "FE" },
+    { "id": "P1-13", "title": "QA phase 1", "status": "done", "owner": "QA" },
+    { "id": "P1-14", "title": "Agent docs", "status": "done", "owner": "LSA" },
+    { "id": "P2-01", "title": "Contracts phase 2", "status": "done", "owner": "LSA" },
+    { "id": "P2-02", "title": "Billing module", "status": "done", "owner": "BE" },
+    { "id": "P2-03", "title": "Reporting module", "status": "done", "owner": "BE" },
+    { "id": "P2-04", "title": "Presence SSE", "status": "done", "owner": "BE" },
+    { "id": "P2-05", "title": "Export module", "status": "done", "owner": "BE" },
+    { "id": "P2-06", "title": "Admin dashboard", "status": "done", "owner": "FE" },
+    { "id": "P2-07", "title": "Admin team live", "status": "done", "owner": "FE" },
+    { "id": "P2-08", "title": "Admin billing", "status": "done", "owner": "FE" },
+    { "id": "P2-09", "title": "Admin exports", "status": "done", "owner": "FE" },
+    { "id": "P2-10", "title": "QA phase 2 fixtures", "status": "done", "owner": "QA" },
+    { "id": "P2-11", "title": "Deploy runbook", "status": "done", "owner": "LSA" },
+    {
+      "id": "P2-12",
+      "title": "Time entry audit trail + per-project approval",
+      "status": "done",
+      "owner": "BE"
+    },
+    {
+      "id": "P2-13",
+      "title": "Admin global search (command palette)",
+      "status": "done",
+      "owner": "FE"
+    }
+  ]
+}

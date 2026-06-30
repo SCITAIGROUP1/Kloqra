@@ -1,0 +1,54 @@
+# User guides
+
+Step-by-step help for Kloqra apps. No technical setup required.
+
+## Which app do I use?
+
+| Role                                          | App    | URL (local)           |
+| --------------------------------------------- | ------ | --------------------- |
+| **Member** — log your own time                | Client | http://localhost:3000 |
+| **Admin** — manage projects, billing, exports | Admin  | http://localhost:3002 |
+
+Demo passwords (after seed): `password123`
+
+| Account             | Use for    |
+| ------------------- | ---------- |
+| `member@kloqra.dev` | Client app |
+| `admin@kloqra.dev`  | Admin app  |
+
+Default workspace after seed: **Acme Corporation** (switch workspaces from the sidebar if needed).
+
+## Member guides (client)
+
+1. [Getting started](member/getting-started.md)
+2. [Timer and timesheet](member/timer-and-timesheet.md)
+3. [Timesheet submissions and approval](timesheet-submissions-and-approval.md) — submit, review, and what happens when settings change
+4. [Export my data](member/export-my-data.md)
+5. [Profile and settings](member/profile-and-settings.md)
+
+## Admin guides
+
+1. [Getting started](admin/getting-started.md)
+2. [Projects and teams](admin/projects-and-teams.md)
+3. [Timesheet submissions and approval](timesheet-submissions-and-approval.md) — enable approval, review, reminders, edit requests
+4. [Dashboard and team live](admin/dashboard-and-team-live.md)
+5. [Billing](admin/billing.md)
+6. [Exports](admin/exports.md)
+7. [Public reporting API](admin/public-reporting-api.md) — API keys for third-party clients
+
+Profile and settings use the same `/profile` and `/settings` pages as the member app — see [member/profile-and-settings.md](member/profile-and-settings.md).
+
+## QA (testing)
+
+For testers and QA engineers — setup from scratch, manual checklists, automated tests, and sign-off:
+
+- **[QA testing guide](qa/testing-guide.md)** — start here if you are non-technical QA
+
+## Presentations
+
+- **[40-minute technical demo script](demo-40min-script.md)** — live demo + architecture + agentic development (presenters)
+- **[Slide deck PDF](../presentations/kloqra-demo-and-roadmap.pdf)** — 26-slide PDF (demo + roadmap); [source & PPTX export](../presentations/README.md)
+
+## More for developers
+
+See the [documentation hub](../README.md).

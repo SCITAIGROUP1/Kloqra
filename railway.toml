@@ -1,0 +1,31 @@
+# Kloqra API — Railway service config
+# https://docs.railway.com/guides/config-as-code
+#
+# NestJS API service only. Assistant API uses apps/assistant-api/railway.toml
+# (set Config file path on that Railway service — see docs/runbooks/railway.md).
+#
+# Create two Railway projects (staging + production), each with:
+#   - PostgreSQL plugin
+#   - Redis plugin
+#   - This API service (monorepo root, Dockerfile below)
+#
+# See docs/runbooks/railway.md for full setup.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/api/Dockerfile"
+watchPatterns = [
+  "apps/api/**",
+  "packages/contracts/**",
+  "packages/config-*",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+]
+
+[deploy]
+startCommand = "./docker-entrypoint.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

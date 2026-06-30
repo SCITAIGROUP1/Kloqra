@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kloqra — Demo & Roadmap 2026</title>
+    <style>
+      @page {
+        size: landscape;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        color: #1a2b4a;
+        background: #e8ecf4;
+      }
+      .slide {
+        width: 100vw;
+        height: 100vh;
+        min-height: 720px;
+        padding: 48px 64px;
+        page-break-after: always;
+        break-after: page;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        background: linear-gradient(145deg, #ffffff 0%, #f4f7ff 100%);
+        position: relative;
+        overflow: hidden;
+      }
+      .slide::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #236bfe, #5b9aff);
+      }
+      .slide.lead {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        background: linear-gradient(135deg, #0f2d6e 0%, #236bfe 55%, #5b9aff 100%);
+        color: #fff;
+      }
+      .slide.lead::before {
+        display: none;
+      }
+      .slide.lead h1 {
+        font-size: 3.2rem;
+        color: #fff;
+        border: none;
+      }
+      .slide.lead .subtitle {
+        font-size: 1.5rem;
+        opacity: 0.92;
+        margin-top: 12px;
+      }
+      .slide.lead .meta {
+        font-size: 1rem;
+        opacity: 0.75;
+        margin-top: 32px;
+      }
+      h1 {
+        font-size: 2rem;
+        color: #236bfe;
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+        border-bottom: 3px solid #236bfe;
+      }
+      h2 {
+        font-size: 1.15rem;
+        color: #1e3a5f;
+        margin: 16px 0 8px;
+      }
+      p,
+      li {
+        font-size: 1.05rem;
+        line-height: 1.45;
+      }
+      ul {
+        margin-left: 1.4em;
+        margin-top: 8px;
+      }
+      li {
+        margin-bottom: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        border: 1px solid #c8d6f0;
+        padding: 8px 12px;
+        text-align: left;
+      }
+      th {
+        background: #236bfe;
+        color: #fff;
+        font-weight: 600;
+      }
+      tr:nth-child(even) {
+        background: #f0f4ff;
+      }
+      .footer {
+        position: absolute;
+        bottom: 20px;
+        left: 64px;
+        right: 64px;
+        font-size: 0.75rem;
+        color: #6b7c99;
+        display: flex;
+        justify-content: space-between;
+      }
+      .slide.lead .footer {
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-top: 8px;
+      }
+      pre {
+        background: #1a2b4a;
+        color: #a8d4ff;
+        padding: 16px 20px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        margin-top: 12px;
+        overflow: hidden;
+      }
+      .tag {
+        display: inline-block;
+        background: #e8f0ff;
+        color: #236bfe;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 2px;
+      }
+      .highlight {
+        color: #236bfe;
+        font-weight: 600;
+      }
+      .horizon {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+        font-size: 0.95rem;
+      }
+      .horizon span {
+        background: #236bfe;
+        color: #fff;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .horizon .arrow {
+        background: none;
+        color: #236bfe;
+        padding: 0;
+      }
+      blockquote {
+        border-left: 4px solid #236bfe;
+        padding: 12px 20px;
+        margin-top: 16px;
+        background: #f0f4ff;
+        font-style: italic;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide lead">
+      <h1>Kloqra</h1>
+      <p class="subtitle">Time analytics engine for agencies &amp; product teams</p>
+      <p class="meta">Technical demo + 2026–2027 roadmap<br />June 2026</p>
+      <div class="footer">
+        <span>SCITAIGROUP1 / Kloqra</span><span>Demo &amp; Future Plan</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h1>The problem we solve</h1>
+      <table>
+        <tr>
+          <th>Pain</th>
+          <th>Kloqra answer</th>
+        </tr>
+        <tr>
+          <td>Time trapped in spreadsheets</td>
+          <td>Timer + timesheet + time tracker — one ledger</td>
+        </tr>
+        <tr>
+          <td>"Did they submit?"</td>
+          <td>Per-project approval workflow + realtime notifications</td>
+        </tr>
+        <tr>
+          <td>Payroll / client reports</td>
+          <td>Export wizard, schedules, invoice PDF, public API</td>
+        </tr>
+        <tr>
+          <td>Admin blind spots</td>
+          <td>Dashboard, utilization, team live presence</td>
+        </tr>
+      </table>
+      <blockquote>Capture → approve → bill → export — without spreadsheet surgery.</blockquote>
+      <div class="footer"><span>Kloqra</span><span>2 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Vision &amp; north-star outcomes</h1>
+      <table>
+        <tr>
+          <th>Stakeholder</th>
+          <th>Success looks like</th>
+        </tr>
+        <tr>
+          <td><strong>Member</strong></td>
+          <td>Log time in &lt;10s; know submission status; live UI on workflow events</td>
+        </tr>
+        <tr>
+          <td><strong>Admin</strong></td>
+          <td>Burn, utilization, approvals in one place; export without Excel</td>
+        </tr>
+        <tr>
+          <td><strong>Agency owner</strong></td>
+          <td>Multi-project profitability; client-ready reports</td>
+        </tr>
+        <tr>
+          <td><strong>Engineering</strong></td>
+          <td>Contract-first; CI gates; safe deploys; observable production</td>
+        </tr>
+      </table>
+      <div class="footer"><span>Kloqra</span><span>3 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Guiding principles</h1>
+      <ul>
+        <li>
+          <span class="highlight">Manual ledger before automation</span> — time logs + approvals are
+          source of truth
+        </li>
+        <li>
+          <span class="highlight">Contract-first</span> — <code>packages/contracts</code> before API
+          or UI
+        </li>
+        <li>
+          <span class="highlight">REST is truth, push is hint</span> — WebSocket invalidates; pages
+          REST-refetch
+        </li>
+        <li>
+          <span class="highlight">Member privacy</span> — no org revenue or peer rankings on client
+        </li>
+        <li><span class="highlight">Small shippable epics</span> — one phase per PR</li>
+      </ul>
+      <div class="footer"><span>Kloqra</span><span>4 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Architecture</h1>
+      <pre>
+apps/client (:3000)  ─┐
+apps/admin  (:3002)  ─┼─►  apps/api (:3001)  ──►  PostgreSQL 16
+                      │         │
+                      │         └──► Redis (timer, BullMQ, pub/sub)
+packages/contracts · @kloqra/ui · @kloqra/web-shared</pre
+      >
+      <p style="margin-top: 16px">
+        <span class="tag">NestJS</span><span class="tag">Prisma</span
+        ><span class="tag">Next.js 15</span><span class="tag">Zod</span
+        ><span class="tag">Zustand</span><span class="tag">Tailwind v4</span
+        ><span class="tag">Socket.IO</span><span class="tag">SSE</span>
+      </p>
+      <div class="footer"><span>Kloqra</span><span>5 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>API modules — 17 vertical slices</h1>
+      <p>
+        Each module: <code>domain/</code> → <code>application/</code> →
+        <code>infrastructure/</code> → <code>interface/http/</code>
+      </p>
+      <p style="margin-top: 12px">
+        <span class="tag">auth</span><span class="tag">workspace</span><span class="tag">users</span
+        ><span class="tag">projects</span><span class="tag">tasks</span
+        ><span class="tag">categories</span><span class="tag">timelogs</span
+        ><span class="tag">timer</span><span class="tag">timesheets</span
+        ><span class="tag">billing</span><span class="tag">reporting</span
+        ><span class="tag">presence</span><span class="tag">export</span
+        ><span class="tag">notifications</span><span class="tag">assistant</span
+        ><span class="tag">jira</span>
+      </p>
+      <p style="margin-top: 16px">
+        <strong>200+ routes</strong> cataloged in <code>docs/api/ROUTES.md</code> with controller
+        links
+      </p>
+      <div class="footer"><span>Kloqra</span><span>6 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Shipped today — production baseline</h1>
+      <table>
+        <tr>
+          <th>Domain</th>
+          <th>Highlights</th>
+        </tr>
+        <tr>
+          <td>Core loop</td>
+          <td>
+            Timer (pause/resume), timesheet, time tracker, tasks, projects, categories + bulk import
+          </td>
+        </tr>
+        <tr>
+          <td>Workflow</td>
+          <td>Per-project approval, submissions, amendments, locked entries</td>
+        </tr>
+        <tr>
+          <td>Admin ops</td>
+          <td>Dashboard widgets, team live (SSE), billing, exports (async jobs, invoice)</td>
+        </tr>
+        <tr>
+          <td>Data platform</td>
+          <td>PostgreSQL range partitioning on time_logs</td>
+        </tr>
+        <tr>
+          <td>Realtime</td>
+          <td>Socket.IO + scoped refetch (submissions, timesheet, projects, tasks)</td>
+        </tr>
+        <tr>
+          <td>Quality</td>
+          <td>CI 4-stage · 19 Playwright e2e · Sentry · deploy runbooks</td>
+        </tr>
+      </table>
+      <p style="margin-top: 12px">
+        <strong>Maturity: ~7.5/10</strong> — pilot-ready; H0 hardening before broad public launch
+      </p>
+      <div class="footer"><span>Kloqra</span><span>7 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Member app — capture time</h1>
+      <div class="cols">
+        <div>
+          <h2>Demo path</h2>
+          <ul>
+            <li><strong>/timer</strong> — start on Client Portal Redesign / UX research</li>
+            <li><strong>/timesheet</strong> — week grid, locked approved entries</li>
+            <li><strong>/submissions</strong> — submit week → pending approval</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Also shipped</h2>
+          <ul>
+            <li>Time tracker, dashboard widgets</li>
+            <li>Export my data, AI assistant</li>
+            <li>Jira issue linking</li>
+            <li>Onboarding tour</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top: 12px">
+        <strong>Login:</strong> member@kloqra.dev · Acme Corporation workspace
+      </p>
+      <div class="footer"><span>Kloqra</span><span>8 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Admin app — operate the org</h1>
+      <div class="cols">
+        <div>
+          <h2>Demo path</h2>
+          <ul>
+            <li><strong>/projects</strong> — budget burn, approval, team</li>
+            <li><strong>/approvals</strong> — pending, amendments, reminders</li>
+            <li><strong>/dashboard</strong> — widgets, heatmaps</li>
+            <li><strong>/exports</strong> — wizard, jobs, invoice PDF</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Power features</h2>
+          <ul>
+            <li>Global search (Cmd+K)</li>
+            <li>Team live presence (SSE)</li>
+            <li>Billing rates &amp; summary</li>
+            <li>Impersonation (read-only member view)</li>
+            <li>Public reporting API keys</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top: 12px"><strong>Login:</strong> admin@kloqra.dev</p>
+      <div class="footer"><span>Kloqra</span><span>9 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Hero moment — realtime live sync</h1>
+      <p><strong>Two browsers:</strong> member on Submissions · admin approves OR assigns task</p>
+      <pre>
+createInApp → Redis PUBLISH notifications:user:{userId}
+           → NotificationsGateway (Socket.IO /notifications)
+           → notification-socket-manager (browser)
+           → bell + invalidateWorkspaceData(scopes)
+           → pages REST-refetch (source of truth)</pre
+      >
+      <p style="margin-top: 12px">
+        <strong>Scopes:</strong> submissions · timesheet · projects · tasks · pending_approvals
+      </p>
+      <p><strong>Safety net:</strong> 60s poll when socket down · reconnect broad catch-up</p>
+      <div class="footer"><span>Kloqra</span><span>10 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Dual realtime transports</h1>
+      <table>
+        <tr>
+          <th>Use case</th>
+          <th>Transport</th>
+          <th>Path</th>
+        </tr>
+        <tr>
+          <td>User notifications</td>
+          <td>Socket.IO</td>
+          <td>/notifications</td>
+        </tr>
+        <tr>
+          <td>Admin presence</td>
+          <td>SSE</td>
+          <td>/presence/stream</td>
+        </tr>
+        <tr>
+          <td>Multi-replica fan-out</td>
+          <td>Redis pub/sub</td>
+          <td>Railway API pods</td>
+        </tr>
+      </table>
+      <h2>Intentionally deferred</h2>
+      <p>
+        Workspace timezone broadcast · cosmetic project rename — refresh on navigate is sufficient
+      </p>
+      <div class="footer"><span>Kloqra</span><span>11 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Scale — database partitioning</h1>
+      <ul>
+        <li><strong>time_logs</strong> — monthly partitions on <code>start_time</code></li>
+        <li>
+          <strong>time_log_audit_events</strong> — yearly partitions on <code>created_at</code>
+        </li>
+        <li>Compound PKs for PostgreSQL partition rules</li>
+        <li>Cursor pagination: <code>id:startTime</code> — zero lookup</li>
+      </ul>
+      <p style="margin-top: 16px">
+        Partition pruning on timesheet queries · O(1) compliance data drop
+      </p>
+      <div class="footer"><span>Kloqra</span><span>12 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>CI / CD pipeline</h1>
+      <table>
+        <tr>
+          <th>Stage</th>
+          <th>Validates</th>
+        </tr>
+        <tr>
+          <td>quality</td>
+          <td>Prettier, ESLint, TypeScript, Turbo build, bundle budget</td>
+        </tr>
+        <tr>
+          <td>unit</td>
+          <td>Vitest + coverage (api, contracts, ui, web-shared)</td>
+        </tr>
+        <tr>
+          <td>integration</td>
+          <td>Postgres 16 + Redis 7, migrate, seed, Supertest</td>
+        </tr>
+        <tr>
+          <td>e2e</td>
+          <td>Playwright — 19 specs (client + admin)</td>
+        </tr>
+        <tr>
+          <td>deploy</td>
+          <td>migrate → Railway API → Vercel → smoke checks</td>
+        </tr>
+      </table>
+      <div class="footer"><span>Kloqra</span><span>13 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Engineering discipline</h1>
+      <pre>docs/specs/ → packages/contracts → failing tests → API → FE → CI gate</pre>
+      <ul style="margin-top: 16px">
+        <li><strong>14 feature specs</strong> in docs/specs/</li>
+        <li><strong>Pre-commit:</strong> tests required on staged feature changes</li>
+        <li><strong>Swagger:</strong> localhost:3001/api/docs</li>
+        <li><strong>Test hub:</strong> pnpm test:dashboard → coverage + Playwright reports</li>
+      </ul>
+      <div class="footer"><span>Kloqra</span><span>14 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Agentic-assisted development</h1>
+      <p>
+        <strong>Cursor multi-agent factory</strong> — humans orchestrate, agents implement, CI
+        judges
+      </p>
+      <div class="cols">
+        <div>
+          <h2>Rules (.cursor/rules/)</h2>
+          <ul>
+            <li>master-orchestrator — contract-first</li>
+            <li>role-be / role-fe / role-qa — directory bounds</li>
+            <li>contracts-gate, testing-tdd</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Skills + state</h2>
+          <ul>
+            <li>chronomint-feature-delivery</li>
+            <li>chronomint-test-delivery</li>
+            <li>TASK_BOARD.json (P1/P2 done)</li>
+            <li>MIP handoff protocol</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>Kloqra</span><span>15 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Case study — WebSocket notifications</h1>
+      <table>
+        <tr>
+          <th>Step</th>
+          <th>Deliverable</th>
+        </tr>
+        <tr>
+          <td>Problem</td>
+          <td>Admin approves; member UI stale up to 60s</td>
+        </tr>
+        <tr>
+          <td>Contracts</td>
+          <td>notification-realtime.ts, scopes, templates</td>
+        </tr>
+        <tr>
+          <td>API</td>
+          <td>Gateway + Redis publisher on createInApp</td>
+        </tr>
+        <tr>
+          <td>FE</td>
+          <td>socket-manager + workspace-data-sync + tasks scope</td>
+        </tr>
+        <tr>
+          <td>Quality</td>
+          <td>Unit specs across api, web-shared, client, contracts</td>
+        </tr>
+      </table>
+      <div class="footer"><span>Kloqra</span><span>16 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Roadmap horizons</h1>
+      <div class="horizon">
+        <span>H0 Launch hardening</span><span class="arrow">→</span>
+        <span>H1 Workflow excellence</span><span class="arrow">→</span>
+        <span>H2 Finance &amp; client value</span><span class="arrow">→</span> <span>H3 Scale</span
+        ><span class="arrow">→</span>
+        <span>H4 Platform &amp; AI</span>
+      </div>
+      <blockquote style="margin-top: 24px">
+        Don't start H3 until H0 exit criteria are met.
+      </blockquote>
+      <p style="margin-top: 16px">
+        <strong>Full plan:</strong> docs/architecture/KLOQRA_FUTURE_PLAN.md
+      </p>
+      <div class="footer"><span>Kloqra</span><span>17 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>H0 — Launch hardening (0–6 weeks)</h1>
+      <table>
+        <tr>
+          <th>Initiative</th>
+          <th>Deliverable</th>
+        </tr>
+        <tr>
+          <td>Production gate</td>
+          <td>Rate limits on auth, export, heavy list endpoints</td>
+        </tr>
+        <tr>
+          <td>Realtime ops</td>
+          <td>WSS + Redis runbook; manual verify matrix</td>
+        </tr>
+        <tr>
+          <td>Alerting</td>
+          <td>Sentry DSN; error-rate alerts; /health uptime</td>
+        </tr>
+        <tr>
+          <td>Merge train</td>
+          <td>dev → main with full CI + deploy smoke</td>
+        </tr>
+      </table>
+      <p style="margin-top: 12px">
+        <strong>Exit:</strong> 2+ pilot workspaces · zero P0 bugs for 2 weeks · realtime on prod
+      </p>
+      <p><strong>Epic:</strong> P3-01</p>
+      <div class="footer"><span>Kloqra</span><span>18 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>H1 — Workflow excellence (6–14 weeks)</h1>
+      <table>
+        <tr>
+          <th>P0 Product</th>
+          <th>P1 Product</th>
+          <th>Engineering</th>
+        </tr>
+        <tr>
+          <td>Budget burn-down widget<br />Budget / idle notifications</td>
+          <td>Project detail hub<br />Member quick actions<br />Personal goals</td>
+          <td>Audit log v1<br />Realtime e2e tests<br />Workspace settings Zod SSOT</td>
+        </tr>
+      </table>
+      <p style="margin-top: 12px"><strong>Epics:</strong> P3-02 · P3-03 · P3-04</p>
+      <div class="footer"><span>Kloqra</span><span>19 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>H2 — Finance &amp; client value (3–6 months)</h1>
+      <ul>
+        <li>Utilization report — member × week vs expected hours</li>
+        <li>Invoice PDF v1 — draft from billable export</li>
+        <li>Scheduled export email — SMTP for ExportSchedule</li>
+        <li>Period compare — month-over-month delta</li>
+        <li>Multi-currency / tax lines — research spike</li>
+      </ul>
+      <p style="margin-top: 12px">
+        <strong>Epics:</strong> P3-05 · P3-06 · <strong>Not building:</strong> QuickBooks
+        replacement
+      </p>
+      <div class="footer"><span>Kloqra</span><span>20 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>H3 — Scale &amp; external users (6–12 months)</h1>
+      <ul>
+        <li><strong>Client portal</strong> — external read-only login for client orgs</li>
+        <li><strong>PWA / mobile timer</strong> — installable; offline queue (phase 2)</li>
+        <li><strong>Cross-workspace export</strong> — agency multi-workspace</li>
+        <li><strong>Read replicas</strong> — reporting off primary</li>
+        <li><strong>Email / push reminders</strong> — missing-time digests</li>
+      </ul>
+      <p style="margin-top: 12px"><strong>Epics:</strong> P3-08 · P3-09</p>
+      <div class="footer"><span>Kloqra</span><span>21 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>H4 — Platform &amp; intelligence (12+ months)</h1>
+      <table>
+        <tr>
+          <th>Theme</th>
+          <th>Ideas</th>
+        </tr>
+        <tr>
+          <td>Integrations</td>
+          <td>Outbound webhooks; deeper Jira sync; Zapier/Make</td>
+        </tr>
+        <tr>
+          <td>AI</td>
+          <td>Smart categorization worker; assistant confirm-before-write</td>
+        </tr>
+        <tr>
+          <td>Marketplace</td>
+          <td>Public API partners</td>
+        </tr>
+      </table>
+      <p style="margin-top: 12px"><strong>Epic:</strong> P3-10 · Deferred until H1–H2 stable</p>
+      <div class="footer"><span>Kloqra</span><span>22 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Success metrics</h1>
+      <table>
+        <tr>
+          <th>Metric</th>
+          <th>H0 target</th>
+          <th>H1 target</th>
+        </tr>
+        <tr>
+          <td>Pilot workspaces</td>
+          <td>3+</td>
+          <td>10+</td>
+        </tr>
+        <tr>
+          <td>Weekly active loggers</td>
+          <td>—</td>
+          <td>70% of seats</td>
+        </tr>
+        <tr>
+          <td>Submit → approve median</td>
+          <td>—</td>
+          <td>&lt;24h</td>
+        </tr>
+        <tr>
+          <td>P0 incidents / month</td>
+          <td>0</td>
+          <td>≤1</td>
+        </tr>
+        <tr>
+          <td>E2E pass on main</td>
+          <td>100%</td>
+          <td>100%</td>
+        </tr>
+        <tr>
+          <td>Socket connected %</td>
+          <td>80%</td>
+          <td>90%</td>
+        </tr>
+      </table>
+      <div class="footer"><span>Kloqra</span><span>23 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>Risks &amp; out of scope</h1>
+      <div class="cols">
+        <div>
+          <h2>Risks</h2>
+          <ul>
+            <li>Realtime silent failure → runbook + poll safety net</li>
+            <li>Export overload → BullMQ + row limits</li>
+            <li>Client portal creep → auth spike first</li>
+            <li>Agent drift → TASK_BOARD + CI</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Out of scope</h2>
+          <ul>
+            <li>AI categorization before audit log</li>
+            <li>ERP / accounting replacement</li>
+            <li>Cross-workspace billing</li>
+            <li>Idle extension before PWA</li>
+            <li>Live sync for cosmetic settings</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><span>Kloqra</span><span>24 / 32</span></div>
+    </section>
+
+    <section class="slide">
+      <h1>40-minute demo run-of-show</h1>
+      <table>
+        <tr>
+          <th>Min</th>
+          <th>Block</th>
+        </tr>
+        <tr>
+          <td>0–3</td>
+          <td>Hook &amp; positioning</td>
+        </tr>
+        <tr>
+          <td>3–8</td>
+          <td>Architecture + completeness</td>
+        </tr>
+        <tr>
+          <td>8–16</td>
+          <td>Member app + realtime hero moment</td>
+        </tr>
+        <tr>
+          <td>16–24</td>
+          <td>Admin app (approvals, exports, dashboard)</td>
+        </tr>
+        <tr>
+          <td>24–30</td>
+          <td>Technical deep dive (contracts, partitioning)</td>
+        </tr>
+        <tr>
+          <td>30–35</td>
+          <td>CI, tests, documentation</td>
+        </tr>
+        <tr>
+          <td>35–40</td>
+          <td>Agentic development + close</td>
+        </tr>
+      </table>
+      <p style="margin-top: 8px"><strong>Script:</strong> docs/user-guides/demo-40min-script.md</p>
+      <div class="footer"><span>Kloqra</span><span>25 / 32</span></div>
+    </section>
+
+    <section class="slide lead">
+      <h1>Thank you</h1>
+      <p class="subtitle">Kloqra — built for agencies, shipped with discipline</p>
+      <p class="meta">
+        docs/architecture/KLOQRA_FUTURE_PLAN.md<br />
+        docs/user-guides/demo-40min-script.md<br />
+        docs/api/ROUTES.md
+      </p>
+      <div class="footer"><span>Questions?</span><span></span></div>
+    </section>
+  </body>
+</html>

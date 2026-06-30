@@ -1,0 +1,344 @@
+"use client";
+
+import { ROUTES, PROJECT_COLORS, pickDefaultProjectColor } from "@kloqra/contracts";
+import type { ProjectListItemDto } from "@kloqra/contracts";
+import {
+  AppModal,
+  AppBar,
+  AppBarListToolbar,
+  appBarListFilterTriggerClass,
+  Button,
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderRow,
+  EmptyState,
+  Input,
+  Label,
+  ProjectColorPicker,
+  ProjectNameWithColor,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableBody,
+  TableHeader,
+  TablePagination,
+  TableRow,
+  TableLoadingState
+} from "@kloqra/ui";
+import { usePaginatedList, extractFieldErrorsFromMessage } from "@kloqra/web-shared";
+import { ChevronRight, FolderPlus, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { formatDurationClock } from "@/components/report-charts";
+import { validateCreateProjectForm } from "@/features/projects/create-project-validation";
+import { projectListHref } from "@/features/projects/project-detail-nav";
+import { api } from "@/lib/api";
+import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
+
+export function ProjectsListPage() {
+  const router = useRouter();
+  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
+  const listFilters = useMemo(
+    () =>
+      statusFilter === "active"
+        ? { isActive: "true" }
+        : statusFilter === "inactive"
+          ? { isActive: "false" }
+          : undefined,
+    [statusFilter]
+  );
+  const {
+    items: projects,
+    page,
+    setPage,
+    search,
+    setSearch,
+    total,
+    totalPages,
+    limit,
+    setLimit,
+    loading,
+    error,
+    reload
+  } = usePaginatedList<ProjectListItemDto>({
+    workspaceId: ws,
+    basePath: ROUTES.PROJECTS.LIST,
+    filters: listFilters
+  });
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [createColor, setCreateColor] = useState(() => pickDefaultProjectColor(0));
+  const [creating, setCreating] = useState(false);
+  const [createFieldErrors, setCreateFieldErrors] = useState<{
+    name?: string;
+    clientName?: string;
+  }>({});
+  const [createFormError, setCreateFormError] = useState<string | null>(null);
+
+  function formatTotalTracked(totalTrackedSec: number): string {
+    return formatDurationClock(totalTrackedSec / 3600);
+  }
+
+  async function createProject(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateFieldErrors({});
+    setCreateFormError(null);
+
+    const fieldErrors = validateCreateProjectForm(name, clientName);
+    if (Object.keys(fieldErrors).length > 0) {
+      setCreateFieldErrors(fieldErrors);
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const projectName = name.trim();
+      const trimmedClientName = clientName.trim();
+      await api(ROUTES.PROJECTS.CREATE, {
+        method: "POST",
+        workspaceId: ws,
+        body: JSON.stringify({
+          name: projectName,
+          clientName: trimmedClientName,
+          color: createColor
+        })
+      });
+      setName("");
+      setClientName("");
+      setCreateColor(pickDefaultProjectColor(projects.length + 1));
+      setCreateOpen(false);
+      toast.success(`Project "${projectName}" created.`);
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not create project.";
+      const parsed = extractFieldErrorsFromMessage<"name" | "clientName">(message, {
+        name: ["Name", "Project name"],
+        clientName: "Client"
+      });
+      setCreateFieldErrors(parsed.fieldErrors);
+      setCreateFormError(
+        parsed.formError || (Object.keys(parsed.fieldErrors).length === 0 ? message : null)
+      );
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <AppBar
+        title="Projects"
+        description="Browse workspace projects and open one to manage tasks, team, and settings."
+        secondary={
+          <AppBarListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search by name or client…"
+            searchAriaLabel="Search projects"
+            filters={
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+              >
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+            action={
+              <Button
+                type="button"
+                className="h-10 w-full gap-2 md:w-auto"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                New project
+              </Button>
+            }
+          />
+        }
+      />
+
+      <DataTableCard>
+        {loading ? (
+          <TableLoadingState rows={6} columns={4} />
+        ) : projects.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              title={
+                total === 0 && !search && statusFilter === "ALL"
+                  ? "No projects yet"
+                  : "No matching projects"
+              }
+              description={
+                total === 0 && !search && statusFilter === "ALL"
+                  ? "Create your first project to organize time tracking and teams."
+                  : "Try a different search term or filter."
+              }
+              action={
+                total === 0 && !search && statusFilter === "ALL" ? (
+                  <Button type="button" onClick={() => setCreateOpen(true)}>
+                    New project
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <Table>
+              <TableHeader>
+                <DataTableHeaderRow>
+                  <DataTableHead>Project Name</DataTableHead>
+                  <DataTableHead>Client Name</DataTableHead>
+                  <DataTableHead className="text-right">Total Time Tracked</DataTableHead>
+                  <DataTableHead className="w-10" />
+                </DataTableHeaderRow>
+              </TableHeader>
+              <TableBody>
+                {projects.map((p) => {
+                  const href = projectListHref(p.id);
+                  return (
+                    <TableRow
+                      key={p.id}
+                      className="group cursor-pointer hover:bg-muted/40"
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Open ${p.name}`}
+                      onClick={() => router.push(href)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                    >
+                      <DataTableCell>
+                        <ProjectNameWithColor name={p.name} color={p.color} />
+                      </DataTableCell>
+                      <DataTableCell className="text-muted-foreground">
+                        {p.clientName ?? "—"}
+                      </DataTableCell>
+                      <DataTableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatTotalTracked(p.totalTrackedSec)}
+                      </DataTableCell>
+                      <DataTableCell className="text-muted-foreground">
+                        <ChevronRight
+                          className="h-4 w-4 opacity-40 transition-opacity group-hover:opacity-100"
+                          aria-hidden
+                        />
+                      </DataTableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={limit}
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+              disabled={loading}
+            />
+          </>
+        )}
+      </DataTableCard>
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <AppModal
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setCreateFieldErrors({});
+            setCreateFormError(null);
+          }
+        }}
+        title="New project"
+        description="Add a project to organize tasks, teams, and time entries."
+        icon={<FolderPlus className="size-5" />}
+        size="lg"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-project-form" disabled={creating}>
+              {creating ? "Creating…" : "Create project"}
+            </Button>
+          </>
+        }
+      >
+        <form id="create-project-form" onSubmit={createProject} className="space-y-4" noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (createFieldErrors.name) {
+                  setCreateFieldErrors((prev) => ({ ...prev, name: undefined }));
+                }
+                if (createFormError) setCreateFormError(null);
+              }}
+              placeholder="Meridian Product Co"
+              autoFocus
+              aria-invalid={Boolean(createFieldErrors.name)}
+            />
+            {createFieldErrors.name ? (
+              <p className="text-xs text-destructive">{createFieldErrors.name}</p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client">Client</Label>
+            <Input
+              id="client"
+              value={clientName}
+              onChange={(e) => {
+                setClientName(e.target.value);
+                if (createFieldErrors.clientName) {
+                  setCreateFieldErrors((prev) => ({ ...prev, clientName: undefined }));
+                }
+                if (createFormError) setCreateFormError(null);
+              }}
+              placeholder="Acme Corp"
+              aria-invalid={Boolean(createFieldErrors.clientName)}
+            />
+            {createFieldErrors.clientName ? (
+              <p className="text-xs text-destructive">{createFieldErrors.clientName}</p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label>Color</Label>
+            <ProjectColorPicker
+              value={createColor}
+              onChange={setCreateColor}
+              colors={PROJECT_COLORS}
+            />
+          </div>
+          {createFormError ? <p className="text-sm text-destructive">{createFormError}</p> : null}
+        </form>
+      </AppModal>
+    </div>
+  );
+}

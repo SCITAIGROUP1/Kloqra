@@ -1,0 +1,13 @@
+---
+description: Contract-first lockdown for shared DTOs and routes
+globs: packages/contracts/**
+alwaysApply: false
+---
+
+# Contract lockdown
+
+- Protected: `packages/contracts/src/`
+- Only LSA authorizes contract edits
+- Each change needs impact summary + breaking/non-breaking label
+- Update `packages/contracts/src/contracts.spec.ts` when routes or DTOs change
+- Implementation in apps must consume contracts — never redefine shapes locally

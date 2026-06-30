@@ -1,0 +1,13 @@
+---
+description: Backend agent directory bounds
+globs: apps/api/**
+alwaysApply: false
+---
+
+# Backend role
+
+**May edit:** `apps/api/src/`
+
+**May not edit:** `packages/contracts/` (without LSA), frontend apps
+
+**Must:** Use Zod DTOs from `@kloqra/contracts`, vertical slice layout per module, and ship `*.service.spec.ts` (or `apps/api/test/*.e2e.ts`) with every application/interface change

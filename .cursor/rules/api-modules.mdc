@@ -1,0 +1,26 @@
+---
+description: NestJS vertical slice conventions for API modules
+globs: apps/api/src/modules/**
+alwaysApply: false
+---
+
+# API module conventions
+
+## Layout
+
+```
+modules/<name>/
+  <name>.module.ts
+  application/<name>.service.ts
+  interface/http/<name>.controller.ts
+```
+
+Use `apps/api/src/common/` for cross-cutting infrastructure (Prisma, Redis, guards, shared time math).
+
+## Rules
+
+- Controllers: guards, DTO validation, delegate to services — **no Prisma**
+- Routes: use `ROUTES` from `@kloqra/contracts` — no hardcoded path strings
+- Errors: `DomainException` with contract error codes (not raw Nest exceptions in domain flows)
+- Cross-module deps: Nest `imports` / `exports` — **no** `../../<other-module>/` relative imports
+- File naming: kebab-case for multi-word files (`export-share.controller.ts`)

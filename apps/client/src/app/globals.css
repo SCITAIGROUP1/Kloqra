@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../packages/web-shared/src/**/*.{ts,tsx}";
+@import "tw-animate-css";
+@import "@kloqra/ui/globals.css";
+
+/* Dashboard grid — customize mode */
+.react-grid-placeholder {
+  background: color-mix(in oklch, var(--primary) 6%, transparent) !important;
+  border: 1.5px dashed color-mix(in oklch, var(--primary) 35%, transparent) !important;
+  border-radius: 12px !important;
+  opacity: 1;
+  z-index: 5 !important;
+  transition: none !important;
+}
+
+.layout-customizing .react-grid-item {
+  transition: box-shadow 0.2s ease;
+}
+
+.layout-customizing .react-grid-item:hover .widget-shell {
+  box-shadow:
+    0 4px 16px color-mix(in oklch, var(--foreground) 6%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--primary) 12%, transparent);
+}
+
+.layout-customizing .react-grid-item.react-draggable-dragging .widget-shell {
+  cursor: grabbing !important;
+  opacity: 0.94;
+  box-shadow:
+    0 12px 32px color-mix(in oklch, var(--foreground) 12%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent);
+}
+
+/* Strip default RGL / react-resizable chevron & bracket graphics */
+.layout-customizing .react-grid-item > .react-resizable-handle::after {
+  display: none !important;
+  content: none !important;
+}
+
+.layout-customizing .react-grid-item > .react-resizable-handle {
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  opacity: 0;
+  z-index: 40 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: opacity 0.18s ease;
+}
+
+.layout-customizing .react-grid-item:hover > .react-resizable-handle,
+.layout-customizing .react-grid-item > .react-resizable-handle:hover {
+  opacity: 1;
+}
+
+.layout-customizing .react-grid-item.resizing > .react-resizable-handle {
+  opacity: 1;
+}
+
+/* Bottom edge */
+.layout-customizing .react-grid-item > .react-resizable-handle-s {
+  left: 0 !important;
+  right: 14px !important;
+  width: auto !important;
+  height: 4px !important;
+  bottom: 0 !important;
+  transform: none !important;
+  cursor: ns-resize !important;
+  border-radius: 0 0 0 10px;
+  background-color: color-mix(in oklch, var(--primary) 28%, transparent) !important;
+}
+
+.layout-customizing .react-grid-item > .react-resizable-handle-s:hover,
+.layout-customizing .react-grid-item.resizing > .react-resizable-handle-s {
+  background-color: color-mix(in oklch, var(--primary) 50%, transparent) !important;
+}
+
+/* Right edge */
+.layout-customizing .react-grid-item > .react-resizable-handle-e {
+  top: 0 !important;
+  bottom: 14px !important;
+  height: auto !important;
+  width: 4px !important;
+  right: 0 !important;
+  transform: none !important;
+  cursor: ew-resize !important;
+  border-radius: 0 10px 0 0;
+  background-color: color-mix(in oklch, var(--primary) 28%, transparent) !important;
+}
+
+.layout-customizing .react-grid-item > .react-resizable-handle-e:hover,
+.layout-customizing .react-grid-item.resizing > .react-resizable-handle-e {
+  background-color: color-mix(in oklch, var(--primary) 50%, transparent) !important;
+}
+
+/* Corner — hit zone only, no icon */
+.layout-customizing .react-grid-item > .react-resizable-handle-se {
+  width: 14px !important;
+  height: 14px !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  cursor: se-resize !important;
+  background-color: transparent !important;
+  opacity: 1 !important;
+}
+
+.layout-customizing .react-grid-item:hover > .react-resizable-handle-se,
+.layout-customizing .react-grid-item.resizing > .react-resizable-handle-se {
+  background-color: color-mix(in oklch, var(--primary) 38%, transparent) !important;
+  border-radius: 0 0 10px 0;
+}
+
+/* Timesheet — cross-workspace busy slots (subtle ghost, not striped) */
+.occupancy-legend-swatch {
+  background: color-mix(in oklch, var(--muted-foreground) 8%, transparent);
+  border: 1px dashed color-mix(in oklch, var(--muted-foreground) 22%, transparent);
+  border-left-width: 2px;
+  border-left-style: solid;
+}
