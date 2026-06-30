@@ -48,11 +48,11 @@ We replaced the database fallback lookups for pagination with a stateless compou
 
 ### Transactional SQL Migration
 
-The database migrations are defined in [migration.sql](../../apps/api/prisma/migrations/20260619191954_partition_time_logs_and_audit/migration.sql):
+The database migrations are defined in [migration.sql](../../apps/api/prisma/migrations/20250602120000_init/migration.sql):
 
-1. **Clean Recreate**: Drops the existing tables and creates partitioned parent tables.
-2. **Partitions Creation**: Attaches partition tables for each month of 2026 and year 2025/2026.
-3. **Constraints & Indexes**: Adds check constraints (`time_log_source_check`), foreign keys, and indexes (e.g., `time_logs_user_id_start_time_idx`) to the parent partitioned tables, which are inherited by all child partitions.
+1. **Initial schema**: Creates partitioned parent tables as part of the single init migration.
+2. **Partitions creation**: Attaches partition tables for each month of 2026 and year 2025/2026, plus `DEFAULT` fallback partitions.
+3. **Constraints & indexes**: Inline check constraint (`time_log_source_check`), foreign keys, and indexes (e.g., `time_logs_user_id_start_time_idx`) on the parent partitioned tables, inherited by all child partitions.
 
 ---
 

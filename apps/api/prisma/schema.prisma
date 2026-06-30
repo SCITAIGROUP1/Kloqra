@@ -444,7 +444,7 @@ model TimesheetAmendmentRequest {
   @@index([workspaceId, status])
   @@index([periodId, status])
   // Partial unique index: amendment_one_pending_per_period (period_id) WHERE status = 'PENDING'
-  // Defined in migration 20260615173546_add_amendment_pending_unique_index — not expressible in Prisma 6 schema.
+  // Defined in migration 20250602120000_init — not expressible in Prisma 6 schema.
   @@map("timesheet_amendment_requests")
 }
 
