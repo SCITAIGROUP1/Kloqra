@@ -1,7 +1,6 @@
 import type { Page } from "@playwright/test";
 
 const MEMBER_EMAIL = "member@kloqra.dev";
-const DREW_EMAIL = "drew@kloqra.dev";
 const PASSWORD = "password123";
 
 async function submitLogin(page: Page, email: string) {
@@ -15,15 +14,11 @@ async function submitLogin(page: Page, email: string) {
   });
 
   if (page.url().includes("select-workspace")) {
-    await page.locator("button").filter({ hasText: "Acme Corporation" }).first().click();
+    await page.locator("button").filter({ hasText: "Softcodeit" }).first().click();
     await page.waitForURL(/\/(dashboard|timer|timesheet|time-tracker)/, { timeout: 30_000 });
   }
 }
 
 export async function loginAsMember(page: Page) {
   await submitLogin(page, MEMBER_EMAIL);
-}
-
-export async function loginAsDrew(page: Page) {
-  await submitLogin(page, DREW_EMAIL);
 }

@@ -12,7 +12,7 @@ setup("authenticate as admin", async ({ page }) => {
   await page.waitForURL(/.*(select-workspace|dashboard)/, { timeout: 30_000 });
 
   if (page.url().includes("select-workspace")) {
-    await page.locator("button").filter({ hasText: "Acme Corporation" }).first().click();
+    await page.locator("button").filter({ hasText: "Softcodeit" }).first().click();
     await page.waitForURL("**/dashboard", { timeout: 30_000 });
   }
 

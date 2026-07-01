@@ -1,10 +1,11 @@
-import type { ProjectDto, TaskDto } from "@kloqra/contracts";
+import type { ProjectListItemDto, TaskDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { createE2eProjectWithTask } from "./helpers/fixtures";
 import { listItems } from "./helpers/pagination";
 
 describe("Timer E2E", () => {
@@ -19,15 +20,23 @@ describe("Timer E2E", () => {
     await app.init();
 
     memberSession = await loginAs(app, "member@kloqra.dev");
+    const adminSession = await loginAs(app, "admin@kloqra.dev");
+
+    const fixture = await createE2eProjectWithTask(app, adminSession, {
+      teamUserIds: [memberSession.userId]
+    });
+    taskId = fixture.taskId;
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
-    const projectId = listItems<ProjectDto>(projectsRes.body)[0]?.id;
+    const projectId = listItems<ProjectListItemDto>(projectsRes.body).find(
+      (p) => p.id === fixture.projectId
+    )?.id;
     expect(projectId).toBeTruthy();
 
     const tasksRes = await authedAgent(app, memberSession).get("/tasks").query({ projectId });
     expect(tasksRes.status).toBe(200);
-    taskId = listItems<TaskDto>(tasksRes.body)[0]?.id;
+    taskId = listItems<TaskDto>(tasksRes.body)[0]?.id ?? taskId;
     expect(taskId).toBeTruthy();
   });
 

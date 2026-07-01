@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { createE2eProjectWithTask } from "./helpers/fixtures";
 import { listItems } from "./helpers/pagination";
 
 describe("Projects E2E", () => {
@@ -26,7 +27,11 @@ describe("Projects E2E", () => {
     await app.close();
   });
 
-  it("GET /projects returns seeded projects scoped to workspace", async () => {
+  it("GET /projects returns workspace projects scoped to the caller", async () => {
+    const created = await createE2eProjectWithTask(app, adminSession, {
+      teamUserIds: [memberSession.userId]
+    });
+
     const res = await authedAgent(app, adminSession).get("/projects");
     expect(res.status).toBe(200);
     const items = listItems<ProjectListItemDto>(res.body);
@@ -36,20 +41,24 @@ describe("Projects E2E", () => {
       items.every((p) => typeof p.totalTrackedSec === "number" && p.totalTrackedSec >= 0)
     ).toBe(true);
     expect(items.every((p) => p.workspaceId === undefined)).toBe(true);
+    expect(items.some((p) => p.id === created.projectId)).toBe(true);
   });
 
   it("admin can create a project", async () => {
     const res = await authedAgent(app, adminSession)
       .post("/projects")
-      .send({ name: `E2E Project ${Date.now()}`, clientName: "Acme" });
+      .send({ name: `E2E Project ${Date.now()}`, clientName: "Example Client" });
     expect(res.status).toBe(201);
     expect(res.body.name).toContain("E2E Project");
     expect(res.body.workspaceId).toBe(adminSession.workspaceId);
   });
 
   it("rejects duplicate project names within the workspace", async () => {
-    const listRes = await authedAgent(app, adminSession).get("/projects");
-    const existingName = listItems<ProjectListItemDto>(listRes.body)[0]!.name;
+    const existingName = `E2E Duplicate ${Date.now()}`;
+    const createRes = await authedAgent(app, adminSession)
+      .post("/projects")
+      .send({ name: existingName, clientName: "First Client" });
+    expect(createRes.status).toBe(201);
 
     const res = await authedAgent(app, adminSession)
       .post("/projects")
@@ -67,6 +76,10 @@ describe("Projects E2E", () => {
   });
 
   it("member list is a subset of admin list (project access scoping)", async () => {
+    const fixture = await createE2eProjectWithTask(app, adminSession, {
+      teamUserIds: [memberSession.userId]
+    });
+
     const [adminRes, memberRes] = await Promise.all([
       authedAgent(app, adminSession).get("/projects"),
       authedAgent(app, memberSession).get("/projects")
@@ -78,7 +91,9 @@ describe("Projects E2E", () => {
     const memberItems = listItems<ProjectListItemDto>(memberRes.body);
     const memberIds = new Set(memberItems.map((p) => p.id));
     expect(adminItems.length).toBeGreaterThanOrEqual(memberItems.length);
-    expect(memberItems.length).toBeGreaterThan(0);
-    expect(memberItems.every((p) => memberIds.has(p.id))).toBe(true);
+    expect(memberIds.has(fixture.projectId)).toBe(true);
+    for (const id of memberIds) {
+      expect(adminItems.some((p) => p.id === id)).toBe(true);
+    }
   });
 });

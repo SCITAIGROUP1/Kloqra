@@ -6,7 +6,19 @@ test.describe("Admin projects", () => {
     await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
   });
 
-  test("lists seeded workspace projects", async ({ page }) => {
+  test("lists workspace projects after creating one", async ({ page }) => {
+    const projectName = `E2E Listed Project ${Date.now()}`;
+    const clientName = "Listed Client";
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(projectName);
+    await page.locator("#client").fill(clientName);
+    await page.getByRole("button", { name: "Create project" }).click();
+
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
     await expect(page.getByRole("columnheader", { name: "Project Name" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Client Name" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Total Time Tracked" })).toBeVisible();
@@ -34,7 +46,7 @@ test.describe("Admin projects", () => {
 
   test("creates a project with name and client", async ({ page }) => {
     const projectName = `E2E Project ${Date.now()}`;
-    const clientName = "Acme Corp";
+    const clientName = "Example Client";
 
     await page.getByRole("button", { name: "New project" }).click();
     await page.locator("#name").fill(projectName);
@@ -49,11 +61,19 @@ test.describe("Admin projects", () => {
   });
 
   test("shows duplicate project name error in create modal", async ({ page }) => {
-    const existingName = "Annual Audit";
+    const existingName = `E2E Duplicate ${Date.now()}`;
 
     await page.getByRole("button", { name: "New project" }).click();
     await page.locator("#name").fill(existingName);
-    await page.locator("#client").fill("Acme Corp");
+    await page.locator("#client").fill("First Client");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("link", { name: `Open ${existingName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(existingName);
+    await page.locator("#client").fill("Second Client");
     await page.getByRole("button", { name: "Create project" }).click();
 
     await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
@@ -70,18 +90,34 @@ test.describe("Admin projects", () => {
   });
 
   test("opens the clicked project row", async ({ page }) => {
-    await page.getByRole("link", { name: "Open Annual Audit" }).click();
-    await expect(page.getByText("Annual Audit")).toBeVisible();
-    await expect(page.getByText("Client: Adventure Works")).toBeVisible();
+    const projectName = `E2E Open Project ${Date.now()}`;
+    const clientName = "Open Client";
 
-    await page.goto("/projects");
-    await page.getByRole("link", { name: "Open Brand Campaign Q2" }).click();
-    await expect(page.getByText("Brand Campaign Q2")).toBeVisible();
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(projectName);
+    await page.locator("#client").fill(clientName);
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
+    await page.getByRole("link", { name: `Open ${projectName}` }).click();
+    await expect(page.getByText(projectName)).toBeVisible();
+    await expect(page.getByText(`Client: ${clientName}`)).toBeVisible();
   });
 
   test("opens project overview tab from list", async ({ page }) => {
-    // Project list rows link to overview (default project section).
-    await page.locator("table tbody tr").first().click();
+    const projectName = `E2E Overview ${Date.now()}`;
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(projectName);
+    await page.locator("#client").fill("Overview Client");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
+    await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/overview$/);
@@ -89,7 +125,17 @@ test.describe("Admin projects", () => {
   });
 
   test("opens project tasks tab from list", async ({ page }) => {
-    await page.locator("table tbody tr").first().click();
+    const projectName = `E2E Tasks ${Date.now()}`;
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(projectName);
+    await page.locator("#client").fill("Tasks Client");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
+    await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
     await page
       .getByRole("navigation", { name: "Project sections" })
@@ -102,7 +148,17 @@ test.describe("Admin projects", () => {
   });
 
   test("shows add team member action on project team tab", async ({ page }) => {
-    await page.locator("table tbody tr").first().click();
+    const projectName = `E2E Team ${Date.now()}`;
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(projectName);
+    await page.locator("#client").fill("Team Client");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
+    await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await page
       .getByRole("navigation", { name: "Project sections" })
       .getByRole("link", { name: "Team", exact: true })
@@ -112,7 +168,17 @@ test.describe("Admin projects", () => {
   });
 
   test("add team member modal has searchable workspace member field", async ({ page }) => {
-    await page.locator("table tbody tr").first().click();
+    const projectName = `E2E Team Modal ${Date.now()}`;
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(projectName);
+    await page.locator("#client").fill("Team Modal Client");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
+      timeout: 15_000
+    });
+
+    await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await page
       .getByRole("navigation", { name: "Project sections" })
       .getByRole("link", { name: "Team", exact: true })

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { SEED_EMAIL_DOMAIN, SEED_USERS, SEED_WORKSPACES } from "./seed-data";
+import {
+  SEED_ADMINS,
+  SEED_EMAIL_DOMAIN,
+  SEED_MEMBERS,
+  SEED_USERS,
+  SEED_WORKSPACES
+} from "./seed-data";
 
 describe("seed-data", () => {
   it("uses kloqra.dev for all demo accounts", () => {
@@ -8,12 +14,16 @@ describe("seed-data", () => {
     }
   });
 
-  it("includes Acme Corporation as the primary demo workspace", () => {
-    expect(SEED_WORKSPACES[0]?.name).toBe("Acme Corporation");
-    expect(SEED_WORKSPACES[0]?.slug).toBe("acme");
+  it("includes Softcodeit as the primary workspace", () => {
+    expect(SEED_WORKSPACES[0]?.name).toBe("Softcodeit");
+    expect(SEED_WORKSPACES[0]?.slug).toBe("softcodeit");
   });
 
-  it("includes Meridian and Apex demo workspaces", () => {
-    expect(SEED_WORKSPACES.map((ws) => ws.slug)).toEqual(["acme", "meridian", "apex"]);
+  it("seeds one admin and one member by default", () => {
+    expect(SEED_ADMINS).toHaveLength(1);
+    expect(SEED_MEMBERS).toHaveLength(1);
+    expect(SEED_USERS).toHaveLength(2);
+    expect(SEED_ADMINS[0]?.email).toBe("admin@kloqra.dev");
+    expect(SEED_MEMBERS[0]?.email).toBe("member@kloqra.dev");
   });
 });

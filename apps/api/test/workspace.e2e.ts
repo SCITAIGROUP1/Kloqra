@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { createE2eProjectWithTask } from "./helpers/fixtures";
 
 describe("Workspace E2E", () => {
   let app: INestApplication;
@@ -75,7 +76,7 @@ describe("Workspace E2E", () => {
   it("POST /workspaces rejects duplicate workspace names", async () => {
     const res = await authedAgent(app, adminSession)
       .post(ROUTES.WORKSPACES.CREATE)
-      .send({ name: "Acme Corporation" });
+      .send({ name: "Softcodeit" });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("A workspace with this name already exists.");
   });
@@ -83,7 +84,7 @@ describe("Workspace E2E", () => {
   it("POST /workspaces rejects duplicate workspace names case-insensitively", async () => {
     const res = await authedAgent(app, adminSession)
       .post(ROUTES.WORKSPACES.CREATE)
-      .send({ name: "acme corporation" });
+      .send({ name: "softcodeit" });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("A workspace with this name already exists.");
   });
@@ -112,7 +113,8 @@ describe("Workspace E2E", () => {
     });
 
     // Assign to a project/team in this workspace
-    const project = await prisma.project.findFirst({ where: { workspaceId } });
+    const fixture = await createE2eProjectWithTask(app, adminSession);
+    const project = await prisma.project.findFirst({ where: { id: fixture.projectId } });
     expect(project).toBeDefined();
 
     const team =

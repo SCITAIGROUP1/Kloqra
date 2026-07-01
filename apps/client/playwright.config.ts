@@ -20,7 +20,6 @@ export default defineConfig({
   projects: [
     { name: "setup-admin", testMatch: /auth\.admin\.setup\.ts/ },
     { name: "setup-member", testMatch: /auth\.member\.setup\.ts/ },
-    { name: "setup-drew", testMatch: /auth\.drew\.setup\.ts/ },
     {
       name: "e2e",
       testIgnore: [
@@ -38,9 +37,9 @@ export default defineConfig({
     {
       name: "submissions",
       testMatch: /submissions\.spec\.ts/,
-      dependencies: ["setup-drew"],
+      dependencies: ["setup-member"],
       use: {
-        storageState: "e2e/.auth/drew.json"
+        storageState: "e2e/.auth/member.json"
       }
     },
     {

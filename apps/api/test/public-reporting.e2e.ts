@@ -1,4 +1,3 @@
-import type { ProjectListItemDto } from "@kloqra/contracts";
 import { reportingApiKeyHeaders } from "@kloqra/contracts";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
@@ -7,7 +6,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
-import { listItems } from "./helpers/pagination";
+import { createE2eProjectWithTask } from "./helpers/fixtures";
 
 describe("Public reporting API E2E", () => {
   let app: INestApplication;
@@ -24,8 +23,8 @@ describe("Public reporting API E2E", () => {
 
     adminSession = await loginAs(app, "admin@kloqra.dev");
 
-    const projectsRes = await authedAgent(app, adminSession).get("/projects");
-    projectId = listItems<ProjectListItemDto>(projectsRes.body)[0]!.id;
+    const fixture = await createE2eProjectWithTask(app, adminSession);
+    projectId = fixture.projectId;
 
     const createRes = await authedAgent(app, adminSession)
       .post("/reporting-api-keys")

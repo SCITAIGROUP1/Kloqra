@@ -1,17 +1,17 @@
-import type { ProjectListItemDto, TaskDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
-import { listItems } from "./helpers/pagination";
+import { createE2eProjectWithTask } from "./helpers/fixtures";
 
 describe("Timesheets E2E", () => {
   let app: INestApplication;
   let memberSession: Awaited<ReturnType<typeof loginAs>>;
   let adminSession: Awaited<ReturnType<typeof loginAs>>;
   let approvalProjectId: string;
+  let approvalTaskId: string;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -19,23 +19,17 @@ describe("Timesheets E2E", () => {
     app.use(cookieParser());
     await app.init();
 
-    memberSession = await loginAs(app, "drew@kloqra.dev");
+    memberSession = await loginAs(app, "member@kloqra.dev");
     adminSession = await loginAs(app, "admin@kloqra.dev");
 
-    const workspacesRes = await authedAgent(app, memberSession).get("/workspaces");
-    expect(workspacesRes.status).toBe(200);
-    const acme = workspacesRes.body.find((w: { name?: string }) => w.name === "Acme Corporation");
-    expect(acme?.id).toBeTruthy();
-    memberSession = { ...memberSession, workspaceId: acme.id };
-    adminSession = { ...adminSession, workspaceId: acme.id };
-
-    const projectsRes = await authedAgent(app, memberSession).get("/projects");
-    expect(projectsRes.status).toBe(200);
-    const approvalProject = listItems<ProjectListItemDto>(projectsRes.body).find(
-      (p) => p.name === "Support Retainer"
-    );
-    expect(approvalProject?.id).toBeTruthy();
-    approvalProjectId = approvalProject!.id;
+    const fixture = await createE2eProjectWithTask(app, adminSession, {
+      projectName: `E2E Timesheet Approval ${Date.now()}`,
+      timesheetApprovalEnabled: true,
+      timesheetApprovalPeriod: "weekly",
+      teamUserIds: [memberSession.userId]
+    });
+    approvalProjectId = fixture.projectId;
+    approvalTaskId = fixture.taskId;
   });
 
   afterAll(async () => {
@@ -43,18 +37,12 @@ describe("Timesheets E2E", () => {
   });
 
   it("GET /timesheets/submissions?scope=assigned returns periods with logged hours", async () => {
-    const tasksRes = await authedAgent(app, memberSession)
-      .get("/tasks")
-      .query({ projectId: approvalProjectId });
-    expect(tasksRes.status).toBe(200);
-    const taskId = listItems<TaskDto>(tasksRes.body)[0]?.id;
-    expect(taskId).toBeTruthy();
-
-    const start = new Date("2036-03-10T10:00:00.000Z");
-    const end = new Date("2036-03-10T11:00:00.000Z");
+    const salt = Date.now();
+    const start = new Date(Date.UTC(2036, salt % 12, 1 + (salt % 28), 10, 0, 0));
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
 
     const logRes = await authedAgent(app, memberSession).post("/timelogs").send({
-      taskId,
+      taskId: approvalTaskId,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       description: "E2E submissions list"

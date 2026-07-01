@@ -1,4 +1,3 @@
-import type { ProjectDto, TaskDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -6,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
-import { listItems } from "./helpers/pagination";
+import { createE2eProjectWithTask } from "./helpers/fixtures";
 
 describe("Timelog Audit E2E", () => {
   let app: INestApplication;
@@ -23,10 +22,10 @@ describe("Timelog Audit E2E", () => {
     adminSession = await loginAs(app, "admin@kloqra.dev");
     memberSession = await loginAs(app, "member@kloqra.dev");
 
-    const projectsRes = await authedAgent(app, memberSession).get("/projects");
-    const projectId = listItems<ProjectDto>(projectsRes.body)[0]?.id;
-    const tasksRes = await authedAgent(app, memberSession).get("/tasks").query({ projectId });
-    taskId = listItems<TaskDto>(tasksRes.body)[0]?.id;
+    const fixture = await createE2eProjectWithTask(app, adminSession, {
+      teamUserIds: [memberSession.userId]
+    });
+    taskId = fixture.taskId;
 
     // Clean up any test logs from previous runs
     const prisma = app.get(PrismaService);

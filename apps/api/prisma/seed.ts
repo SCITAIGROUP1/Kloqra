@@ -16,7 +16,10 @@ import {
   CATEGORY_LOG_DESCRIPTIONS,
   DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
+  SEED_ADMINS,
+  SEED_MEMBERS,
   SEED_CATEGORIES,
+  SEED_EXPORT_PRESETS,
   SEED_NOTIFICATIONS,
   SEED_PASSWORD,
   SEED_USERS,
@@ -175,7 +178,8 @@ async function main() {
     allProjectCtx.push(...projectCtx);
     await seedHourlyRates(workspace.id, users, projectCtx);
     await seedExportPresets(workspace.id);
-    await seedSampleInvite(projectCtx, users.get("admin@kloqra.dev")!);
+    const seedAdmin = users.get(SEED_ADMINS[0]?.email ?? "");
+    if (seedAdmin) await seedSampleInvite(projectCtx, seedAdmin);
     const timesheetCount = await seedTimesheetPeriods(projectCtx, users, workspace.id);
     const categorySummary = await categoryTaskCounts(workspace.id);
     console.log(
@@ -522,57 +526,70 @@ async function seedTimesheetWorkflowDemo(
   workspaces: Workspace[],
   users: Map<string, User>
 ): Promise<{ amendments: number; notifications: number }> {
-  const acme = workspaces.find((workspace) => workspace.slug === "acme");
-  const member = users.get("member@kloqra.dev");
-  const admin = users.get("admin@kloqra.dev");
-  if (!acme || !member || !admin) {
+  const primarySlug = SEED_WORKSPACES[0]?.slug;
+  const primary = primarySlug
+    ? workspaces.find((workspace) => workspace.slug === primarySlug)
+    : undefined;
+  const member = users.get(SEED_MEMBERS[0]?.email ?? "");
+  const admin = users.get(SEED_ADMINS[0]?.email ?? "");
+  if (!primary || !member || !admin) {
     return { amendments: 0, notifications: 0 };
   }
 
   let amendments = 0;
   let notifications = 0;
 
-  const submitted = await prisma.timesheetPeriod.findFirst({
-    where: {
-      workspaceId: acme.id,
-      userId: member.id,
-      status: "SUBMITTED",
-      project: { name: "Client Portal Redesign" }
-    },
-    include: { project: true },
-    orderBy: { periodStart: "desc" }
-  });
+  const approvalProjectName = SEED_WORKSPACES.flatMap((ws) => ws.projects).find(
+    (p) => p.timesheetApproval
+  )?.name;
 
-  const approved = await prisma.timesheetPeriod.findFirst({
-    where: {
-      workspaceId: acme.id,
-      userId: member.id,
-      status: "APPROVED",
-      project: { name: "Client Portal Redesign" }
-    },
-    include: { project: true },
-    orderBy: { periodStart: "desc" }
-  });
+  const submitted = approvalProjectName
+    ? await prisma.timesheetPeriod.findFirst({
+        where: {
+          workspaceId: primary.id,
+          userId: member.id,
+          status: "SUBMITTED",
+          project: { name: approvalProjectName }
+        },
+        include: { project: true },
+        orderBy: { periodStart: "desc" }
+      })
+    : null;
 
-  const rejected = await prisma.timesheetPeriod.findFirst({
-    where: {
-      workspaceId: acme.id,
-      userId: member.id,
-      status: "REJECTED",
-      project: { name: "Client Portal Redesign" }
-    },
-    include: { project: true },
-    orderBy: { periodStart: "desc" }
-  });
+  const approved = approvalProjectName
+    ? await prisma.timesheetPeriod.findFirst({
+        where: {
+          workspaceId: primary.id,
+          userId: member.id,
+          status: "APPROVED",
+          project: { name: approvalProjectName }
+        },
+        include: { project: true },
+        orderBy: { periodStart: "desc" }
+      })
+    : null;
+
+  const rejected = approvalProjectName
+    ? await prisma.timesheetPeriod.findFirst({
+        where: {
+          workspaceId: primary.id,
+          userId: member.id,
+          status: "REJECTED",
+          project: { name: approvalProjectName }
+        },
+        include: { project: true },
+        orderBy: { periodStart: "desc" }
+      })
+    : null;
 
   if (submitted) {
     await notificationRepo().create({
       data: {
         userId: admin.id,
-        workspaceId: acme.id,
+        workspaceId: primary.id,
         type: "APPROVAL_REQUEST",
         title: "Timesheet submitted for review",
-        body: `Sam Rivera submitted ${submitted.project.name} for review.`,
+        body: `${member.name} submitted ${submitted.project.name} for review.`,
         metadata: {
           variant: "attention",
           ctaLabel: "Review",
@@ -591,7 +608,7 @@ async function seedTimesheetWorkflowDemo(
     await notificationRepo().create({
       data: {
         userId: member.id,
-        workspaceId: acme.id,
+        workspaceId: primary.id,
         type: "TIMESHEET_STATUS",
         title: "Timesheet rejected",
         body: `Your ${rejected.project.name} timesheet was rejected. Please fix and resubmit.`,
@@ -619,7 +636,7 @@ async function seedTimesheetWorkflowDemo(
       data: {
         periodId: approved.id,
         userId: member.id,
-        workspaceId: acme.id,
+        workspaceId: primary.id,
         reason: "Need to correct billable hours on Tuesday entries before invoicing.",
         status: "PENDING"
       }
@@ -629,10 +646,10 @@ async function seedTimesheetWorkflowDemo(
     await notificationRepo().create({
       data: {
         userId: admin.id,
-        workspaceId: acme.id,
+        workspaceId: primary.id,
         type: "APPROVAL_REQUEST",
         title: "Timesheet edit request",
-        body: `Sam Rivera requested to edit an approved ${approved.project.name} timesheet.`,
+        body: `${member.name} requested to edit an approved ${approved.project.name} timesheet.`,
         metadata: {
           variant: "attention",
           ctaLabel: "Review request",
@@ -649,7 +666,7 @@ async function seedTimesheetWorkflowDemo(
     await notificationRepo().create({
       data: {
         userId: member.id,
-        workspaceId: acme.id,
+        workspaceId: primary.id,
         type: "TIMESHEET_REMINDER",
         title: "Submit your timesheet",
         body: `Reminder to submit ${approved.project.name} when you are ready.`,
@@ -671,16 +688,16 @@ async function seedTimesheetWorkflowDemo(
 }
 
 async function seedSampleInvite(projectCtx: ProjectCtx[], admin: User) {
-  const portal = projectCtx.find((c) => c.project.name === "Client Portal Redesign");
-  if (!portal) return;
+  const first = projectCtx[0];
+  if (!first) return;
 
   const expires = new Date();
   expires.setUTCDate(expires.getUTCDate() + 14);
 
   await prisma.projectInvite.create({
     data: {
-      projectId: portal.project.id,
-      token: "seed-invite-acme-freelancer",
+      projectId: first.project.id,
+      token: `seed-invite-${first.project.id.slice(0, 8)}`,
       email: "freelance@example.com",
       expiresAt: expires,
       createdById: admin.id
@@ -689,94 +706,24 @@ async function seedSampleInvite(projectCtx: ProjectCtx[], admin: User) {
 }
 
 async function seedExportPresets(workspaceId: string) {
+  if (SEED_EXPORT_PRESETS.length === 0) return;
+
   const to = new Date();
-  const from30 = new Date();
-  from30.setUTCDate(from30.getUTCDate() - 30);
-  const from90 = new Date();
-  from90.setUTCDate(from90.getUTCDate() - 90);
 
-  const presets = [
-    {
-      name: "Payroll CSV (30d)",
-      body: {
-        from: from30.toISOString(),
-        to: to.toISOString(),
-        billable: "all",
-        reportTypes: ["time_entries", "by_member"],
-        format: "csv"
-      }
-    },
-    {
-      name: "Client invoice pack",
-      body: {
-        from: from30.toISOString(),
-        to: to.toISOString(),
-        billable: "billable",
-        reportTypes: ["invoice", "by_project"],
-        format: "pdf"
-      }
-    },
-    {
-      name: "Full analytics (90d)",
-      body: {
-        from: from90.toISOString(),
-        to: to.toISOString(),
-        billable: "all",
-        reportTypes: [
-          "time_entries",
-          "daily_summary",
-          "weekly_summary",
-          "by_project",
-          "by_member",
-          "by_task",
-          "by_category",
-          "budget_vs_actual",
-          "utilization",
-          "users_without_time"
-        ],
-        format: "xlsx",
-        columns: {
-          time_entries: [
-            "project",
-            "category",
-            "task",
-            "member",
-            "date",
-            "hours",
-            "billable",
-            "amount"
-          ]
-        }
-      }
-    },
-    {
-      name: "Category breakdown (90d)",
-      body: {
-        from: from90.toISOString(),
-        to: to.toISOString(),
-        billable: "all",
-        reportTypes: ["time_entries", "by_category", "by_task"],
-        format: "xlsx",
-        groupBy: ["category"],
-        sheetLayout: "tabs_per_category",
-        columns: {
-          time_entries: ["category", "project", "task", "member", "date", "hours", "billable"],
-          by_category: [
-            "category",
-            "project",
-            "total_hours",
-            "billable_hours",
-            "billable_amount",
-            "active_tasks"
-          ]
-        }
-      }
+  for (const preset of SEED_EXPORT_PRESETS) {
+    const body = { ...preset.body };
+    const relativeFromDays =
+      typeof body.relativeFromDays === "number" ? body.relativeFromDays : undefined;
+    if (relativeFromDays !== undefined) {
+      const from = new Date();
+      from.setUTCDate(from.getUTCDate() - relativeFromDays);
+      body.from = from.toISOString();
+      body.to = to.toISOString();
+      delete body.relativeFromDays;
     }
-  ];
 
-  for (const preset of presets) {
     await prisma.exportPreset.create({
-      data: { workspaceId, name: preset.name, body: preset.body }
+      data: { workspaceId, name: preset.name, body: body as Prisma.InputJsonValue }
     });
   }
 }
@@ -1035,7 +982,7 @@ async function seedTimesheetPeriods(
             reviewNote: status === "REJECTED" ? "Please add missing Friday entries" : null,
             reviewedBy:
               status === "APPROVED" || status === "REJECTED"
-                ? users.get("admin@kloqra.dev")!.id
+                ? (users.get(SEED_ADMINS[0]?.email ?? "")?.id ?? null)
                 : null
           }
         });
@@ -1056,23 +1003,25 @@ function printCredentials() {
   const admins = SEED_USERS.filter((u) => u.role === "ADMIN");
   const members = SEED_USERS.filter((u) => u.role === "MEMBER");
 
-  console.log("  Admins (2):");
+  console.log(`  Admins (${admins.length}):`);
   for (const u of admins) {
     console.log(`    ${u.email.padEnd(28)} ${u.name}`);
   }
 
-  console.log("\n  Members (12):");
+  console.log(`\n  Members (${members.length}):`);
   for (const u of members) {
     const range = `${u.historyDays}d history · intensity ${Math.round(u.intensity * 100)}%`;
     console.log(`    ${u.email.padEnd(28)} ${u.name.padEnd(18)} (${range})`);
   }
 
-  const pending = SEED_USERS.find((u) => u.email === "pending@kloqra.dev");
-  if (pending) {
+  const unverified = SEED_USERS.filter((u) => u.emailVerified === false);
+  if (unverified.length > 0) {
     console.log("\n  Email verification demo:");
-    console.log(
-      `    ${pending.email.padEnd(28)} ${pending.name} (unverified — use /verify-email after login)`
-    );
+    for (const u of unverified) {
+      console.log(
+        `    ${u.email.padEnd(28)} ${u.name} (unverified — use /verify-email after login)`
+      );
+    }
   }
 
   console.log("\n  Workspaces:");
@@ -1137,7 +1086,7 @@ async function printSummary(workspaces: Workspace[], users: Map<string, User>) {
   console.log("Seed complete:", {
     users: users.size,
     workspaces: workspaces.length,
-    projects: SEED_WORKSPACES.length * 4,
+    projects: SEED_WORKSPACES.reduce((count, ws) => count + ws.projects.length, 0),
     taskAssignees: assigneeCount,
     userProjectColors: colorCount,
     unassignedTasks: unassignedTaskCount,

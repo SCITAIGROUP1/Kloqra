@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
+import { ensureUncategorizedCategory } from "./helpers/fixtures";
 import { listItems } from "./helpers/pagination";
 
 describe("Categories E2E", () => {
@@ -20,6 +21,8 @@ describe("Categories E2E", () => {
 
     adminSession = await loginAs(app, "admin@kloqra.dev");
     memberSession = await loginAs(app, "member@kloqra.dev");
+
+    await ensureUncategorizedCategory(app, adminSession);
   });
 
   afterAll(async () => {
@@ -27,6 +30,11 @@ describe("Categories E2E", () => {
   });
 
   it("GET /categories lists workspace categories for admin", async () => {
+    const createRes = await authedAgent(app, adminSession)
+      .post("/categories")
+      .send({ name: `E2E List Category ${Date.now()}`, color: "#0ea5e9" });
+    expect(createRes.status).toBe(201);
+
     const res = await authedAgent(app, adminSession).get("/categories");
     expect(res.status).toBe(200);
     const items = listItems<CategoryDto>(res.body);
@@ -79,10 +87,12 @@ describe("Categories E2E", () => {
     expect(createCatRes.status).toBe(201);
     const catId = createCatRes.body.id;
 
-    // 2. Find a project to associate a task
-    const projectsRes = await authedAgent(app, adminSession).get("/projects");
-    const project = listItems<any>(projectsRes.body)[0];
-    expect(project).toBeTruthy();
+    // 2. Create a project and task for reassignment coverage
+    const projectRes = await authedAgent(app, adminSession)
+      .post("/projects")
+      .send({ name: `E2E Cat Project ${Date.now()}`, clientName: "Category Client" });
+    expect(projectRes.status).toBe(201);
+    const project = projectRes.body;
 
     // 3. Create a task under that category
     const createTaskRes = await authedAgent(app, adminSession)
