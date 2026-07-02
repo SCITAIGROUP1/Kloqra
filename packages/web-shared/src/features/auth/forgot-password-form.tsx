@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, PLATFORM_LOGIN_DESCRIPTION, PLATFORM_PORTAL_LABEL } from "@kloqra/contracts";
 import { Button, Input, Label } from "@kloqra/ui";
 import Link from "next/link";
 import { useState } from "react";
@@ -8,7 +8,13 @@ import { api } from "../../api/client";
 import { AuthShell } from "../../components/auth-shell";
 import { extractFieldErrorsFromMessage } from "../../utils/form-errors";
 
-export function ForgotPasswordForm({ loginHref = "/login" }: { loginHref?: string }) {
+export function ForgotPasswordForm({
+  loginHref = "/login",
+  variant = "default"
+}: {
+  loginHref?: string;
+  variant?: "default" | "platform";
+}) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -47,8 +53,17 @@ export function ForgotPasswordForm({ loginHref = "/login" }: { loginHref?: strin
     }
   }
 
+  const shellProps =
+    variant === "platform"
+      ? {
+          portalLabel: PLATFORM_PORTAL_LABEL,
+          description: PLATFORM_LOGIN_DESCRIPTION,
+          variant: "platform" as const
+        }
+      : {};
+
   return (
-    <AuthShell title="Forgot password">
+    <AuthShell title="Forgot password" {...shellProps}>
       {sent ? (
         <div className="space-y-4 text-sm">
           <p>If an account exists for that email, we sent a password reset link.</p>
@@ -59,7 +74,9 @@ export function ForgotPasswordForm({ loginHref = "/login" }: { loginHref?: strin
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            Enter your email and we will send a link to reset your password.
+            {variant === "platform"
+              ? "Enter your platform admin email and we will send a reset link."
+              : "Enter your email and we will send a link to reset your password."}
           </p>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>

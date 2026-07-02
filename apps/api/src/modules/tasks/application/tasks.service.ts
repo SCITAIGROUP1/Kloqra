@@ -75,8 +75,17 @@ export class TasksService {
     return this.toListItem(t);
   }
 
-  async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
+  async list(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    query: ListTasksQuery,
+    managedProjectIds: string[] = []
+  ) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
+    if (role === "MEMBER" && managedProjectIds.length > 0) {
+      projectIds = [...new Set([...projectIds, ...managedProjectIds])];
+    }
     if (query.projectId) {
       const filterProjectIds = Array.isArray(query.projectId) ? query.projectId : [query.projectId];
       projectIds = projectIds.filter((id) => filterProjectIds.includes(id));
@@ -90,7 +99,11 @@ export class TasksService {
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(role === "MEMBER"
         ? {
-            OR: [{ isCommon: true }, { assignees: { some: { userId } } }]
+            OR: [
+              { projectId: { in: managedProjectIds } },
+              { isCommon: true },
+              { assignees: { some: { userId } } }
+            ]
           }
         : {}),
       ...(query.search
@@ -121,7 +134,8 @@ export class TasksService {
     );
   }
 
-  async create(workspaceId: string, dto: CreateTaskDto) {
+  async create(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: CreateTaskDto) {
+    await this.access.assertCanManageProject(workspaceId, userId, role, dto.projectId);
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
     if (!dto.isCommon) {
@@ -177,8 +191,15 @@ export class TasksService {
     return this.toDto(t);
   }
 
-  async update(workspaceId: string, id: string, dto: UpdateTaskDto) {
+  async update(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    id: string,
+    dto: UpdateTaskDto
+  ) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    await this.access.assertCanManageProject(workspaceId, userId, role, task.projectId);
     const willBeCommon = dto.isCommon !== undefined ? dto.isCommon : task.isCommon;
     const existingAssigneeIds = dto.assigneeUserIds
       ? (
@@ -268,8 +289,9 @@ export class TasksService {
     return this.toDto(t);
   }
 
-  async remove(workspaceId: string, id: string) {
+  async remove(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", id: string) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    await this.access.assertCanManageProject(workspaceId, userId, role, task.projectId);
     if (task.taskName === "Uncategorized Task") {
       throw new DomainException(
         ErrorCodes.VALIDATION_ERROR,

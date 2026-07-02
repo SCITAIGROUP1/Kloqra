@@ -42,6 +42,19 @@ describe("export-filename", () => {
     ).toBe("kloqra-demo-workspace-payroll-timesheets-may-2025.xlsx");
   });
 
+  it("includes optional tenant slug prefix", () => {
+    expect(
+      buildExportFilename({
+        tenantSlug: "kloqra-demo",
+        workspaceSlug: "acme",
+        from: "2025-06-01T00:00:00.000Z",
+        to: "2025-06-30T23:59:59.000Z",
+        purposeSlug: "payroll-timesheets",
+        ext: "xlsx"
+      })
+    ).toBe("kloqra-kloqra-demo-acme-payroll-timesheets-jun-2025.xlsx");
+  });
+
   it("builds member-scoped names", () => {
     expect(
       buildExportFilename({

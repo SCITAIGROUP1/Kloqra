@@ -5,12 +5,23 @@ import {
   timeFormatPreferenceSchema,
   userPreferencesSchema
 } from "../user-preferences";
-import { emailSchema, uuidSchema, passwordValidationSchema } from "./common.dto";
+import {
+  emailSchema,
+  uuidSchema,
+  passwordValidationSchema,
+  workspaceRoleSchema
+} from "./common.dto";
 
 export const userActivityStatsSchema = z.object({
   totalHours: z.number().nonnegative(),
   projectCount: z.number().int().nonnegative(),
   memberSince: z.string().datetime()
+});
+
+export const userWorkContextSchema = z.object({
+  organizationName: z.string().min(1).max(120),
+  workspaceName: z.string().min(1).max(120),
+  workspaceRole: workspaceRoleSchema
 });
 
 export const userProfileSchema = z.object({
@@ -33,6 +44,7 @@ export const userProfileSchema = z.object({
   effectiveTimeFormat: timeFormatPreferenceSchema,
   effectiveTheme: themePreferenceSchema,
   twoFactorEnabled: z.boolean(),
+  workContext: userWorkContextSchema,
   activityStats: userActivityStatsSchema,
   jiraEmail: z.string().email().nullable().optional(),
   jiraConnected: z.boolean().optional(),
@@ -99,6 +111,7 @@ export const loginRequires2faResponseSchema = z.object({
 });
 
 export type UserActivityStatsDto = z.infer<typeof userActivityStatsSchema>;
+export type UserWorkContextDto = z.infer<typeof userWorkContextSchema>;
 export type UserProfileDto = z.infer<typeof userProfileSchema>;
 export type UpdateUserProfileDto = z.infer<typeof updateUserProfileSchema>;
 export type UpdateUserPreferencesDto = z.infer<typeof updateUserPreferencesSchema>;

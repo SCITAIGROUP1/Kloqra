@@ -5,6 +5,10 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimelogsService } from "./timelogs.service";
 
+function mockSubscriptions() {
+  return { assertSubscriptionAllowsWrites: vi.fn().mockResolvedValue(undefined) };
+}
+
 describe("TimelogsService listOccupancy", () => {
   let service: TimelogsService;
   let mockPrisma: {
@@ -28,7 +32,8 @@ describe("TimelogsService listOccupancy", () => {
       {} as never,
       {} as never,
       mockTimesheetLock as never,
-      {} as never
+      {} as never,
+      mockSubscriptions() as never
     );
   });
 
@@ -112,6 +117,10 @@ describe("TimelogsService list", () => {
   let mockPrisma: {
     timeLog: { findMany: ReturnType<typeof vi.fn> };
   };
+  let _mockAccess: {
+    assertCanLogTask: ReturnType<typeof vi.fn>;
+    manageableProjectIds: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockPrisma = {
@@ -122,7 +131,8 @@ describe("TimelogsService list", () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never
+      {} as never,
+      mockSubscriptions() as never
     );
   });
 
@@ -234,7 +244,8 @@ describe("TimelogsService assertNoOverlap", () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never
+      {} as never,
+      mockSubscriptions() as never
     );
   });
 
@@ -319,19 +330,32 @@ describe("TimelogsService resolveBillable", () => {
   let service: TimelogsService;
 
   beforeEach(() => {
-    service = new TimelogsService({} as never, {} as never, {} as never, {} as never, {} as never);
+    service = new TimelogsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      mockSubscriptions() as never
+    );
   });
 
   it("MEMBER cannot override isBillable — task default is always used", () => {
-    expect(service.resolveBillable("MEMBER", false, true)).toBe(false);
-    expect(service.resolveBillable("MEMBER", true, false)).toBe(true);
-    expect(service.resolveBillable("MEMBER", true, undefined)).toBe(true);
+    expect(service.resolveBillable("MEMBER", false, false, true)).toBe(false);
+    expect(service.resolveBillable("MEMBER", false, true, false)).toBe(true);
+    expect(service.resolveBillable("MEMBER", false, true, undefined)).toBe(true);
   });
 
   it("ADMIN can override isBillable", () => {
-    expect(service.resolveBillable("ADMIN", false, true)).toBe(true);
-    expect(service.resolveBillable("ADMIN", true, false)).toBe(false);
-    expect(service.resolveBillable("ADMIN", true, undefined)).toBe(true);
+    expect(service.resolveBillable("ADMIN", false, false, true)).toBe(true);
+    expect(service.resolveBillable("ADMIN", false, true, false)).toBe(false);
+    expect(service.resolveBillable("ADMIN", false, true, undefined)).toBe(true);
+  });
+
+  it("PROJECT MANAGER can override isBillable", () => {
+    expect(service.resolveBillable("MEMBER", true, false, true)).toBe(true);
+    expect(service.resolveBillable("MEMBER", true, true, false)).toBe(false);
+    expect(service.resolveBillable("MEMBER", true, true, undefined)).toBe(true);
   });
 });
 
@@ -347,13 +371,17 @@ describe("TimelogsService createBatch", () => {
     mockPrisma = {
       task: { findUniqueOrThrow: vi.fn() },
       timeLog: { create: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
+      workspace: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "tenant-1" })
+      },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(mockPrisma))
     };
     mockTimesheetLock = {
       assertTaskPeriodEditable: vi.fn().mockResolvedValue(undefined)
     };
     mockAccess = {
-      assertCanLogTask: vi.fn().mockResolvedValue(undefined)
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
     };
     mockAudit = {
       recordEvent: vi.fn().mockResolvedValue(undefined),
@@ -368,7 +396,8 @@ describe("TimelogsService createBatch", () => {
       mockReportCache as any,
       mockAudit as any,
       mockTimesheetLock as any,
-      mockAccess as any
+      mockAccess as any,
+      mockSubscriptions() as any
     );
   });
 

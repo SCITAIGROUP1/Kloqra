@@ -4,8 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ShellHeaderActions } from "./shell-header-actions";
 
 vi.mock("../stores/session.store", () => ({
-  useSessionStore: (selector: (state: { session: { user: { name: string } } }) => unknown) =>
-    selector({ session: { user: { name: "Sarah Johnson" } } })
+  useSessionStore: Object.assign(
+    (selector: (state: { session: { user: { name: string } } }) => unknown) =>
+      selector({ session: { user: { name: "Sarah Johnson" } } }),
+    { getState: () => ({ session: { user: { name: "Sarah Johnson" } }, accessToken: null }) }
+  ),
+  getAccessToken: () => null,
+  getWorkspaceId: () => null
 }));
 
 vi.mock("./theme-toggle", () => ({

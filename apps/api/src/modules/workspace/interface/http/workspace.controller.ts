@@ -6,9 +6,11 @@ import {
   bulkInviteMemberSchema,
   teamMembersOverviewQuerySchema,
   teamActivitiesQuerySchema,
+  projectManagersOverviewQuerySchema,
   type TeamActivitiesQuery,
   type InviteMemberDto,
   type TeamMembersOverviewQuery,
+  type ProjectManagersOverviewQuery,
   ROUTES
 } from "@kloqra/contracts";
 import {
@@ -34,31 +36,34 @@ import {
 import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { WorkspaceMatchGuard } from "../../../../common/guards/workspace-match.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
+import { WorkspaceProjectManagersOverviewService } from "../../application/workspace-project-managers-overview.service";
 import { WorkspaceTeamActivitiesService } from "../../application/workspace-team-activities.service";
 import { WorkspaceService } from "../../application/workspace.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, WorkspaceMatchGuard)
 export class WorkspaceController {
   constructor(
     private workspace: WorkspaceService,
     private overviewService: WorkspaceMembersOverviewService,
+    private projectManagersOverviewService: WorkspaceProjectManagersOverviewService,
     private teamActivitiesService: WorkspaceTeamActivitiesService
   ) {}
 
   @Post(ROUTES.WORKSPACES.CREATE)
   create(
     @Body(new ZodValidationPipe(createWorkspaceSchema)) body: unknown,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    return this.workspace.create(user.userId, body as Parameters<WorkspaceService["create"]>[1]);
+    return this.workspace.create(_user.userId, body as Parameters<WorkspaceService["create"]>[1]);
   }
 
   @Get(ROUTES.WORKSPACES.LIST)
-  list(@CurrentUser() user: RequestUser) {
-    return this.workspace.listForUser(user.userId);
+  list(@CurrentUser() _user: RequestUser) {
+    return this.workspace.listForUser(_user.userId);
   }
 
   @Roles("ADMIN")
@@ -66,15 +71,24 @@ export class WorkspaceController {
   membersOverview(
     @Param("id") id: string,
     @Query(new ZodValidationPipe(teamMembersOverviewQuerySchema)) query: TeamMembersOverviewQuery,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.overviewService.getOverview(id, query);
   }
 
+  @Roles("ADMIN")
+  @Get(ROUTES.WORKSPACES.PROJECT_MANAGERS_OVERVIEW(":id"))
+  projectManagersOverview(
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(projectManagersOverviewQuerySchema))
+    query: ProjectManagersOverviewQuery,
+    @CurrentUser() _user: RequestUser
+  ) {
+    return this.projectManagersOverviewService.getOverview(id, query);
+  }
+
   @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
-  members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+  members(@Param("id") id: string, @CurrentUser() _user: RequestUser) {
     return this.workspace.listMembers(id);
   }
 
@@ -82,9 +96,8 @@ export class WorkspaceController {
   teamActivities(
     @Param("id") id: string,
     @Query(new ZodValidationPipe(teamActivitiesQuerySchema)) query: TeamActivitiesQuery,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.teamActivitiesService.getTeamActivities(id, query);
   }
 
@@ -94,14 +107,13 @@ export class WorkspaceController {
     @Param("id") id: string,
     @Param("memberId") memberId: string,
     @Body(new ZodValidationPipe(updateWorkspaceMemberSchema)) body: unknown,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.updateMember(
       id,
       memberId,
       body as Parameters<WorkspaceService["updateMember"]>[2],
-      user.userId
+      _user.userId
     );
   }
 
@@ -110,10 +122,9 @@ export class WorkspaceController {
   removeMember(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
-    return this.workspace.removeMember(id, memberId, user.userId);
+    return this.workspace.removeMember(id, memberId, _user.userId);
   }
 
   @Roles("ADMIN")
@@ -121,13 +132,12 @@ export class WorkspaceController {
   invite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(inviteMemberSchema)) body: unknown,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.invite(
       id,
       body as Parameters<WorkspaceService["invite"]>[1],
-      user.userId
+      _user.userId
     );
   }
 
@@ -135,10 +145,9 @@ export class WorkspaceController {
   @Get(ROUTES.WORKSPACES.BULK_MEMBERS_TEMPLATE(":id"))
   async getBulkInviteTemplate(
     @Param("id") id: string,
-    @CurrentUser() user: RequestUser,
+    @CurrentUser() _user: RequestUser,
     @Res() res: Response
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     await this.workspace.generateBulkInviteTemplate(res);
   }
 
@@ -148,13 +157,12 @@ export class WorkspaceController {
   async bulkInviteUpload(
     @Param("id") id: string,
     @UploadedFile() file: any,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     if (!file) throw new Error("No file uploaded");
 
     const members = await this.workspace.parseBulkInviteExcel(file.buffer);
-    return this.workspace.bulkInvite(id, members, user.userId);
+    return this.workspace.bulkInvite(id, members, _user.userId);
   }
 
   @Roles("ADMIN")
@@ -162,10 +170,9 @@ export class WorkspaceController {
   async bulkInvite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(bulkInviteMemberSchema)) body: { members: InviteMemberDto[] },
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
-    return this.workspace.bulkInvite(id, body.members, user.userId);
+    return this.workspace.bulkInvite(id, body.members, _user.userId);
   }
 
   @Roles("ADMIN")
@@ -173,16 +180,14 @@ export class WorkspaceController {
   resendCredentials(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.resendMemberCredentials(id, memberId);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.BY_ID(":id"))
-  getById(@Param("id") id: string, @CurrentUser() user: RequestUser) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+  getById(@Param("id") id: string, @CurrentUser() _user: RequestUser) {
     return this.workspace.getById(id);
   }
 
@@ -191,9 +196,8 @@ export class WorkspaceController {
   update(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateWorkspaceSchema)) body: any,
-    @CurrentUser() user: RequestUser
+    @CurrentUser() _user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.update(id, body);
   }
 }

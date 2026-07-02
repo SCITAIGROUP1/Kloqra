@@ -11,6 +11,8 @@
     "dev:api": "pnpm --filter @kloqra/api dev",
     "dev:client": "pnpm --filter @kloqra/client dev",
     "dev:admin": "pnpm --filter @kloqra/admin dev",
+    "dev:platform": "pnpm --filter @kloqra/platform-admin dev",
+    "dev:web": "pnpm --filter @kloqra/web dev",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d",

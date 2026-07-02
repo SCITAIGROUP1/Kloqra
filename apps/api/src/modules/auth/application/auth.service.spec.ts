@@ -19,34 +19,73 @@ describe("AuthService unit tests", () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    mockPrisma = {} as any;
+    mockPrisma = {
+      tenant: {
+        findUnique: vi.fn().mockResolvedValue({ status: "active" })
+      },
+      tenantMember: {
+        findUnique: vi.fn().mockResolvedValue(null)
+      },
+      workspaceMember: {
+        findFirst: vi.fn().mockResolvedValue({ workspace: { tenantId: "tenant-1" } }),
+        findUnique: vi.fn()
+      }
+    } as any;
     mockJwt = {
       sign: vi.fn().mockReturnValue("mocked-token"),
       verify: vi.fn()
     } as any;
-    authService = new AuthService(mockPrisma, mockJwt, {
-      sendPasswordReset: vi.fn().mockResolvedValue({ sent: true }),
-      sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
-    } as never);
+    const mockProjectAccess = {
+      managedProjectIds: vi.fn().mockResolvedValue([]),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const mockProvisioning = {
+      provisionTenant: vi.fn().mockResolvedValue({ tenantId: "t1", ownerUserId: "u1" })
+    };
+    authService = new AuthService(
+      mockPrisma,
+      mockJwt,
+      {
+        sendPasswordReset: vi.fn().mockResolvedValue({ sent: true }),
+        sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
+      } as never,
+      mockProjectAccess as never,
+      mockProvisioning as never
+    );
   });
 
   afterEach(() => {
     process.env = originalEnv;
   });
 
+  describe("signup", () => {
+    it("rejects when self-serve signup is disabled", async () => {
+      process.env.SELF_SERVE_SIGNUP_ENABLED = "false";
+      await expect(
+        authService.signup({
+          email: "new@example.com",
+          password: "Password123!",
+          name: "New User",
+          organizationName: "New Org",
+          planSlug: "starter"
+        })
+      ).rejects.toMatchObject({ code: "SIGNUP_DISABLED" });
+    });
+  });
+
   describe("signAccessToken", () => {
     it("throws an error if JWT_ACCESS_SECRET is not set", () => {
       delete process.env.JWT_ACCESS_SECRET;
-      expect(() => authService.signAccessToken("user-1", "workspace-1", "ADMIN")).toThrow(
-        "JWT_ACCESS_SECRET is not set on the API service"
-      );
+      expect(() =>
+        authService.signAccessToken("user-1", "workspace-1", "ADMIN", "tenant-1")
+      ).toThrow("JWT_ACCESS_SECRET is not set on the API service");
     });
 
     it("signs a token correctly if JWT_ACCESS_SECRET is set", () => {
       process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
       process.env.JWT_ACCESS_EXPIRES = "10m";
 
-      const token = authService.signAccessToken("user-1", "workspace-1", "MEMBER");
+      const token = authService.signAccessToken("user-1", "workspace-1", "MEMBER", "tenant-1");
 
       expect(token).toBe("mocked-token");
       expect(mockJwt.sign).toHaveBeenCalledWith(
@@ -54,6 +93,7 @@ describe("AuthService unit tests", () => {
           sub: "user-1",
           userId: "user-1",
           workspaceId: "workspace-1",
+          tenantId: "tenant-1",
           role: "MEMBER",
           typ: "access"
         },
@@ -108,9 +148,19 @@ describe("AuthService unit tests", () => {
             {
               workspaceId: "ws-1",
               role: "ADMIN",
-              workspace: { id: "ws-1", name: "Kloqra" }
+              workspace: { id: "ws-1", name: "Kloqra", tenantId: "tenant-1" }
             }
           ]
+        })
+      };
+      mockPrisma.tenant = {
+        findUnique: vi.fn().mockResolvedValue({ status: "active" })
+      };
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue({
+          tenantId: "tenant-1",
+          role: "ADMIN",
+          isActive: true
         })
       };
 
@@ -130,6 +180,8 @@ describe("AuthService unit tests", () => {
       }
 
       expect(result.workspaceId).toBe("ws-1");
+      expect(result.tenantId).toBe("tenant-1");
+      expect(result.tenantRole).toBe("ADMIN");
       expect(result.workspaceRole).toBe("ADMIN");
       expect(result.user.email).toBeUndefined();
       expect(result.user.defaultHourlyRate).toBeNull();
@@ -165,6 +217,45 @@ describe("AuthService unit tests", () => {
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 
+    it("rejects login when tenant is suspended", async () => {
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "suspended@kloqra.dev",
+          name: "Suspended",
+          passwordHash: "hash",
+          mustChangePassword: false,
+          emailVerifiedAt: new Date("2025-01-01"),
+          totpEnabledAt: null,
+          totpSecret: null,
+          defaultHourlyRate: null,
+          memberships: [
+            {
+              workspaceId: "ws-1",
+              role: "ADMIN",
+              workspace: { id: "ws-1", name: "Suspended Org", tenantId: "tenant-suspended" }
+            }
+          ]
+        })
+      };
+      mockPrisma.tenant = {
+        findUnique: vi.fn().mockResolvedValue({ status: "suspended" })
+      };
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue({
+          tenantId: "tenant-suspended",
+          role: "OWNER",
+          isActive: true
+        })
+      };
+
+      await expect(
+        authService.login({ email: "suspended@kloqra.dev", password: "password123" })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
     it("returns requiresPasswordChange when mustChangePassword is set", async () => {
       process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
@@ -191,6 +282,25 @@ describe("AuthService unit tests", () => {
     });
   });
 
+  describe("switchWorkspace", () => {
+    it("rejects switching to a workspace in another tenant", async () => {
+      mockPrisma.workspaceMember.findUnique = vi.fn().mockResolvedValue({
+        workspaceId: "ws-2",
+        role: "MEMBER",
+        user: { id: "user-1", name: "User", email: "u@kloqra.dev", defaultHourlyRate: null },
+        workspace: { name: "Other", tenantId: "tenant-2" }
+      });
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue({ tenantId: "tenant-1" })
+      };
+      mockPrisma.workspaceMember.findFirst = vi.fn();
+
+      await expect(authService.switchWorkspace("user-1", "ws-2")).rejects.toMatchObject({
+        code: "FORBIDDEN"
+      });
+    });
+  });
+
   describe("impersonation handoff", () => {
     it("issues and verifies signed handoff tokens", async () => {
       process.env.JWT_REFRESH_SECRET = "ci-refresh-secret-min-32-chars-long";
@@ -200,6 +310,7 @@ describe("AuthService unit tests", () => {
             id: "target-user",
             name: "Sam Rivera"
           },
+          tenantId: "tenant-1",
           workspaceId: "ws-1",
           workspaceRole: "MEMBER" as const,
           impersonatorId: "admin-user",
@@ -223,10 +334,18 @@ describe("AuthService unit tests", () => {
         };
       });
 
-      const service = new AuthService(mockPrisma, mockJwt, {
-        sendPasswordReset: vi.fn(),
-        sendEmailVerification: vi.fn()
-      } as never);
+      const service = new AuthService(
+        mockPrisma,
+        mockJwt,
+        {
+          sendPasswordReset: vi.fn(),
+          sendEmailVerification: vi.fn()
+        } as never,
+        { managedProjectIds: vi.fn(), manageableProjectIds: vi.fn() } as never,
+        {
+          provisionTenant: vi.fn()
+        } as never
+      );
 
       vi.spyOn(service, "impersonate").mockResolvedValue(impersonationResult);
 
@@ -274,9 +393,18 @@ describe("AuthService unit tests", () => {
           userId: "member-1",
           workspaceId: "ws-1",
           role: "MEMBER",
-          user: { id: "member-1", name: "Member One" },
-          workspace: { id: "ws-1", name: "Workspace" }
-        })
+          user: {
+            id: "member-1",
+            name: "Member One",
+            email: "member@kloqra.dev",
+            defaultHourlyRate: null
+          },
+          workspace: { id: "ws-1", name: "Workspace", tenantId: "tenant-1" }
+        }),
+        findFirst: vi.fn().mockResolvedValue({ workspace: { tenantId: "tenant-1" } })
+      };
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue(null)
       };
       mockPrisma.refreshToken = {
         create: vi.fn().mockResolvedValue({}),
@@ -285,7 +413,98 @@ describe("AuthService unit tests", () => {
 
       const result = await authService.impersonate("admin-1", "ws-1", "member-1");
       expect(result.session.workspaceRole).toBe("MEMBER");
+      expect(result.session.tenantId).toBe("tenant-1");
       expect(result.session.impersonatorId).toBe("admin-1");
+    });
+  });
+
+  describe("loginPlatform", () => {
+    it("returns platform session when 2FA is not enabled", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      const platformUser = {
+        id: "platform-1",
+        email: "platform@kloqra.dev",
+        name: "Platform Admin",
+        role: "SUPERADMIN",
+        isActive: true,
+        passwordHash: "hash",
+        totpEnabledAt: null,
+        totpSecret: null
+      };
+      mockPrisma.platformUser = {
+        findUnique: vi.fn().mockResolvedValue(platformUser)
+      };
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+      const result = await authService.loginPlatform({
+        email: "platform@kloqra.dev",
+        password: "password123"
+      });
+
+      expect(result).toEqual({
+        user: {
+          id: "platform-1",
+          email: "platform@kloqra.dev",
+          name: "Platform Admin",
+          platformRole: "SUPERADMIN"
+        },
+        platformRole: "SUPERADMIN"
+      });
+    });
+
+    it("requires TOTP when platform 2FA is enabled", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      const platformUser = {
+        id: "platform-1",
+        email: "platform@kloqra.dev",
+        name: "Platform Admin",
+        role: "SUPERADMIN",
+        isActive: true,
+        passwordHash: "hash",
+        totpEnabledAt: new Date(),
+        totpSecret: "secret"
+      };
+      mockPrisma.platformUser = {
+        findUnique: vi.fn().mockResolvedValue(platformUser)
+      };
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockJwt.sign.mockReturnValue("pending-2fa-token");
+
+      const result = await authService.loginPlatform({
+        email: "platform@kloqra.dev",
+        password: "password123"
+      });
+
+      expect(result).toEqual({
+        requires2fa: true,
+        pendingToken: "pending-2fa-token"
+      });
+    });
+
+    it("rejects inactive platform user", async () => {
+      mockPrisma.platformUser = {
+        findUnique: vi.fn().mockResolvedValue(null)
+      };
+      await expect(
+        authService.loginPlatform({ email: "missing@kloqra.dev", password: "password123" })
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    });
+  });
+
+  describe("signPlatformAccessToken", () => {
+    it("signs platform token with typ platform", () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      authService.signPlatformAccessToken("platform-1", "fam-1");
+      expect(mockJwt.sign).toHaveBeenCalledWith(
+        {
+          sub: "platform-1",
+          platformRole: "SUPERADMIN",
+          typ: "platform",
+          scope: "platform",
+          family: "fam-1"
+        },
+        expect.objectContaining({ secret: "my-secret-key-32-chars-long-or-more" })
+      );
     });
   });
 

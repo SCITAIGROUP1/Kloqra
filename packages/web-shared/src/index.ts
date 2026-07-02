@@ -1,6 +1,36 @@
 export { applyDefaultWorkspaceIfNeeded } from "./auth/apply-default-workspace";
+export {
+  countAdminContexts,
+  filterAdminAccessibleWorkspaces,
+  resolveAdminContextBreadcrumb,
+  shouldShowAdminContextPicker,
+  type AdminContextMode,
+  type AdminContextBreadcrumbSegment
+} from "./auth/admin-context";
+export { formatAdminWorkspaceAccessLabel, formatWorkspaceRole } from "./auth/admin-access-label";
+export { canAccessAdminApp, canLoginToAdminApp } from "./auth/admin-app-access";
+export {
+  canAccessAccountMode,
+  canAccessAccountPath,
+  isPersonalAccountPath,
+  canManageOrganization,
+  defaultAccountLandingPath,
+  isOrganizationOwner,
+  isOwnerOnlyAccountPath
+} from "./auth/organization-access";
+export {
+  resolvePlatformContextBreadcrumb,
+  type PlatformContextMode,
+  type PlatformContextBreadcrumbSegment
+} from "./auth/platform-context";
 export { hasMultipleWorkspaces } from "./auth/workspace-check";
 export { bootstrapSession, type BootstrapResult } from "./auth/bootstrap-session";
+export {
+  bootstrapPlatformSession,
+  logoutPlatformSession,
+  tryRefreshPlatformSession,
+  type BootstrapPlatformResult
+} from "./auth/bootstrap-platform-session";
 export { logoutSession } from "./auth/logout";
 export { tryRefreshSession } from "./auth/refresh-session";
 export { isAccessTokenExpired } from "./auth/jwt-payload";
@@ -9,7 +39,7 @@ export {
   isWorkspaceMismatchError,
   resolveApiWorkspaceId
 } from "./auth/workspace-context";
-export { api, getApiBase, publicFetch } from "./api/client";
+export { api, getApiBase, publicFetch, ApiRequestError } from "./api/client";
 export {
   COMPACT_LAPTOP_SHELL_MAX,
   COMPACT_LAPTOP_SHELL_MIN,
@@ -54,6 +84,14 @@ export {
   ThemeToggle,
   WorkspaceSwitcher,
   type WorkspaceSwitcherProps,
+  AdminContextBreadcrumb,
+  type AdminContextBreadcrumbProps,
+  OrganizationContextPanel,
+  type OrganizationContextPanelProps,
+  PlatformContextBreadcrumb,
+  type PlatformContextBreadcrumbProps,
+  PlatformContextPanel,
+  type PlatformContextPanelProps,
   SentryInitializer,
   BrandMark,
   type BrandMarkProps,
@@ -68,6 +106,7 @@ export {
   syncWorkspaceIdToStorage,
   useSessionStore
 } from "./stores/session.store";
+export { usePlatformSessionStore, getPlatformAccessToken } from "./stores/platform-session.store";
 export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
@@ -132,13 +171,83 @@ export {
 export { SetPasswordForm } from "./features/account/set-password-form";
 export { ForgotPasswordForm } from "./features/auth/forgot-password-form";
 export { ResetPasswordForm } from "./features/auth/reset-password-form";
+export { PlatformSetup2faForm } from "./features/auth/platform-setup-2fa-form";
 export { VerifyEmailPageContent } from "./features/auth/verify-email-page-content";
+export { usePublicPlans } from "./features/auth/use-public-plans";
+export {
+  useOrgLoginBranding,
+  orgLoginDescription,
+  type OrgLoginBranding
+} from "./features/auth/use-org-login-branding";
+export { ORG_SLUG_COOKIE, readOrgSlugCookie } from "./features/auth/org-slug-cookie";
+export { CopyableValue } from "./components/copyable-value";
 export { WorkspaceSelectForm } from "./features/auth/workspace-select-form";
+export { AdminContextSelectForm } from "./features/auth/admin-context-select-form";
+export type { WorkspaceCheckOptions } from "./auth/workspace-check";
 export { AccountSettingsPage } from "./features/account/account-settings-page";
 export { NotificationsPage } from "./features/notifications/notifications-page";
 export { ProfilePage } from "./features/account/profile-page";
 export { IntegrationsSection } from "./features/account/profile/integrations-section";
 export { useUserProfile } from "./features/account/use-user-profile";
+export { useTenantCurrent } from "./features/tenant/use-tenant-current";
+export { useUpdateTenantCurrent } from "./features/tenant/use-update-tenant-current";
+export { useTenantOverview } from "./features/tenant/use-tenant-overview";
+export { useTenantAnalyticsSummary } from "./features/tenant/use-tenant-analytics-summary";
+export { useTenantMembers } from "./features/tenant/use-tenant-members";
+export { useTenantSubscription } from "./features/tenant/use-tenant-subscription";
+export { useTenantDataExport } from "./features/tenant/use-tenant-data-export";
+export { LegalFooterLinks, getLegalUrls } from "./components/legal-footer";
+export {
+  useCreateCheckoutSession,
+  useChangeSubscriptionPlan,
+  useCreatePortalSession,
+  useSalesInquiry,
+  useSubmitSalesInquiry,
+  useUploadSalesReceipt
+} from "./features/tenant/use-subscription-billing";
+export { usePlatformPlans } from "./features/platform/use-platform-plans";
+export { usePricingPlans } from "./features/plan/use-pricing-plans";
+export {
+  BILLING_INTERVAL_OPTIONS,
+  buildPricingTiersFromCatalog,
+  buildPricingTiersFromPlans,
+  isPaidCheckoutTier,
+  isTierCurrent,
+  planSlugForTierName,
+  resolveTierPriceDisplay,
+  type BillingInterval,
+  type PlanPricingTier
+} from "./plan/pricing-tier";
+export { PlanPricingCard, type PlanPricingCardProps } from "./plan/plan-pricing-card";
+export { formatPlanPriceUsd } from "@kloqra/contracts";
+export { usePlatformOpsSummary } from "./features/platform/use-platform-ops-summary";
+export {
+  usePlatformAuditEvents,
+  type PlatformAuditAction
+} from "./features/platform/use-platform-audit-events";
+export { usePlatformTenants } from "./features/platform/use-platform-tenants";
+export { usePlatformTenantDetail } from "./features/platform/use-platform-tenant-detail";
+export { usePlatformSubscriptions } from "./features/platform/use-platform-subscriptions";
+export { usePlatformSubscriptionDetail } from "./features/platform/use-platform-subscription-detail";
+export { usePlatformSubscriptionWorkQueue } from "./features/platform/use-platform-subscription-work-queue";
+export {
+  usePlatformStaff,
+  type PlatformStaffListResponseDto
+} from "./features/platform/use-platform-staff";
+export { PlatformProfilePage } from "./features/platform-account/platform-profile-page";
+export { PlatformAccountSettingsPage } from "./features/platform-account/platform-account-settings-page";
+export { PlatformNotificationsPage } from "./features/platform-notifications/platform-notifications-page";
+export { usePlatformUserProfile } from "./features/platform-account/use-platform-user-profile";
+export {
+  formatPlatformNotificationTimeAgo,
+  markAllPlatformNotificationsRead,
+  markPlatformNotificationRead,
+  usePlatformNotificationUnreadCount,
+  usePaginatedPlatformNotifications,
+  useRecentPlatformNotifications
+} from "./hooks/use-platform-notifications";
+export { usePlatformNotificationSocket } from "./hooks/use-platform-notification-socket";
+export { resolveAdminLandingPath } from "./auth/resolve-admin-landing-path";
 export { SettingsCard } from "./features/account/settings/settings-card";
 export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";
 export {
@@ -167,3 +276,5 @@ export {
   PasswordStrengthIndicator,
   calculatePasswordStrength
 } from "./components/password-strength-indicator";
+
+export { SupportTicketForm } from "./components/support-ticket-form";

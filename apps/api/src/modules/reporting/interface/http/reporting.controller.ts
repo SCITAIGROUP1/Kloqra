@@ -8,11 +8,13 @@ import {
   ROUTES
 } from "@kloqra/contracts";
 import { Controller, Get, Post, Query, Param, Body, UseGuards, HttpCode } from "@nestjs/common";
+import { ProjectAccessService } from "../../../../common/access/project-access.service";
 import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -24,69 +26,91 @@ import { WidgetShareService } from "../../application/widget-share.service";
 export class ReportingController {
   constructor(
     private reporting: ReportingService,
-    private widgetShares: WidgetShareService
+    private widgetShares: WidgetShareService,
+    private access: ProjectAccessService
   ) {}
 
-  @Roles("ADMIN")
+  private async allowedProjectIds(user: RequestUser): Promise<string[] | undefined> {
+    if (user.role === "ADMIN") return undefined;
+    return this.access.manageableProjectIds(user.workspaceId, user.userId, user.role);
+  }
+
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.DASHBOARD)
-  dashboard(
+  async dashboard(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
+    const projectIds = await this.allowedProjectIds(user);
     return this.reporting.dashboard(
       user.workspaceId,
-      query as Parameters<ReportingService["dashboard"]>[1]
+      query as Parameters<ReportingService["dashboard"]>[1],
+      projectIds
     );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.UTILIZATION)
-  utilization(
+  async utilization(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(utilizationQuerySchema)) query: UtilizationQueryDto
   ) {
-    return this.reporting.utilization(user.workspaceId, query);
+    const projectIds = await this.allowedProjectIds(user);
+    return this.reporting.utilization(user.workspaceId, query, projectIds);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.BUDGET(":id"))
-  budgetBurnDown(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async budgetBurnDown(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    await this.access.assertCanManageProject(user.workspaceId, user.userId, user.role, id);
     return this.reporting.budgetBurnDown(user.workspaceId, id);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.HEATMAP)
-  heatmap(
+  async heatmap(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
+    const projectIds = await this.allowedProjectIds(user);
     return this.reporting.heatmap(
       user.workspaceId,
-      query as Parameters<ReportingService["heatmap"]>[1]
+      query as Parameters<ReportingService["heatmap"]>[1],
+      projectIds
     );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.CATEGORIES_HEATMAP)
-  categoriesHeatmap(
+  async categoriesHeatmap(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
+    const projectIds = await this.allowedProjectIds(user);
     return this.reporting.categoryProjectHeatmap(
       user.workspaceId,
-      query as Parameters<ReportingService["categoryProjectHeatmap"]>[1]
+      query as Parameters<ReportingService["categoryProjectHeatmap"]>[1],
+      projectIds
     );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.TASKS)
-  tasks(
+  async tasks(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
+    const projectIds = await this.allowedProjectIds(user);
     return this.reporting.tasks(
       user.workspaceId,
-      query as Parameters<ReportingService["tasks"]>[1]
+      query as Parameters<ReportingService["tasks"]>[1],
+      projectIds
     );
   }
 

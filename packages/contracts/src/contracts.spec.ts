@@ -7,6 +7,16 @@ import {
   verifyUserJiraSchema
 } from "./dto/jira.dto";
 import {
+  platformNotificationSchema,
+  PlatformNotificationType,
+  platformNotificationTypeSchema
+} from "./dto/platform-notification.dto";
+import {
+  changePlatformPasswordSchema,
+  platformUserProfileSchema,
+  updatePlatformUserProfileSchema
+} from "./dto/platform-user-profile.dto";
+import {
   assistantChatRequestSchema,
   assistantChatResponseSchema,
   changePasswordSchema,
@@ -336,6 +346,11 @@ describe("contracts", () => {
       effectiveTimeFormat: "12h",
       effectiveTheme: "system",
       twoFactorEnabled: false,
+      workContext: {
+        organizationName: "Acme Corporation",
+        workspaceName: "Acme Corporation",
+        workspaceRole: "MEMBER"
+      },
       activityStats: {
         totalHours: 10,
         projectCount: 2,
@@ -562,7 +577,35 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("exposes tenant organization routes", () => {
+    expect(ROUTES.TENANTS.CURRENT).toBe("/tenants/current");
+    expect(ROUTES.TENANTS.PUBLIC("kloqra-demo")).toBe("/tenants/public/kloqra-demo");
+    expect(ROUTES.TENANTS.OVERVIEW).toBe("/tenants/current/overview");
+    expect(ROUTES.TENANTS.MEMBERS).toBe("/tenants/current/members");
+    expect(ROUTES.TENANTS.MEMBER("m-1")).toBe("/tenants/current/members/m-1");
+    expect(ROUTES.TENANTS.WORKSPACES).toBe("/tenants/current/workspaces");
+    expect(ROUTES.TENANTS.SUBSCRIPTION).toBe("/tenants/current/subscription");
+    expect(ROUTES.TENANTS.DATA_EXPORT).toBe("/tenants/current/data-export");
+    expect(ROUTES.TENANTS.DATA_EXPORT_JOB("job-1")).toBe("/tenants/current/data-export/job-1");
+    expect(ROUTES.WORKSPACES.ASSIGN_ADMIN("ws-1")).toBe("/workspaces/ws-1/admins/assign");
+  });
+
+  it("exposes tenant workspace admin routes", () => {
+    expect(ROUTES.TENANTS.WORKSPACE_ADMINS_OVERVIEW).toBe(
+      "/tenants/current/workspace-admins/overview"
+    );
+    expect(ROUTES.TENANTS.WORKSPACE_MEMBER("ws-1", "m-1")).toBe(
+      "/tenants/current/workspaces/ws-1/members/m-1"
+    );
+    expect(ROUTES.TENANTS.WORKSPACE_MEMBER_RESEND("ws-1", "m-1")).toBe(
+      "/tenants/current/workspaces/ws-1/members/m-1/resend-credentials"
+    );
+  });
+
   it("exposes workspace members overview route", () => {
+    expect(ROUTES.WORKSPACES.PROJECT_MANAGERS_OVERVIEW("ws-1")).toBe(
+      "/workspaces/ws-1/project-managers/overview"
+    );
     expect(ROUTES.WORKSPACES.MEMBERS_OVERVIEW("ws-1")).toBe("/workspaces/ws-1/members/overview");
     expect(ROUTES.WORKSPACES.TEAM_ACTIVITIES("ws-1")).toBe("/workspaces/ws-1/team-activities");
     expect(ROUTES.WORKSPACES.MEMBER("ws-1", "m-1")).toBe("/workspaces/ws-1/members/m-1");
@@ -722,6 +765,10 @@ describe("contracts", () => {
   it("exposes impersonation handoff routes", () => {
     expect(ROUTES.AUTH.IMPERSONATE).toBe("/auth/impersonate");
     expect(ROUTES.AUTH.IMPERSONATE_COMPLETE).toBe("/auth/impersonate/complete");
+    expect(ROUTES.AUTH.SIGNUP).toBe("/auth/signup");
+    expect(ROUTES.PLANS.PUBLIC).toBe("/plans/public");
+    expect(ROUTES.PLANS.PRICING).toBe("/plans/pricing");
+    expect(ROUTES.PLATFORM.OPS_SUMMARY).toBe("/platform/ops/summary");
   });
 
   it("validates refresh session body", () => {
@@ -815,5 +862,61 @@ describe("contracts", () => {
   it("rejects verifyUserJiraSchema with non-email", () => {
     const r = verifyUserJiraSchema.safeParse({ jiraEmail: "not-an-email" });
     expect(r.success).toBe(false);
+  });
+
+  it("exposes platform account and notification routes", () => {
+    expect(ROUTES.PLATFORM.ME).toBe("/platform/me");
+    expect(ROUTES.PLATFORM.ME_PREFERENCES).toBe("/platform/me/preferences");
+    expect(ROUTES.PLATFORM.ME_PASSWORD).toBe("/platform/me/password");
+    expect(ROUTES.PLATFORM.ME_SESSIONS).toBe("/platform/me/sessions");
+    expect(ROUTES.PLATFORM.ME_2FA_ENABLE).toBe("/platform/me/2fa/enable");
+    expect(ROUTES.PLATFORM.ME_2FA_VERIFY).toBe("/platform/me/2fa/verify");
+    expect(ROUTES.PLATFORM.ME_2FA_DISABLE).toBe("/platform/me/2fa/disable");
+    expect(ROUTES.AUTH.PLATFORM_COMPLETE_2FA_SETUP).toBe("/auth/platform/complete-2fa-setup");
+    expect(ROUTES.AUTH.PLATFORM_2FA_SETUP_ENABLE).toBe("/auth/platform/2fa-setup/enable");
+    expect(ROUTES.PLATFORM.NOTIFICATIONS).toBe("/platform/notifications");
+    expect(ROUTES.PLATFORM.NOTIFICATIONS_UNREAD_COUNT).toBe("/platform/notifications/unread-count");
+    expect(ROUTES.PLATFORM.NOTIFICATION(UUID)).toBe(`/platform/notifications/${UUID}`);
+  });
+
+  it("validates platform user profile", () => {
+    const r = platformUserProfileSchema.safeParse({
+      id: UUID,
+      email: "platform@kloqra.dev",
+      name: "Platform Admin",
+      platformRole: "SUPERADMIN",
+      preferences: {},
+      effectiveTheme: "system",
+      twoFactorEnabled: false
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates update platform user profile requires a field", () => {
+    expect(updatePlatformUserProfileSchema.safeParse({}).success).toBe(false);
+    expect(updatePlatformUserProfileSchema.safeParse({ name: "Ops" }).success).toBe(true);
+  });
+
+  it("validates platform notification types", () => {
+    expect(platformNotificationTypeSchema.parse("TENANT_CREATED")).toBe(
+      PlatformNotificationType.TENANT_CREATED
+    );
+    const r = platformNotificationSchema.safeParse({
+      id: UUID,
+      type: PlatformNotificationType.QUEUE_FAILURE,
+      title: "Queue failures",
+      body: "Export queue has 5 failed jobs",
+      readAt: null,
+      createdAt: "2024-01-01T00:00:00.000Z"
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates change platform password", () => {
+    const r = changePlatformPasswordSchema.safeParse({
+      currentPassword: "password123",
+      newPassword: "Password123!"
+    });
+    expect(r.success).toBe(true);
   });
 });

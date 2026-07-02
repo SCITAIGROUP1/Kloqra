@@ -46,7 +46,8 @@ export class TimelogsController {
       user.workspaceId,
       user.userId,
       user.role,
-      query as ListTimeLogsQueryDto
+      query as ListTimeLogsQueryDto,
+      user.managedProjectIds
     );
   }
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { cn } from "../lib/utils.js";
+import { resolveActiveNavHref } from "./resolve-active-nav-href.js";
 import {
   shellMainClass,
   shellMainContentClass,
@@ -73,6 +74,10 @@ export type ResponsiveLayoutShellProps = {
   footerContent: (collapsed: boolean) => React.ReactNode;
   impersonationBanner?: React.ReactNode;
   shellToolbar?: ShellToolbarValue;
+  /** Uppercase label above nav links (e.g. Workspace / Organization). */
+  navSectionLabel?: string;
+  /** Accessible name for the sidebar navigation region. */
+  navAriaLabel?: string;
 };
 
 export function ResponsiveLayoutShell({
@@ -85,9 +90,15 @@ export function ResponsiveLayoutShell({
   workspaceSwitcher,
   footerContent,
   impersonationBanner,
-  shellToolbar
+  shellToolbar,
+  navSectionLabel,
+  navAriaLabel = "Desktop Navigation"
 }: ResponsiveLayoutShellProps) {
   const pathname = usePathname();
+  const activeHref = resolveActiveNavHref(
+    pathname,
+    navItems.map((item) => item.href)
+  );
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -187,18 +198,27 @@ export function ResponsiveLayoutShell({
           </div>
 
           {/* Navigation Links */}
+          {!isCollapsed && navSectionLabel ? (
+            <p
+              className="px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+              aria-hidden
+            >
+              {navSectionLabel}
+            </p>
+          ) : null}
           <nav
             className={cn("flex w-full flex-col", isCollapsed ? "items-center gap-1" : "gap-0.5")}
-            aria-label="Desktop Navigation"
+            aria-label={navAriaLabel}
           >
             {navItems.map(({ href, label, Icon, badge, tourId }) => {
-              const active = pathname === href || pathname.startsWith(`${href}/`);
+              const active = href === activeHref;
               const showBadge =
                 badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
               return (
                 <Link
                   key={href}
                   href={href}
+                  aria-current={active ? "page" : undefined}
                   title={isCollapsed ? label : undefined}
                   data-tour={tourId}
                   className={cn(
@@ -315,15 +335,24 @@ export function ResponsiveLayoutShell({
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto py-4">
           {workspaceSwitcher(false)}
 
-          <nav className="flex flex-col gap-0.5" aria-label="Mobile Navigation">
+          {navSectionLabel ? (
+            <p
+              className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+              aria-hidden
+            >
+              {navSectionLabel}
+            </p>
+          ) : null}
+          <nav className="flex flex-col gap-0.5" aria-label={navAriaLabel}>
             {navItems.map(({ href, label, Icon, badge, tourId }) => {
-              const active = pathname === href || pathname.startsWith(`${href}/`);
+              const active = href === activeHref;
               const showBadge =
                 badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
               return (
                 <Link
                   key={href}
                   href={href}
+                  aria-current={active ? "page" : undefined}
                   data-tour={tourId}
                   onClick={() => setIsMobileOpen(false)}
                   className={cn(

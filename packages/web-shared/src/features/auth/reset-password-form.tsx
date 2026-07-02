@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, PLATFORM_LOGIN_DESCRIPTION, PLATFORM_PORTAL_LABEL } from "@kloqra/contracts";
 import { Button, PasswordInput, Label } from "@kloqra/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,10 +13,12 @@ import { validateResetPasswordFields } from "./reset-password-validation";
 
 export function ResetPasswordForm({
   token,
-  loginHref = "/login"
+  loginHref = "/login",
+  variant = "default"
 }: {
   token: string;
   loginHref?: string;
+  variant?: "default" | "platform";
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -57,9 +59,18 @@ export function ResetPasswordForm({
     }
   }
 
+  const shellProps =
+    variant === "platform"
+      ? {
+          portalLabel: PLATFORM_PORTAL_LABEL,
+          description: PLATFORM_LOGIN_DESCRIPTION,
+          variant: "platform" as const
+        }
+      : {};
+
   if (!token) {
     return (
-      <AuthShell title="Reset password">
+      <AuthShell title="Reset password" {...shellProps}>
         <p className="text-sm text-destructive">Missing or invalid reset link.</p>
         <Link href={loginHref} className="mt-4 text-sm text-primary hover:underline">
           Back to sign in
@@ -69,7 +80,7 @@ export function ResetPasswordForm({
   }
 
   return (
-    <AuthShell title="Reset password">
+    <AuthShell title="Reset password" {...shellProps}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className="space-y-2">
           <Label htmlFor="password">New password</Label>

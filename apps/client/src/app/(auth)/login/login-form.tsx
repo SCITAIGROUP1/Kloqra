@@ -15,7 +15,9 @@ import {
   extractFieldErrorsFromMessage,
   fetchUserProfile,
   resolveStartupPath,
-  hasMultipleWorkspaces
+  hasMultipleWorkspaces,
+  orgLoginDescription,
+  useOrgLoginBranding
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -33,6 +35,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setSession = useSessionStore((s) => s.setSession);
+  const orgBranding = useOrgLoginBranding();
   const next = searchParams.get("next");
   const [email, setEmail] = useState("member@kloqra.dev");
   const [password, setPassword] = useState("password123");
@@ -131,7 +134,10 @@ export function LoginForm() {
     <AuthShell
       title="Sign in"
       portalLabel="Member Portal"
-      description="Enter your email and password to access your account."
+      description={orgLoginDescription(
+        orgBranding,
+        "Enter your email and password to access your account."
+      )}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
         {!pendingToken ? (

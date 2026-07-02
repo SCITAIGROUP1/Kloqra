@@ -25,6 +25,7 @@ export type ExportRowContext = {
   workspaceId: string;
   workspaceName: string;
   workspaceSlug: string;
+  tenantSlug?: string;
   settings: ReturnType<typeof parseWorkspaceSettings>;
   filters: ExportFiltersDto;
   from: Date;

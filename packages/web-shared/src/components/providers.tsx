@@ -3,11 +3,16 @@
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { themeStorageKey } from "../hooks/theme-storage";
+import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { useSessionStore } from "../stores/session.store";
 import { ThemePreferenceSync } from "./theme-preference-sync";
 
+const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+
 function SessionAwareThemeProvider({ children }: { children: ReactNode }) {
-  const userId = useSessionStore((state) => state.session?.user?.id ?? null);
+  const tenantUserId = useSessionStore((state) => state.session?.user?.id ?? null);
+  const platformUserId = usePlatformSessionStore((state) => state.session?.user.id ?? null);
+  const userId = AUTH_SCOPE === "platform" ? platformUserId : tenantUserId;
   const storageKey = themeStorageKey(userId);
 
   return (

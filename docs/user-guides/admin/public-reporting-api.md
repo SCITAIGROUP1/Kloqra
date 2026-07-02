@@ -27,6 +27,8 @@ Data is limited to time logged on the projects assigned to that key.
 
 There is no admin UI for API keys yet — use the API (Postman or curl) as an **Admin** user.
 
+**Organization limits:** Each plan caps the total number of active reporting API keys across all workspaces in your organization (`maxReportingApiKeys`). See **Account → Billing** for your plan limits.
+
 ## Step 1 — Log in as Admin
 
 1. Open the **Admin** app and sign in with a workspace **Admin** account.
@@ -174,6 +176,8 @@ Revoked keys stop working immediately.
 | Problem                                | What to check                                                                                          |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `401 Invalid API credentials`          | Wrong key/secret, revoked key, or expired `expiresAt`                                                  |
+| `403` organization suspended           | Organization account suspended — keys are revoked; contact your Kloqra admin                           |
+| `402 PLAN_LIMIT_EXCEEDED` on create    | Organization reached `maxReportingApiKeys` — revoke unused keys or upgrade plan                        |
 | `403 Project not accessible`           | Budget endpoint project not in key’s `projectIds`                                                      |
 | `400 One or more projects are invalid` | Project deleted, wrong UUID, or inactive                                                               |
 | Empty dashboard                        | No time logs on scoped projects in the date range                                                      |

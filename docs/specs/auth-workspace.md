@@ -23,13 +23,22 @@ Controller: [auth.controller.ts](../../apps/api/src/modules/auth/interface/http/
 
 ### Workspace
 
-| Method | Route                            | Contract                                                              |
-| ------ | -------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/workspaces`                    | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) |
-| GET    | `/workspaces/:id/members`        | workspace.dto                                                         |
-| POST   | `/workspaces/:id/members/invite` | workspace.dto                                                         |
+| Method | Route                            | Contract                                                              | Roles                                                                          |
+| ------ | -------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| GET    | `/workspaces`                    | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) | Member                                                                         |
+| POST   | `/workspaces`                    | workspace.dto                                                         | **Tenant owner** (deprecated alias; prefer `POST /tenants/current/workspaces`) |
+| POST   | `/tenants/current/workspaces`    | [tenant.dto.ts](../../packages/contracts/src/dto/tenant.dto.ts)       | Tenant owner                                                                   |
+| POST   | `/workspaces/:id/admins/assign`  | tenant.dto                                                            | Tenant owner                                                                   |
+| GET    | `/workspaces/:id/members`        | workspace.dto                                                         | Member                                                                         |
+| POST   | `/workspaces/:id/members/invite` | workspace.dto                                                         | Workspace admin                                                                |
 
-Controller: [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts)
+**Workspace name uniqueness:** case-insensitive **per tenant** (not global).
+
+**Seat count:** distinct active users in `tenant_members` ∪ `workspace_members` for the tenant (see [tenants.md](./tenants.md)).
+
+**Plan limits (F10):** workspace create and member invites return `402 PLAN_LIMIT_EXCEEDED` when over `maxWorkspaces` or `maxSeats` (see [plans.md](./plans.md)).
+
+Controllers: [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts), [tenants.controller.ts](../../apps/api/src/modules/tenants/interface/http/tenants.controller.ts)
 
 ## Given / When / Then
 

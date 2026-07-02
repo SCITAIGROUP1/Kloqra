@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 export function SentryInitializer() {
   useEffect(() => {
-    const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || (process.env as any).NEXT_PUBLIC_SENTRY_DSN;
+    const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
     if (!dsn) return;
 
     const match = dsn.match(/https:\/\/([^@]+)@([^/]+)\/(.+)/);

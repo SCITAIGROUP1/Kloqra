@@ -1,0 +1,27 @@
+{
+  "id": "evt_test_subscription_updated",
+  "object": "event",
+  "type": "customer.subscription.updated",
+  "data": {
+    "object": {
+      "id": "sub_test_demo",
+      "object": "subscription",
+      "customer": "cus_test_demo",
+      "status": "active",
+      "current_period_end": 1893456000,
+      "trial_end": null,
+      "metadata": {
+        "tenantId": "TENANT_ID_PLACEHOLDER"
+      },
+      "items": {
+        "data": [
+          {
+            "price": {
+              "id": "price_test_starter"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -15,7 +15,7 @@ export type WorkspaceMembershipWithWorkspace = {
   workspaceId: string;
   role: string;
   isActive?: boolean;
-  workspace: { name: string };
+  workspace: { name: string; tenantId: string };
 };
 
 export type UserWithMemberships = {

@@ -55,7 +55,9 @@ describe("ProjectsService", () => {
     };
     mockAccess = {
       accessibleProjectIds: vi.fn(),
-      assertCanAccessProject: vi.fn()
+      assertCanAccessProject: vi.fn(),
+      assertCanManageProject: vi.fn(),
+      manageableProjectIds: vi.fn()
     };
     mockDispatch = {
       notify: vi.fn().mockResolvedValue(undefined),
@@ -113,7 +115,7 @@ describe("ProjectsService", () => {
   });
 
   it("list includes aggregated total tracked seconds per project", async () => {
-    mockAccess.accessibleProjectIds.mockResolvedValue(["p1"]);
+    mockAccess.manageableProjectIds.mockResolvedValue(["p1"]);
     mockPrisma.project.count.mockResolvedValue(1);
     mockPrisma.project.findMany.mockResolvedValue([
       {

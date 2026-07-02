@@ -214,6 +214,8 @@ print(r.json()["timeByProject"])
 - Use these credentials on internal routes (`/reporting/dashboard`, `/export`, etc.) — those require a Kloqra user login
 - Retrieve the secret again if lost — ask the admin to revoke and issue a new key
 
+**Organization suspension:** If the workspace’s organization account is suspended, API keys stop working immediately (requests return `403`). Keys may be deleted on suspend — the admin must issue new keys after the account is restored.
+
 ## Health check (optional)
 
 To confirm the API host is reachable (no auth):

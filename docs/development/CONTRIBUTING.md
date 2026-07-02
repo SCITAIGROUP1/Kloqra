@@ -45,9 +45,10 @@ pnpm dev:shared       # terminal 1 — contracts + ui watch (start first)
 pnpm dev:api          # terminal 2 — :3001
 pnpm dev:client       # terminal 3 — :3000
 pnpm dev:admin        # terminal 4 — :3002
+pnpm dev:platform     # terminal 5 — :3003 (internal platform admin)
 ```
 
-Demo logins after seed: `admin@kloqra.dev` / `member@kloqra.dev` (password `password123`). Local database name: **`kloqra`** (CI uses `kloqra_test`).
+Demo logins after seed: `admin@kloqra.dev` / `member@kloqra.dev` (password `password123`). Platform: `platform@kloqra.dev` / `password123`. Local database name: **`kloqra`** (CI uses `kloqra_test`).
 
 See [ENVIRONMENT.md](ENVIRONMENT.md) for variable details.
 
@@ -58,6 +59,7 @@ See [ENVIRONMENT.md](ENVIRONMENT.md) for variable details.
 | `apps/api`            | NestJS API — sole write path to PostgreSQL      |
 | `apps/client`         | Next.js member app (timer, timesheet)           |
 | `apps/admin`          | Next.js admin app (dashboard, billing, exports) |
+| `apps/platform-admin` | Next.js internal platform console (SaaS-F14)    |
 | `packages/contracts`  | Zod DTOs and route constants (SSOT)             |
 | `packages/ui`         | Shared UI primitives, tables, modals, charts    |
 | `packages/web-shared` | API client, profile/settings, list hooks        |

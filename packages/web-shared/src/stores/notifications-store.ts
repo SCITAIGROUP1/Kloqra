@@ -31,6 +31,7 @@ type NotificationsStoreState = {
   subscribeRecent: (workspaceId: string, limit: number) => () => void;
   applyNotificationPush: (payload: NotificationCreatedEvent) => void;
   setSocketConnected: (connected: boolean) => void;
+  clear: () => void;
 };
 
 function syncUnreadPoll(
@@ -96,6 +97,21 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
   unreadPollTimer: null,
   unreadPollWorkspaceId: null,
   socketConnected: false,
+
+  clear: () => {
+    detachGlobalListeners();
+    const timer = get().unreadPollTimer;
+    if (timer) clearInterval(timer);
+    set({
+      unreadByWorkspace: {},
+      recentByWorkspace: {},
+      unreadRefCounts: {},
+      recentRefCounts: {},
+      unreadPollTimer: null,
+      unreadPollWorkspaceId: null,
+      socketConnected: false
+    });
+  },
 
   setSocketConnected: (connected) => {
     set({ socketConnected: connected });

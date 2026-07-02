@@ -23,11 +23,16 @@ const profile: UserProfileDto = {
   effectiveTimeFormat: "12h",
   effectiveDailyTargetHours: 8,
   effectiveTimerStaleWarningHours: 8,
+  workContext: {
+    organizationName: "Acme Corporation",
+    workspaceName: "Acme Corporation",
+    workspaceRole: "MEMBER"
+  },
   activityStats: { totalHours: 0, projectCount: 0, memberSince: "2025-01-01T00:00:00.000Z" }
 };
 
-vi.mock("../../change-password-section", () => ({
-  ChangePasswordSection: () => <div>Change password form</div>
+vi.mock("../../change-password-modal", () => ({
+  ChangePasswordModal: () => <div>Change password form</div>
 }));
 
 vi.mock("react-qr-code", () => ({
@@ -59,7 +64,7 @@ describe("SecuritySection 2FA setup", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Enable 2FA" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enable" }));
     expect(await screen.findByTestId("qr-code")).toBeTruthy();
     expect(screen.getByText("7Y0S PZ2A WUGX RUVV ZBSH BSKB 5HPB NY7G")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Verify and enable" })).toBeTruthy();

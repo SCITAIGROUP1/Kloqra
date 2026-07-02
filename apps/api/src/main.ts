@@ -6,7 +6,6 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { isAllowedBrowserOrigin } from "./common/auth/allowed-origins";
 import { validateProductionCookieConfig } from "./common/auth/cookie-options";
-import { SentryFilter } from "./common/http/sentry-filter";
 import {
   loadPrismaEnvFile,
   logMissingProductionEnv,
@@ -26,9 +25,8 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.useWebSocketAdapter(new IoAdapter(app));
-  app.useGlobalFilters(new SentryFilter());
 
   // ── Security ─────────────────────────────────────────────────────────────
   app.use(

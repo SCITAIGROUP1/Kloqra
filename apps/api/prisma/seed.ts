@@ -1,3 +1,4 @@
+import * as bcrypt from "bcrypt";
 import {
   Prisma,
   PrismaClient,
@@ -5,8 +6,7 @@ import {
   type Task,
   type User,
   type Workspace
-} from "@prisma/client";
-import * as bcrypt from "bcrypt";
+} from "./generated/client";
 import {
   buildPreferencesWithDashboardLayouts,
   SEED_ADMIN_DASHBOARD_LAYOUT,
@@ -17,8 +17,16 @@ import {
   DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
   SEED_CATEGORIES,
+  SEED_DEMO_HIERARCHY,
+  SEED_DEMO_PERSONAS,
   SEED_NOTIFICATIONS,
   SEED_PASSWORD,
+  SEED_PLANS,
+  SEED_PRICING_BASELINE_FEATURES,
+  SEED_PLATFORM_SUPERADMIN,
+  SEED_PLATFORM_SUPPORT,
+  SEED_TENANT,
+  SEED_TENANT_SUBSCRIPTION,
   SEED_USERS,
   SEED_WORKSPACES,
   type SeedCategoryName,
@@ -165,11 +173,16 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const users = await seedUsers(passwordHash);
+  await seedPlans();
+  await seedCatalogSettings();
+  const tenant = await seedTenant(users);
+  await seedTenantSubscription(tenant.id);
+  await seedPlatformSuperadmin(passwordHash);
   const workspaces: Workspace[] = [];
   const allProjectCtx: ProjectCtx[] = [];
 
   for (const wsSpec of SEED_WORKSPACES) {
-    const workspace = await seedWorkspace(wsSpec, users);
+    const workspace = await seedWorkspace(wsSpec, users, tenant.id);
     workspaces.push(workspace);
     const projectCtx = await seedProjects(workspace, wsSpec, users);
     allProjectCtx.push(...projectCtx);
@@ -200,6 +213,8 @@ async function main() {
     `  timesheet workflow demo: ${workflowDemo.amendments} amendment(s), ${workflowDemo.notifications} notification(s)`
   );
 
+  await seedHelpdesk(tenant.id);
+
   printCredentials();
   await printSummary(workspaces, users);
 }
@@ -219,14 +234,223 @@ async function resetDatabase() {
   await prisma.hourlyRate.deleteMany();
   await prisma.exportSchedule.deleteMany();
   await prisma.exportPreset.deleteMany();
+  await prisma.exportJob.deleteMany();
   await prisma.reportShare.deleteMany();
+  await prisma.reportingApiCredential.deleteMany();
+  await prisma.widgetShare.deleteMany();
   await prisma.project.deleteMany();
   await categoryRepo().deleteMany();
   await prisma.refreshToken.deleteMany();
+  await prisma.platformAuditEvent.deleteMany();
+  await prisma.platformRefreshToken.deleteMany();
+  await (
+    prisma as unknown as { platformNotification: { deleteMany: () => Promise<unknown> } }
+  ).platformNotification.deleteMany();
+  await prisma.platformUser.deleteMany();
+  await prisma.stripeWebhookEvent.deleteMany();
   await notificationRepo().deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
+  await prisma.helpDeskAgent.deleteMany();
+  await prisma.helpDeskTicketHistory.deleteMany();
+  await prisma.helpDeskTicketMessage.deleteMany();
+  await prisma.helpDeskTicket.deleteMany();
+  await prisma.helpDeskQueue.deleteMany();
+  await prisma.tenantMember.deleteMany();
+  await prisma.tenantDataExportJob.deleteMany();
+  await (
+    prisma as unknown as { tenantSalesInquiryReceipt: { deleteMany: () => Promise<unknown> } }
+  ).tenantSalesInquiryReceipt.deleteMany();
+  await (
+    prisma as unknown as { tenantSalesInquiry: { deleteMany: () => Promise<unknown> } }
+  ).tenantSalesInquiry.deleteMany();
+  await prisma.tenantSubscription.deleteMany();
+  await prisma.tenant.deleteMany();
+  await prisma.plan.deleteMany();
   await prisma.user.deleteMany();
+}
+
+async function seedHelpdesk(_tenantId: string) {
+  const superadmin = await prisma.platformUser.findUnique({
+    where: { email: SEED_PLATFORM_SUPERADMIN.email }
+  });
+  if (!superadmin) return;
+
+  const QUEUE_CONFIGS = [
+    {
+      name: "General Support",
+      slug: "general-support",
+      description: "Default queue for general inquiries and catch-all tickets.",
+      color: "#6366f1",
+      sortOrder: 0,
+      slaPolicy: { firstResponseMinutes: 480, resolutionMinutes: 2880 }
+    },
+    {
+      name: "Technical Support",
+      slug: "technical-support",
+      description: "Application bugs, in-app quality reports, and technical issues.",
+      color: "#ef4444",
+      sortOrder: 1,
+      slaPolicy: { firstResponseMinutes: 60, resolutionMinutes: 480 }
+    },
+    {
+      name: "Billing & Accounts",
+      slug: "billing-accounts",
+      description: "Payment issues, invoices, refunds, and plan changes.",
+      color: "#f59e0b",
+      sortOrder: 2,
+      slaPolicy: { firstResponseMinutes: 120, resolutionMinutes: 240 }
+    },
+    {
+      name: "Product Feedback",
+      slug: "product-feedback",
+      description: "Feature requests and product improvement suggestions.",
+      color: "#10b981",
+      sortOrder: 3,
+      slaPolicy: { firstResponseMinutes: 480, resolutionMinutes: 4320 }
+    },
+    {
+      name: "Security Response",
+      slug: "security-response",
+      description:
+        "Security incidents, vulnerability reports, and data concerns. Highest priority SLA.",
+      color: "#dc2626",
+      sortOrder: 4,
+      slaPolicy: { firstResponseMinutes: 15, resolutionMinutes: 120 }
+    }
+  ];
+
+  const queues: { id: string; slug: string }[] = [];
+  for (const config of QUEUE_CONFIGS) {
+    const queue = await prisma.helpDeskQueue.create({
+      data: {
+        name: config.name,
+        slug: config.slug,
+        description: config.description,
+        color: config.color,
+        sortOrder: config.sortOrder,
+        slaPolicy: config.slaPolicy
+      }
+    });
+    queues.push({ id: queue.id, slug: queue.slug });
+  }
+
+  // Assign superadmin to ALL queues so they receive tickets from any type
+  for (const queue of queues) {
+    await prisma.helpDeskAgent.create({
+      data: { platformUserId: superadmin.id, queueId: queue.id, isActive: true }
+    });
+  }
+
+  // --- Seed Sample Tickets ---
+  const sampleTickets = [
+    {
+      subject: "Unable to save time log on iOS",
+      requesterName: "Alice Mobile",
+      requesterEmail: "alice@example.com",
+      channel: "WEB_FORM" as any,
+      ticketType: "BUG_REPORT" as any,
+      priority: "HIGH" as any,
+      status: "OPEN" as any,
+      queueSlug: "technical-support",
+      metadata: {
+        severity: "high",
+        stepsToReproduce: "Open app, click save, it spins forever",
+        browserEnv: "iOS Safari"
+      }
+    },
+    {
+      subject: "Charged twice for March invoice",
+      requesterName: "Bob Finance",
+      requesterEmail: "bob@acme.com",
+      channel: "EMAIL" as any,
+      ticketType: "BILLING" as any,
+      priority: "CRITICAL" as any,
+      status: "OPEN" as any,
+      queueSlug: "billing-accounts",
+      metadata: {
+        billingIssueType: "payment_failed",
+        invoiceId: "INV-2026-003",
+        transactionDate: "2026-03-01"
+      }
+    },
+    {
+      subject: "Security vulnerability in custom domain",
+      requesterName: "Security Researcher",
+      requesterEmail: "researcher@hacker.org",
+      channel: "API" as any,
+      ticketType: "SECURITY" as any,
+      priority: "CRITICAL" as any,
+      status: "IN_PROGRESS" as any,
+      queueSlug: "security-response",
+      metadata: { incidentType: "vulnerability", affectedArea: "Public checkout flow" }
+    },
+    {
+      subject: "Requesting Dark Mode",
+      requesterName: "Charlie Designer",
+      requesterEmail: "charlie@design.com",
+      channel: "WEB_FORM" as any,
+      ticketType: "FEATURE_REQUEST" as any,
+      priority: "LOW" as any,
+      status: "OPEN" as any,
+      queueSlug: "product-feedback",
+      metadata: { productArea: "UI/UX Design", businessImpact: "My eyes hurt at night" }
+    },
+    {
+      subject: "How do I upgrade to Enterprise?",
+      requesterName: "David CEO",
+      requesterEmail: "david@bigcorp.com",
+      channel: "WEB_FORM" as any,
+      ticketType: "PLAN_QUESTION" as any,
+      priority: "MEDIUM" as any,
+      status: "PENDING" as any,
+      queueSlug: "billing-accounts",
+      metadata: { currentPlan: "pro", interestedPlan: "enterprise", questionDetail: "upgrade" }
+    }
+  ];
+
+  let ticketCount = 0;
+  for (const t of sampleTickets) {
+    const queue = queues.find((q) => q.slug === t.queueSlug) || queues[0];
+
+    // Assign one ticket to superadmin for demo purposes
+    const assignedToId = t.ticketType === "SECURITY" ? superadmin.id : null;
+
+    await prisma.helpDeskTicket.create({
+      data: {
+        subject: t.subject,
+        requesterName: t.requesterName,
+        requesterEmail: t.requesterEmail,
+        channel: t.channel,
+        ticketType: t.ticketType,
+        priority: t.priority,
+        status: t.status,
+        queueId: queue.id,
+        assignedToId,
+        metadata: t.metadata,
+        messages: {
+          create: {
+            direction: "INBOUND",
+            authorName: t.requesterName,
+            authorEmail: t.requesterEmail,
+            body: `Description for: ${t.subject}\n\nPlease help resolve this as soon as possible.`
+          }
+        },
+        history: {
+          create: {
+            actorName: "System",
+            action: "ticket_created",
+            after: { queueId: queue.id, status: t.status }
+          }
+        }
+      }
+    });
+    ticketCount++;
+  }
+
+  console.log(
+    `  helpdesk seeded: ${queues.length} queues, superadmin (${superadmin.email}) assigned to all, ${ticketCount} sample tickets created`
+  );
 }
 
 async function seedDashboardLayouts(
@@ -311,12 +535,146 @@ async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
   return users;
 }
 
+async function seedTenant(users: Map<string, User>) {
+  const tenant = await prisma.tenant.create({
+    data: {
+      name: SEED_TENANT.name,
+      slug: SEED_TENANT.slug,
+      status: SEED_TENANT.status,
+      settings: SEED_TENANT.settings as Prisma.InputJsonValue
+    }
+  });
+
+  for (const member of SEED_TENANT.members) {
+    const user = users.get(member.email);
+    if (!user) continue;
+    await prisma.tenantMember.create({
+      data: {
+        tenantId: tenant.id,
+        userId: user.id,
+        role: member.role
+      }
+    });
+  }
+
+  console.log(`  tenant: ${tenant.slug} (${SEED_WORKSPACES.length} workspaces)`);
+  return tenant;
+}
+
+async function seedPlans() {
+  for (const plan of SEED_PLANS) {
+    await prisma.plan.upsert({
+      where: { id: plan.id },
+      create: {
+        id: plan.id,
+        name: plan.name,
+        slug: plan.slug,
+        limits: plan.limits as Prisma.InputJsonValue,
+        isPublic: plan.isPublic,
+        sortOrder: plan.sortOrder,
+        stripeProductId: plan.stripeProductId,
+        stripePriceId: plan.stripePriceId,
+        tagline: plan.tagline,
+        monthlyPriceCents: plan.monthlyPriceCents,
+        yearlyPriceCents: plan.yearlyPriceCents,
+        features: plan.features as Prisma.InputJsonValue,
+        recommended: plan.recommended,
+        billingMode: plan.billingMode,
+        contactHref: plan.contactHref,
+        visibleOnPricing: plan.visibleOnPricing
+      },
+      update: {
+        name: plan.name,
+        slug: plan.slug,
+        limits: plan.limits as Prisma.InputJsonValue,
+        isPublic: plan.isPublic,
+        sortOrder: plan.sortOrder,
+        stripeProductId: plan.stripeProductId,
+        stripePriceId: plan.stripePriceId,
+        tagline: plan.tagline,
+        monthlyPriceCents: plan.monthlyPriceCents,
+        yearlyPriceCents: plan.yearlyPriceCents,
+        features: plan.features as Prisma.InputJsonValue,
+        recommended: plan.recommended,
+        billingMode: plan.billingMode,
+        contactHref: plan.contactHref,
+        visibleOnPricing: plan.visibleOnPricing
+      }
+    });
+  }
+  console.log(`  plans: ${SEED_PLANS.map((p) => p.slug).join(", ")}`);
+}
+
+async function seedCatalogSettings() {
+  await prisma.platformCatalogSettings.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      pricingBaselineFeatures: [...SEED_PRICING_BASELINE_FEATURES]
+    },
+    update: {
+      pricingBaselineFeatures: [...SEED_PRICING_BASELINE_FEATURES]
+    }
+  });
+}
+
+async function seedTenantSubscription(tenantId: string) {
+  const plan = SEED_PLANS.find((p) => p.slug === SEED_TENANT_SUBSCRIPTION.planSlug);
+  if (!plan) {
+    throw new Error(`Seed plan not found: ${SEED_TENANT_SUBSCRIPTION.planSlug}`);
+  }
+  await prisma.tenantSubscription.create({
+    data: {
+      tenantId,
+      planId: plan.id,
+      status: SEED_TENANT_SUBSCRIPTION.status
+    }
+  });
+  console.log(`  subscription: ${plan.slug} (${SEED_TENANT_SUBSCRIPTION.status})`);
+}
+
+async function seedPlatformSuperadmin(superadminHash: string) {
+  await prisma.platformUser.upsert({
+    where: { email: SEED_PLATFORM_SUPERADMIN.email },
+    update: {
+      passwordHash: superadminHash,
+      name: SEED_PLATFORM_SUPERADMIN.name,
+      role: "SUPERADMIN"
+    },
+    create: {
+      email: SEED_PLATFORM_SUPERADMIN.email,
+      passwordHash: superadminHash,
+      name: SEED_PLATFORM_SUPERADMIN.name,
+      role: "SUPERADMIN"
+    }
+  });
+  console.log(`  platform superadmin: ${SEED_PLATFORM_SUPERADMIN.email}`);
+
+  await prisma.platformUser.upsert({
+    where: { email: SEED_PLATFORM_SUPPORT.email },
+    update: {
+      passwordHash: superadminHash,
+      name: SEED_PLATFORM_SUPPORT.name,
+      role: "SUPPORT"
+    },
+    create: {
+      email: SEED_PLATFORM_SUPPORT.email,
+      passwordHash: superadminHash,
+      name: SEED_PLATFORM_SUPPORT.name,
+      role: "SUPPORT"
+    }
+  });
+  console.log(`  platform support agent: ${SEED_PLATFORM_SUPPORT.email}`);
+}
+
 async function seedWorkspace(
   spec: SeedWorkspaceSpec,
-  users: Map<string, User>
+  users: Map<string, User>,
+  tenantId: string
 ): Promise<Workspace> {
   const workspace = await prisma.workspace.create({
     data: {
+      tenantId,
       name: spec.name,
       slug: spec.slug,
       settings: spec.settings as Prisma.InputJsonValue
@@ -326,12 +684,12 @@ async function seedWorkspace(
   for (const email of spec.memberEmails) {
     const user = users.get(email);
     if (!user) continue;
-    const userSpec = SEED_USERS.find((u) => u.email === email)!;
+    const isWorkspaceAdmin = spec.workspaceAdminEmails?.includes(email) ?? false;
     await prisma.workspaceMember.create({
       data: {
         workspaceId: workspace.id,
         userId: user.id,
-        role: userSpec.role
+        role: isWorkspaceAdmin ? "ADMIN" : "MEMBER"
       }
     });
   }
@@ -370,8 +728,14 @@ async function seedProjects(
     for (const email of projectSpec.memberEmails) {
       const user = users.get(email);
       if (!user) continue;
+      const isLead = projectSpec.leadEmails?.includes(email) ?? false;
       await prisma.teamMember.create({
-        data: { teamId: team.id, userId: user.id, isActive: true }
+        data: {
+          teamId: team.id,
+          userId: user.id,
+          role: isLead ? "PROJECT_MANAGER" : "MEMBER",
+          isActive: true
+        }
       });
     }
 
@@ -1053,33 +1417,37 @@ function printCredentials() {
   console.log(`  Password: ${SEED_PASSWORD}`);
   console.log("══════════════════════════════════════════════════════════\n");
 
-  const admins = SEED_USERS.filter((u) => u.role === "ADMIN");
-  const members = SEED_USERS.filter((u) => u.role === "MEMBER");
-
-  console.log("  Admins (2):");
-  for (const u of admins) {
-    console.log(`    ${u.email.padEnd(28)} ${u.name}`);
-  }
-
-  console.log("\n  Members (12):");
-  for (const u of members) {
-    const range = `${u.historyDays}d history · intensity ${Math.round(u.intensity * 100)}%`;
-    console.log(`    ${u.email.padEnd(28)} ${u.name.padEnd(18)} (${range})`);
-  }
-
-  const pending = SEED_USERS.find((u) => u.email === "pending@kloqra.dev");
-  if (pending) {
-    console.log("\n  Email verification demo:");
+  console.log("  Hierarchy (platform → tenant → workspace → project → team):");
+  for (const row of SEED_DEMO_HIERARCHY) {
     console.log(
-      `    ${pending.email.padEnd(28)} ${pending.name} (unverified — use /verify-email after login)`
+      `    ${row.level.padEnd(26)} ${row.email.padEnd(24)} ${row.displayName} — ${row.scope}`
     );
   }
 
-  console.log("\n  Workspaces:");
+  const members = SEED_USERS.filter(
+    (u) =>
+      !Object.values(SEED_DEMO_PERSONAS).includes(
+        u.email as (typeof SEED_DEMO_PERSONAS)[keyof typeof SEED_DEMO_PERSONAS]
+      )
+  );
+  if (members.length > 0) {
+    console.log(`\n  Additional workspace members (${members.length} — 90d history each):`);
+    for (const u of members) {
+      console.log(`    ${u.email.padEnd(28)} ${u.name}`);
+    }
+  }
+
+  console.log("\n  Workspaces & project managers:");
   for (const ws of SEED_WORKSPACES) {
-    console.log(
-      `    ${ws.slug.padEnd(12)} ${ws.name} — ${ws.projects.length} projects, ${ws.memberEmails.length} members`
-    );
+    const wsAdmins = ws.workspaceAdminEmails?.join(", ") ?? "—";
+    console.log(`\n    ${ws.name} (${ws.slug}) — workspace admins: ${wsAdmins}`);
+    for (const project of ws.projects) {
+      const leads = project.leadEmails ?? [];
+      const team = project.memberEmails.filter((email) => !leads.includes(email));
+      console.log(`      ${project.name}`);
+      console.log(`        leads:   ${leads.join(", ")}`);
+      console.log(`        members: ${team.join(", ")}`);
+    }
   }
 
   console.log("\n══════════════════════════════════════════════════════════\n");
@@ -1134,10 +1502,12 @@ async function printSummary(workspaces: Workspace[], users: Map<string, User>) {
     rollupRepo().task.count({ where: { assignees: { none: {} } } })
   ]);
 
+  const projectCount = SEED_WORKSPACES.reduce((total, ws) => total + ws.projects.length, 0);
+
   console.log("Seed complete:", {
     users: users.size,
     workspaces: workspaces.length,
-    projects: SEED_WORKSPACES.length * 4,
+    projects: projectCount,
     taskAssignees: assigneeCount,
     userProjectColors: colorCount,
     unassignedTasks: unassignedTaskCount,

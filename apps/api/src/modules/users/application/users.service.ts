@@ -88,10 +88,11 @@ export class UsersService {
       select: userProfileSelect as Prisma.UserSelect
     })) as unknown as UserProfileRecord;
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: workspaceId }
+      where: { id: workspaceId },
+      include: { tenant: { select: { name: true, slug: true } } }
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
-    return this.toProfileDto(user, workspace.settings, activityStats, role);
+    return this.toProfileDto(user, workspace, activityStats, role);
   }
 
   async updateProfile(
@@ -129,10 +130,11 @@ export class UsersService {
     })) as unknown as UserProfileRecord;
 
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: workspaceId }
+      where: { id: workspaceId },
+      include: { tenant: { select: { name: true, slug: true } } }
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
-    return this.toProfileDto(user, workspace.settings, activityStats, role);
+    return this.toProfileDto(user, workspace, activityStats, role);
   }
 
   async updatePreferences(
@@ -154,10 +156,11 @@ export class UsersService {
       select: userProfileSelect as Prisma.UserSelect
     })) as unknown as UserProfileRecord;
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: workspaceId }
+      where: { id: workspaceId },
+      include: { tenant: { select: { name: true, slug: true } } }
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
-    return this.toProfileDto(user, workspace.settings, activityStats, role);
+    return this.toProfileDto(user, workspace, activityStats, role);
   }
 
   async getDashboardLayout(
@@ -274,13 +277,17 @@ export class UsersService {
 
   private toProfileDto(
     user: UserProfileRecord,
-    workspaceSettingsRaw: unknown,
+    workspace: {
+      name: string;
+      settings: unknown;
+      tenant: { name: string; slug: string };
+    },
     activityStats: UserProfileDto["activityStats"],
     role: "ADMIN" | "MEMBER"
   ): UserProfileDto {
     const parsedPreferences = parseUserPreferences(user.preferences);
     const { dashboardLayouts: _layouts, ...preferences } = parsedPreferences;
-    const workspaceSettings = parseWorkspaceSettings(workspaceSettingsRaw);
+    const workspaceSettings = parseWorkspaceSettings(workspace.settings);
     const names = this.resolveNames(user);
 
     return {
@@ -307,6 +314,11 @@ export class UsersService {
       effectiveTimeFormat: resolveEffectiveTimeFormat(parsedPreferences),
       effectiveTheme: resolveEffectiveTheme(parsedPreferences),
       twoFactorEnabled: Boolean(user.totpEnabledAt),
+      workContext: {
+        organizationName: workspace.tenant.name,
+        workspaceName: workspace.name,
+        workspaceRole: role
+      },
       activityStats,
       jiraEmail: user.jiraEmail,
       jiraConnected: Boolean(

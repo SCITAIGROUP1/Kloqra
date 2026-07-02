@@ -65,10 +65,18 @@ describe("TimesheetsService", () => {
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(mockPrisma))
     };
-    service = new TimesheetsService(mockPrisma, {
-      notify: vi.fn().mockResolvedValue(undefined),
-      notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
-    } as never);
+    const mockAccess = {
+      assertCanManageProject: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue(["proj-1"])
+    };
+    service = new TimesheetsService(
+      mockPrisma,
+      {
+        notify: vi.fn().mockResolvedValue(undefined),
+        notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
+      } as never,
+      mockAccess as never
+    );
   });
 
   it("submit creates a SUBMITTED period", async () => {
@@ -182,7 +190,13 @@ describe("TimesheetsService", () => {
       status: "APPROVED"
     });
 
-    const result = await service.approve(workspaceId, "period-1", adminUserId, "Looks good");
+    const result = await service.approve(
+      workspaceId,
+      "period-1",
+      adminUserId,
+      "ADMIN",
+      "Looks good"
+    );
 
     expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalledWith({
       where: { id: "period-1" },
@@ -201,6 +215,38 @@ describe("TimesheetsService", () => {
       })
     );
     expect(result).toEqual({ ok: true });
+  });
+
+  it("approve denied when project manager lacks manage access", async () => {
+    const mockAccess = {
+      assertCanManageProject: vi
+        .fn()
+        .mockRejectedValue(
+          new DomainException(ErrorCodes.FORBIDDEN, "Forbidden", HttpStatus.FORBIDDEN)
+        ),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const leadService = new TimesheetsService(
+      mockPrisma,
+      {
+        notify: vi.fn().mockResolvedValue(undefined),
+        notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
+      } as never,
+      mockAccess as never
+    );
+
+    mockPrisma.timesheetPeriod.findFirst.mockResolvedValue({
+      id: "period-1",
+      workspaceId,
+      projectId: "other-proj",
+      status: "SUBMITTED"
+    });
+
+    await expect(
+      leadService.approve(workspaceId, "period-1", adminUserId, "MEMBER", "Nope")
+    ).rejects.toSatisfy(
+      (err: unknown) => err instanceof DomainException && err.code === ErrorCodes.FORBIDDEN
+    );
   });
 
   it("listSubmissions with logged scope queries time logs", async () => {
@@ -263,7 +309,13 @@ describe("TimesheetsService", () => {
       status: "REJECTED"
     });
 
-    const result = await service.reject(workspaceId, "period-1", adminUserId, "Missing notes");
+    const result = await service.reject(
+      workspaceId,
+      "period-1",
+      adminUserId,
+      "ADMIN",
+      "Missing notes"
+    );
 
     expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalledWith({
       where: { id: "period-1" },
@@ -285,7 +337,7 @@ describe("TimesheetsService", () => {
   });
 
   it("reject requires a review note", async () => {
-    await expect(service.reject(workspaceId, "period-1", adminUserId)).rejects.toSatisfy(
+    await expect(service.reject(workspaceId, "period-1", adminUserId, "ADMIN")).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException && /review note is required/i.test(err.message)
     );
@@ -294,7 +346,7 @@ describe("TimesheetsService", () => {
 
   it("listPending returns items wrapper", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
-    const result = await service.listPending(workspaceId);
+    const result = await service.listPending(workspaceId, adminUserId, "ADMIN");
     expect(result).toEqual({ items: [] });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -305,7 +357,7 @@ describe("TimesheetsService", () => {
 
   it("listPending applies project and member filters", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
-    await service.listPending(workspaceId, {
+    await service.listPending(workspaceId, adminUserId, "ADMIN", {
       projectId: "proj-1",
       userId: "user-1",
       from: "2026-03-01",
@@ -324,7 +376,7 @@ describe("TimesheetsService", () => {
 
   it("listApproved filters by APPROVED status", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
-    await service.listApproved(workspaceId, { projectId: "proj-1" });
+    await service.listApproved(workspaceId, adminUserId, "ADMIN", { projectId: "proj-1" });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ status: "APPROVED", projectId: "proj-1" }),
@@ -335,7 +387,7 @@ describe("TimesheetsService", () => {
 
   it("listRejected filters by REJECTED status", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
-    await service.listRejected(workspaceId, { userId: "user-1" });
+    await service.listRejected(workspaceId, adminUserId, "ADMIN", { userId: "user-1" });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ status: "REJECTED", userId: "user-1" }),

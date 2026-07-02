@@ -1,4 +1,4 @@
-import type { DashboardReportDto } from "@kloqra/contracts";
+import type { DashboardReportDto, TenantAnalyticsSummaryDto } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { RedisService, type RedisClient } from "../redis/redis.service";
 
@@ -88,6 +88,26 @@ export class ReportCacheService {
   }
 
   async setBilling(key: string, _workspaceId: string, data: any) {
+    const payload = JSON.stringify(data);
+    const client = this.getClient();
+    if ("setex" in client && typeof client.setex === "function") {
+      await client.setex(key, DASHBOARD_TTL_SEC, payload);
+    } else {
+      await client.set(key, payload);
+    }
+  }
+
+  tenantRollupKey(tenantId: string, from: string, to: string) {
+    return `report:tenant-rollup:${tenantId}:${from}:${to}`;
+  }
+
+  async getTenantRollup(key: string): Promise<TenantAnalyticsSummaryDto | null> {
+    const raw = await this.getClient().get(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as TenantAnalyticsSummaryDto;
+  }
+
+  async setTenantRollup(key: string, _tenantId: string, data: TenantAnalyticsSummaryDto) {
     const payload = JSON.stringify(data);
     const client = this.getClient();
     if ("setex" in client && typeof client.setex === "function") {

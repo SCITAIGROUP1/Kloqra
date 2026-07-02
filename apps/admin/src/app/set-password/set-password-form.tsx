@@ -11,8 +11,10 @@ import {
   AuthShell,
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
+  canLoginToAdminApp,
   extractFieldErrorsFromMessage,
-  hasMultipleWorkspaces
+  hasMultipleWorkspaces,
+  resolveAdminLandingPath
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -38,7 +40,7 @@ export function AdminSetPasswordForm() {
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
   ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    if (switched.session.workspaceRole !== "ADMIN") {
+    if (!canLoginToAdminApp(switched.session)) {
       throw new Error("Admin access required");
     }
     setSession(switched.session, switched.accessToken, res.refreshToken);
@@ -53,7 +55,7 @@ export function AdminSetPasswordForm() {
       console.error("Failed to check workspaces:", err);
     }
 
-    router.push("/dashboard");
+    router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId));
   }
 
   async function complete2fa(e: React.FormEvent) {

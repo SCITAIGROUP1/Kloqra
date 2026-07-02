@@ -13,7 +13,10 @@ import * as bcrypt from "bcrypt";
 import { hashPassword } from "../../../common/auth/password.util";
 import type { ApiCredentialContext } from "../../../common/decorators/api-credential.decorator";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { generatedPrisma } from "../../../common/prisma/generated-prisma.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { assertTenantAllowsOperations } from "../../../common/tenant/assert-tenant-operations.util";
+import { PlanLimitService } from "../../subscriptions/application/plan-limit.service";
 
 function generateApiKey(): string {
   return `klr_${randomBytes(16).toString("hex")}`;
@@ -25,9 +28,13 @@ function generateSecret(): string {
 
 @Injectable()
 export class ReportingApiCredentialService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private planLimit: PlanLimitService
+  ) {}
 
-  async list(workspaceId: string): Promise<ReportingApiKeyDto[]> {
+  async list(workspaceId: string, tenantId: string): Promise<ReportingApiKeyDto[]> {
+    await this.assertWorkspaceInTenant(workspaceId, tenantId);
     const rows = await this.prisma.reportingApiCredential.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" }
@@ -37,10 +44,13 @@ export class ReportingApiCredentialService {
 
   async create(
     workspaceId: string,
+    tenantId: string,
     dto: CreateReportingApiKeyDto
   ): Promise<CreateReportingApiKeyResponseDto> {
     const parsed = createReportingApiKeySchema.parse(dto);
+    await this.assertWorkspaceInTenant(workspaceId, tenantId);
     await this.assertProjectsInWorkspace(workspaceId, parsed.projectIds);
+    await this.planLimit.assertReportingApiKeysAllowed(tenantId);
 
     const apiKey = generateApiKey();
     const secret = generateSecret();
@@ -62,10 +72,12 @@ export class ReportingApiCredentialService {
 
   async update(
     workspaceId: string,
+    tenantId: string,
     id: string,
     dto: UpdateReportingApiKeyDto
   ): Promise<ReportingApiKeyDto> {
     const parsed = updateReportingApiKeySchema.parse(dto);
+    await this.assertWorkspaceInTenant(workspaceId, tenantId);
     await this.getOrThrow(workspaceId, id);
 
     if (parsed.projectIds) {
@@ -87,14 +99,16 @@ export class ReportingApiCredentialService {
     return this.toDto(row);
   }
 
-  async revoke(workspaceId: string, id: string): Promise<void> {
+  async revoke(workspaceId: string, tenantId: string, id: string): Promise<void> {
+    await this.assertWorkspaceInTenant(workspaceId, tenantId);
     await this.getOrThrow(workspaceId, id);
     await this.prisma.reportingApiCredential.delete({ where: { id } });
   }
 
   async validate(apiKey: string, secret: string): Promise<ApiCredentialContext> {
-    const row = await this.prisma.reportingApiCredential.findUnique({
-      where: { apiKey }
+    const row = await generatedPrisma(this.prisma).reportingApiCredential.findUnique({
+      where: { apiKey },
+      include: { workspace: { select: { tenantId: true } } }
     });
 
     if (!row || !row.isActive) {
@@ -122,6 +136,8 @@ export class ReportingApiCredentialService {
       );
     }
 
+    await assertTenantAllowsOperations(this.prisma, row.workspace.tenantId);
+
     await this.prisma.reportingApiCredential.update({
       where: { id: row.id },
       data: { lastUsedAt: new Date() }
@@ -140,6 +156,23 @@ export class ReportingApiCredentialService {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Project not accessible with these API credentials",
+        HttpStatus.FORBIDDEN
+      );
+    }
+  }
+
+  private async assertWorkspaceInTenant(workspaceId: string, tenantId: string): Promise<void> {
+    const workspace = await generatedPrisma(this.prisma).workspace.findUnique({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+    if (workspace.tenantId !== tenantId) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Workspace is not in your organization",
         HttpStatus.FORBIDDEN
       );
     }

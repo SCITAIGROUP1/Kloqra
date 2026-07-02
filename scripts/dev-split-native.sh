@@ -8,10 +8,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/lib/dev-bootstrap.sh"
 
 RUN_DIR="$ROOT/.local-serve"
-DEV_NAMES=(shared api client admin)
-DEV_COMMANDS=(dev:shared dev:api dev:client dev:admin)
-DEV_PORTS=("" 3001 3000 3002)
-DEV_URLS=("" "http://localhost:3001" "http://localhost:3000" "http://localhost:3002")
+DEV_NAMES=(shared api client admin platform)
+DEV_COMMANDS=(dev:shared dev:api dev:client dev:admin dev:platform)
+DEV_PORTS=("" 3001 3000 3002 3003)
+DEV_URLS=("" "http://localhost:3001" "http://localhost:3000" "http://localhost:3002" "http://localhost:3003")
 
 usage() {
   cat <<EOF
@@ -31,11 +31,13 @@ Options:
   --install   Run pnpm install during prep
 
 URLs:
-  Client  http://localhost:3000
-  API     http://localhost:3001
-  Admin   http://localhost:3002
+  Client          http://localhost:3000
+  API             http://localhost:3001
+  Admin           http://localhost:3002
+  Platform admin  http://localhost:3003
 
 Login: member@kloqra.dev / admin@kloqra.dev  password: password123
+Platform: platform@kloqra.dev  password: password123
 EOF
 }
 
@@ -138,10 +140,8 @@ cmd_start() {
   dev_bootstrap_log "==> Kloqra native split serve — Postgres + Redis + build + dev"
   dev_bootstrap_run
 
-  dev_bootstrap_log "==> Building shared packages..."
-  $PNPM --filter @kloqra/contracts build
-  $PNPM --filter @kloqra/ui build
-  $PNPM --filter @kloqra/web-shared build
+  dev_bootstrap_log "==> Building monorepo..."
+  $PNPM build
 
   local pnpm_exec
   pnpm_exec="$(dev_split_pnpm_exec)"
@@ -151,11 +151,13 @@ cmd_start() {
   dev_split_start_one api "$pnpm_exec" dev:api
   dev_split_start_one client "$pnpm_exec" dev:client
   dev_split_start_one admin "$pnpm_exec" dev:admin
+  dev_split_start_one platform "$pnpm_exec" dev:platform
 
   dev_bootstrap_log "==> Waiting for app ports..."
   dev_split_wait_for_port 3001 api
   dev_split_wait_for_port 3000 client
   dev_split_wait_for_port 3002 admin
+  dev_split_wait_for_port 3003 platform
 
   echo ""
   cmd_status
@@ -195,7 +197,7 @@ cmd_status() {
     echo ""
   done
   echo ""
-  echo "Logs: .local-serve/{shared,api,client,admin}.log"
+  echo "Logs: .local-serve/{shared,api,client,admin,platform}.log"
   echo "Stop: pnpm serve:split:stop"
 }
 
@@ -204,7 +206,7 @@ cmd_logs() {
   mkdir -p "$RUN_DIR"
   local target="${1:-all}"
   case "$target" in
-    shared | api | client | admin)
+    shared | api | client | admin | platform)
       tail -f "$RUN_DIR/${target}.log"
       ;;
     all | *)

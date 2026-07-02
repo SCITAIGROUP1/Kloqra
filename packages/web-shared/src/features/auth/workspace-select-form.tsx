@@ -3,29 +3,40 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { WorkspaceListItemDto, AuthSessionWithTokenDto } from "@kloqra/contracts";
 import { Button, cn } from "@kloqra/ui";
-import { Timer } from "lucide-react";
+import { Building2, Timer } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../api/client";
+import {
+  formatAdminWorkspaceAccessLabel,
+  formatMemberPortalWorkspaceLabel
+} from "../../auth/admin-access-label";
+import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
 import { useSessionStore } from "../../stores/session.store";
+import { useTenantCurrent } from "../tenant/use-tenant-current";
 
 interface WorkspaceSelectFormProps {
   portalLabel: string;
   defaultRedirect: string;
   roleFilter?: "ADMIN";
+  /** Member portal: list all workspaces and show "Member" access labels. */
+  memberPortal?: boolean;
 }
 
 export function WorkspaceSelectForm({
   portalLabel,
   defaultRedirect,
-  roleFilter
+  roleFilter,
+  memberPortal
 }: WorkspaceSelectFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const setSession = useSessionStore((s) => s.setSession);
   const clearSession = useSessionStore((s) => s.clear);
+  const { tenant } = useTenantCurrent();
+  const isOwner = session?.tenantRole === "OWNER";
 
   const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +57,11 @@ export function WorkspaceSelectForm({
       workspaceId: session.workspaceId
     })
       .then((list) => {
-        const filtered = roleFilter ? list.filter((w) => w.role === roleFilter) : list;
+        const filtered = roleFilter
+          ? list.filter((w) => w.role === roleFilter)
+          : memberPortal
+            ? list
+            : filterAdminAccessibleWorkspaces(list);
         setWorkspaces(filtered);
         if (filtered.length === 0) {
           setError(roleFilter === "ADMIN" ? "No admin workspaces found." : "No workspaces found.");
@@ -58,15 +73,27 @@ export function WorkspaceSelectForm({
       .finally(() => {
         setLoading(false);
       });
-  }, [session, roleFilter, router]);
+  }, [session, roleFilter, memberPortal, router]);
+
+  async function handleSelectOrganization() {
+    if (!session || switchingId) return;
+    setSwitchingId("organization");
+    const target = next && next.startsWith("/") ? next : "/account";
+    router.push(target);
+  }
 
   async function handleSelectWorkspace(workspaceId: string, workspaceName: string) {
     if (!session) return;
     setSwitchingId(workspaceId);
     try {
+      const resolveTarget = (activeSession: typeof session) => {
+        if (next && next.startsWith("/")) return next;
+        if (activeSession.tenantRole === "OWNER") return "/account";
+        return defaultRedirect;
+      };
+
       if (workspaceId === session.workspaceId) {
-        const target = next && next.startsWith("/") ? next : defaultRedirect;
-        router.push(target);
+        router.push(resolveTarget(session));
         return;
       }
 
@@ -78,8 +105,7 @@ export function WorkspaceSelectForm({
       setSession(res, res.accessToken, res.refreshToken);
       toast.success(`Switched to ${workspaceName}.`);
 
-      const target = next && next.startsWith("/") ? next : defaultRedirect;
-      router.push(target);
+      router.push(resolveTarget(res));
     } catch {
       toast.error("Could not switch to selected workspace.");
       setSwitchingId(null);
@@ -172,49 +198,91 @@ export function WorkspaceSelectForm({
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[380px] overflow-y-auto px-1 py-1">
-              {workspaces.map((workspace) => {
-                const isSwitching = switchingId === workspace.id;
-                const isDisabled = switchingId !== null;
-                const gradient = getAvatarGradient(workspace.name);
-
-                return (
+            <div className="space-y-6">
+              {isOwner ? (
+                <section className="space-y-3">
+                  <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Organization
+                  </p>
                   <button
-                    key={workspace.id}
                     type="button"
-                    disabled={isDisabled}
-                    onClick={() => void handleSelectWorkspace(workspace.id, workspace.name)}
-                    className="group relative flex flex-col items-center text-center p-5 rounded-2xl border border-border/60 bg-background/30 hover:bg-card/90 hover:border-primary/40 disabled:pointer-events-none disabled:opacity-50 transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    disabled={switchingId !== null}
+                    onClick={() => void handleSelectOrganization()}
+                    className="group relative flex w-full items-center gap-4 rounded-2xl border border-border/60 bg-background/30 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card/90 hover:shadow-xl hover:shadow-primary/5 disabled:pointer-events-none disabled:opacity-50"
                   >
-                    {/* Initials Avatar with Gradient */}
-                    <div
-                      className={cn(
-                        "flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br text-base font-bold shadow-sm select-none mb-3 group-hover:scale-110 transition-transform duration-300",
-                        gradient
-                      )}
-                    >
-                      {getInitials(workspace.name)}
+                    <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Building2 className="size-6" strokeWidth={1.5} aria-hidden />
                     </div>
-
-                    {/* Text Details */}
-                    <div className="flex flex-col items-center min-w-0 w-full">
-                      <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate max-w-full px-1">
-                        {workspace.name}
-                      </span>
-                      <span className="inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
-                        {workspace.role}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground group-hover:text-primary">
+                        {tenant?.name ?? "Organization"}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">Organization · Owner</p>
                     </div>
-
-                    {/* Loading Overlay */}
-                    {isSwitching && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-2xl backdrop-blur-[1px] transition-all">
-                        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      </div>
-                    )}
+                    {switchingId === "organization" ? (
+                      <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : null}
                   </button>
-                );
-              })}
+                </section>
+              ) : null}
+
+              <section className="space-y-3">
+                {isOwner ? (
+                  <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Workspaces
+                  </p>
+                ) : null}
+                <div className="grid max-h-[380px] grid-cols-1 gap-4 overflow-y-auto px-1 py-1 sm:grid-cols-2">
+                  {workspaces.map((workspace) => {
+                    const isSwitching = switchingId === workspace.id;
+                    const isDisabled = switchingId !== null;
+                    const gradient = getAvatarGradient(workspace.name);
+
+                    return (
+                      <button
+                        key={workspace.id}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => void handleSelectWorkspace(workspace.id, workspace.name)}
+                        className="group relative flex flex-col items-center text-center p-5 rounded-2xl border border-border/60 bg-background/30 hover:bg-card/90 hover:border-primary/40 disabled:pointer-events-none disabled:opacity-50 transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        {/* Initials Avatar with Gradient */}
+                        <div
+                          className={cn(
+                            "flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br text-base font-bold shadow-sm select-none mb-3 group-hover:scale-110 transition-transform duration-300",
+                            gradient
+                          )}
+                        >
+                          {getInitials(workspace.name)}
+                        </div>
+
+                        {/* Text Details */}
+                        <div className="flex flex-col items-center min-w-0 w-full">
+                          <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate max-w-full px-1">
+                            {workspace.name}
+                          </span>
+                          <span className="inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                            {memberPortal
+                              ? formatMemberPortalWorkspaceLabel()
+                              : formatAdminWorkspaceAccessLabel(
+                                  workspace.role,
+                                  workspace.managedProjectIds,
+                                  session?.tenantRole
+                                )}
+                          </span>
+                        </div>
+
+                        {/* Loading Overlay */}
+                        {isSwitching && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-2xl backdrop-blur-[1px] transition-all">
+                            <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
           )}
         </div>

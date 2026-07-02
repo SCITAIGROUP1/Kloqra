@@ -10,10 +10,13 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.seed.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
+    "pretest": "prisma generate",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage && node scripts/check-module-coverage.mjs",
+    "pretest:e2e": "prisma generate",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:saas": "vitest run --config vitest.e2e.config.ts tenant-isolation subscriptions subscription-lifecycle stripe-webhook plan-limits project-lead platform-tenants-provision self-serve-signup platform-audit tenant-data-export platform-tenant-delete",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -41,6 +44,8 @@
     "archiver": "^7.0.1",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.79.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "cron": "^4.4.0",
     "exceljs": "^4.4.0",
@@ -53,6 +58,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
+    "stripe": "^17.7.0",
     "swagger-ui-express": "^5.0.1",
     "zod": "^3.24.1"
   },
@@ -70,12 +76,12 @@
     "@types/node": "^22.10.2",
     "@types/pdfkit": "^0.13.8",
     "@types/supertest": "^6.0.2",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.9",
     "@vitest/ui": "^2.1.8",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.9"
   }
 }

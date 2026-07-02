@@ -5,9 +5,10 @@ import { GlobalSearchDialog } from "./global-search-dialog";
 
 type GlobalSearchShellProps = {
   workspaceId: string;
+  isOwner?: boolean;
 };
 
-export function GlobalSearchShell({ workspaceId }: GlobalSearchShellProps) {
+export function GlobalSearchShell({ workspaceId, isOwner = false }: GlobalSearchShellProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -39,7 +40,12 @@ export function GlobalSearchShell({ workspaceId }: GlobalSearchShellProps) {
   return (
     <>
       <p className="sr-only">Press Command+K or Control+K to open search.</p>
-      <GlobalSearchDialog open={open} onOpenChange={setOpen} workspaceId={workspaceId} />
+      <GlobalSearchDialog
+        open={open}
+        onOpenChange={setOpen}
+        workspaceId={workspaceId}
+        isOwner={isOwner}
+      />
     </>
   );
 }

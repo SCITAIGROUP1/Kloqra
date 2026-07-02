@@ -16,6 +16,9 @@ $PNPM --filter @kloqra/api test:e2e
 echo "→ Build workspace packages for browser e2e"
 $PNPM --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared build
 
+echo "→ Resetting database to clean seeded state for Playwright tests"
+$PNPM --filter @kloqra/api prisma:seed
+
 echo "→ Admin Playwright e2e (NEXT_PUBLIC_AUTH_SCOPE=admin)"
 NEXT_PUBLIC_AUTH_SCOPE=admin $PNPM --filter @kloqra/admin test:e2e
 

@@ -5,16 +5,32 @@ import { ResponsiveLayoutShell } from "./layout-shell.js";
 import { AppBar } from "./shell/app-bar.js";
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   )
 }));
 
+let mockPathname = "/dashboard";
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard"
+  usePathname: () => mockPathname
 }));
 
 describe("ResponsiveLayoutShell", () => {
+  beforeEach(() => {
+    mockPathname = "/dashboard";
+  });
+
   it("renders navigation and main content", () => {
     render(
       <ResponsiveLayoutShell
@@ -176,5 +192,58 @@ describe("ResponsiveLayoutShell", () => {
     });
 
     localStorage.removeItem("kloqra-sidebar-collapsed");
+  });
+
+  it("renders optional nav section label", () => {
+    render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Switcher</div>}
+        footerContent={() => <div>Footer</div>}
+        navSectionLabel="Workspace"
+        navAriaLabel="Workspace navigation"
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    expect(screen.getAllByText("Workspace").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("navigation", { name: "Workspace navigation" }).length
+    ).toBeGreaterThan(0);
+  });
+
+  it("marks only the most specific account nav item active", () => {
+    mockPathname = "/account/organization";
+
+    render(
+      <ResponsiveLayoutShell
+        navItems={[
+          { href: "/account", label: "Overview", Icon: Home },
+          { href: "/account/organization", label: "Organization", Icon: Home }
+        ]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    expect(screen.getAllByRole("link", { name: "Overview" })[0]).not.toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    expect(screen.getAllByRole("link", { name: "Organization" })[0]).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
   });
 });

@@ -55,6 +55,7 @@ type ExportScope = "admin" | "member";
 
 type ExportFileBase = {
   workspaceSlug: string;
+  tenantSlug?: string;
   from: string;
   to: string;
   scope: ExportScope;
@@ -184,7 +185,8 @@ export class ExportService {
 
   async loadContext(workspaceId: string, filters: ExportFiltersDto): Promise<ExportRowContext> {
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: workspaceId }
+      where: { id: workspaceId },
+      include: { tenant: { select: { slug: true } } }
     });
 
     const from = new Date(filters.from);
@@ -245,6 +247,7 @@ export class ExportService {
       workspaceId,
       workspaceName: workspace.name,
       workspaceSlug: workspace.slug,
+      tenantSlug: workspace.tenant?.slug,
       settings: settingsWithUserTimezone,
       filters,
       from,
@@ -519,6 +522,7 @@ export class ExportService {
 
     return {
       workspaceSlug: ctx.workspaceSlug,
+      tenantSlug: ctx.tenantSlug,
       from: body.from,
       to: body.to,
       scope,

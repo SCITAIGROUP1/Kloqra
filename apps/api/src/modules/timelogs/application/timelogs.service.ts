@@ -19,6 +19,7 @@ import {
   parseWorkspaceSettingsFromRaw,
   resolveApprovalPeriod
 } from "../../../common/time/approval-period.util";
+import { SubscriptionsService } from "../../subscriptions/application/subscriptions.service";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimesheetLockService } from "./timesheet-lock.service";
 
@@ -32,11 +33,17 @@ export class TimelogsService {
     private reportCache: ReportCacheService,
     private audit: TimelogAuditService,
     private timesheetLock: TimesheetLockService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private subscriptions: SubscriptionsService
   ) {}
 
-  resolveBillable(role: string, taskBillableDefault: boolean, requested?: boolean): boolean {
-    if (role === "ADMIN") {
+  resolveBillable(
+    role: string,
+    isManager: boolean,
+    taskBillableDefault: boolean,
+    requested?: boolean
+  ): boolean {
+    if (role === "ADMIN" || isManager) {
       return requested ?? taskBillableDefault;
     }
     return taskBillableDefault;
@@ -70,9 +77,9 @@ export class TimelogsService {
     workspaceId: string,
     userId: string,
     role: string,
-    query: ListTimeLogsQueryDto
+    query: ListTimeLogsQueryDto,
+    managedProjectIds: string[] = []
   ): Promise<ListTimeLogsResponseDto> {
-    const filterUserId = role === "ADMIN" ? query.userId : userId;
     const limit = Math.min(query.limit ?? DEFAULT_LIST_LIMIT, 1000);
 
     let from = query.from ? new Date(query.from) : undefined;
@@ -83,6 +90,42 @@ export class TimelogsService {
       from.setDate(from.getDate() - DEFAULT_LIST_LOOKBACK_DAYS);
     }
 
+    const isGlobalAdmin = role === "ADMIN";
+    const hasManagedProjects = managedProjectIds.length > 0;
+
+    // If not admin, and querying for another user, they must be a project manager
+    // and they can ONLY see logs for projects they manage.
+    let restrictToOwnLogs = false;
+    let overrideProjectIds: string[] | undefined = undefined;
+
+    let isQueryingOtherUsers = false;
+    if (query.userId) {
+      if (Array.isArray(query.userId)) {
+        isQueryingOtherUsers = query.userId.some((id) => id !== userId);
+      } else {
+        isQueryingOtherUsers = query.userId !== userId;
+      }
+    }
+
+    if (!isGlobalAdmin) {
+      if (query.userId && isQueryingOtherUsers) {
+        if (!hasManagedProjects) {
+          restrictToOwnLogs = true;
+        } else {
+          // They are a PM querying someone else's logs. Restrict to projects they manage.
+          overrideProjectIds = managedProjectIds;
+        }
+      } else if (!query.userId && hasManagedProjects) {
+        // Querying all users' logs. They can see their own logs for ANY project,
+        // and ANY user's logs for projects they manage.
+        // This requires an OR clause, so we handle it below.
+      } else if (!query.userId && !hasManagedProjects) {
+        restrictToOwnLogs = true;
+      }
+    }
+
+    const filterUserId = restrictToOwnLogs ? userId : query.userId;
+
     const taskWhere = query.taskId
       ? { project: { workspaceId } }
       : {
@@ -91,6 +134,7 @@ export class TimelogsService {
               ? { projectId: { in: query.projectId } }
               : { projectId: query.projectId }
             : {}),
+          ...(overrideProjectIds ? { projectId: { in: overrideProjectIds } } : {}),
           ...(query.categoryId ? { categoryId: query.categoryId } : {}),
           project: { workspaceId }
         };
@@ -110,6 +154,7 @@ export class TimelogsService {
           ]
         }
       : undefined;
+
     let cursorObj: { id_startTime: { id: string; startTime: Date } } | undefined = undefined;
     if (query.cursor) {
       const colonIdx = query.cursor.indexOf(":");
@@ -125,26 +170,43 @@ export class TimelogsService {
       }
     }
 
+    const baseWhere = {
+      ...(filterUserId
+        ? Array.isArray(filterUserId)
+          ? { userId: { in: filterUserId } }
+          : { userId: filterUserId }
+        : {}),
+      ...(query.taskId ? { taskId: query.taskId } : {}),
+      ...(query.billableOnly ? { isBillable: true } : {}),
+      ...(from || to
+        ? {
+            AND: [
+              ...(to ? [{ startTime: { lt: to } }] : []),
+              ...(from ? [{ endTime: { gt: from } }] : [])
+            ]
+          }
+        : {}),
+      ...(searchFilter ? { AND: [searchFilter] } : {}),
+      task: taskWhere
+    };
+
+    // If a PM is querying ALL logs, they can see:
+    // 1. Their own logs (any project)
+    // 2. Anyone's logs for projects they manage
+    const finalWhere =
+      !isGlobalAdmin && hasManagedProjects && !query.userId
+        ? {
+            AND: [
+              baseWhere,
+              {
+                OR: [{ userId }, { task: { projectId: { in: managedProjectIds } } }]
+              }
+            ]
+          }
+        : baseWhere;
+
     const logs = await this.prisma.timeLog.findMany({
-      where: {
-        ...(filterUserId
-          ? Array.isArray(filterUserId)
-            ? { userId: { in: filterUserId } }
-            : { userId: filterUserId }
-          : {}),
-        ...(query.taskId ? { taskId: query.taskId } : {}),
-        ...(query.billableOnly ? { isBillable: true } : {}),
-        ...(from || to
-          ? {
-              AND: [
-                ...(to ? [{ startTime: { lt: to } }] : []),
-                ...(from ? [{ endTime: { gt: from } }] : [])
-              ]
-            }
-          : {}),
-        ...(searchFilter ? { AND: [searchFilter] } : {}),
-        task: taskWhere
-      },
+      where: finalWhere,
       orderBy: { startTime: "desc" },
       take: limit + 1,
       ...(cursorObj ? { cursor: cursorObj, skip: 1 } : {})
@@ -317,12 +379,25 @@ export class TimelogsService {
     dto: CreateTimeLogDto,
     actorId?: string
   ) {
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    await this.subscriptions.assertSubscriptionAllowsWrites(workspace.tenantId);
+
     await this.access.assertCanLogTask(workspaceId, userId, role as "ADMIN" | "MEMBER", dto.taskId);
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
     await this.timesheetLock.assertTaskPeriodEditable(userId, dto.taskId, start);
     await this.assertNoOverlap(userId, start, end);
     const task = await this.prisma.task.findUniqueOrThrow({ where: { id: dto.taskId } });
+
+    const manageableIds = await this.access.manageableProjectIds(
+      workspaceId,
+      userId,
+      role as "ADMIN" | "MEMBER"
+    );
+    const isManager = manageableIds.includes(task.projectId);
 
     const log = await this.prisma.$transaction(async (tx) => {
       const created = await tx.timeLog.create({
@@ -333,7 +408,7 @@ export class TimelogsService {
           endTime: end,
           durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
           description: dto.description,
-          isBillable: this.resolveBillable(role, task.billableDefault, dto.isBillable),
+          isBillable: this.resolveBillable(role, isManager, task.billableDefault, dto.isBillable),
           source: "manual"
         }
       });
@@ -402,8 +477,16 @@ export class TimelogsService {
 
     await this.assertNoOverlap(log.userId, start, end, id);
 
+    const manageableIds = await this.access.manageableProjectIds(
+      workspaceId,
+      userId,
+      role as "ADMIN" | "MEMBER"
+    );
+    const isManager = manageableIds.includes(targetTask.projectId);
+
     const isBillable = this.resolveBillable(
       role,
+      isManager,
       targetTask.billableDefault,
       dto.isBillable !== undefined ? dto.isBillable : log.isBillable
     );
@@ -593,6 +676,12 @@ export class TimelogsService {
     dto: CreateBatchTimeLogsDto,
     actorId?: string
   ): Promise<BatchTimeLogsResponseDto> {
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    await this.subscriptions.assertSubscriptionAllowsWrites(workspace.tenantId);
+
     await this.access.assertCanLogTask(workspaceId, userId, role as "ADMIN" | "MEMBER", dto.taskId);
     const start = new Date(dto.startDate);
     const end = new Date(dto.endDate);
@@ -621,6 +710,13 @@ export class TimelogsService {
     }
 
     const task = await this.prisma.task.findUniqueOrThrow({ where: { id: dto.taskId } });
+    const manageableIds = await this.access.manageableProjectIds(
+      workspaceId,
+      userId,
+      role as "ADMIN" | "MEMBER"
+    );
+    const isManager = manageableIds.includes(task.projectId);
+
     const createdItems: any[] = [];
     const skippedItems: { date: string; reason: string }[] = [];
 
@@ -669,7 +765,12 @@ export class TimelogsService {
               endTime: endUtc,
               durationSec: Math.floor((endUtc.getTime() - startUtc.getTime()) / 1000),
               description: dto.description ?? null,
-              isBillable: this.resolveBillable(role, task.billableDefault, dto.isBillable),
+              isBillable: this.resolveBillable(
+                role,
+                isManager,
+                task.billableDefault,
+                dto.isBillable
+              ),
               source: "manual"
             }
           });

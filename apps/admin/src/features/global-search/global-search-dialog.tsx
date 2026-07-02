@@ -27,6 +27,7 @@ type GlobalSearchDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workspaceId: string;
+  isOwner?: boolean;
 };
 
 const GROUP_META = {
@@ -37,7 +38,12 @@ const GROUP_META = {
   people: { heading: "People", icon: Users }
 } as const;
 
-export function GlobalSearchDialog({ open, onOpenChange, workspaceId }: GlobalSearchDialogProps) {
+export function GlobalSearchDialog({
+  open,
+  onOpenChange,
+  workspaceId,
+  isOwner = false
+}: GlobalSearchDialogProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const { loading, entityResults, shouldSearchEntities } = useGlobalSearch(workspaceId, query);
@@ -46,7 +52,10 @@ export function GlobalSearchDialog({ open, onOpenChange, workspaceId }: GlobalSe
     if (!open) setQuery("");
   }, [open]);
 
-  const pageResults = useMemo(() => filterAdminNavItems(query).map(toPageSearchResult), [query]);
+  const pageResults = useMemo(
+    () => filterAdminNavItems(query, { includeAccount: isOwner }).map(toPageSearchResult),
+    [query, isOwner]
+  );
 
   const handleSelect = (href: string) => {
     onOpenChange(false);

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { listPaginationQuerySchema } from "../pagination";
+import { teamMemberRoleSchema } from "../tenant-rbac";
 import { isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const teamMemberSchema = z.object({
@@ -8,12 +9,18 @@ export const teamMemberSchema = z.object({
   userId: uuidSchema,
   userName: z.string(),
   userEmail: z.string().email(),
+  role: teamMemberRoleSchema,
   isActive: z.boolean()
 });
 
-export const updateTeamMemberSchema = z.object({
-  isActive: z.boolean()
-});
+export const updateTeamMemberSchema = z
+  .object({
+    isActive: z.boolean().optional(),
+    role: teamMemberRoleSchema.optional()
+  })
+  .refine((value) => value.isActive !== undefined || value.role !== undefined, {
+    message: "At least one of isActive or role is required"
+  });
 
 export const addTeamMemberSchema = z.object({
   userId: uuidSchema

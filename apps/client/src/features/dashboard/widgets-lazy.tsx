@@ -61,18 +61,4 @@ export const TeamActivitiesWidget = dynamic(
   { ssr: false, loading: () => <WidgetSkeleton className="min-h-[280px]" /> }
 );
 
-export const QuickActions = dynamic(
-  () =>
-    import("@/features/timer/quick-actions").then((m) => ({
-      default: m.QuickActions
-    })),
-  { ssr: false, loading: () => <WidgetSkeleton className="min-h-[180px]" /> }
-);
-
-export const DailyGoalWidget = dynamic(
-  () =>
-    import("@/features/timer/daily-goal-widget").then((m) => ({
-      default: m.DailyGoalWidget
-    })),
-  { ssr: false, loading: () => <WidgetSkeleton className="min-h-[160px]" /> }
-);
+export { DailyGoalWidget, QuickActions } from "@/features/timer/timer-dynamic-widgets";

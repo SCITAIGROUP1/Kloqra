@@ -1,6 +1,7 @@
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import type { PlatformRequestUser } from "../decorators/current-platform-user.decorator";
 import type { RequestUser } from "../decorators/current-user.decorator";
 
 export type AuthTokenFailureReason =
@@ -11,9 +12,18 @@ export type AuthTokenFailureReason =
   | "missing_claims"
   | "scope_mismatch";
 
+export interface VerifiedPlatformAccessPayload {
+  sub: string;
+  platformUserId: string;
+  platformRole: "SUPERADMIN";
+  scope: "platform";
+  family?: string;
+}
+
 export interface VerifiedAccessPayload {
   sub: string;
   userId: string;
+  tenantId: string;
   workspaceId: string;
   role: "ADMIN" | "MEMBER";
   impersonatorId?: string;
@@ -96,9 +106,10 @@ export class JwtTokenService {
     }
 
     const sub = typeof payload.sub === "string" ? payload.sub : undefined;
+    const tenantId = typeof payload.tenantId === "string" ? payload.tenantId : undefined;
     const workspaceId = typeof payload.workspaceId === "string" ? payload.workspaceId : undefined;
     const role = payload.role;
-    if (!sub || !workspaceId || (role !== "ADMIN" && role !== "MEMBER")) {
+    if (!sub || !tenantId || !workspaceId || (role !== "ADMIN" && role !== "MEMBER")) {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Invalid token claims",
@@ -122,6 +133,7 @@ export class JwtTokenService {
     return {
       sub,
       userId: typeof payload.userId === "string" ? payload.userId : sub,
+      tenantId,
       workspaceId,
       role,
       impersonatorId,
@@ -133,9 +145,81 @@ export class JwtTokenService {
   toRequestUser(payload: VerifiedAccessPayload, workspaceId: string): RequestUser {
     return {
       userId: payload.sub,
+      tenantId: payload.tenantId,
       workspaceId,
       role: payload.role,
       impersonatorId: payload.impersonatorId
+    };
+  }
+
+  verifyPlatformAccessToken(token: string): VerifiedPlatformAccessPayload {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) {
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "Auth not configured",
+        details: { reason: "token_invalid" as AuthTokenFailureReason }
+      });
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = this.jwt.verify(token, { secret }) as Record<string, unknown>;
+    } catch (err: unknown) {
+      const name = err && typeof err === "object" && "name" in err ? String(err.name) : "";
+      let reason: AuthTokenFailureReason = "token_invalid";
+      let message = "Invalid token";
+      if (name === "TokenExpiredError") {
+        reason = "token_expired";
+        message = "Access token expired";
+      }
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message,
+        details: { reason }
+      });
+    }
+
+    if (payload.typ !== "platform") {
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "Wrong token type",
+        details: { reason: "token_wrong_type" as AuthTokenFailureReason }
+      });
+    }
+
+    const sub = typeof payload.sub === "string" ? payload.sub : undefined;
+    const platformRole = payload.platformRole;
+    const scope = payload.scope;
+    if (payload.tenantId !== undefined || payload.workspaceId !== undefined) {
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "Invalid token claims",
+        details: { reason: "missing_claims" as AuthTokenFailureReason }
+      });
+    }
+    if (!sub || platformRole !== "SUPERADMIN" || scope !== "platform") {
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "Invalid token claims",
+        details: { reason: "missing_claims" as AuthTokenFailureReason }
+      });
+    }
+
+    const family = typeof payload.family === "string" ? payload.family : undefined;
+    return {
+      sub,
+      platformUserId: sub,
+      platformRole: "SUPERADMIN",
+      scope: "platform",
+      family
+    };
+  }
+
+  toPlatformRequestUser(payload: VerifiedPlatformAccessPayload): PlatformRequestUser {
+    return {
+      platformUserId: payload.platformUserId,
+      platformRole: payload.platformRole
     };
   }
 }

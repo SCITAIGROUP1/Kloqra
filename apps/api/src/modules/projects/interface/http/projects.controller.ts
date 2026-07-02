@@ -8,6 +8,7 @@ import {
   createTeamInviteSchema,
   type ListProjectsQuery,
   type ListProjectTeamQuery,
+  type UpdateTeamMemberDto,
   ROUTES
 } from "@kloqra/contracts";
 import {
@@ -15,6 +16,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -26,6 +28,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -39,9 +42,13 @@ export class ProjectsController {
   @Get(ROUTES.PROJECTS.LIST)
   list(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(listProjectsQuerySchema)) query: ListProjectsQuery
+    @Query(new ZodValidationPipe(listProjectsQuerySchema)) query: ListProjectsQuery,
+    @Headers("x-auth-scope") authScope?: string
   ) {
-    return this.projects.list(user.workspaceId, user.userId, user.role, query);
+    return this.projects.list(user.workspaceId, user.userId, user.role, query, {
+      adminScope: authScope === "admin",
+      managedProjectIds: user.managedProjectIds
+    });
   }
 
   @Roles("ADMIN")
@@ -78,17 +85,17 @@ export class ProjectsController {
     return this.projects.remove(user.workspaceId, id);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.PROJECTS.TEAM(":id"))
   getTeam(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
     @Query(new ZodValidationPipe(listProjectTeamQuerySchema)) query: ListProjectTeamQuery
   ) {
-    return this.projects.getTeam(user.workspaceId, id, query);
+    return this.projects.getTeam(user.workspaceId, user.userId, user.role, id, query);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS(":id"))
   addTeamMember(
     @CurrentUser() user: RequestUser,
@@ -97,34 +104,48 @@ export class ProjectsController {
   ) {
     return this.projects.addTeamMember(
       user.workspaceId,
+      user.userId,
+      user.role,
       id,
-      body as Parameters<ProjectsService["addTeamMember"]>[2]
+      body as Parameters<ProjectsService["addTeamMember"]>[4]
     );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   updateTeamMember(
     @CurrentUser() user: RequestUser,
     @Param("projectId") projectId: string,
     @Param("memberId") memberId: string,
-    @Body(new ZodValidationPipe(updateTeamMemberSchema)) body: unknown
+    @Body(new ZodValidationPipe(updateTeamMemberSchema)) body: UpdateTeamMemberDto
   ) {
-    const { isActive } = body as { isActive: boolean };
-    return this.projects.updateTeamMember(user.workspaceId, projectId, memberId, isActive);
+    return this.projects.updateTeamMember(
+      user.workspaceId,
+      projectId,
+      memberId,
+      body,
+      user.role,
+      user.userId
+    );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Delete(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   removeTeamMember(
     @CurrentUser() user: RequestUser,
     @Param("projectId") projectId: string,
     @Param("memberId") memberId: string
   ) {
-    return this.projects.removeTeamMember(user.workspaceId, projectId, memberId);
+    return this.projects.removeTeamMember(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      projectId,
+      memberId
+    );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_INVITES(":id"))
   createTeamInvite(
     @CurrentUser() user: RequestUser,
@@ -135,7 +156,8 @@ export class ProjectsController {
       user.workspaceId,
       id,
       user.userId,
-      body as Parameters<ProjectsService["createTeamInvite"]>[3]
+      body as Parameters<ProjectsService["createTeamInvite"]>[3],
+      user.role
     );
   }
 }

@@ -5,8 +5,9 @@ export class DomainException extends HttpException {
   constructor(
     public readonly code: ErrorCode,
     message: string,
-    status: HttpStatus = HttpStatus.BAD_REQUEST
+    status: HttpStatus = HttpStatus.BAD_REQUEST,
+    details?: unknown
   ) {
-    super({ code, message }, status);
+    super(details === undefined ? { code, message } : { code, message, details }, status);
   }
 }

@@ -63,6 +63,8 @@ export function formatExportDateRange(from: string, to: string): string {
 
 export type BuildExportFilenameInput = {
   workspaceSlug: string;
+  /** Optional organization slug prefix for multi-workspace archiving. */
+  tenantSlug?: string;
   from: string;
   to: string;
   ext: string;
@@ -80,6 +82,7 @@ export type BuildExportFilenameInput = {
  */
 export function buildExportFilename(input: BuildExportFilenameInput): string {
   const ws = sanitizeFilenameSegment(input.workspaceSlug, 32);
+  const tenant = input.tenantSlug ? sanitizeFilenameSegment(input.tenantSlug, 32) : "";
   const dateRange = formatExportDateRange(input.from, input.to);
   const purpose = sanitizeFilenameSegment(
     input.purposeSlug ??
@@ -90,7 +93,7 @@ export function buildExportFilename(input: BuildExportFilenameInput): string {
   );
   const hint = input.scopeHint ? sanitizeFilenameSegment(input.scopeHint, 24) : "";
 
-  const parts = [BRAND_SLUG, ws, purpose];
+  const parts = [BRAND_SLUG, ...(tenant ? [tenant] : []), ws, purpose];
   if (hint) parts.push(hint);
   parts.push(dateRange);
 

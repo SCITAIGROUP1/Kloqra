@@ -30,6 +30,7 @@ describe("TimerService", () => {
   let mockAudit: any;
   let mockTimesheetLock: any;
   let mockTimelogs: any;
+  let mockSubscriptions: any;
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -50,6 +51,9 @@ describe("TimerService", () => {
       },
       workspaceMember: {
         findMany: vi.fn().mockResolvedValue([{ workspaceId }])
+      },
+      workspace: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "tenant-1" })
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
         const tx = {
@@ -83,6 +87,9 @@ describe("TimerService", () => {
     mockTimelogs = {
       assertNoOverlap: vi.fn().mockResolvedValue(undefined)
     };
+    mockSubscriptions = {
+      assertSubscriptionAllowsWrites: vi.fn().mockResolvedValue(undefined)
+    };
 
     service = new TimerService(
       mockPrisma,
@@ -90,7 +97,8 @@ describe("TimerService", () => {
       mockAccess,
       mockAudit,
       mockTimesheetLock,
-      mockTimelogs
+      mockTimelogs,
+      mockSubscriptions
     );
   });
 

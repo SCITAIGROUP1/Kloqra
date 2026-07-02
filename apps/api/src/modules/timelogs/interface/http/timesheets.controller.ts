@@ -18,6 +18,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@ne
 import { z } from "zod";
 import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -98,34 +99,34 @@ export class TimesheetsController {
     return this.amendments.create(user.workspaceId, user.userId, periodId, body.reason);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_PENDING)
   async listPending(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(pendingTimesheetQuerySchema))
     query: z.infer<typeof pendingTimesheetQuerySchema>
   ) {
-    return this.timesheets.listPending(user.workspaceId, query);
+    return this.timesheets.listPending(user.workspaceId, user.userId, user.role, query);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_APPROVED)
   async listApproved(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
     query: z.infer<typeof reviewedTimesheetQuerySchema>
   ) {
-    return this.timesheets.listApproved(user.workspaceId, query);
+    return this.timesheets.listApproved(user.workspaceId, user.userId, user.role, query);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_REJECTED)
   async listRejected(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
     query: z.infer<typeof reviewedTimesheetQuerySchema>
   ) {
-    return this.timesheets.listRejected(user.workspaceId, query);
+    return this.timesheets.listRejected(user.workspaceId, user.userId, user.role, query);
   }
 
   @Roles("ADMIN")
@@ -156,33 +157,33 @@ export class TimesheetsController {
     );
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_AMENDMENTS)
   async listAmendments(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(amendmentListQuerySchema))
     query: z.infer<typeof amendmentListQuerySchema>
   ) {
-    return this.amendments.listPending(user.workspaceId, query);
+    return this.amendments.listPending(user.workspaceId, user.userId, user.role, query);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.APPROVE_AMENDMENT(":id"))
   async approveAmendment(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    return this.amendments.approve(user.workspaceId, id, user.userId);
+    return this.amendments.approve(user.workspaceId, id, user.userId, user.role);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.DENY_AMENDMENT(":id"))
   async denyAmendment(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(reviewAmendmentSchema)) body: z.infer<typeof reviewAmendmentSchema>
   ) {
-    return this.amendments.deny(user.workspaceId, id, user.userId, body.adminNote);
+    return this.amendments.deny(user.workspaceId, id, user.userId, user.role, body.adminNote);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.APPROVE(":id"))
   async approve(
     @CurrentUser() user: RequestUser,
@@ -190,16 +191,16 @@ export class TimesheetsController {
     @Body(new ZodValidationPipe(approveTimesheetSchema))
     body: z.infer<typeof approveTimesheetSchema>
   ) {
-    return this.timesheets.approve(user.workspaceId, id, user.userId, body.reviewNote);
+    return this.timesheets.approve(user.workspaceId, id, user.userId, user.role, body.reviewNote);
   }
 
-  @Roles("ADMIN")
+  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.REJECT(":id"))
   async reject(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(rejectTimesheetSchema)) body: z.infer<typeof rejectTimesheetSchema>
   ) {
-    return this.timesheets.reject(user.workspaceId, id, user.userId, body.reviewNote);
+    return this.timesheets.reject(user.workspaceId, id, user.userId, user.role, body.reviewNote);
   }
 }

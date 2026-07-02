@@ -6,6 +6,7 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
 import { timerKey, timerAutoStoppedKey } from "../../../common/redis/timer-keys";
+import { SubscriptionsService } from "../../subscriptions/application/subscriptions.service";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
 // eslint-disable-next-line no-restricted-imports
@@ -31,7 +32,8 @@ export class TimerService {
     private access: ProjectAccessService,
     private audit: TimelogAuditService,
     private timesheetLock: TimesheetLockService,
-    private timelogs: TimelogsService
+    private timelogs: TimelogsService,
+    private subscriptions: SubscriptionsService
   ) {}
 
   private key(workspaceId: string, userId: string) {
@@ -64,6 +66,12 @@ export class TimerService {
   }
 
   async start(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: StartTimerDto) {
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    await this.subscriptions.assertSubscriptionAllowsWrites(workspace.tenantId);
+
     const task = await this.prisma.task.findFirst({
       where: { id: dto.taskId, project: { workspaceId } }
     });

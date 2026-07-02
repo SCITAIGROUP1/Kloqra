@@ -17,24 +17,38 @@ import {
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { api } from "../api/client";
+import {
+  formatAdminWorkspaceAccessLabel,
+  formatMemberPortalWorkspaceLabel,
+  formatTenantRoleLabel
+} from "../auth/admin-access-label";
+import type { AdminContextMode } from "../auth/admin-context";
+import { useTenantCurrent } from "../features/tenant/use-tenant-current";
 import { getWorkspaceId, useSessionStore } from "../stores/session.store";
 import { useWorkspacesStore } from "../stores/workspaces.store";
+
+export type { AdminContextMode } from "../auth/admin-context";
 
 export type WorkspaceSwitcherProps = {
   /** Only list workspaces where user has this role (e.g. ADMIN for admin app). */
   filterRole?: "ADMIN";
+  /** List workspaces where user is ADMIN or leads at least one project. */
+  filterAdminAccess?: boolean;
   /** Path after successful switch (e.g. /timer or /dashboard). */
   defaultRedirect: string;
   /** Called after session update, before navigation (e.g. clear project store). */
   onAfterSwitch?: () => void;
   /** Whether the workspace switcher should render in a collapsed state. */
   collapsed?: boolean;
+  /** Footer link for tenant owners to open organization account settings. */
+  organizationHref?: string;
+  /** When set with organizationHref, enables unified Organization ↔ Workspace context switching. */
+  contextMode?: AdminContextMode;
+  /** Member portal: show "Member" instead of admin/project-lead access labels. */
+  memberPortal?: boolean;
 };
 
-export function formatWorkspaceRole(role: WorkspaceWithRoleDto["role"]): string {
-  if (role === "ADMIN") return "Admin";
-  return "Member";
-}
+export { formatAdminWorkspaceAccessLabel, formatWorkspaceRole } from "../auth/admin-access-label";
 
 export function filterWorkspacesByQuery(
   workspaces: WorkspaceWithRoleDto[],
@@ -45,21 +59,13 @@ export function filterWorkspacesByQuery(
   return workspaces.filter((workspace) => workspace.name.toLowerCase().includes(normalized));
 }
 
-function resolveAdminUrl(): string {
-  let adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
-  if (!adminUrl) {
-    if (typeof window !== "undefined") {
-      const host = window.location.hostname;
-      if (host.includes("vercel.app")) {
-        adminUrl = `https://${host.replace("-client", "-admin")}`;
-      } else {
-        adminUrl = "http://localhost:3002";
-      }
-    } else {
-      adminUrl = "http://localhost:3002";
-    }
-  }
-  return adminUrl;
+function contextInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 function WorkspaceIcon({ className }: { className?: string }) {
@@ -77,11 +83,15 @@ function WorkspaceIcon({ className }: { className?: string }) {
 
 export function WorkspaceSwitcher({
   filterRole,
+  filterAdminAccess,
   defaultRedirect,
   onAfterSwitch,
-  collapsed
+  collapsed,
+  organizationHref,
+  contextMode,
+  memberPortal
 }: WorkspaceSwitcherProps) {
-  const adminOnly = filterRole === "ADMIN";
+  const adminOnly = filterRole === "ADMIN" && !filterAdminAccess;
   const router = useRouter();
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,17 +100,49 @@ export function WorkspaceSwitcher({
   const setSession = useSessionStore((s) => s.setSession);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
+  const { tenant } = useTenantCurrent();
   const [switching, setSwitching] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
 
-  const visible = adminOnly ? workspaces.filter((w) => w.role === "ADMIN") : workspaces;
+  const unifiedContext = Boolean(organizationHref && contextMode);
+  const isAccountContext = unifiedContext && contextMode === "account";
+
+  const visible = filterAdminAccess
+    ? workspaces.filter(
+        (w) => w.role === "ADMIN" || Boolean(w.managedProjectIds && w.managedProjectIds.length > 0)
+      )
+    : adminOnly
+      ? workspaces.filter((w) => w.role === "ADMIN")
+      : workspaces;
   const currentId = session?.workspaceId ?? getWorkspaceId() ?? "";
   const currentWorkspace = visible.find((w) => w.id === currentId);
   const isAdmin = session?.workspaceRole === "ADMIN";
+  const isOwner = session?.tenantRole === "OWNER";
   const filtered = useMemo(() => filterWorkspacesByQuery(visible, query), [visible, query]);
-  const canOpen = !switching && visible.length > 0;
+  const canOpen = unifiedContext ? !switching : !switching && visible.length > 0;
+
+  const orgName = tenant?.name ?? "Organization";
+  const sectionLabel = isAccountContext ? "Organization" : "Workspace";
+  const triggerTitle = isAccountContext ? orgName : (currentWorkspace?.name ?? "Select workspace");
+  function workspaceAccessLabel(
+    workspaceRole: WorkspaceWithRoleDto["role"],
+    managedProjectIds?: string[]
+  ): string {
+    if (memberPortal) return formatMemberPortalWorkspaceLabel();
+    return formatAdminWorkspaceAccessLabel(
+      workspaceRole,
+      managedProjectIds ?? session?.managedProjectIds,
+      session?.tenantRole
+    );
+  }
+
+  const triggerSubtitle = isAccountContext
+    ? formatTenantRoleLabel(session?.tenantRole)
+    : currentWorkspace
+      ? workspaceAccessLabel(currentWorkspace.role, currentWorkspace.managedProjectIds)
+      : "—";
 
   useEffect(() => {
     if (!session || workspaces.length > 0) return;
@@ -164,6 +206,7 @@ export function WorkspaceSwitcher({
   async function switchWorkspace(nextId: string) {
     if (!session || nextId === currentId || switching) return;
     if (adminOnly && !visible.find((w) => w.id === nextId)) return;
+    if (filterAdminAccess && !visible.find((w) => w.id === nextId)) return;
 
     setSwitching(true);
     try {
@@ -174,6 +217,14 @@ export function WorkspaceSwitcher({
       });
       if (adminOnly && res.workspaceRole !== "ADMIN") {
         toast.error("Admin access required for this app.");
+        return;
+      }
+      if (
+        filterAdminAccess &&
+        res.workspaceRole !== "ADMIN" &&
+        !(res.managedProjectIds && res.managedProjectIds.length > 0)
+      ) {
+        toast.error("Admin or project manager access required for this app.");
         return;
       }
       setSession(res, res.accessToken, res.refreshToken);
@@ -196,12 +247,26 @@ export function WorkspaceSwitcher({
   }
 
   function onCreateWorkspace() {
-    if (typeof window !== "undefined") {
-      window.location.href = `${resolveAdminUrl()}/workspace?create=true`;
-    }
+    router.push("/account/workspaces");
+    setOpen(false);
+    setQuery("");
   }
 
-  if (visible.length === 0) return null;
+  function onOrganizationContext() {
+    if (!organizationHref) return;
+    router.push(organizationHref);
+    setOpen(false);
+    setQuery("");
+  }
+
+  function onLegacyOrganizationSettings() {
+    if (!organizationHref) return;
+    router.push(organizationHref);
+    setOpen(false);
+    setQuery("");
+  }
+
+  if (!unifiedContext && visible.length === 0) return null;
 
   const dropdown =
     open && menuStyle && typeof document !== "undefined"
@@ -210,10 +275,47 @@ export function WorkspaceSwitcher({
             ref={menuRef}
             role="listbox"
             id={listboxId}
+            aria-label="Switch context"
             style={menuStyle}
             className="z-[80] overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg"
           >
-            <div className="border-b border-border/60 p-2">
+            {unifiedContext ? (
+              <>
+                <p className="border-b border-border/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Switch context
+                </p>
+                <div className="py-1">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isAccountContext}
+                    onClick={onOrganizationContext}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
+                      isAccountContext ? "bg-muted/40" : "hover:bg-muted/30"
+                    )}
+                  >
+                    <WorkspaceIcon className="h-7 w-7 rounded-md bg-primary/10 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium leading-tight">
+                        {orgName}
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground">
+                        {formatTenantRoleLabel(session?.tenantRole)}
+                      </span>
+                    </span>
+                    {isAccountContext ? (
+                      <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                    ) : null}
+                  </button>
+                </div>
+                <p className="border-t border-border/60 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Workspaces
+                </p>
+              </>
+            ) : null}
+
+            <div className={cn("border-border/60 p-2", unifiedContext ? "" : "border-b")}>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -221,7 +323,7 @@ export function WorkspaceSwitcher({
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search workspaces..."
                   className="h-8 border-border/70 bg-muted/20 pl-8 text-xs shadow-none"
-                  autoFocus
+                  autoFocus={!unifiedContext}
                 />
               </div>
             </div>
@@ -233,7 +335,7 @@ export function WorkspaceSwitcher({
                 </p>
               ) : (
                 filtered.map((workspace) => {
-                  const selected = workspace.id === currentId;
+                  const selected = !isAccountContext && workspace.id === currentId;
                   return (
                     <button
                       key={workspace.id}
@@ -253,7 +355,7 @@ export function WorkspaceSwitcher({
                           {workspace.name}
                         </span>
                         <span className="block text-[11px] text-muted-foreground">
-                          {formatWorkspaceRole(workspace.role)}
+                          {workspaceAccessLabel(workspace.role, workspace.managedProjectIds)}
                         </span>
                       </span>
                       {selected ? (
@@ -265,16 +367,40 @@ export function WorkspaceSwitcher({
               )}
             </div>
 
-            {isAdmin ? (
-              <div className="border-t border-border/60 p-1.5">
+            {unifiedContext && isOwner && isAdmin ? (
+              <div className="space-y-1 border-t border-border/60 p-1.5">
                 <button
                   type="button"
                   onClick={onCreateWorkspace}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
                 >
                   <Plus className="size-4" aria-hidden />
-                  Create Workspace
+                  Create workspace
                 </button>
+              </div>
+            ) : !unifiedContext && (organizationHref || (isOwner && isAdmin)) ? (
+              <div className="space-y-1 border-t border-border/60 p-1.5">
+                {organizationHref ? (
+                  <button
+                    type="button"
+                    onClick={onLegacyOrganizationSettings}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/30"
+                    aria-label="Organization settings"
+                  >
+                    <Building2 className="size-4 shrink-0 text-primary" aria-hidden />
+                    Organization settings
+                  </button>
+                ) : null}
+                {isOwner && isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={onCreateWorkspace}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <Plus className="size-4" aria-hidden />
+                    Create workspace
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>,
@@ -282,28 +408,30 @@ export function WorkspaceSwitcher({
         )
       : null;
 
-  if (collapsed) {
-    const initials = (currentWorkspace?.name ?? "Workspace")
-      .split(/\s+/)
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+  const triggerInitials = contextInitials(
+    isAccountContext ? orgName : (currentWorkspace?.name ?? "Workspace")
+  );
 
+  if (collapsed) {
     return (
-      <div ref={containerRef} className="relative flex justify-center w-full">
+      <div ref={containerRef} className="relative flex w-full justify-center">
         <button
           type="button"
           disabled={!canOpen}
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={listboxId}
+          aria-label={
+            unifiedContext
+              ? `Switch context · ${triggerTitle} · ${triggerSubtitle}`
+              : (currentWorkspace?.name ?? "Workspace")
+          }
           onClick={() => canOpen && setOpen((value) => !value)}
           className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border/80 bg-muted/20 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm transition-colors hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
-          title={currentWorkspace?.name ?? "Workspace"}
+          title={`${triggerTitle} · ${triggerSubtitle}`}
         >
           {switching ? <Spinner size="sm" className="absolute inset-0 m-auto" /> : null}
-          {initials}
+          {triggerInitials}
         </button>
         {dropdown}
       </div>
@@ -313,7 +441,7 @@ export function WorkspaceSwitcher({
   return (
     <div ref={containerRef} className="relative w-full space-y-2">
       <p className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        Workspace
+        {unifiedContext ? "Context" : sectionLabel}
       </p>
 
       <button
@@ -322,6 +450,9 @@ export function WorkspaceSwitcher({
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
+        aria-label={
+          unifiedContext ? `Switch context · ${triggerTitle} · ${triggerSubtitle}` : undefined
+        }
         onClick={() => canOpen && setOpen((value) => !value)}
         className={cn(
           "flex w-full items-center gap-2.5 rounded-lg px-1 py-1 text-left transition-colors",
@@ -330,12 +461,8 @@ export function WorkspaceSwitcher({
       >
         <WorkspaceIcon />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium leading-tight">
-            {currentWorkspace?.name ?? "Select workspace"}
-          </span>
-          <span className="block text-[11px] text-muted-foreground">
-            {currentWorkspace ? formatWorkspaceRole(currentWorkspace.role) : "—"}
-          </span>
+          <span className="block truncate text-sm font-medium leading-tight">{triggerTitle}</span>
+          <span className="block text-[11px] text-muted-foreground">{triggerSubtitle}</span>
         </span>
         {canOpen ? (
           open ? (

@@ -1,0 +1,9 @@
+{
+  "tenants": [
+    {
+      "slug": "kloqra-demo",
+      "name": "Kloqra Demo Organization",
+      "workspaceSlugs": ["acme", "meridian", "apex"]
+    }
+  ]
+}

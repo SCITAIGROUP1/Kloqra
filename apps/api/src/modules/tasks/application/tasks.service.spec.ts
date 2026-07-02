@@ -40,7 +40,8 @@ function makePrisma() {
 function makeAccess() {
   return {
     accessibleProjectIds: vi.fn() as AnyMock,
-    assertCanAccessProject: vi.fn() as AnyMock
+    assertCanAccessProject: vi.fn() as AnyMock,
+    assertCanManageProject: vi.fn() as AnyMock
   };
 }
 
@@ -188,7 +189,7 @@ describe("TasksService", () => {
     it("rejects when the project is not in the workspace", async () => {
       prisma.project.findFirst.mockResolvedValue(null);
       await expect(
-        service.create("w1", {
+        service.create("w1", "u1", "ADMIN", {
           projectId: "p-missing",
           categoryId: "c1",
           taskName: "X",
@@ -204,7 +205,7 @@ describe("TasksService", () => {
       prisma.project.findFirst.mockResolvedValue({ id: "p1" });
       prisma.category.findFirst.mockResolvedValue(null);
       await expect(
-        service.create("w1", {
+        service.create("w1", "u1", "ADMIN", {
           projectId: "p1",
           categoryId: "c-foreign",
           taskName: "X",
@@ -245,7 +246,7 @@ describe("TasksService", () => {
         category: { name: "Software Development" },
         assignees: [{ userId: "u1", user: { name: "Sam" } }]
       });
-      const result = await service.create("w1", {
+      const result = await service.create("w1", "u1", "ADMIN", {
         projectId: "p1",
         categoryId: "c1",
         taskName: "Frontend",
@@ -287,7 +288,7 @@ describe("TasksService", () => {
         category: { name: "Software Development" },
         assignees: []
       });
-      const result = await service.create("w1", {
+      const result = await service.create("w1", "u1", "ADMIN", {
         projectId: "p1",
         categoryId: "c1",
         taskName: "Frontend",
@@ -336,7 +337,7 @@ describe("TasksService", () => {
         category: { name: "Software Development" },
         assignees: [{ userId: "u1", user: { name: "Sam" } }]
       });
-      const result = await service.create("w1", {
+      const result = await service.create("w1", "u1", "ADMIN", {
         projectId: "p1",
         categoryId: "c1",
         taskName: "Frontend",
@@ -361,12 +362,13 @@ describe("TasksService", () => {
       prisma.task.findFirst.mockResolvedValue({
         id: "t1",
         projectId: "p1",
-        categoryId: "c1"
+        categoryId: "c1",
+        isCommon: false
       });
       prisma.category.findFirst.mockResolvedValue(null);
-      await expect(service.update("w1", "t1", { categoryId: "c-foreign" })).rejects.toThrow(
-        /category not found/i
-      );
+      await expect(
+        service.update("w1", "u1", "ADMIN", "t1", { categoryId: "c-foreign" })
+      ).rejects.toThrow(/category not found/i);
       expect(prisma.task.update).not.toHaveBeenCalled();
     });
 
@@ -374,7 +376,8 @@ describe("TasksService", () => {
       prisma.task.findFirst.mockResolvedValue({
         id: "t1",
         projectId: "p1",
-        categoryId: "c1"
+        categoryId: "c1",
+        isCommon: false
       });
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)
@@ -383,12 +386,13 @@ describe("TasksService", () => {
         id: "t1",
         projectId: "p1",
         categoryId: "c1",
+        isCommon: false,
         taskName: "Renamed",
         billableDefault: true,
         category: { name: "Software Development" },
         assignees: []
       });
-      await service.update("w1", "t1", { taskName: "Renamed" });
+      await service.update("w1", "u1", "ADMIN", "t1", { taskName: "Renamed" });
       expect(prisma.category.findFirst).not.toHaveBeenCalled();
       expect(prisma.task.update).toHaveBeenCalled();
     });
@@ -397,7 +401,8 @@ describe("TasksService", () => {
       prisma.task.findFirst.mockResolvedValue({
         id: "t1",
         projectId: "p1",
-        categoryId: "c1"
+        categoryId: "c1",
+        isCommon: false
       });
       prisma.taskAssignee.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }, { userId: "u2" }]);
@@ -413,6 +418,7 @@ describe("TasksService", () => {
         id: "t1",
         projectId: "p1",
         categoryId: "c1",
+        isCommon: false,
         taskName: "Frontend",
         billableDefault: true,
         category: { name: "Software Development" },
@@ -422,7 +428,7 @@ describe("TasksService", () => {
         ]
       });
 
-      await service.update("w1", "t1", { assigneeUserIds: ["u1", "u2"] });
+      await service.update("w1", "u1", "ADMIN", "t1", { assigneeUserIds: ["u1", "u2"] });
 
       expect(notificationsDispatch.notify).toHaveBeenCalledTimes(1);
       expect(notificationsDispatch.notify).toHaveBeenCalledWith(
@@ -438,7 +444,8 @@ describe("TasksService", () => {
       prisma.task.findFirst.mockResolvedValue({
         id: "t1",
         projectId: "p1",
-        categoryId: "c1"
+        categoryId: "c1",
+        isCommon: false
       });
       prisma.taskAssignee.findMany.mockResolvedValue([{ userId: "u1" }, { userId: "u2" }]);
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
@@ -454,13 +461,14 @@ describe("TasksService", () => {
         id: "t1",
         projectId: "p1",
         categoryId: "c1",
+        isCommon: false,
         taskName: "Frontend",
         billableDefault: true,
         category: { name: "Software Development" },
         assignees: [{ userId: "u1", user: { name: "Sam" } }]
       });
 
-      await service.update("w1", "t1", { assigneeUserIds: ["u1"] });
+      await service.update("w1", "u1", "ADMIN", "t1", { assigneeUserIds: ["u1"] });
 
       expect(notificationsDispatch.notify).toHaveBeenCalledTimes(1);
       expect(notificationsDispatch.notify).toHaveBeenCalledWith(
@@ -475,7 +483,8 @@ describe("TasksService", () => {
       prisma.task.findFirst.mockResolvedValue({
         id: "t1",
         projectId: "p1",
-        categoryId: "c1"
+        categoryId: "c1",
+        isCommon: false
       });
       prisma.taskAssignee.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
@@ -492,7 +501,7 @@ describe("TasksService", () => {
         assignees: []
       });
 
-      await service.update("w1", "t1", { isCommon: true, assigneeUserIds: [] });
+      await service.update("w1", "u1", "ADMIN", "t1", { isCommon: true, assigneeUserIds: [] });
 
       expect(prisma.task.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -509,7 +518,9 @@ describe("TasksService", () => {
   describe("remove", () => {
     it("404s when the task is not in the workspace", async () => {
       prisma.task.findFirst.mockResolvedValue(null);
-      await expect(service.remove("w1", "t-missing")).rejects.toThrow(/task not found/i);
+      await expect(service.remove("w1", "u1", "ADMIN", "t-missing")).rejects.toThrow(
+        /task not found/i
+      );
       expect(prisma.task.delete).not.toHaveBeenCalled();
     });
 
@@ -519,7 +530,7 @@ describe("TasksService", () => {
         projectId: "p1",
         taskName: "Uncategorized Task"
       });
-      await expect(service.remove("w1", "t1")).rejects.toThrow(
+      await expect(service.remove("w1", "u1", "ADMIN", "t1")).rejects.toThrow(
         /Cannot delete the default Uncategorized task/i
       );
       expect(prisma.task.delete).not.toHaveBeenCalled();
@@ -541,7 +552,7 @@ describe("TasksService", () => {
       prisma.timeLog.updateMany.mockResolvedValue({ count: 3 });
       prisma.task.delete.mockResolvedValue({ id: "t-deleted" });
 
-      const result = await service.remove("w1", "t-deleted");
+      const result = await service.remove("w1", "u1", "ADMIN", "t-deleted");
 
       expect(prisma.timeLog.updateMany).toHaveBeenCalledWith({
         where: { taskId: "t-deleted" },

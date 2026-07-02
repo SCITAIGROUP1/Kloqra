@@ -193,6 +193,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       }
       workspaceSwitcher={(collapsed) => (
         <WorkspaceSwitcher
+          memberPortal
           defaultRedirect="/dashboard"
           collapsed={collapsed}
           onAfterSwitch={() => {

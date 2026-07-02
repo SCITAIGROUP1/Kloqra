@@ -20,6 +20,11 @@ import {
   Input,
   Label,
   SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableHeader,
@@ -28,7 +33,11 @@ import {
   TableToolbar,
   TableLoadingState
 } from "@kloqra/ui";
-import { buildTableQuery, extractFieldErrorsFromMessage } from "@kloqra/web-shared";
+import {
+  buildTableQuery,
+  extractFieldErrorsFromMessage,
+  useSessionStore
+} from "@kloqra/web-shared";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -39,8 +48,14 @@ function memberIsActive(m: TeamMemberDto): boolean {
   return m.isActive !== false;
 }
 
+function memberRoleLabel(role: TeamMemberDto["role"]): string {
+  return role === "PROJECT_MANAGER" ? "Project manager" : "Member";
+}
+
 export function ProjectTeamTab() {
   const { workspaceId, projectId } = useProjectDetail();
+  const workspaceRole = useSessionStore((s) => s.session?.workspaceRole);
+  const canAssignLeadRole = workspaceRole === "ADMIN";
   const [teamMeta, setTeamMeta] = useState<{
     id: string;
     projectId: string;
@@ -164,6 +179,27 @@ export function ProjectTeamTab() {
       toast.error(message);
     } finally {
       setAddingMember(false);
+    }
+  }
+
+  async function setMemberRole(member: TeamMemberDto, role: TeamMemberDto["role"]) {
+    if (role === member.role) return;
+    setMemberBusyId(member.id);
+    setError(null);
+    try {
+      await api(ROUTES.PROJECTS.TEAM_MEMBER(projectId, member.id), {
+        method: "PATCH",
+        workspaceId,
+        body: JSON.stringify({ role })
+      });
+      await loadTeam();
+      toast.success(`Role updated to ${memberRoleLabel(role).toLowerCase()}.`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not update project role.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setMemberBusyId(null);
     }
   }
 
@@ -309,7 +345,7 @@ export function ProjectTeamTab() {
           </p>
         </div>
         {loadingTeam ? (
-          <TableLoadingState rows={5} columns={4} />
+          <TableLoadingState rows={5} columns={canAssignLeadRole ? 5 : 4} />
         ) : members.length === 0 ? (
           <div className="p-6">
             <EmptyState
@@ -334,6 +370,7 @@ export function ProjectTeamTab() {
                 <DataTableHeaderRow>
                   <DataTableHead>Member</DataTableHead>
                   <DataTableHead>Email</DataTableHead>
+                  <DataTableHead>Role</DataTableHead>
                   <DataTableHead>Status</DataTableHead>
                   <DataTableHead className="text-right">Actions</DataTableHead>
                 </DataTableHeaderRow>
@@ -343,6 +380,29 @@ export function ProjectTeamTab() {
                   <TableRow key={m.id}>
                     <DataTableCell className="font-medium">{m.userName}</DataTableCell>
                     <DataTableCell className="text-muted-foreground">{m.userEmail}</DataTableCell>
+                    <DataTableCell>
+                      {canAssignLeadRole ? (
+                        <Select
+                          value={m.role}
+                          disabled={memberBusyId === m.id}
+                          onValueChange={(value) =>
+                            void setMemberRole(m, value as TeamMemberDto["role"])
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Project role">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MEMBER">Member</SelectItem>
+                            <SelectItem value="PROJECT_MANAGER">Project manager</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant={m.role === "PROJECT_MANAGER" ? "default" : "secondary"}>
+                          {memberRoleLabel(m.role)}
+                        </Badge>
+                      )}
+                    </DataTableCell>
                     <DataTableCell>
                       <Badge variant={memberIsActive(m) ? "default" : "secondary"}>
                         {memberIsActive(m) ? "Active" : "Inactive"}

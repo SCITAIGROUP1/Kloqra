@@ -56,9 +56,22 @@ export class PresenceService {
     };
   }
 
-  async snapshot(workspaceId: string) {
+  async snapshot(
+    workspaceId: string,
+    userId?: string,
+    role?: "ADMIN" | "MEMBER",
+    managedProjectIds?: string[]
+  ) {
+    const scopedUserIds =
+      role === "MEMBER" && managedProjectIds && managedProjectIds.length > 0
+        ? await this.teamUserIdsForProjects(workspaceId, managedProjectIds)
+        : undefined;
+
     const members = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId },
+      where: {
+        workspaceId,
+        ...(scopedUserIds ? { userId: { in: scopedUserIds } } : {})
+      },
       include: { user: true }
     });
 
@@ -106,7 +119,12 @@ export class PresenceService {
     const tasks =
       taskIds.size > 0
         ? await this.prisma.task.findMany({
-            where: { id: { in: [...taskIds] } },
+            where: {
+              id: { in: [...taskIds] },
+              ...(managedProjectIds && managedProjectIds.length > 0 && role === "MEMBER"
+                ? { projectId: { in: managedProjectIds } }
+                : {})
+            },
             include: { project: true }
           })
         : [];
@@ -132,7 +150,25 @@ export class PresenceService {
     };
   }
 
-  async streamSse(workspaceId: string, req: Request, res: Response): Promise<void> {
+  private async teamUserIdsForProjects(workspaceId: string, projectIds: string[]) {
+    const rows = await this.prisma.teamMember.findMany({
+      where: {
+        isActive: true,
+        team: { project: { workspaceId, id: { in: projectIds } } }
+      },
+      select: { userId: true }
+    });
+    return [...new Set(rows.map((r) => r.userId))];
+  }
+
+  async streamSse(
+    workspaceId: string,
+    req: Request,
+    res: Response,
+    userId?: string,
+    role?: "ADMIN" | "MEMBER",
+    managedProjectIds?: string[]
+  ): Promise<void> {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -143,7 +179,7 @@ export class PresenceService {
     let pending = false;
 
     const send = async () => {
-      const snapshot = await this.snapshot(workspaceId);
+      const snapshot = await this.snapshot(workspaceId, userId, role, managedProjectIds);
       res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
     };
 

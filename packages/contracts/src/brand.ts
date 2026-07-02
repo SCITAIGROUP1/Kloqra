@@ -4,6 +4,16 @@ export const BRAND_NAME = "Kloqra";
 export const BRAND_TAGLINE = "Track Time. Unlock Productivity.";
 export const BRAND_SUBTAGLINE = "Built for focus, not friction.";
 
+/** Platform-admin portal — internal ops console, not tenant product marketing. */
+export const PLATFORM_PORTAL_LABEL = "Platform Admin";
+export const PLATFORM_LOGIN_TITLE = "Platform sign in";
+export const PLATFORM_LOGIN_DESCRIPTION =
+  "Kloqra staff only — authorized access to the internal operations console.";
+export const PLATFORM_HERO_TAGLINE = "Operate Kloqra.";
+export const PLATFORM_HERO_SUBTAGLINE =
+  "Tenant oversight, billing, and platform health — staff access only.";
+export const PLATFORM_SECURITY_NOTE = "Protected by two-factor authentication.";
+
 export const BRAND_COLORS = {
   primary: "#236bfe",
   primaryHover: "#1a42c8",

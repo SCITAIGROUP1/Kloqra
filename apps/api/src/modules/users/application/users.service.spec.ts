@@ -58,7 +58,9 @@ describe("UsersService", () => {
     mockPrisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: { dailyTargetHours: 8 }
+      name: "Acme Corporation",
+      settings: { dailyTargetHours: 8 },
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.getProfile("user-1", "ws-1", "ADMIN");
@@ -71,13 +73,20 @@ describe("UsersService", () => {
     expect(profile.effectiveTheme).toBe("dark");
     expect(profile.activityStats.totalHours).toBe(1);
     expect(profile.activityStats.projectCount).toBe(2);
+    expect(profile.workContext).toEqual({
+      organizationName: "Acme Corporation",
+      workspaceName: "Acme Corporation",
+      workspaceRole: "ADMIN"
+    });
   });
 
   it("falls back to workspace daily target when user preference unset", async () => {
     mockPrisma.user.findUniqueOrThrow.mockResolvedValue({ ...baseUser, preferences: {} });
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: { dailyTargetHours: 7 }
+      name: "Acme Corporation",
+      settings: { dailyTargetHours: 7 },
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
@@ -89,7 +98,9 @@ describe("UsersService", () => {
     mockPrisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: {}
+      name: "Acme Corporation",
+      settings: {},
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
@@ -104,7 +115,9 @@ describe("UsersService", () => {
     }));
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: {}
+      name: "Acme Corporation",
+      settings: {},
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.updatePreferences(
@@ -133,7 +146,9 @@ describe("UsersService", () => {
     }));
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: { timezone: "America/New_York" }
+      name: "Acme Corporation",
+      settings: { timezone: "America/New_York" },
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.updatePreferences(
@@ -159,7 +174,9 @@ describe("UsersService", () => {
     });
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: {}
+      name: "Acme Corporation",
+      settings: {},
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.updateProfile(
@@ -243,11 +260,13 @@ describe("UsersService", () => {
     });
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
+      name: "Acme Corporation",
       settings: {
         jiraSiteUrl: "https://acme.atlassian.net",
         jiraServiceEmail: "bot@acme.com",
         jiraServiceToken: "ATATT3xtoken"
-      }
+      },
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
@@ -264,7 +283,9 @@ describe("UsersService", () => {
     });
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
-      settings: { jiraSiteUrl: "https://acme.atlassian.net" }
+      name: "Acme Corporation",
+      settings: { jiraSiteUrl: "https://acme.atlassian.net" },
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
@@ -279,10 +300,12 @@ describe("UsersService", () => {
     });
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
+      name: "Acme Corporation",
       settings: {
         jiraSiteUrl: "https://acme.atlassian.net",
         jiraServiceToken: "ATATT3xtoken"
-      }
+      },
+      tenant: { name: "Acme Corporation", slug: "acme" }
     });
 
     const profile = await service.getProfile("user-1", "ws-1", "MEMBER");

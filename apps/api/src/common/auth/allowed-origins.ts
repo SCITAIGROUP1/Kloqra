@@ -4,7 +4,10 @@ import type { Request } from "express";
 import { DomainException } from "../errors/domain.exception";
 
 export function getAllowedFrontendOrigins(): string[] {
-  return (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000,http://localhost:3002")
+  return (
+    process.env.FRONTEND_ORIGIN ??
+    "http://localhost:3000,http://localhost:3002,http://localhost:3003"
+  )
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);

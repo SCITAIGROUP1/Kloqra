@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useSessionStore } from "../stores/session.store";
 import { NotificationDropdown } from "./notification-dropdown";
+import { PlatformNotificationDropdown } from "./platform-notification-dropdown";
 import { ThemeToggle } from "./theme-toggle";
 
 export type ShellHeaderActionsProps = {
@@ -21,6 +22,10 @@ export type ShellHeaderActionsProps = {
   profileHref?: string;
   settingsHref?: string;
   notificationsHref?: string;
+  /** Override display name when not using tenant session (e.g. platform admin). */
+  userName?: string;
+  /** When true, use platform notification APIs instead of workspace notifications. */
+  platformNotifications?: boolean;
   /** @deprecated Use onShowOnboardingWizard / onShowOnboardingTour instead */
   onShowOnboarding?: () => void;
   onShowOnboardingWizard?: () => void;
@@ -41,11 +46,13 @@ export function ShellHeaderActions({
   onShowOnboardingTour,
   onOpenAssistant,
   onboardingReplayTourId = "onboarding-replay",
-  className
+  className,
+  userName: userNameOverride,
+  platformNotifications = false
 }: ShellHeaderActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const user = useSessionStore((s) => s.session?.user);
-  const userName = user?.name ?? "User";
+  const userName = userNameOverride ?? user?.name ?? "User";
 
   const showWizard = onShowOnboardingWizard ?? onShowOnboarding;
   const showTour = onShowOnboardingTour;
@@ -121,7 +128,11 @@ export function ShellHeaderActions({
           </PopoverContent>
         </Popover>
       ) : null}
-      <NotificationDropdown workspaceId={workspaceId} viewAllHref={notificationsHref} />
+      {platformNotifications ? (
+        <PlatformNotificationDropdown viewAllHref={notificationsHref} />
+      ) : (
+        <NotificationDropdown workspaceId={workspaceId} viewAllHref={notificationsHref} />
+      )}
       <ThemeToggle variant="icon-menu" />
       <Link
         href={settingsHref}

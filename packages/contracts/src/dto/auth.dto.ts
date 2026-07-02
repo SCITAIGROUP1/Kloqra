@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { PLAN_SLUGS } from "../plan-catalog";
+import { tenantMemberRoleSchema } from "../tenant-rbac";
 import {
   emailSchema,
   uuidSchema,
@@ -31,11 +33,15 @@ export const authTokensSchema = z.object({
 
 export const authSessionSchema = z.object({
   user: authUserSchema,
+  tenantId: uuidSchema,
+  tenantRole: tenantMemberRoleSchema.optional(),
   workspaceId: uuidSchema,
   workspaceName: z.string().min(1).max(120).optional(),
   workspaceRole: workspaceRoleSchema,
   /** Preferred workspace from user preferences — avoids bootstrap GET /users/me. */
   defaultWorkspaceId: uuidSchema.optional(),
+  /** Project IDs where user is team_members.role = PROJECT_MANAGER (MEMBER workspace role only; not in JWT). */
+  managedProjectIds: z.array(uuidSchema).optional(),
   impersonatorId: uuidSchema.optional(),
   impersonatorName: z.string().optional()
 });
@@ -97,6 +103,21 @@ export const okResponseSchema = z.object({
   ok: z.literal(true)
 });
 
+/** Self-serve signup — public plans only (SaaS-F20). */
+export const signupPlanSlugSchema = z.enum([PLAN_SLUGS.STARTER, PLAN_SLUGS.PRO]);
+
+export const signupSchema = z.object({
+  email: emailSchema,
+  password: passwordValidationSchema,
+  name: z.string().min(1).max(120),
+  organizationName: z.string().min(1).max(120),
+  planSlug: signupPlanSlugSchema
+});
+
+export const signupResponseSchema = okResponseSchema;
+
+export type SignupPlanSlug = z.infer<typeof signupPlanSlugSchema>;
+
 export type LoginDto = z.infer<typeof loginSchema>;
 export type LoginRequiresPasswordChangeResponseDto = z.infer<
   typeof loginRequiresPasswordChangeResponseSchema
@@ -109,6 +130,8 @@ export type ForgotPasswordDto = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
 export type VerifyEmailDto = z.infer<typeof verifyEmailSchema>;
 export type ResendVerificationDto = z.infer<typeof resendVerificationSchema>;
+export type SignupDto = z.infer<typeof signupSchema>;
+export type SignupResponseDto = z.infer<typeof signupResponseSchema>;
 export type OkResponseDto = z.infer<typeof okResponseSchema>;
 export type AuthUserDto = z.infer<typeof authUserSchema>;
 export type AuthSessionDto = z.infer<typeof authSessionSchema>;

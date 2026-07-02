@@ -28,9 +28,11 @@ type ReportScopeFiltersProps = {
   categories: CategoryDto[];
   tasks: TaskDto[];
   members: ScopeMember[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onProjectChange: (projectId: any) => void;
   onCategoryChange: (categoryId: string) => void;
   onTaskChange: (taskId: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUserChange: (userId: any) => void;
   onClearAll: () => void;
   taskRequiresProject?: boolean;

@@ -1,3 +1,5 @@
+import { platformClientOrigin } from "./platform-origin.util";
+
 export function clientOrigin(): string {
   const raw = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
   return raw.split(",")[0]?.trim() || "http://localhost:3000";
@@ -13,7 +15,20 @@ export function adminOrigin(): string {
 }
 
 export function originForNotificationHref(href: string): string {
-  const adminPaths = ["/approvals", "/team-management", "/exports", "/billing", "/workspace"];
+  const platformPaths = ["/tenants", "/ops"];
+  const isPlatform = platformPaths.some((p) => href === p || href.startsWith(`${p}/`));
+  if (isPlatform) {
+    return platformClientOrigin();
+  }
+
+  const adminPaths = [
+    "/approvals",
+    "/team-management",
+    "/exports",
+    "/billing",
+    "/workspace",
+    "/account"
+  ];
   const isAdmin = adminPaths.some((p) => href === p || href.startsWith(`${p}/`));
   return isAdmin ? adminOrigin() : clientOrigin();
 }

@@ -3,6 +3,7 @@ import request from "supertest";
 
 export interface LoginSession {
   accessToken: string;
+  tenantId: string;
   workspaceId: string;
   userId: string;
   role: "ADMIN" | "MEMBER";
@@ -21,6 +22,7 @@ export async function loginAs(
   }
   return {
     accessToken: res.body.accessToken,
+    tenantId: res.body.tenantId,
     workspaceId: res.body.workspaceId,
     userId: res.body.user.id,
     role: res.body.workspaceRole

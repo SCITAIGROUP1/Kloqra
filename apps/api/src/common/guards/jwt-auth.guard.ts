@@ -3,19 +3,25 @@ import {
   type CanActivate,
   type ExecutionContext,
   ForbiddenException,
+  HttpException,
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
+import { ProjectAccessService } from "../access/project-access.service";
 import { AuthRevocationService } from "../auth/auth-revocation.service";
 import { accessCookieName, getAuthScope } from "../auth/auth-scope";
 import { JwtTokenService } from "../auth/jwt-token.service";
 import { resolveWorkspaceId } from "../auth/resolve-workspace-id";
+import { PrismaService } from "../prisma/prisma.service";
+import { assertJwtWorkspaceTenant } from "../tenant/tenant-context";
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private jwtTokens: JwtTokenService,
-    private authRevocation: AuthRevocationService
+    private authRevocation: AuthRevocationService,
+    private prisma: PrismaService,
+    private projectAccess: ProjectAccessService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -58,10 +64,24 @@ export class JwtAuthGuard implements CanActivate {
       const headerWs = req.headers["x-workspace-id"];
       const headerValue = Array.isArray(headerWs) ? headerWs[0] : headerWs;
       const workspaceId = resolveWorkspaceId(payload.workspaceId, headerValue);
-      req.user = this.jwtTokens.toRequestUser(payload, workspaceId);
+      await assertJwtWorkspaceTenant(this.prisma, payload.tenantId, workspaceId);
+      const requestUser = this.jwtTokens.toRequestUser(payload, workspaceId);
+      if (requestUser.role === "MEMBER") {
+        requestUser.managedProjectIds = await this.projectAccess.managedProjectIds(
+          workspaceId,
+          requestUser.userId
+        );
+      }
+      req.user = requestUser;
       return true;
     } catch (err: unknown) {
-      if (err instanceof ForbiddenException || err instanceof UnauthorizedException) throw err;
+      if (
+        err instanceof ForbiddenException ||
+        err instanceof UnauthorizedException ||
+        err instanceof HttpException
+      ) {
+        throw err;
+      }
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Invalid token",

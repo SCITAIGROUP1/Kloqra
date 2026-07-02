@@ -7,6 +7,7 @@ import type {
   TimesheetSubmitPreviewDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
@@ -37,7 +38,8 @@ export class TimesheetsService {
   private readonly logger = new Logger(TimesheetsService.name);
   constructor(
     private prisma: PrismaService,
-    private notificationsDispatch: NotificationsDispatchService
+    private notificationsDispatch: NotificationsDispatchService,
+    private access: ProjectAccessService
   ) {}
 
   private async amendmentPendingForPeriod(periodId: string | undefined): Promise<boolean> {
@@ -521,28 +523,50 @@ export class TimesheetsService {
     };
   }
 
-  async listPending(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
-    return this.listReviewed(workspaceId, "SUBMITTED", filter);
+  async listPending(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
+    return this.listReviewed(workspaceId, "SUBMITTED", filter, userId, role);
   }
 
-  async listApproved(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
-    return this.listReviewed(workspaceId, "APPROVED", filter);
+  async listApproved(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
+    return this.listReviewed(workspaceId, "APPROVED", filter, userId, role);
   }
 
-  async listRejected(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
-    return this.listReviewed(workspaceId, "REJECTED", filter);
+  async listRejected(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
+    return this.listReviewed(workspaceId, "REJECTED", filter, userId, role);
   }
 
   private async listReviewed(
     workspaceId: string,
     status: "SUBMITTED" | "APPROVED" | "REJECTED",
-    filter: TimesheetApprovalsFilterQuery = {}
+    filter: TimesheetApprovalsFilterQuery = {},
+    userId?: string,
+    role?: "ADMIN" | "MEMBER"
   ) {
+    const managedProjectIds =
+      userId && role && role !== "ADMIN"
+        ? await this.access.manageableProjectIds(workspaceId, userId, role)
+        : undefined;
     const periodStartRange = buildPeriodStartRange(filter);
     const periods = await this.prisma.timesheetPeriod.findMany({
       where: {
         workspaceId,
         status,
+        ...(managedProjectIds ? { projectId: { in: managedProjectIds } } : {}),
         ...(filter.projectId
           ? Array.isArray(filter.projectId)
             ? { projectId: { in: filter.projectId } }
@@ -870,7 +894,31 @@ export class TimesheetsService {
     return period;
   }
 
-  async approve(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
+  async approve(
+    workspaceId: string,
+    id: string,
+    reviewerUserId: string,
+    reviewerRole: "ADMIN" | "MEMBER",
+    reviewNote?: string
+  ) {
+    const existing = await this.prisma.timesheetPeriod.findFirst({
+      where: { id, workspaceId },
+      select: { projectId: true }
+    });
+    if (!existing) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Timesheet period not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    await this.access.assertCanManageProject(
+      workspaceId,
+      reviewerUserId,
+      reviewerRole,
+      existing.projectId
+    );
+
     const period = await this.prisma.$transaction(async (tx) => {
       const p = await tx.timesheetPeriod.findFirst({
         where: { id, workspaceId },
@@ -905,7 +953,7 @@ export class TimesheetsService {
         data: {
           status: "APPROVED",
           reviewNote: reviewNote || null,
-          reviewedBy: adminUserId,
+          reviewedBy: reviewerUserId,
           reviewedAt: new Date()
         }
       });
@@ -923,7 +971,7 @@ export class TimesheetsService {
       workspaceSettings
     );
     const reviewer = await this.prisma.user.findUnique({
-      where: { id: adminUserId },
+      where: { id: reviewerUserId },
       select: { name: true }
     });
 
@@ -959,7 +1007,13 @@ export class TimesheetsService {
     return { ok: true as const };
   }
 
-  async reject(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
+  async reject(
+    workspaceId: string,
+    id: string,
+    reviewerUserId: string,
+    reviewerRole: "ADMIN" | "MEMBER",
+    reviewNote?: string
+  ) {
     if (!reviewNote?.trim()) {
       throw new DomainException(
         ErrorCodes.VALIDATION_ERROR,
@@ -967,6 +1021,24 @@ export class TimesheetsService {
         HttpStatus.BAD_REQUEST
       );
     }
+
+    const existing = await this.prisma.timesheetPeriod.findFirst({
+      where: { id, workspaceId },
+      select: { projectId: true }
+    });
+    if (!existing) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Timesheet period not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    await this.access.assertCanManageProject(
+      workspaceId,
+      reviewerUserId,
+      reviewerRole,
+      existing.projectId
+    );
 
     const period = await this.prisma.$transaction(async (tx) => {
       const p = await tx.timesheetPeriod.findFirst({
@@ -1002,7 +1074,7 @@ export class TimesheetsService {
         data: {
           status: "REJECTED",
           reviewNote: reviewNote || null,
-          reviewedBy: adminUserId,
+          reviewedBy: reviewerUserId,
           reviewedAt: new Date()
         }
       });
@@ -1020,7 +1092,7 @@ export class TimesheetsService {
       workspaceSettings
     );
     const reviewer = await this.prisma.user.findUnique({
-      where: { id: adminUserId },
+      where: { id: reviewerUserId },
       select: { name: true }
     });
 

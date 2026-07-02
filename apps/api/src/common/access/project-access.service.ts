@@ -3,14 +3,81 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../errors/domain.exception";
 import { PrismaService } from "../prisma/prisma.service";
 
+export type WorkspaceRole = "ADMIN" | "MEMBER";
+
 @Injectable()
 export class ProjectAccessService {
   constructor(private prisma: PrismaService) {}
 
+  async managedProjectIds(workspaceId: string, userId: string): Promise<string[]> {
+    const rows = await this.prisma.teamMember.findMany({
+      where: {
+        userId,
+        role: "PROJECT_MANAGER",
+        isActive: true,
+        team: { project: { workspaceId, isActive: true } }
+      },
+      select: { team: { select: { projectId: true } } }
+    });
+    return rows.map((row) => row.team.projectId);
+  }
+
+  async manageableProjectIds(
+    workspaceId: string,
+    userId: string,
+    role: WorkspaceRole
+  ): Promise<string[]> {
+    if (role === "ADMIN") {
+      const rows = await this.prisma.project.findMany({
+        where: { workspaceId },
+        select: { id: true }
+      });
+      return rows.map((row) => row.id);
+    }
+    return this.managedProjectIds(workspaceId, userId);
+  }
+
+  async assertCanManageProject(
+    workspaceId: string,
+    userId: string,
+    role: WorkspaceRole,
+    projectId: string
+  ): Promise<void> {
+    if (role === "ADMIN") {
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, workspaceId }
+      });
+      if (!project) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "You cannot manage this project",
+          HttpStatus.FORBIDDEN
+        );
+      }
+      return;
+    }
+
+    const lead = await this.prisma.teamMember.findFirst({
+      where: {
+        userId,
+        role: "PROJECT_MANAGER",
+        isActive: true,
+        team: { projectId, project: { workspaceId, isActive: true } }
+      }
+    });
+    if (!lead) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "You are not a project manager for this project",
+        HttpStatus.FORBIDDEN
+      );
+    }
+  }
+
   async accessibleProjectIds(
     workspaceId: string,
     userId: string,
-    role: "ADMIN" | "MEMBER"
+    role: WorkspaceRole
   ): Promise<string[]> {
     if (role === "ADMIN") {
       const rows = await this.prisma.project.findMany({
@@ -33,7 +100,7 @@ export class ProjectAccessService {
   async assertCanAccessProject(
     workspaceId: string,
     userId: string,
-    role: "ADMIN" | "MEMBER",
+    role: WorkspaceRole,
     projectId: string
   ) {
     if (role === "ADMIN") {
@@ -66,12 +133,7 @@ export class ProjectAccessService {
     }
   }
 
-  async assertCanLogTask(
-    workspaceId: string,
-    userId: string,
-    role: "ADMIN" | "MEMBER",
-    taskId: string
-  ) {
+  async assertCanLogTask(workspaceId: string, userId: string, role: WorkspaceRole, taskId: string) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, project: { workspaceId } },
       select: { id: true, projectId: true, isCommon: true }

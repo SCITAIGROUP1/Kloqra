@@ -510,6 +510,7 @@ dev_bootstrap_print_dev_terminals() {
   echo "        pnpm dev:api       # terminal 2 — http://localhost:3001"
   echo "        pnpm dev:client    # terminal 3 — http://localhost:3000"
   echo "        pnpm dev:admin     # terminal 4 — http://localhost:3002"
+  echo "        pnpm dev:platform  # terminal 5 — http://localhost:3003"
   echo ""
   echo "    Split prep only (no apps): pnpm dev:split  (same as pnpm local)"
   echo "    Login: member@kloqra.dev / admin@kloqra.dev  password: password123"

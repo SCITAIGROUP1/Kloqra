@@ -15,7 +15,10 @@ export function useWorkspaceStaleRefetch(
   enabled = true
 ) {
   const scopeKey = useMemo(() => scopes.join(","), [scopes]);
-  const scopeSet = useMemo(() => new Set(scopes), [scopeKey, scopes]);
+  const scopeSet = useMemo(
+    () => new Set(scopeKey.split(",") as WorkspaceDataInvalidateScope[]),
+    [scopeKey]
+  );
 
   useEffect(() => {
     if (!enabled || !workspaceId || scopeSet.size === 0 || typeof window === "undefined") {

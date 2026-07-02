@@ -25,7 +25,7 @@ export class ReportingApiKeysController {
   @Roles("ADMIN")
   @Get(ROUTES.REPORTING_API_KEYS.LIST)
   async list(@CurrentUser() user: RequestUser) {
-    const items = await this.credentials.list(user.workspaceId);
+    const items = await this.credentials.list(user.workspaceId, user.tenantId);
     return reportingApiKeyListSchema.parse({ items });
   }
 
@@ -35,7 +35,7 @@ export class ReportingApiKeysController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createReportingApiKeySchema)) body: CreateReportingApiKeyDto
   ) {
-    return this.credentials.create(user.workspaceId, body);
+    return this.credentials.create(user.workspaceId, user.tenantId, body);
   }
 
   @Roles("ADMIN")
@@ -45,13 +45,13 @@ export class ReportingApiKeysController {
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateReportingApiKeySchema)) body: UpdateReportingApiKeyDto
   ) {
-    return this.credentials.update(user.workspaceId, id, body);
+    return this.credentials.update(user.workspaceId, user.tenantId, id, body);
   }
 
   @Roles("ADMIN")
   @Delete(ROUTES.REPORTING_API_KEYS.BY_ID(":id"))
   async revoke(@CurrentUser() user: RequestUser, @Param("id") id: string) {
-    await this.credentials.revoke(user.workspaceId, id);
+    await this.credentials.revoke(user.workspaceId, user.tenantId, id);
     return { ok: true };
   }
 }

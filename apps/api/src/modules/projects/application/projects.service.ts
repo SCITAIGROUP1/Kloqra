@@ -7,7 +7,9 @@ import type {
   ListProjectsResponse,
   ListProjectTeamQuery,
   ProjectListItemDto,
-  UpdateProjectDto
+  TeamMemberDto,
+  UpdateProjectDto,
+  UpdateTeamMemberDto
 } from "@kloqra/contracts";
 import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
@@ -155,9 +157,15 @@ export class ProjectsService {
     workspaceId: string,
     userId: string,
     role: "ADMIN" | "MEMBER",
-    query: ListProjectsQuery
+    query: ListProjectsQuery,
+    options?: { adminScope?: boolean; managedProjectIds?: string[] }
   ): Promise<ListProjectsResponse> {
-    const projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
+    const projectIds =
+      role === "ADMIN"
+        ? await this.access.manageableProjectIds(workspaceId, userId, role)
+        : options?.adminScope && options.managedProjectIds && options.managedProjectIds.length > 0
+          ? options.managedProjectIds
+          : await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (projectIds.length === 0) {
       return emptyPaginatedResponse<ProjectListItemDto>(query.page, query.limit);
     }
@@ -399,6 +407,41 @@ export class ProjectsService {
       .catch(() => undefined);
   }
 
+  private mapTeamMemberRow(member: {
+    id: string;
+    teamId: string;
+    userId: string;
+    role: string;
+    isActive: boolean;
+    user: { name: string; email: string };
+  }): TeamMemberDto {
+    return {
+      id: member.id,
+      teamId: member.teamId,
+      userId: member.userId,
+      userName: member.user.name,
+      userEmail: member.user.email,
+      role: member.role as TeamMemberDto["role"],
+      isActive: member.isActive ?? true
+    };
+  }
+
+  private async requireManageProject(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    projectId: string
+  ) {
+    await this.access.assertCanManageProject(workspaceId, userId, role, projectId);
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId }
+    });
+    if (!project) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
+    }
+    return project;
+  }
+
   private async getAdmin(workspaceId: string, id: string) {
     const p = await this.prisma.project.findFirst({ where: { id, workspaceId } });
     if (!p)
@@ -496,8 +539,14 @@ export class ProjectsService {
     return { ok: true };
   }
 
-  async getTeam(workspaceId: string, projectId: string, query: ListProjectTeamQuery) {
-    const project = await this.getAdmin(workspaceId, projectId);
+  async getTeam(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    projectId: string,
+    query: ListProjectTeamQuery
+  ) {
+    const project = await this.requireManageProject(workspaceId, userId, role, projectId);
     const team = await this.ensureTeam(projectId);
 
     const memberWhere = {
@@ -528,20 +577,19 @@ export class ProjectsService {
       id: team.id,
       projectId: project.id,
       projectName: project.name,
-      members: members.map((m) => ({
-        id: m.id,
-        teamId: m.teamId,
-        userId: m.userId,
-        userName: m.user.name,
-        userEmail: m.user.email,
-        isActive: m.isActive ?? true
-      })),
+      members: members.map((m) => this.mapTeamMemberRow(m)),
       ...buildPaginationMeta(total, query.page, query.limit)
     };
   }
 
-  async addTeamMember(workspaceId: string, projectId: string, dto: AddTeamMemberDto) {
-    const project = await this.getAdmin(workspaceId, projectId);
+  async addTeamMember(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    projectId: string,
+    dto: AddTeamMemberDto
+  ) {
+    const project = await this.requireManageProject(workspaceId, userId, role, projectId);
     const workspaceMember = await this.prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: dto.userId } }
     });
@@ -579,23 +627,31 @@ export class ProjectsService {
       })
       .catch(() => undefined);
 
-    return {
-      id: created.id,
-      teamId: created.teamId,
-      userId: created.userId,
-      userName: created.user.name,
-      userEmail: created.user.email,
-      isActive: created.isActive ?? true
-    };
+    return this.mapTeamMemberRow(created);
   }
 
   async updateTeamMember(
     workspaceId: string,
     projectId: string,
     memberId: string,
-    isActive: boolean
+    dto: UpdateTeamMemberDto,
+    actorRole: "ADMIN" | "MEMBER",
+    actorUserId: string
   ) {
-    const project = await this.getAdmin(workspaceId, projectId);
+    await this.access.assertCanManageProject(workspaceId, actorUserId, actorRole, projectId);
+    if (dto.role !== undefined && actorRole !== "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Only workspace admins can change project manager roles",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId }
+    });
+    if (!project) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
+    }
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: team.id }
@@ -607,28 +663,43 @@ export class ProjectsService {
         HttpStatus.NOT_FOUND
       );
     }
+    if (
+      dto.role === "MEMBER" &&
+      member.role === "PROJECT_MANAGER" &&
+      actorRole !== "ADMIN" &&
+      member.userId !== actorUserId
+    ) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Project managers cannot demote other project managers",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const updated = await this.prisma.teamMember.update({
       where: { id: memberId },
-      data: { isActive },
+      data: {
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(dto.role !== undefined && actorRole === "ADMIN" ? { role: dto.role } : {})
+      },
       include: { user: true }
     });
 
-    if (!isActive && member.isActive !== false) {
+    if (dto.isActive === false && member.isActive !== false) {
       this.notifyProjectUnassigned(workspaceId, updated.userId, projectId, project.name);
     }
 
-    return {
-      id: updated.id,
-      teamId: updated.teamId,
-      userId: updated.userId,
-      userName: updated.user.name,
-      userEmail: updated.user.email,
-      isActive: updated.isActive
-    };
+    return this.mapTeamMemberRow(updated);
   }
 
-  async removeTeamMember(workspaceId: string, projectId: string, memberId: string) {
-    const project = await this.getAdmin(workspaceId, projectId);
+  async removeTeamMember(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    projectId: string,
+    memberId: string
+  ) {
+    const project = await this.requireManageProject(workspaceId, userId, role, projectId);
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: team.id }
@@ -650,9 +721,10 @@ export class ProjectsService {
     workspaceId: string,
     projectId: string,
     createdById: string,
-    dto: CreateTeamInviteDto
+    dto: CreateTeamInviteDto,
+    actorRole: "ADMIN" | "MEMBER"
   ) {
-    const project = await this.getAdmin(workspaceId, projectId);
+    const project = await this.requireManageProject(workspaceId, createdById, actorRole, projectId);
     await this.ensureTeam(projectId);
     const token = randomBytes(24).toString("hex");
     const expiresAt = new Date();

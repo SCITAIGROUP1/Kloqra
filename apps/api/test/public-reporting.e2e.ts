@@ -6,11 +6,14 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module";
+import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
 import { listItems } from "./helpers/pagination";
+import { setTenantLimitsOverride } from "./helpers/plan-limits";
 
 describe("Public reporting API E2E", () => {
   let app: INestApplication;
+  let prisma: PrismaService;
   let adminSession: Awaited<ReturnType<typeof loginAs>>;
   let projectId: string;
   let apiKey: string;
@@ -22,7 +25,9 @@ describe("Public reporting API E2E", () => {
     app.use(cookieParser());
     await app.init();
 
+    prisma = app.get(PrismaService);
     adminSession = await loginAs(app, "admin@kloqra.dev");
+    await setTenantLimitsOverride(prisma, adminSession.tenantId, { maxReportingApiKeys: 100 });
 
     const projectsRes = await authedAgent(app, adminSession).get("/projects");
     projectId = listItems<ProjectListItemDto>(projectsRes.body)[0]!.id;
@@ -37,6 +42,9 @@ describe("Public reporting API E2E", () => {
   });
 
   afterAll(async () => {
+    if (adminSession?.tenantId) {
+      await setTenantLimitsOverride(prisma, adminSession.tenantId, null);
+    }
     await app.close();
   });
 

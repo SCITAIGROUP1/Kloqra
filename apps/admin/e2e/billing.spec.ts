@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Admin billing", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/billing");
-    await expect(page.getByRole("heading", { name: "Billing", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Hourly rates", exact: true })).toBeVisible();
   });
 
   test("shows scope filter in the app bar toolbar", async ({ page }) => {

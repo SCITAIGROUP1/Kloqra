@@ -15,6 +15,7 @@ import {
   SelectValue
 } from "@kloqra/ui";
 import { Building2, Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -112,11 +113,10 @@ export function WorkspacePage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("create") === "true") {
-        setIsCreateOpen(true);
-        window.history.replaceState({}, document.title, window.location.pathname);
+        router.replace("/account/workspaces");
       }
     }
-  }, []);
+  }, [router]);
 
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault();
@@ -206,7 +206,7 @@ export function WorkspacePage() {
   return (
     <div className="space-y-6">
       <AppBar
-        title="Workspace"
+        title="Workspace settings"
         description={
           <>
             Configure settings for <strong>{session?.workspaceName ?? "this workspace"}</strong>.
@@ -214,10 +214,14 @@ export function WorkspacePage() {
           </>
         }
         actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="h-10 gap-1.5 shadow-sm">
-            <Plus className="h-4 w-4" />
-            Create workspace
-          </Button>
+          session?.tenantRole === "OWNER" ? (
+            <Button asChild className="h-10 gap-1.5 shadow-sm">
+              <Link href="/account/workspaces">
+                <Plus className="h-4 w-4" />
+                Manage workspaces
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 

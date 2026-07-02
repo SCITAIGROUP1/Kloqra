@@ -25,6 +25,26 @@ Every mutating and listing operation is scoped by `workspaceId` from the JWT/hea
 
 Do not accept `workspaceId` from request body for authorization — use `req.user.workspaceId` from the guard.
 
+## Tenant isolation
+
+The **organization** (`tenants` table) is the commercial and security boundary; **workspaces** are operational partitions within a single tenant.
+
+| Control            | Behavior                                                                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| JWT claims         | Access tokens carry `tenantId` and `workspaceId`                                                                                              |
+| `JwtAuthGuard`     | After resolving workspace (token + optional `X-Workspace-Id`), verifies `workspace.tenant_id === jwt.tenantId` via `assertJwtWorkspaceTenant` |
+| `switch-workspace` | Rejects workspaces outside the user’s tenant (D08: one tenant per user)                                                                       |
+| Workspace list     | `listForUser` filters workspaces by the user’s tenant                                                                                         |
+| IDOR               | Services scope by `req.user.workspaceId`; never authorize from body `tenantId` or `workspaceId`                                               |
+
+**Redis / Socket.IO (v1):** Channels remain workspace-scoped; tenant boundary is enforced at auth and via the workspace `tenant_id` foreign key. No separate Redis tenant prefix is required for P1.
+
+**Public API keys:** Workspace-scoped reporting credentials (`reporting_api_credentials`). Management routes assert `workspace.tenant_id === jwt.tenantId` (defense-in-depth beyond `JwtAuthGuard`). `validate()` blocks suspended/churned organizations. Platform suspend deletes all tenant reporting API keys. Plan cap: `maxReportingApiKeys` per organization (F19).
+
+Pen-test checklist — cross-tenant workspace switch, UUID guess on projects/categories, per-workspace admin without membership — is covered by `apps/api/test/tenant-isolation.e2e.ts`.
+
+See [TENANT_RBAC.md §11](../architecture/TENANT_RBAC.md) for role boundaries.
+
 ## CORS and cookies
 
 `FRONTEND_ORIGIN` must list exact frontend origins. The API enables credentials for cookie-based refresh.

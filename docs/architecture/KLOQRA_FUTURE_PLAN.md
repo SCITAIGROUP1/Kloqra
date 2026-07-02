@@ -158,6 +158,12 @@ flowchart LR
 
 ---
 
+## SaaS platform track (parallel — pre-implementation)
+
+Multi-tenant B2B SaaS (tenant → workspaces → subscription billing, platform admin) is specified in **[SAAS_PLATFORM_PLAN.md](./SAAS_PLATFORM_PLAN.md)** with research-gated epics F00–F24. Complete **H0** pilot hardening first; do not ship paid subscriptions until tenant isolation (F05) and pilot migration (F21) are done.
+
+---
+
 ## H4 — Platform & intelligence (12+ months)
 
 From [FUTURE_SCOPE.md](./FUTURE_SCOPE.md) — only after H1–H2 stable.

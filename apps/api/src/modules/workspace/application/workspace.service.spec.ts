@@ -20,6 +20,7 @@ describe("WorkspaceService", () => {
     notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
   };
   let mockQueue: any;
+  let mockPlanLimit: any;
 
   const workspaceId = "ws-1";
   const inviterId = "admin-1";
@@ -53,6 +54,13 @@ describe("WorkspaceService", () => {
       },
       teamMember: {
         updateMany: vi.fn()
+      },
+      tenantMember: {
+        findUnique: vi.fn().mockResolvedValue({
+          tenantId: "t-1",
+          role: "OWNER",
+          isActive: true
+        })
       }
     };
     mockMailer = {
@@ -63,11 +71,20 @@ describe("WorkspaceService", () => {
     mockQueue = {
       add: vi.fn().mockResolvedValue({ id: "job-1" })
     };
+    mockPlanLimit = {
+      assertWorkspaceCreateAllowed: vi.fn().mockResolvedValue(undefined),
+      assertSeatsForEmails: vi.fn().mockResolvedValue(undefined)
+    };
+    const mockProjectAccess = {
+      managedProjectIds: vi.fn().mockResolvedValue([])
+    };
     service = new WorkspaceService(
       mockPrisma,
       mockMailer,
       mockNotificationsDispatch as never,
       { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never,
+      mockPlanLimit,
+      mockProjectAccess as never,
       mockQueue as any
     );
   });
@@ -338,11 +355,12 @@ describe("WorkspaceService", () => {
     );
   });
 
-  it("create rejects duplicate workspace names", async () => {
+  it("create rejects duplicate workspace names within tenant", async () => {
     mockPrisma.workspace.findUnique.mockResolvedValue(null);
     mockPrisma.workspace.findFirst.mockResolvedValue({
       id: "ws-existing",
-      name: "Acme Corporation"
+      name: "Acme Corporation",
+      tenantId: "t-1"
     });
 
     await expect(service.create("u1", { name: "Acme Corporation" })).rejects.toSatisfy(
@@ -378,6 +396,19 @@ describe("WorkspaceService", () => {
     expect(result.name).toBe("Design Agency");
     expect(result.role).toBe("ADMIN");
     expect(mockPrisma.workspace.create).toHaveBeenCalled();
+    expect(mockPlanLimit.assertWorkspaceCreateAllowed).toHaveBeenCalledWith("t-1");
+  });
+
+  it("create propagates workspace plan limit errors", async () => {
+    const limitError = new DomainException(
+      ErrorCodes.PLAN_LIMIT_EXCEEDED,
+      "Organization workspace limit reached (3/3).",
+      HttpStatus.PAYMENT_REQUIRED
+    );
+    mockPlanLimit.assertWorkspaceCreateAllowed.mockRejectedValue(limitError);
+
+    await expect(service.create("u1", { name: "Design Agency" })).rejects.toBe(limitError);
+    expect(mockPrisma.workspace.create).not.toHaveBeenCalled();
   });
 
   it("getById returns workspace with settings", async () => {
@@ -400,6 +431,11 @@ describe("WorkspaceService", () => {
   });
 
   it("update rejects renaming to an existing workspace name", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: "ws-1",
+      tenantId: "tenant-1",
+      name: "Acme Corporation"
+    });
     mockPrisma.workspace.findFirst.mockResolvedValue({
       id: "ws-other",
       name: "Meridian Product Co"
@@ -416,7 +452,11 @@ describe("WorkspaceService", () => {
 
   describe("bulkInvite", () => {
     it("adds invite job to queue when workspace exists", async () => {
-      mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+      mockPrisma.workspace.findUnique.mockResolvedValue({
+        id: workspaceId,
+        name: "Kloqra",
+        tenantId: "t-1"
+      });
       const members = [{ email: "test@example.com", name: "Test User", role: "MEMBER" as const }];
 
       const result = await service.bulkInvite(workspaceId, members, inviterId);
@@ -435,6 +475,7 @@ describe("WorkspaceService", () => {
         },
         { removeOnComplete: true, removeOnFail: false }
       );
+      expect(mockPlanLimit.assertSeatsForEmails).toHaveBeenCalledWith("t-1", ["test@example.com"]);
     });
 
     it("throws if workspace not found", async () => {

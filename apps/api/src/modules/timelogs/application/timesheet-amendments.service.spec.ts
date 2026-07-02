@@ -26,10 +26,18 @@ describe("TimesheetAmendmentsService", () => {
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(mockPrisma))
     };
-    service = new TimesheetAmendmentsService(mockPrisma, {
-      notify: vi.fn().mockResolvedValue(undefined),
-      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
-    } as never);
+    const mockAccess = {
+      assertCanManageProject: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue(["proj-1"])
+    };
+    service = new TimesheetAmendmentsService(
+      mockPrisma,
+      {
+        notify: vi.fn().mockResolvedValue(undefined),
+        notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+      } as never,
+      mockAccess as never
+    );
   });
 
   it("creates amendment for submitted period", async () => {
@@ -104,7 +112,7 @@ describe("TimesheetAmendmentsService", () => {
     // Make update throw an error to simulate database failure inside the transaction
     mockPrisma.timesheetPeriod.update.mockRejectedValue(new Error("Database write failed"));
 
-    await expect(service.approve(workspaceId, "amend-1", "admin-1")).rejects.toThrow(
+    await expect(service.approve(workspaceId, "amend-1", "admin-1", "ADMIN")).rejects.toThrow(
       "Database write failed"
     );
 
@@ -115,7 +123,9 @@ describe("TimesheetAmendmentsService", () => {
   it("listPending enforces cross-workspace data isolation", async () => {
     mockPrisma.timesheetAmendmentRequest.findMany.mockResolvedValue([]);
 
-    await service.listPending("workspace-target", { userId: "user-target" });
+    await service.listPending("workspace-target", "user-target", "ADMIN", {
+      userId: "user-target"
+    });
 
     expect(mockPrisma.timesheetAmendmentRequest.findMany).toHaveBeenCalledWith({
       where: {
@@ -129,7 +139,7 @@ describe("TimesheetAmendmentsService", () => {
   });
 
   it("deny requires an admin note", async () => {
-    await expect(service.deny(workspaceId, "amend-1", "admin-1")).rejects.toSatisfy(
+    await expect(service.deny(workspaceId, "amend-1", "admin-1", "ADMIN")).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException &&
         err.code === ErrorCodes.VALIDATION_ERROR &&

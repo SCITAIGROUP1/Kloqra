@@ -1,7 +1,141 @@
-/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each, category-aware logs (Kloqra demo). */
+/** Realistic hierarchy seed — platform admin, tenant owner, tenant admin, workspace admins, project managers, members. */
 /** Dashboard widget layouts for demo users are applied in seed-dashboard-layouts.ts (stored in users.preferences.dashboardLayouts). */
 
+import { DEFAULT_PLAN_LIMITS, PLAN_IDS, PLAN_SLUGS, type PlanSlug } from "@kloqra/contracts";
+
 export const SEED_EMAIL_DOMAIN = "kloqra.dev";
+
+const SEED_STRIPE_DEFAULTS = {
+  starterProduct: "prod_test_starter",
+  proProduct: "prod_test_pro",
+  starterPrice: "price_test_starter",
+  proPrice: "price_test_pro"
+} as const;
+
+function distinctSeedStripeId(
+  envValue: string | undefined,
+  fallback: string,
+  otherEnvValue: string | undefined
+): string {
+  const trimmed = envValue?.trim();
+  const otherTrimmed = otherEnvValue?.trim();
+  if (!trimmed) return fallback;
+  if (otherTrimmed && trimmed === otherTrimmed) return fallback;
+  return trimmed;
+}
+
+/** SaaS plan catalog — stable IDs match migration backfill (F09). */
+export const SEED_STRIPE_PRICE_IDS = {
+  starter: distinctSeedStripeId(
+    process.env.STRIPE_PRICE_STARTER,
+    SEED_STRIPE_DEFAULTS.starterPrice,
+    process.env.STRIPE_PRICE_PRO
+  ),
+  pro: distinctSeedStripeId(
+    process.env.STRIPE_PRICE_PRO,
+    SEED_STRIPE_DEFAULTS.proPrice,
+    process.env.STRIPE_PRICE_STARTER
+  )
+} as const;
+
+export const SEED_STRIPE_PRODUCT_IDS = {
+  starter: distinctSeedStripeId(
+    process.env.STRIPE_PRODUCT_STARTER,
+    SEED_STRIPE_DEFAULTS.starterProduct,
+    process.env.STRIPE_PRODUCT_PRO
+  ),
+  pro: distinctSeedStripeId(
+    process.env.STRIPE_PRODUCT_PRO,
+    SEED_STRIPE_DEFAULTS.proProduct,
+    process.env.STRIPE_PRODUCT_STARTER
+  )
+} as const;
+
+export const SEED_PLANS = [
+  {
+    id: PLAN_IDS[PLAN_SLUGS.PILOT],
+    name: "Enterprise",
+    slug: PLAN_SLUGS.PILOT as PlanSlug,
+    limits: DEFAULT_PLAN_LIMITS[PLAN_SLUGS.PILOT],
+    isPublic: false,
+    sortOrder: 3,
+    stripeProductId: null,
+    stripePriceId: null,
+    tagline: "Custom limits, onboarding, and support for larger organizations.",
+    monthlyPriceCents: null,
+    yearlyPriceCents: null,
+    features: ["Dedicated account manager", "Custom integrations", "Enterprise SLAs"],
+    recommended: false,
+    billingMode: "contact" as const,
+    contactHref: null,
+    visibleOnPricing: true
+  },
+  {
+    id: PLAN_IDS[PLAN_SLUGS.STARTER],
+    name: "Starter",
+    slug: PLAN_SLUGS.STARTER as PlanSlug,
+    limits: DEFAULT_PLAN_LIMITS[PLAN_SLUGS.STARTER],
+    isPublic: true,
+    sortOrder: 1,
+    stripeProductId: SEED_STRIPE_PRODUCT_IDS.starter,
+    stripePriceId: SEED_STRIPE_PRICE_IDS.starter,
+    tagline: "Ideal for small teams getting started with time tracking.",
+    monthlyPriceCents: 2900,
+    yearlyPriceCents: 29000,
+    features: [],
+    recommended: false,
+    billingMode: "stripe" as const,
+    contactHref: null,
+    visibleOnPricing: true
+  },
+  {
+    id: PLAN_IDS[PLAN_SLUGS.PRO],
+    name: "Pro",
+    slug: PLAN_SLUGS.PRO as PlanSlug,
+    limits: DEFAULT_PLAN_LIMITS[PLAN_SLUGS.PRO],
+    isPublic: true,
+    sortOrder: 2,
+    stripeProductId: SEED_STRIPE_PRODUCT_IDS.pro,
+    stripePriceId: SEED_STRIPE_PRICE_IDS.pro,
+    tagline: "For growing organizations that need more capacity and control.",
+    monthlyPriceCents: 9900,
+    yearlyPriceCents: 99000,
+    features: ["Priority email support"],
+    recommended: true,
+    billingMode: "stripe" as const,
+    contactHref: null,
+    visibleOnPricing: true
+  }
+] as const;
+
+export const SEED_PRICING_BASELINE_FEATURES = [
+  "Time tracking and timesheets",
+  "Approval workflows",
+  "Exports and reporting",
+  "Mobile-friendly access"
+] as const;
+
+/** Demo tenant subscription — pilot plan, active (not trial) for stable demos. */
+export const SEED_TENANT_SUBSCRIPTION = {
+  planSlug: PLAN_SLUGS.PILOT as PlanSlug,
+  status: "active" as const
+};
+
+/** Demo organization — all SEED_WORKSPACES belong to this tenant (SaaS-F02). */
+export const SEED_TENANT = {
+  name: "Kloqra Demo Organization",
+  slug: "kloqra-demo",
+  status: "active" as const,
+  settings: {
+    industry: "demo",
+    timezone: "America/New_York"
+  },
+  /** Tenant-level roles only (OWNER / ADMIN). Workspace admins are workspace_members only. */
+  members: [
+    { email: "admin@kloqra.dev", role: "OWNER" as const },
+    { email: "ops@kloqra.dev", role: "ADMIN" as const }
+  ]
+};
 
 /** Canonical workspace categories (matches admin onboarding + migration backfill naming). */
 export const SEED_CATEGORIES = [
@@ -61,28 +195,98 @@ export type SeedProjectSpec = {
   budgetBurnPct?: number;
   tasks: SeedTaskSpec[];
   memberEmails: string[];
+  /** Subset of memberEmails — team_members.role = PROJECT_MANAGER (demo: 2 per project). */
+  leadEmails?: string[];
   timesheetApproval?: boolean;
   /** Per-member personal project colors (email → hex). Admin canonical color unchanged. */
   memberColorOverrides?: Record<string, string>;
 };
 
-export type SeedWorkspaceSpec = {
-  name: string;
-  slug: string;
-  settings: Record<string, unknown>;
-  projects: SeedProjectSpec[];
-  /** Up to 10 member emails per workspace (admins always included) */
-  memberEmails: string[];
-};
-
 export const SEED_PASSWORD = "password123";
 
-/** 2 admins + 12 members = 14 accounts (includes pending@ for verify-email demo) */
+/** Canonical demo accounts — one persona per hierarchy level (see SEED_DEMO_HIERARCHY). */
+export const SEED_DEMO_PERSONAS = {
+  platformAdmin: process.env.PLATFORM_SUPERADMIN_EMAIL ?? "platform@kloqra.dev",
+  tenantOwner: "admin@kloqra.dev",
+  tenantAdmin: "ops@kloqra.dev",
+  acmeWorkspaceAdmin: "acme-admin@kloqra.dev",
+  meridianWorkspaceAdmin: "meridian-admin@kloqra.dev",
+  projectManager: "alex@kloqra.dev",
+  member: "member@kloqra.dev"
+} as const;
+
+/** Human-readable hierarchy for docs, seed output, and tests. */
+export const SEED_DEMO_HIERARCHY = [
+  {
+    level: "Platform",
+    email: SEED_DEMO_PERSONAS.platformAdmin,
+    displayName: "Kloqra Platform Admin",
+    scope: "Cross-tenant operations",
+    app: "platform-admin"
+  },
+  {
+    level: "Organization owner",
+    email: SEED_DEMO_PERSONAS.tenantOwner,
+    displayName: "Avery Org Owner",
+    scope: "Billing, org members, all workspaces (account mode)",
+    app: "admin → Organization"
+  },
+  {
+    level: "Organization admin",
+    email: SEED_DEMO_PERSONAS.tenantAdmin,
+    displayName: "Morgan Org Admin",
+    scope: "Org profile, workspace creation, workspace-admin assignment (Acme only)",
+    app: "admin → Organization"
+  },
+  {
+    level: "Workspace admin (Acme)",
+    email: SEED_DEMO_PERSONAS.acmeWorkspaceAdmin,
+    displayName: "Casey Acme Admin",
+    scope: "Acme Corporation workspace ops only",
+    app: "admin → Workspace"
+  },
+  {
+    level: "Workspace admin (Meridian)",
+    email: SEED_DEMO_PERSONAS.meridianWorkspaceAdmin,
+    displayName: "Riley Meridian Admin",
+    scope: "Meridian Product Co workspace ops only",
+    app: "admin → Workspace"
+  },
+  {
+    level: "Project manager",
+    email: SEED_DEMO_PERSONAS.projectManager,
+    displayName: "Alex Chen",
+    scope: "Project PROJECT_MANAGER on both workspaces",
+    app: "admin (project-lead subset)"
+  },
+  {
+    level: "Member",
+    email: SEED_DEMO_PERSONAS.member,
+    displayName: "Sam Rivera",
+    scope: "Time tracking only",
+    app: "client"
+  }
+] as const;
+
+export const SEED_PLATFORM_SUPERADMIN = {
+  email: process.env.PLATFORM_SUPERADMIN_EMAIL ?? "platform@kloqra.dev",
+  password: process.env.PLATFORM_SUPERADMIN_PASSWORD ?? SEED_PASSWORD,
+  name: "Kloqra Platform Admin"
+} as const;
+
+/** Kloqra platform support agent — `apps/platform-admin` (SaaS-F14). */
+export const SEED_PLATFORM_SUPPORT = {
+  email: process.env.PLATFORM_SUPPORT_EMAIL ?? "support@kloqra.dev",
+  password: process.env.PLATFORM_SUPPORT_PASSWORD ?? SEED_PASSWORD,
+  name: "Kloqra Support Agent"
+} as const;
+
+/** Demo users — workspace role is set per workspace via workspaceAdminEmails, not user.role. */
 export const SEED_USERS: SeedUserSpec[] = [
   {
     email: "admin@kloqra.dev",
-    name: "Avery Admin",
-    role: "ADMIN",
+    name: "Avery Org Owner",
+    role: "MEMBER",
     defaultHourlyRate: 150,
     historyDays: 90,
     intensity: 0.95,
@@ -91,13 +295,33 @@ export const SEED_USERS: SeedUserSpec[] = [
   },
   {
     email: "ops@kloqra.dev",
-    name: "Morgan Blake",
-    role: "ADMIN",
+    name: "Morgan Org Admin",
+    role: "MEMBER",
     defaultHourlyRate: 140,
     historyDays: 90,
     intensity: 0.9,
     preferences: { dailyTargetHours: 7.5, timezone: "America/Chicago" },
     categoryBias: { DevOps: 1.8, Meetings: 1.3, "Software Development": 0.9 }
+  },
+  {
+    email: "acme-admin@kloqra.dev",
+    name: "Casey Acme Admin",
+    role: "MEMBER",
+    defaultHourlyRate: 135,
+    historyDays: 90,
+    intensity: 0.88,
+    preferences: { dailyTargetHours: 8, timezone: "America/Denver" },
+    categoryBias: { Meetings: 1.4, Documentation: 1.3, "Software Development": 0.85 }
+  },
+  {
+    email: "meridian-admin@kloqra.dev",
+    name: "Riley Meridian Admin",
+    role: "MEMBER",
+    defaultHourlyRate: 132,
+    historyDays: 90,
+    intensity: 0.86,
+    preferences: { dailyTargetHours: 8, timezone: "America/Los_Angeles" },
+    categoryBias: { Meetings: 1.3, Documentation: 1.2, "Software Development": 0.9 }
   },
   {
     email: "member@kloqra.dev",
@@ -113,7 +337,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Alex Chen",
     role: "MEMBER",
     defaultHourlyRate: 95,
-    historyDays: 85,
+    historyDays: 90,
     intensity: 0.88,
     categoryBias: { "Software Development": 1.7, "QA & Testing": 0.9 }
   },
@@ -122,7 +346,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Jordan Lee",
     role: "MEMBER",
     defaultHourlyRate: 110,
-    historyDays: 80,
+    historyDays: 90,
     intensity: 0.9,
     categoryBias: { "Software Development": 2.0, DevOps: 0.8 }
   },
@@ -131,7 +355,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Taylor Brooks",
     role: "MEMBER",
     defaultHourlyRate: 88,
-    historyDays: 75,
+    historyDays: 90,
     intensity: 0.85,
     categoryBias: { "UI/UX Design": 2.2, Meetings: 1.1 }
   },
@@ -140,7 +364,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Riley Kim",
     role: "MEMBER",
     defaultHourlyRate: 105,
-    historyDays: 70,
+    historyDays: 90,
     intensity: 0.87,
     categoryBias: { "QA & Testing": 2.1, "Software Development": 0.75 }
   },
@@ -149,7 +373,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Casey Nguyen",
     role: "MEMBER",
     defaultHourlyRate: 92,
-    historyDays: 65,
+    historyDays: 90,
     intensity: 0.84,
     categoryBias: { Documentation: 1.6, "Software Development": 1.1, Meetings: 1.2 }
   },
@@ -158,7 +382,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Drew Martinez",
     role: "MEMBER",
     defaultHourlyRate: 102,
-    historyDays: 60,
+    historyDays: 90,
     intensity: 0.82,
     categoryBias: { DevOps: 2.0, "Software Development": 1.0 }
   },
@@ -167,7 +391,7 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Sage Patel",
     role: "MEMBER",
     defaultHourlyRate: 94,
-    historyDays: 55,
+    historyDays: 90,
     intensity: 0.8,
     categoryBias: { Documentation: 1.8, Meetings: 1.15 }
   },
@@ -176,45 +400,28 @@ export const SEED_USERS: SeedUserSpec[] = [
     name: "Blake Wilson",
     role: "MEMBER",
     defaultHourlyRate: 108,
-    historyDays: 45,
+    historyDays: 90,
     intensity: 0.78,
     categoryBias: { "UI/UX Design": 1.5, Meetings: 1.25, Documentation: 1.1 }
-  },
-  {
-    email: "rowan@kloqra.dev",
-    name: "Rowan Adams",
-    role: "MEMBER",
-    defaultHourlyRate: 107,
-    historyDays: 35,
-    intensity: 0.75,
-    categoryBias: { "QA & Testing": 1.6, DevOps: 1.2 }
-  },
-  {
-    email: "quinn@kloqra.dev",
-    name: "Quinn Ellis",
-    role: "MEMBER",
-    defaultHourlyRate: 120,
-    historyDays: 30,
-    intensity: 0.35,
-    preferences: { dailyTargetHours: 6 },
-    categoryBias: { Meetings: 2.0, Documentation: 1.4 }
-  },
-  {
-    email: "pending@kloqra.dev",
-    name: "Parker Pending",
-    role: "MEMBER",
-    defaultHourlyRate: 95,
-    historyDays: 0,
-    intensity: 0,
-    emailVerified: false,
-    mustChangePassword: false
   }
 ];
 
-const ADMINS = ["admin@kloqra.dev", "ops@kloqra.dev"];
+export type SeedWorkspaceSpec = {
+  name: string;
+  slug: string;
+  settings: Record<string, unknown>;
+  projects: SeedProjectSpec[];
+  /** Emails with workspace_members rows (role MEMBER unless listed in workspaceAdminEmails). */
+  memberEmails: string[];
+  /** Subset of memberEmails promoted to workspace_members.role = ADMIN. */
+  workspaceAdminEmails?: string[];
+};
 
-function wsMembers(...members: string[]): string[] {
-  return [...new Set([...ADMINS, ...members])].slice(0, 10);
+function projectTeam(
+  leads: [string, string],
+  members: [string, string, string]
+): Pick<SeedProjectSpec, "memberEmails" | "leadEmails"> {
+  return { memberEmails: [...leads, ...members], leadEmails: [...leads] };
 }
 
 export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
@@ -228,16 +435,25 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       timezone: "America/New_York",
       exportFooterNote: "Acme Corporation — Kloqra confidential billing export"
     },
-    memberEmails: wsMembers(
-      "pending@kloqra.dev",
-      "member@kloqra.dev",
-      "alex@kloqra.dev",
+    workspaceAdminEmails: [
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.acmeWorkspaceAdmin
+    ],
+    memberEmails: [
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.acmeWorkspaceAdmin,
+      SEED_DEMO_PERSONAS.projectManager,
+      SEED_DEMO_PERSONAS.member,
       "jordan@kloqra.dev",
       "taylor@kloqra.dev",
       "riley@kloqra.dev",
       "casey@kloqra.dev",
-      "drew@kloqra.dev"
-    ),
+      "drew@kloqra.dev",
+      "sage@kloqra.dev",
+      "blake@kloqra.dev"
+    ],
     projects: [
       {
         name: "Client Portal Redesign",
@@ -245,7 +461,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Northwind Traders",
         budgetHours: 480,
         budgetBurnPct: 0.82,
-        memberEmails: wsMembers("member@kloqra.dev", "alex@kloqra.dev", "jordan@kloqra.dev"),
+        ...projectTeam(
+          ["alex@kloqra.dev", "jordan@kloqra.dev"],
+          ["member@kloqra.dev", "taylor@kloqra.dev", "riley@kloqra.dev"]
+        ),
         memberColorOverrides: {
           "member@kloqra.dev": "#8b5cf6"
         },
@@ -309,7 +528,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Fabrikam Media",
         budgetHours: 220,
         budgetBurnPct: 0.94,
-        memberEmails: wsMembers("taylor@kloqra.dev", "riley@kloqra.dev", "casey@kloqra.dev"),
+        ...projectTeam(
+          ["casey@kloqra.dev", "drew@kloqra.dev"],
+          ["taylor@kloqra.dev", "sage@kloqra.dev", "blake@kloqra.dev"]
+        ),
         memberColorOverrides: {
           "taylor@kloqra.dev": "#ec4899"
         },
@@ -354,7 +576,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: "Contoso Retail",
         budgetHours: 160,
         budgetBurnPct: 1.08,
-        memberEmails: wsMembers("drew@kloqra.dev", "sage@kloqra.dev", "blake@kloqra.dev"),
+        ...projectTeam(
+          ["member@kloqra.dev", "drew@kloqra.dev"],
+          ["alex@kloqra.dev", "jordan@kloqra.dev", "riley@kloqra.dev"]
+        ),
         tasks: [
           {
             name: "Ticket triage",
@@ -374,36 +599,6 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           { name: "Runbook update", category: "Documentation", billableDefault: true, weight: 1.0 }
         ],
         timesheetApproval: true
-      },
-      {
-        name: "Annual Audit",
-        color: "#64748b",
-        clientName: "Adventure Works",
-        budgetHours: 120,
-        budgetBurnPct: 0.55,
-        memberEmails: wsMembers("member@kloqra.dev", "rowan@kloqra.dev", "quinn@kloqra.dev"),
-        tasks: [
-          {
-            name: "Evidence collection",
-            category: "QA & Testing",
-            billableDefault: true,
-            weight: 1.6
-          },
-          { name: "Control walkthrough", category: "Meetings", billableDefault: true, weight: 1.5 },
-          {
-            name: "Reconciliation",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 1.0
-          },
-          {
-            name: "Executive summary",
-            category: "Documentation",
-            billableDefault: true,
-            weight: 1.3
-          },
-          { name: "Audit prep call", category: "Meetings", billableDefault: true, weight: 1.2 }
-        ]
       }
     ]
   },
@@ -417,16 +612,24 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
       timezone: "America/Los_Angeles",
       timesheetApprovalPeriod: "weekly"
     },
-    memberEmails: wsMembers(
-      "member@kloqra.dev",
+    workspaceAdminEmails: [
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.tenantAdmin,
+      SEED_DEMO_PERSONAS.meridianWorkspaceAdmin
+    ],
+    memberEmails: [
+      SEED_DEMO_PERSONAS.tenantOwner,
+      SEED_DEMO_PERSONAS.meridianWorkspaceAdmin,
+      SEED_DEMO_PERSONAS.projectManager,
+      SEED_DEMO_PERSONAS.member,
       "jordan@kloqra.dev",
+      "taylor@kloqra.dev",
       "riley@kloqra.dev",
       "casey@kloqra.dev",
       "drew@kloqra.dev",
-      "blake@kloqra.dev",
-      "rowan@kloqra.dev",
-      "quinn@kloqra.dev"
-    ),
+      "sage@kloqra.dev",
+      "blake@kloqra.dev"
+    ],
     projects: [
       {
         name: "Mobile App v3",
@@ -434,7 +637,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 620,
         budgetBurnPct: 0.68,
-        memberEmails: wsMembers("member@kloqra.dev", "jordan@kloqra.dev", "riley@kloqra.dev"),
+        ...projectTeam(
+          ["alex@kloqra.dev", "taylor@kloqra.dev"],
+          ["member@kloqra.dev", "riley@kloqra.dev", "drew@kloqra.dev"]
+        ),
         tasks: [
           {
             name: "iOS features",
@@ -482,7 +688,10 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         clientName: null,
         budgetHours: 400,
         budgetBurnPct: 0.76,
-        memberEmails: wsMembers("alex@kloqra.dev", "casey@kloqra.dev", "drew@kloqra.dev"),
+        ...projectTeam(
+          ["alex@kloqra.dev", "casey@kloqra.dev"],
+          ["blake@kloqra.dev", "sage@kloqra.dev", "drew@kloqra.dev"]
+        ),
         memberColorOverrides: {
           "alex@kloqra.dev": "#06b6d4"
         },
@@ -529,53 +738,15 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         ]
       },
       {
-        name: "Internal Tools",
-        color: "#22c55e",
-        clientName: null,
-        budgetHours: 280,
-        budgetBurnPct: 0.48,
-        memberEmails: wsMembers("taylor@kloqra.dev", "sage@kloqra.dev", "blake@kloqra.dev"),
-        tasks: [
-          {
-            name: "Admin dashboard",
-            category: "Software Development",
-            billableDefault: false,
-            weight: 1.7
-          },
-          {
-            name: "Data export jobs",
-            category: "Software Development",
-            billableDefault: false,
-            weight: 1.5
-          },
-          {
-            name: "Widget wireframes",
-            category: "UI/UX Design",
-            billableDefault: false,
-            weight: 1.3
-          },
-          {
-            name: "On-call runbooks",
-            category: "Documentation",
-            billableDefault: false,
-            weight: 1.6
-          },
-          { name: "Team sync", category: "Meetings", billableDefault: false, weight: 1.1 },
-          {
-            name: "Export smoke tests",
-            category: "QA & Testing",
-            billableDefault: false,
-            weight: 0.9
-          }
-        ]
-      },
-      {
         name: "Security Hardening",
         color: "#ef4444",
         clientName: null,
         budgetHours: 200,
         budgetBurnPct: 0.91,
-        memberEmails: wsMembers("rowan@kloqra.dev", "quinn@kloqra.dev", "riley@kloqra.dev"),
+        ...projectTeam(
+          ["alex@kloqra.dev", "member@kloqra.dev"],
+          ["casey@kloqra.dev", "riley@kloqra.dev", "blake@kloqra.dev"]
+        ),
         tasks: [
           {
             name: "Pen test remediation",
@@ -592,163 +763,6 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
             category: "Software Development",
             billableDefault: false,
             weight: 1.0
-          }
-        ],
-        timesheetApproval: true
-      }
-    ]
-  },
-  {
-    name: "Apex Consulting",
-    slug: "apex",
-    settings: {
-      weekStart: "monday",
-      expectedWeeklyHours: 40,
-      dailyTargetHours: 7.5,
-      timezone: "Europe/London",
-      exportFooterNote: "Apex Consulting — Kloqra billable hours summary"
-    },
-    memberEmails: wsMembers(
-      "member@kloqra.dev",
-      "alex@kloqra.dev",
-      "taylor@kloqra.dev",
-      "riley@kloqra.dev",
-      "casey@kloqra.dev",
-      "sage@kloqra.dev",
-      "blake@kloqra.dev",
-      "rowan@kloqra.dev"
-    ),
-    projects: [
-      {
-        name: "ERP Migration",
-        color: "#eab308",
-        clientName: "Litware Inc",
-        budgetHours: 720,
-        budgetBurnPct: 0.61,
-        memberEmails: wsMembers(
-          "member@kloqra.dev",
-          "alex@kloqra.dev",
-          "jordan@kloqra.dev",
-          "casey@kloqra.dev"
-        ),
-        tasks: [
-          { name: "Discovery workshops", category: "Meetings", billableDefault: true, weight: 2.0 },
-          { name: "Steering committee", category: "Meetings", billableDefault: true, weight: 1.5 },
-          {
-            name: "Data mapping",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 1.8
-          },
-          {
-            name: "ETL scripts",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 1.6
-          },
-          { name: "Cutover planning", category: "DevOps", billableDefault: true, weight: 1.4 },
-          {
-            name: "Hypercare support",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 1.2
-          },
-          { name: "Training sessions", category: "Meetings", billableDefault: true, weight: 1.3 },
-          {
-            name: "Migration runbook",
-            category: "Documentation",
-            billableDefault: true,
-            weight: 1.1
-          },
-          { name: "UAT sign-off", category: "QA & Testing", billableDefault: true, weight: 1.0 }
-        ]
-      },
-      {
-        name: "Data Warehouse",
-        color: "#06b6d4",
-        clientName: "Wide World Importers",
-        budgetHours: 540,
-        budgetBurnPct: 0.73,
-        memberEmails: wsMembers("riley@kloqra.dev", "drew@kloqra.dev", "sage@kloqra.dev"),
-        tasks: [
-          {
-            name: "Source ingestion",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 2.0
-          },
-          {
-            name: "Dimensional model",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 1.7
-          },
-          { name: "BI dashboards", category: "UI/UX Design", billableDefault: true, weight: 1.5 },
-          {
-            name: "Data quality rules",
-            category: "QA & Testing",
-            billableDefault: true,
-            weight: 1.6
-          },
-          { name: "Pipeline monitoring", category: "DevOps", billableDefault: true, weight: 1.2 },
-          { name: "Stakeholder demo", category: "Meetings", billableDefault: true, weight: 1.1 },
-          { name: "Data dictionary", category: "Documentation", billableDefault: true, weight: 1.0 }
-        ]
-      },
-      {
-        name: "Change Management",
-        color: "#ec4899",
-        clientName: "Tailspin Toys",
-        budgetHours: 180,
-        budgetBurnPct: 0.42,
-        memberEmails: wsMembers("taylor@kloqra.dev", "blake@kloqra.dev", "rowan@kloqra.dev"),
-        tasks: [
-          {
-            name: "Stakeholder interviews",
-            category: "Meetings",
-            billableDefault: true,
-            weight: 2.2
-          },
-          {
-            name: "Workshop facilitation",
-            category: "Meetings",
-            billableDefault: true,
-            weight: 1.8
-          },
-          { name: "Comms plan", category: "Documentation", billableDefault: true, weight: 1.5 },
-          { name: "Change assets", category: "UI/UX Design", billableDefault: true, weight: 1.2 },
-          { name: "Training rollout", category: "Meetings", billableDefault: false, weight: 1.4 },
-          { name: "Feedback survey", category: "QA & Testing", billableDefault: true, weight: 0.8 }
-        ]
-      },
-      {
-        name: "Compliance Review",
-        color: "#1e3a8a",
-        clientName: "Gov Sector Client",
-        budgetHours: 260,
-        budgetBurnPct: 0.88,
-        memberEmails: wsMembers("quinn@kloqra.dev", "casey@kloqra.dev"),
-        tasks: [
-          {
-            name: "Policy gap analysis",
-            category: "QA & Testing",
-            billableDefault: true,
-            weight: 1.7
-          },
-          { name: "Control testing", category: "QA & Testing", billableDefault: true, weight: 1.8 },
-          { name: "Regulator briefing", category: "Meetings", billableDefault: true, weight: 1.5 },
-          { name: "Audit response", category: "Documentation", billableDefault: true, weight: 1.4 },
-          {
-            name: "Evidence packaging",
-            category: "Documentation",
-            billableDefault: true,
-            weight: 1.2
-          },
-          {
-            name: "Access review scripts",
-            category: "Software Development",
-            billableDefault: true,
-            weight: 0.9
           }
         ],
         timesheetApproval: true
@@ -916,11 +930,12 @@ export const SEED_NOTIFICATIONS: SeedNotificationSpec[] = [
     metadata: { variant: "attention", ctaLabel: "Review", href: "/approvals?tab=review" }
   },
   {
-    recipientEmail: "pending@kloqra.dev",
-    workspaceSlug: "acme",
+    recipientEmail: "meridian-admin@kloqra.dev",
+    workspaceSlug: "meridian",
     type: "WORKSPACE_ADDED",
-    title: "Welcome to Acme Corporation",
-    body: "You were added to the Acme Corporation workspace. Verify your email to finish setup.",
-    metadata: { variant: "info", href: "/verify-email" }
+    title: "Welcome to Meridian Product Co",
+    body: "You were added to the Meridian Product Co workspace.",
+    read: true,
+    metadata: { variant: "info", href: "/workspace" }
   }
 ];

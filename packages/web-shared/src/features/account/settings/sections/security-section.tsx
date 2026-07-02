@@ -1,11 +1,11 @@
 "use client";
 
 import type { UserProfileDto, UserSessionDto } from "@kloqra/contracts";
-import { AppModal, Button, DialogClose, Input, Label, PasswordInput, Spinner } from "@kloqra/ui";
+import { AppModal, Button, Input, Label, PasswordInput, Spinner } from "@kloqra/ui";
 import { Activity, KeyRound, Shield } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChangePasswordSection } from "../../change-password-section";
+import { ChangePasswordModal } from "../../change-password-modal";
 import { formatSessionDevice } from "../format-session-device";
 import { SettingsCard } from "../settings-card";
 import { TwoFaSetupPanel } from "./two-fa-setup-panel";
@@ -88,37 +88,21 @@ export function SecuritySection({
       await onDisable2fa(disablePassword, disableCode);
       setDisablePassword("");
       setDisableCode("");
+      setTwoFaOpen(false);
       toast.success("Two-factor authentication disabled");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not disable 2FA");
     }
   }
 
-  async function handleRevokeOtherSessions() {
-    setRevokingOthers(true);
-    try {
-      const result = await onRevokeOtherSessions();
-      setSessions((prev) => prev.filter((session) => session.isCurrent));
-      toast.success(
-        result.revoked > 0
-          ? `Signed out ${result.revoked} other session${result.revoked === 1 ? "" : "s"}.`
-          : "No other active sessions to sign out."
-      );
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not sign out other devices");
-    } finally {
-      setRevokingOthers(false);
-    }
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <SettingsCard
         icon={KeyRound}
         title="Change Password"
-        description="Update your password to keep your account secure"
+        description="Update your password to keep your account secure."
         action={
-          <Button type="button" size="sm" onClick={() => setPasswordOpen(true)}>
+          <Button type="button" onClick={() => setPasswordOpen(true)}>
             Change Password
           </Button>
         }
@@ -127,15 +111,15 @@ export function SecuritySection({
       <SettingsCard
         icon={Shield}
         title="Two-Factor Authentication"
-        description="Add an extra layer of security to your account"
+        description="Add an extra layer of security to your account."
         action={
           profile.twoFactorEnabled ? (
-            <Button type="button" size="sm" variant="outline" onClick={() => setTwoFaOpen(true)}>
+            <Button type="button" variant="outline" onClick={() => setTwoFaOpen(true)}>
               Manage 2FA
             </Button>
           ) : (
-            <Button type="button" size="sm" onClick={() => void handleEnable2fa()}>
-              Enable 2FA
+            <Button type="button" onClick={() => void handleEnable2fa()}>
+              Enable
             </Button>
           )
         }
@@ -144,29 +128,19 @@ export function SecuritySection({
       <SettingsCard
         icon={Activity}
         title="Active Sessions"
-        description="Manage devices where you're currently logged in"
+        description="Review and manage devices signed in to your account."
         action={
-          <Button type="button" size="sm" variant="outline" onClick={() => void openSessions()}>
+          <Button type="button" onClick={() => void openSessions()}>
             View Sessions
           </Button>
         }
       />
 
-      <AppModal
+      <ChangePasswordModal
         open={passwordOpen}
         onOpenChange={setPasswordOpen}
-        title="Change password"
-        description="Enter your current password and choose a new one."
-        icon={<KeyRound className="size-5" />}
-        size="lg"
-      >
-        <ChangePasswordSection
-          onChangePassword={async (current, next) => {
-            await onChangePassword(current, next);
-            setPasswordOpen(false);
-          }}
-        />
-      </AppModal>
+        onChangePassword={onChangePassword}
+      />
 
       <AppModal
         open={twoFaOpen}
@@ -212,11 +186,12 @@ export function SecuritySection({
                 id="disable-code"
                 value={disableCode}
                 onChange={(e) => setDisableCode(e.target.value)}
+                inputMode="numeric"
                 maxLength={6}
               />
             </div>
             <Button type="button" variant="destructive" onClick={() => void handleDisable2fa()}>
-              Disable 2FA
+              Disable two-factor authentication
             </Button>
           </div>
         ) : twoFaSecret && twoFaOtpauthUrl ? (
@@ -226,88 +201,66 @@ export function SecuritySection({
             code={twoFaCode}
             onCodeChange={setTwoFaCode}
           />
-        ) : (
-          <Spinner label="Preparing 2FA setup…" className="justify-center py-8" />
-        )}
+        ) : null}
       </AppModal>
 
-      <AppModal
-        open={sessionsOpen}
-        onOpenChange={setSessionsOpen}
-        title="Active sessions"
-        description="Review devices where your account is signed in and revoke access when needed."
-        icon={<Activity className="size-5" />}
-        size="lg"
-        footer={
-          <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {otherSessions.length > 0 ? (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={revokingOthers || loadingSessions}
-                onClick={() => void handleRevokeOtherSessions()}
-              >
-                {revokingOthers ? "Signing out…" : "Sign out other devices"}
-              </Button>
-            ) : null}
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Close
-              </Button>
-            </DialogClose>
-          </div>
-        }
-      >
+      <AppModal open={sessionsOpen} onOpenChange={setSessionsOpen} title="Active sessions">
         {loadingSessions ? (
-          <Spinner label="Loading sessions…" className="justify-center py-6" />
-        ) : sessions.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No active sessions found.
-          </p>
+          <div className="flex justify-center py-8">
+            <Spinner />
+          </div>
         ) : (
-          <ul className="space-y-3">
+          <div className="space-y-3">
             {sessions.map((session) => (
-              <li
+              <div
                 key={session.id}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-3"
+                className="flex items-start justify-between gap-3 rounded-lg border border-border px-4 py-3"
               >
-                <div className="min-w-0 flex-1">
+                <div>
                   <p className="text-sm font-medium">
                     {formatSessionDevice(session.userAgent)}
-                    {session.isCurrent ? (
-                      <span className="ml-1 text-xs font-normal text-primary">(current)</span>
-                    ) : null}
+                    {session.isCurrent ? " (this device)" : ""}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Last used {new Date(session.lastUsedAt).toLocaleString()}
+                  <p className="text-xs text-muted-foreground">
+                    Last active {new Date(session.lastUsedAt).toLocaleString()}
                   </p>
-                  {session.ipAddress ? (
-                    <p className="mt-0.5 text-xs text-muted-foreground">IP {session.ipAddress}</p>
-                  ) : null}
                 </div>
                 {!session.isCurrent ? (
                   <Button
                     type="button"
-                    size="sm"
                     variant="outline"
-                    className="shrink-0"
+                    size="sm"
                     onClick={() =>
-                      void onRevokeSession(session.id)
-                        .then(() => {
-                          setSessions((prev) => prev.filter((s) => s.id !== session.id));
-                          toast.success("Session revoked.");
-                        })
-                        .catch((e) =>
-                          toast.error(e instanceof Error ? e.message : "Could not revoke session")
-                        )
+                      void onRevokeSession(session.id).then(() => {
+                        setSessions((prev) => prev.filter((item) => item.id !== session.id));
+                        toast.success("Session revoked");
+                      })
                     }
                   >
                     Revoke
                   </Button>
                 ) : null}
-              </li>
+              </div>
             ))}
-          </ul>
+            {otherSessions.length > 0 ? (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={revokingOthers}
+                onClick={() => {
+                  setRevokingOthers(true);
+                  void onRevokeOtherSessions()
+                    .then(({ revoked }) => {
+                      toast.success(`Revoked ${revoked} session(s)`);
+                      return openSessions();
+                    })
+                    .finally(() => setRevokingOthers(false));
+                }}
+              >
+                {revokingOthers ? "Revoking…" : "Sign out other devices"}
+              </Button>
+            ) : null}
+          </div>
         )}
       </AppModal>
     </div>

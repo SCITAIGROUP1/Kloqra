@@ -32,18 +32,18 @@ test.describe("Admin global search", () => {
       if (response.request().method() !== "GET" || !response.ok()) return false;
       try {
         const url = new URL(response.url());
-        return url.pathname.endsWith("/projects") && url.searchParams.get("search") === "Audit";
+        return url.pathname.endsWith("/projects") && url.searchParams.get("search") === "Retainer";
       } catch {
         return false;
       }
     });
-    await input.fill("Audit");
+    await input.fill("Retainer");
     await projectsResponse;
-    const projectHit = dialog.getByText("Annual Audit", { exact: true });
+    const projectHit = dialog.getByText("Support Retainer", { exact: true });
     await expect(projectHit).toBeVisible({ timeout: 15_000 });
     await projectHit.click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/overview$/);
-    await expect(page.getByText("Annual Audit").first()).toBeVisible();
+    await expect(page.getByText("Support Retainer").first()).toBeVisible();
   });
 
   test("navigates to approvals page from pages group", async ({ page }) => {

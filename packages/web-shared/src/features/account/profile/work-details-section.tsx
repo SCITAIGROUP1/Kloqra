@@ -2,7 +2,7 @@
 
 import type { UserProfileDto } from "@kloqra/contracts";
 import { Button, Input, Label } from "@kloqra/ui";
-import { Calendar, Clock, FolderKanban } from "lucide-react";
+import { Building2, Calendar, Clock, FolderKanban } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +12,10 @@ function formatMemberSince(iso: string) {
   } catch {
     return "—";
   }
+}
+
+function formatWorkspaceRole(role: "ADMIN" | "MEMBER") {
+  return role === "ADMIN" ? "Admin" : "Member";
 }
 
 export function WorkDetailsSection({
@@ -59,6 +63,33 @@ export function WorkDetailsSection({
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Organization</h2>
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <div className="space-y-1">
+            <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <Building2 className="size-3.5" aria-hidden />
+              Organization
+            </p>
+            <p className="text-sm font-medium">{profile.workContext.organizationName}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Workspace
+            </p>
+            <p className="text-sm font-medium">{profile.workContext.workspaceName}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Role
+            </p>
+            <p className="text-sm font-medium">
+              {formatWorkspaceRole(profile.workContext.workspaceRole)}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-base font-semibold">Work Information</h2>
         <div className="mt-5 grid gap-5 sm:grid-cols-2">

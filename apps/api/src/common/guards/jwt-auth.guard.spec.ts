@@ -1,7 +1,8 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, HttpStatus, UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthRevocationService } from "../auth/auth-revocation.service";
 import { JwtTokenService } from "../auth/jwt-token.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 describe("JwtAuthGuard", () => {
@@ -12,6 +13,8 @@ describe("JwtAuthGuard", () => {
     toRequestUser: ReturnType<typeof vi.fn>;
   };
   let authRevocation: { assertNotRevoked: ReturnType<typeof vi.fn> };
+  let prisma: { workspace: { findUnique: ReturnType<typeof vi.fn> } };
+  let projectAccess: { managedProjectIds: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     jwtTokens = {
@@ -20,9 +23,17 @@ describe("JwtAuthGuard", () => {
       toRequestUser: vi.fn()
     };
     authRevocation = { assertNotRevoked: vi.fn().mockResolvedValue(undefined) };
+    prisma = {
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({ tenantId: "t1" })
+      }
+    };
+    projectAccess = { managedProjectIds: vi.fn().mockResolvedValue([]) };
     guard = new JwtAuthGuard(
       jwtTokens as unknown as JwtTokenService,
-      authRevocation as unknown as AuthRevocationService
+      authRevocation as unknown as AuthRevocationService,
+      prisma as unknown as PrismaService,
+      projectAccess as never
     );
   });
 
@@ -57,12 +68,14 @@ describe("JwtAuthGuard", () => {
     jwtTokens.verifyAccessToken.mockReturnValue({
       sub: "u1",
       userId: "u1",
+      tenantId: "t1",
       workspaceId: "ws1",
       role: "MEMBER",
       family: "fam-1"
     });
     jwtTokens.toRequestUser.mockReturnValue({
       userId: "u1",
+      tenantId: "t1",
       workspaceId: "ws1",
       role: "MEMBER"
     });
@@ -79,6 +92,7 @@ describe("JwtAuthGuard", () => {
     jwtTokens.isTokenExpired.mockReturnValue(false);
     jwtTokens.verifyAccessToken.mockReturnValue({
       sub: "u1",
+      tenantId: "t1",
       workspaceId: "ws1",
       family: "fam-1"
     });
@@ -94,5 +108,45 @@ describe("JwtAuthGuard", () => {
     await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toThrow(
       UnauthorizedException
     );
+  });
+
+  it("rejects when workspace tenant does not match JWT tenant", async () => {
+    jwtTokens.isTokenExpired.mockReturnValue(false);
+    jwtTokens.verifyAccessToken.mockReturnValue({
+      sub: "u1",
+      tenantId: "t1",
+      workspaceId: "ws1",
+      role: "MEMBER"
+    });
+    prisma.workspace.findUnique.mockResolvedValue({ tenantId: "t-other" });
+    const req = {
+      headers: { authorization: "Bearer valid", "x-auth-scope": "client" },
+      cookies: {}
+    };
+    await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toMatchObject({
+      status: HttpStatus.FORBIDDEN
+    });
+  });
+
+  it("rejects workspace header mismatch before tenant check", async () => {
+    jwtTokens.isTokenExpired.mockReturnValue(false);
+    jwtTokens.verifyAccessToken.mockReturnValue({
+      sub: "u1",
+      tenantId: "t1",
+      workspaceId: "ws1",
+      role: "MEMBER"
+    });
+    const req = {
+      headers: {
+        authorization: "Bearer valid",
+        "x-auth-scope": "client",
+        "x-workspace-id": "ws-other"
+      },
+      cookies: {}
+    };
+    await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toThrow(
+      ForbiddenException
+    );
+    expect(prisma.workspace.findUnique).not.toHaveBeenCalled();
   });
 });

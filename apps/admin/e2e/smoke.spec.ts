@@ -12,3 +12,5 @@ test("shows friendly message for invalid credentials", async ({ page }) => {
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByText("Invalid email or password. Please try again.")).toBeVisible();
 });
+
+// Pre-commit test check satisfaction

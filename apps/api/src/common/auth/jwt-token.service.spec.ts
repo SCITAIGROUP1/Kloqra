@@ -27,6 +27,7 @@ describe("JwtTokenService", () => {
   it("verifyAccessToken rejects refresh typ", () => {
     mockJwt.verify.mockReturnValue({
       sub: "u1",
+      tenantId: "t1",
       workspaceId: "ws1",
       role: "MEMBER",
       typ: "refresh"
@@ -37,6 +38,7 @@ describe("JwtTokenService", () => {
   it("verifyAccessToken accepts access typ with claims", () => {
     mockJwt.verify.mockReturnValue({
       sub: "u1",
+      tenantId: "t1",
       workspaceId: "ws1",
       role: "ADMIN",
       typ: "access",
@@ -44,6 +46,7 @@ describe("JwtTokenService", () => {
     });
     const payload = service.verifyAccessToken("token", "admin");
     expect(payload.userId).toBe("u1");
+    expect(payload.tenantId).toBe("t1");
     expect(payload.scope).toBe("admin");
   });
 
@@ -62,5 +65,28 @@ describe("JwtTokenService", () => {
         details: { reason: "token_expired" }
       });
     }
+  });
+
+  it("verifyPlatformAccessToken accepts platform typ", () => {
+    mockJwt.verify.mockReturnValue({
+      sub: "p1",
+      platformRole: "SUPERADMIN",
+      typ: "platform",
+      scope: "platform"
+    });
+    const payload = service.verifyPlatformAccessToken("token");
+    expect(payload.platformUserId).toBe("p1");
+    expect(payload.platformRole).toBe("SUPERADMIN");
+  });
+
+  it("verifyPlatformAccessToken rejects tenant claims", () => {
+    mockJwt.verify.mockReturnValue({
+      sub: "p1",
+      platformRole: "SUPERADMIN",
+      typ: "platform",
+      scope: "platform",
+      tenantId: "t1"
+    });
+    expect(() => service.verifyPlatformAccessToken("token")).toThrow(UnauthorizedException);
   });
 });

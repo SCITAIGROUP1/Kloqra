@@ -1,10 +1,12 @@
 import type { Request } from "express";
 
-/** Matches frontend NEXT_PUBLIC_AUTH_SCOPE (client | admin). */
-export function getAuthScope(req: Request): string {
+/** Matches frontend NEXT_PUBLIC_AUTH_SCOPE (client | admin | platform). */
+export type AuthScope = "client" | "admin" | "platform" | "app";
+
+export function getAuthScope(req: Request): AuthScope {
   const raw = req.headers["x-auth-scope"];
   const value = (Array.isArray(raw) ? raw[0] : raw)?.trim().toLowerCase();
-  if (value === "client" || value === "admin") return value;
+  if (value === "client" || value === "admin" || value === "platform") return value;
   return "app";
 }
 

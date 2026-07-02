@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../packages/web-shared/src/**/*.{ts,tsx}";
+@import "tw-animate-css";
+@import "@kloqra/ui/globals.css";

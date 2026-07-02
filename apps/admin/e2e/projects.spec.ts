@@ -49,7 +49,7 @@ test.describe("Admin projects", () => {
   });
 
   test("shows duplicate project name error in create modal", async ({ page }) => {
-    const existingName = "Annual Audit";
+    const existingName = "Support Retainer";
 
     await page.getByRole("button", { name: "New project" }).click();
     await page.locator("#name").fill(existingName);
@@ -70,9 +70,9 @@ test.describe("Admin projects", () => {
   });
 
   test("opens the clicked project row", async ({ page }) => {
-    await page.getByRole("link", { name: "Open Annual Audit" }).click();
-    await expect(page.getByText("Annual Audit")).toBeVisible();
-    await expect(page.getByText("Client: Adventure Works")).toBeVisible();
+    await page.getByRole("link", { name: "Open Support Retainer" }).click();
+    await expect(page.getByText("Support Retainer")).toBeVisible();
+    await expect(page.getByText("Client: Contoso Retail")).toBeVisible();
 
     await page.goto("/projects");
     await page.getByRole("link", { name: "Open Brand Campaign Q2" }).click();
@@ -108,7 +108,7 @@ test.describe("Admin projects", () => {
       .getByRole("link", { name: "Team", exact: true })
       .click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/team$/);
-    await expect(page.getByRole("button", { name: "Add team member" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add team member" }).first()).toBeVisible();
   });
 
   test("add team member modal has searchable workspace member field", async ({ page }) => {
@@ -117,7 +117,7 @@ test.describe("Admin projects", () => {
       .getByRole("navigation", { name: "Project sections" })
       .getByRole("link", { name: "Team", exact: true })
       .click();
-    await page.getByRole("button", { name: "Add team member" }).click();
+    await page.getByRole("button", { name: "Add team member" }).first().click();
     await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
     await page.getByRole("combobox", { name: "Workspace member" }).click();
     await expect(page.getByPlaceholder("Search by name or email…")).toBeVisible();

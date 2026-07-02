@@ -40,6 +40,9 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [SECURITY.md](development/SECURITY.md) — auth, secrets, RBAC
 - [architecture/CONTEXT.md](architecture/CONTEXT.md) — system diagram and module boundaries
 - [architecture/DOMAIN_MODEL.md](architecture/DOMAIN_MODEL.md) — workspace, project, team hierarchy
+- [architecture/SAAS_PLATFORM_PLAN.md](architecture/SAAS_PLATFORM_PLAN.md) — **B2B SaaS master plan** (tenant, subscriptions, research gates)
+- [architecture/TENANT_RBAC.md](architecture/TENANT_RBAC.md) — SaaS roles, permissions, UI map
+- [architecture/TENANT_DOMAIN_MODEL.md](architecture/TENANT_DOMAIN_MODEL.md) — tenant entity RFC
 - [architecture/DATA_MODEL.md](architecture/DATA_MODEL.md) — Prisma tables and fields
 - [architecture/DATABASE_PARTITIONING.md](architecture/DATABASE_PARTITIONING.md) — partitioned time logs and audit events
 - [architecture/AUTH.md](architecture/AUTH.md) — login, JWT, workspace header
@@ -63,6 +66,7 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [runbooks/vercel.md](runbooks/vercel.md) — client and admin on Vercel
 - [deploy/](../deploy/) — env templates and deploy scripts
 - [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md) — common local failures
+- [runbooks/tenant-migration.md](runbooks/tenant-migration.md) — SaaS pilot tenant backfill (F21)
 
 ### Agent / process
 
@@ -86,6 +90,9 @@ Canonical behavior for shipped features (read before implementing changes):
 | [export.md](specs/export.md)                                 | Admin and member exports, async jobs    |
 | [presence.md](specs/presence.md)                             | Team live presence                      |
 | [auth-workspace.md](specs/auth-workspace.md)                 | Auth and workspace members              |
+| [tenants.md](specs/tenants.md)                               | Organization accounts (SaaS)            |
+| [self-serve-signup.md](specs/self-serve-signup.md)           | Self-serve signup (SaaS-F20)            |
+| [platform-ops.md](specs/platform-ops.md)                     | Platform ops metrics (SaaS-F22)         |
 | [user-profile.md](specs/user-profile.md)                     | Profile, settings, 2FA                  |
 | [global-search.md](specs/global-search.md)                   | Admin command palette                   |
 | [notifications-realtime.md](specs/notifications-realtime.md) | WebSocket bell + live data sync         |

@@ -1,6 +1,10 @@
 {
   "project": "Kloqra",
-  "phase": "1-2",
+  "phase": "saas",
+  "tracks": {
+    "product": "H0-H4 — see KLOQRA_FUTURE_PLAN.md",
+    "saas": "P0-P6 — see docs/architecture/SAAS_PLATFORM_PLAN.md"
+  },
   "tasks": [
     { "id": "P1-00", "title": "Monorepo scaffold", "status": "done", "owner": "LSA" },
     { "id": "P1-01", "title": "Prisma schema", "status": "done", "owner": "BE" },
@@ -39,6 +43,181 @@
       "title": "Admin global search (command palette)",
       "status": "done",
       "owner": "FE"
+    },
+    {
+      "id": "SaaS-F00",
+      "title": "Program kickoff — pilots, legal timeline, F00 research gate",
+      "status": "done",
+      "owner": "LSA",
+      "saasPhase": "P0"
+    },
+    {
+      "id": "SaaS-F01",
+      "title": "Tenant domain model RFC (TENANT_DOMAIN_MODEL.md)",
+      "status": "done",
+      "owner": "LSA",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F03",
+      "title": "RBAC permission matrix + diagrams (TENANT_RBAC.md)",
+      "status": "done",
+      "owner": "LSA",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F02",
+      "title": "Tenant schema + Prisma migration",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F21",
+      "title": "Pilot data migration — backfill tenant_id, runbook",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F04",
+      "title": "Auth — tenantId JWT, TenantGuard, switch-workspace check",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F05",
+      "title": "Data isolation E2E + SECURITY.md tenant section",
+      "status": "done",
+      "owner": "QA",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F06",
+      "title": "Tenant membership API (tenants module)",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F07",
+      "title": "Workspace lifecycle — tenant-scoped create, per-workspace admin assign",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P1"
+    },
+    {
+      "id": "SaaS-F08",
+      "title": "Account UI in admin app (tenant owner home)",
+      "status": "done",
+      "owner": "FE",
+      "saasPhase": "P2"
+    },
+    {
+      "id": "SaaS-F09",
+      "title": "Plan catalog schema (no Stripe)",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P2"
+    },
+    {
+      "id": "SaaS-F10",
+      "title": "PlanLimitGuard — maxWorkspaces + maxSeats enforcement",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P2"
+    },
+    {
+      "id": "SaaS-F11",
+      "title": "Stripe integration + webhooks",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P3"
+    },
+    {
+      "id": "SaaS-F12",
+      "title": "Subscription lifecycle — trial, past_due, block time entries",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P3"
+    },
+    {
+      "id": "SaaS-F13",
+      "title": "Billing UX — Account billing tab + Stripe Customer Portal",
+      "status": "done",
+      "owner": "FE",
+      "saasPhase": "P3"
+    },
+    {
+      "id": "SaaS-F23",
+      "title": "Legal/compliance pack before paid launch",
+      "status": "done",
+      "owner": "LSA",
+      "saasPhase": "P3"
+    },
+    {
+      "id": "SaaS-F20",
+      "title": "Self-serve signup + onboarding (optional)",
+      "status": "done",
+      "owner": "FE",
+      "saasPhase": "P3"
+    },
+    {
+      "id": "SaaS-F14",
+      "title": "platform-admin app scaffold",
+      "status": "done",
+      "owner": "FE",
+      "saasPhase": "P4"
+    },
+    {
+      "id": "SaaS-F15",
+      "title": "Superadmin tenant CRUD + suspend + temp owner provision",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P4"
+    },
+    {
+      "id": "SaaS-F16",
+      "title": "Platform audit log (no superadmin impersonation)",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P4"
+    },
+    {
+      "id": "SaaS-F17",
+      "title": "Project lead role (team_members.role LEAD)",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P5"
+    },
+    {
+      "id": "SaaS-F18",
+      "title": "Tenant rollup dashboard (read-only)",
+      "status": "done",
+      "owner": "FE",
+      "saasPhase": "P6"
+    },
+    {
+      "id": "SaaS-F19",
+      "title": "Tenant-scoped public API keys",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P6"
+    },
+    {
+      "id": "SaaS-F22",
+      "title": "Observability + tenant metrics",
+      "status": "done",
+      "owner": "BE",
+      "saasPhase": "P6"
+    },
+    {
+      "id": "SaaS-F24",
+      "title": "SaaS E2E test suite in CI",
+      "status": "done",
+      "owner": "QA",
+      "saasPhase": "P6"
     }
   ]
 }

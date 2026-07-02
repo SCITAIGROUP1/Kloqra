@@ -36,6 +36,11 @@ describe("Users E2E", () => {
       totalHours: expect.any(Number),
       projectCount: expect.any(Number)
     });
+    expect(res.body.workContext).toMatchObject({
+      organizationName: expect.any(String),
+      workspaceName: expect.any(String),
+      workspaceRole: "MEMBER"
+    });
   });
 
   it("PATCH /users/me updates extended profile fields", async () => {

@@ -3,6 +3,12 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
+generator seed_client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  output        = "./generated/client"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -45,18 +51,266 @@ model User {
   projectColors         UserProjectColor[]
   notifications         Notification[]
   exportJobs            ExportJob[]
+  tenantDataExportJobs  TenantDataExportJob[]
+  salesInquiriesRequested TenantSalesInquiry[]
+  salesInquiryReceiptsUploaded TenantSalesInquiryReceipt[]
   jiraEmail             String?           @map("jira_email")
+  tenantMembership      TenantMember?
 
   @@map("users")
 }
 
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  status    String   @default("pending_setup")
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members      TenantMember[]
+  workspaces   Workspace[]
+  subscription TenantSubscription?
+  auditEvents  PlatformAuditEvent[]
+  dataExportJobs TenantDataExportJob[]
+  salesInquiries TenantSalesInquiry[]
+  subscriptionEvents TenantSubscriptionEvent[]
+  helpDeskTickets    HelpDeskTicket[]
+  churnedAt    DateTime? @map("churned_at")
+
+  @@map("tenants")
+}
+
+model Plan {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  limits          Json
+  isPublic        Boolean  @default(false) @map("is_public")
+  sortOrder       Int      @default(0) @map("sort_order")
+  stripeProductId String?  @unique @map("stripe_product_id")
+  stripePriceId     String?  @unique @map("stripe_price_id")
+  tagline           String?
+  monthlyPriceCents Int?     @map("monthly_price_cents")
+  yearlyPriceCents  Int?     @map("yearly_price_cents")
+  features          Json?
+  recommended       Boolean  @default(false)
+  billingMode       String   @default("stripe") @map("billing_mode")
+  contactHref       String?  @map("contact_href")
+  visibleOnPricing  Boolean  @default(false) @map("visible_on_pricing")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  subscriptions TenantSubscription[]
+  salesInquiries TenantSalesInquiry[]
+
+  @@map("plans")
+}
+
+model PlatformCatalogSettings {
+  id                      Int      @id @default(1)
+  pricingBaselineFeatures Json     @default("[]") @map("pricing_baseline_features")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_catalog_settings")
+}
+
+model TenantSubscription {
+  id                   String    @id @default(uuid())
+  tenantId             String    @unique @map("tenant_id")
+  planId               String    @map("plan_id")
+  status               String
+  trialEndsAt          DateTime? @map("trial_ends_at")
+  currentPeriodEnd     DateTime? @map("current_period_end")
+  limitsOverride       Json?     @map("limits_override")
+  stripeCustomerId     String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+  currentPeriodStart   DateTime? @map("current_period_start")
+  billingInterval      String?   @map("billing_interval")
+  planAssignedAt       DateTime  @default(now()) @map("plan_assigned_at")
+  billingSource        String    @default("manual") @map("billing_source")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+  events TenantSubscriptionEvent[]
+
+  @@index([planId])
+  @@map("tenant_subscriptions")
+}
+
+model TenantSubscriptionEvent {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  subscriptionId String    @map("subscription_id")
+  eventType      String    @map("event_type")
+  occurredAt     DateTime  @map("occurred_at")
+  fromPlanId     String?   @map("from_plan_id")
+  toPlanId       String?   @map("to_plan_id")
+  fromStatus     String?   @map("from_status")
+  toStatus       String?   @map("to_status")
+  actorType      String    @map("actor_type") // 'system' | 'platform_user' | 'tenant_owner'
+  actorId        String?   @map("actor_id")
+  metadata       Json?     @map("metadata")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription TenantSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@index([eventType, occurredAt])
+  @@map("tenant_subscription_events")
+}
+
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("stripe_webhook_events")
+}
+
+model TenantSalesInquiry {
+  id                 String    @id @default(uuid())
+  tenantId           String    @map("tenant_id")
+  requestedPlanId    String    @map("requested_plan_id")
+  requestedByUserId  String    @map("requested_by_user_id")
+  message            String?
+  billingInterval    String?   @map("billing_interval")
+  status             String    @default("open")
+  instructionsSentAt DateTime? @map("instructions_sent_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  fulfilledAt        DateTime? @map("fulfilled_at")
+
+  tenant        Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedPlan Plan                       @relation(fields: [requestedPlanId], references: [id])
+  requestedBy   User                       @relation(fields: [requestedByUserId], references: [id])
+  receipts      TenantSalesInquiryReceipt[]
+
+  @@index([tenantId, status])
+  @@map("tenant_sales_inquiries")
+}
+
+model TenantSalesInquiryReceipt {
+  id               String   @id @default(uuid())
+  inquiryId        String   @map("inquiry_id")
+  uploadedByUserId String   @map("uploaded_by_user_id")
+  filename         String
+  contentType      String   @map("content_type")
+  storageKey       String   @map("storage_key")
+  sizeBytes        Int      @map("size_bytes")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  inquiry    TenantSalesInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  uploadedBy User               @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([inquiryId])
+  @@map("tenant_sales_inquiry_receipts")
+}
+
+model PlatformUser {
+  id                     String                 @id @default(uuid())
+  email                  String                 @unique
+  passwordHash           String                 @map("password_hash")
+  name                   String
+  role                   String                 @default("SUPERADMIN")
+  preferences            Json                   @default("{}")
+  isActive               Boolean                @default(true) @map("is_active")
+  totpSecret             String?                @map("totp_secret")
+  totpEnabledAt          DateTime?              @map("totp_enabled_at")
+  passwordResetTokenHash String?                @map("password_reset_token_hash")
+  passwordResetExpiresAt DateTime?              @map("password_reset_expires_at")
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+  refreshTokens PlatformRefreshToken[]
+  auditEvents   PlatformAuditEvent[]
+  notifications PlatformNotification[]
+  ticketsAssigned HelpDeskTicket[] @relation("TicketsAssigned")
+  helpDeskAgentEntries HelpDeskAgent[]
+  helpDeskMessages HelpDeskTicketMessage[]
+
+  @@map("platform_users")
+}
+
+model PlatformRefreshToken {
+  id             String       @id @default(uuid())
+  platformUserId String       @map("platform_user_id")
+  tokenHash      String       @unique @map("token_hash")
+  family         String
+  userAgent      String?      @map("user_agent")
+  ipAddress      String?      @map("ip_address")
+  lastUsedAt     DateTime?    @map("last_used_at")
+  revokedAt      DateTime?    @map("revoked_at")
+  expiresAt      DateTime     @map("expires_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  platformUser   PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@index([platformUserId])
+  @@index([platformUserId, family, revokedAt, expiresAt])
+  @@map("platform_refresh_tokens")
+}
+
+model PlatformNotification {
+  id             String       @id @default(uuid())
+  platformUserId String       @map("platform_user_id")
+  type           String
+  title          String
+  body           String
+  metadata       Json         @default("{}")
+  readAt         DateTime?    @map("read_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  platformUser   PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@index([platformUserId, createdAt(sort: Desc)])
+  @@index([platformUserId, readAt])
+  @@map("platform_notifications")
+}
+
+model PlatformAuditEvent {
+  id                  String   @id @default(uuid())
+  actorPlatformUserId String   @map("actor_platform_user_id")
+  action              String
+  tenantId            String?  @map("tenant_id")
+  summary             Json
+  ipAddress           String?  @map("ip_address")
+  userAgent           String?  @map("user_agent")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  actor  PlatformUser @relation(fields: [actorPlatformUserId], references: [id])
+  tenant Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([actorPlatformUserId, createdAt(sort: Desc)])
+  @@map("platform_audit_events")
+}
+
+model TenantMember {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  userId    String   @unique @map("user_id")
+  role      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tenant_members")
+}
+
 model Workspace {
   id              String            @id @default(uuid())
+  tenantId        String            @map("tenant_id")
   name            String
   slug            String            @unique
   settings        Json              @default("{}")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   members         WorkspaceMember[]
   projects        Project[]
   categories      Category[]
@@ -69,6 +323,7 @@ model Workspace {
   widgetShares    WidgetShare[]
   notifications   Notification[]
 
+  @@index([tenantId])
   @@map("workspaces")
 }
 
@@ -165,6 +420,7 @@ model TeamMember {
   id        String   @id @default(uuid())
   teamId    String   @map("team_id")
   userId    String   @map("user_id")
+  role      String   @default("MEMBER")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -335,6 +591,27 @@ model ExportJob {
   @@map("export_jobs")
 }
 
+model TenantDataExportJob {
+  id                String    @id @default(uuid())
+  tenantId          String    @map("tenant_id")
+  requestedByUserId String    @map("requested_by_user_id")
+  status            String
+  filename          String?
+  contentType       String?   @map("content_type")
+  byteSize          Int?      @map("byte_size")
+  storageKey        String?   @map("storage_key")
+  errorMessage      String?   @map("error_message")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  completedAt       DateTime? @map("completed_at")
+  expiresAt         DateTime? @map("expires_at")
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy       User      @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("tenant_data_export_jobs")
+}
+
 model ReportShare {
   id          String    @id @default(uuid())
   workspaceId String    @map("workspace_id")
@@ -487,4 +764,154 @@ model ReportingApiCredential {
 
   @@index([workspaceId])
   @@map("reporting_api_credentials")
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketChannel {
+  WEB_FORM
+  EMAIL
+  PLATFORM_ADMIN
+  API
+}
+
+enum TicketType {
+  BUG_REPORT
+  BILLING
+  PLAN_QUESTION
+  FEATURE_REQUEST
+  IN_APP_REPORT
+  SECURITY
+  GENERAL
+
+  @@map("ticket_type")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+model HelpDeskQueue {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String   @default("#6366f1")
+  isActive    Boolean  @default(true)  @map("is_active")
+  sortOrder   Int      @default(0)     @map("sort_order")
+  slaPolicy   Json?    @map("sla_policy")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  tickets     HelpDeskTicket[]
+  agents      HelpDeskAgent[]
+
+  @@map("helpdesk_queues")
+}
+
+model HelpDeskAgent {
+  id        String        @id @default(uuid())
+  queueId   String        @map("queue_id")
+  platformUserId String   @map("platform_user_id")
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  queue        HelpDeskQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  platformUser PlatformUser  @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@unique([queueId, platformUserId])
+  @@index([platformUserId])
+  @@map("helpdesk_agents")
+}
+
+model HelpDeskTicket {
+  id              String          @id @default(uuid())
+  ticketNumber    Int             @unique @default(autoincrement()) @map("ticket_number")
+  queueId         String          @map("queue_id")
+  status          TicketStatus    @default(OPEN)
+  priority        TicketPriority  @default(MEDIUM)
+  ticketType      TicketType      @default(GENERAL) @map("ticket_type")
+  channel         TicketChannel   @default(WEB_FORM)
+  subject         String
+  requesterName   String          @map("requester_name")
+  requesterEmail  String          @map("requester_email")
+  tenantId        String?         @map("tenant_id")
+  assignedToId    String?         @map("assigned_to_id")
+  tags            Json            @default("[]")
+  metadata        Json?           // type-specific dynamic fields
+  firstResponseAt DateTime?       @map("first_response_at")
+  resolvedAt      DateTime?       @map("resolved_at")
+  closedAt        DateTime?       @map("closed_at")
+  slaBreached     Boolean         @default(false) @map("sla_breached")
+  firstResponseDue DateTime?      @map("first_response_due")
+  resolutionDue   DateTime?       @map("resolution_due")
+  internalNote    String?         @map("internal_note")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt      @map("updated_at")
+
+  queue           HelpDeskQueue   @relation(fields: [queueId], references: [id])
+  assignedTo      PlatformUser?   @relation("TicketsAssigned", fields: [assignedToId], references: [id])
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  messages        HelpDeskTicketMessage[]
+  history         HelpDeskTicketHistory[]
+
+  @@index([queueId, status])
+  @@index([assignedToId, status])
+  @@index([tenantId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([requesterEmail])
+  @@index([slaBreached, status])
+  @@map("helpdesk_tickets")
+}
+
+model HelpDeskTicketMessage {
+  id          String           @id @default(uuid())
+  ticketId    String           @map("ticket_id")
+  direction   MessageDirection
+  authorId    String?          @map("author_id")
+  authorName  String           @map("author_name")
+  authorEmail String           @map("author_email")
+  body        String
+  htmlBody    String?          @map("html_body")
+  emailMessageId String?       @unique @map("email_message_id")
+  attachments Json             @default("[]")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  ticket  HelpDeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author  PlatformUser?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("helpdesk_ticket_messages")
+}
+
+model HelpDeskTicketHistory {
+  id          String   @id @default(uuid())
+  ticketId    String   @map("ticket_id")
+  actorId     String?  @map("actor_id")
+  actorName   String   @map("actor_name")
+  action      String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket HelpDeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt(sort: Desc)])
+  @@map("helpdesk_ticket_history")
 }

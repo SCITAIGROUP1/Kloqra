@@ -14,14 +14,25 @@ import {
   markThemeHydrated,
   shouldHydrateTheme
 } from "../hooks/theme-preference-state";
+import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { getWorkspaceId, useSessionStore } from "../stores/session.store";
+
+function isPlatformAuthScope(): boolean {
+  return (process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app") === "platform";
+}
+
+type ThemeProfile = {
+  effectiveTheme: ThemePreference;
+  preferences: { theme?: ThemePreference };
+};
 
 /** Hydrates next-themes from persisted user preference once per login. */
 export function ThemePreferenceSync() {
   const { setTheme } = useTheme();
-  const session = useSessionStore((s) => s.session);
-  const userId = session?.user?.id;
-  const workspaceId = session?.workspaceId ?? getWorkspaceId();
+  const tenantSession = useSessionStore((s) => s.session);
+  const platformSession = usePlatformSessionStore((s) => s.session);
+  const userId = isPlatformAuthScope() ? platformSession?.user.id : tenantSession?.user?.id;
+  const workspaceId = tenantSession?.workspaceId ?? getWorkspaceId();
 
   useEffect(() => {
     if (!userId) {
@@ -29,12 +40,13 @@ export function ThemePreferenceSync() {
       setTheme(DEFAULT_THEME);
       return;
     }
-    if (!workspaceId || !shouldHydrateTheme(userId)) return;
+    if (!shouldHydrateTheme(userId)) return;
+    if (!isPlatformAuthScope() && !workspaceId) return;
 
-    void api<{ effectiveTheme: ThemePreference; preferences: { theme?: ThemePreference } }>(
-      ROUTES.USERS.ME,
-      { workspaceId }
-    )
+    const profileRoute = isPlatformAuthScope() ? ROUTES.PLATFORM.ME : ROUTES.USERS.ME;
+    const requestOptions = isPlatformAuthScope() || !workspaceId ? undefined : { workspaceId };
+
+    void api<ThemeProfile>(profileRoute, requestOptions)
       .then((profile) => {
         if (!shouldHydrateTheme(userId)) return;
         setTheme(profile.effectiveTheme ?? resolveEffectiveTheme(profile.preferences));

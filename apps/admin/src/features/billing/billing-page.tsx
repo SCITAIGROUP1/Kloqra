@@ -90,7 +90,7 @@ export function BillingPage() {
   return (
     <div className="space-y-6">
       <AppBar
-        title="Billing"
+        title="Hourly rates"
         description="Configure default and per-member hourly rates for workspace billing."
         secondary={
           <AppBarListToolbar

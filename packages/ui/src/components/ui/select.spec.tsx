@@ -21,4 +21,20 @@ describe("Select", () => {
     await user.click(screen.getByRole("option", { name: "Weekly" }));
     expect(screen.getByRole("combobox", { name: "Period" })).toHaveTextContent("Weekly");
   });
+
+  it("renders content above modal layers when open", async () => {
+    render(
+      <Select defaultOpen>
+        <SelectTrigger aria-label="Project">
+          <SelectValue placeholder="Select project" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="p1">Support Retainer</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+
+    const content = screen.getByRole("option", { name: "Support Retainer" });
+    expect(content.closest("[class*='z-[70]']")).toBeInTheDocument();
+  });
 });

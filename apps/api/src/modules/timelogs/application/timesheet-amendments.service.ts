@@ -1,6 +1,7 @@
 import { ErrorCodes, formatTimesheetPeriodLabel } from "@kloqra/contracts";
 import type { TimesheetAmendmentDto, TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
@@ -15,7 +16,8 @@ export class TimesheetAmendmentsService {
   private readonly logger = new Logger(TimesheetAmendmentsService.name);
   constructor(
     private prisma: PrismaService,
-    private notificationsDispatch: NotificationsDispatchService
+    private notificationsDispatch: NotificationsDispatchService,
+    private access: ProjectAccessService
   ) {}
 
   private toDto(row: {
@@ -150,11 +152,21 @@ export class TimesheetAmendmentsService {
     return this.toDto(row);
   }
 
-  async listPending(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
+  async listPending(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
+    const managedProjectIds =
+      role === "ADMIN"
+        ? undefined
+        : await this.access.manageableProjectIds(workspaceId, userId, role);
     const periodStartRange = buildPeriodStartRange(filter);
     const periodWhere =
       filter.projectId || periodStartRange
         ? {
+            ...(managedProjectIds ? { projectId: { in: managedProjectIds } } : {}),
             ...(filter.projectId
               ? Array.isArray(filter.projectId)
                 ? { projectId: { in: filter.projectId } }
@@ -190,7 +202,12 @@ export class TimesheetAmendmentsService {
     return { items: rows.map((row) => this.toDto(row)) };
   }
 
-  async approve(workspaceId: string, amendmentId: string, adminUserId: string) {
+  async approve(
+    workspaceId: string,
+    amendmentId: string,
+    reviewerUserId: string,
+    reviewerRole: "ADMIN" | "MEMBER"
+  ) {
     const amendment = await this.prisma.timesheetAmendmentRequest.findFirst({
       where: { id: amendmentId, workspaceId, status: "PENDING" },
       include: {
@@ -221,12 +238,19 @@ export class TimesheetAmendmentsService {
       );
     }
 
+    await this.access.assertCanManageProject(
+      workspaceId,
+      reviewerUserId,
+      reviewerRole,
+      amendment.period.projectId
+    );
+
     await this.prisma.$transaction(async (tx) => {
       const updatedAmendment = await tx.timesheetAmendmentRequest.updateMany({
         where: { id: amendmentId, status: "PENDING" },
         data: {
           status: "APPROVED",
-          reviewedBy: adminUserId,
+          reviewedBy: reviewerUserId,
           reviewedAt: new Date()
         }
       });
@@ -295,7 +319,13 @@ export class TimesheetAmendmentsService {
     return this.toDto(row);
   }
 
-  async deny(workspaceId: string, amendmentId: string, adminUserId: string, adminNote?: string) {
+  async deny(
+    workspaceId: string,
+    amendmentId: string,
+    reviewerUserId: string,
+    reviewerRole: "ADMIN" | "MEMBER",
+    adminNote?: string
+  ) {
     if (!adminNote?.trim()) {
       throw new DomainException(
         ErrorCodes.VALIDATION_ERROR,
@@ -304,15 +334,31 @@ export class TimesheetAmendmentsService {
       );
     }
 
-    // Non-critical but preferred: wrap the status update and detail fetch inside a single
-    // transaction block to ensure atomicity and consistent database read states.
+    const amendment = await this.prisma.timesheetAmendmentRequest.findFirst({
+      where: { id: amendmentId, workspaceId, status: "PENDING" },
+      include: { period: { select: { projectId: true } } }
+    });
+    if (!amendment) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Amendment request not found or already reviewed",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    await this.access.assertCanManageProject(
+      workspaceId,
+      reviewerUserId,
+      reviewerRole,
+      amendment.period.projectId
+    );
+
     const row = await this.prisma.$transaction(async (tx) => {
       const result = await tx.timesheetAmendmentRequest.updateMany({
         where: { id: amendmentId, workspaceId, status: "PENDING" },
         data: {
           status: "DENIED",
           adminNote: adminNote.trim(),
-          reviewedBy: adminUserId,
+          reviewedBy: reviewerUserId,
           reviewedAt: new Date()
         }
       });

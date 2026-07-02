@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.spec.ts", "prisma/**/*.spec.ts"],
+    include: ["src/**/*.spec.ts", "prisma/**/*.spec.ts", "scripts/**/*.spec.ts"],
     reporters: ["default", "junit"],
     outputFile: {
       junit: "./test-results/unit-junit.xml"

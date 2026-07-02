@@ -1,8 +1,20 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Injectable
+} from "@nestjs/common";
 import { Response } from "express";
+import { PrismaService } from "../prisma/prisma.service";
+import { buildSentryEventContext } from "./sentry-context.util";
 
+@Injectable()
 @Catch()
 export class SentryFilter implements ExceptionFilter {
+  constructor(private readonly prisma: PrismaService) {}
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -24,15 +36,12 @@ export class SentryFilter implements ExceptionFilter {
       body = { message };
     }
 
-    // Log to Sentry if DSN is set and it's a 5xx error
     const dsn = process.env.SENTRY_DSN;
     if (status >= 500) {
       console.error("[API Error]", exception);
     }
     if (dsn && status >= 500) {
-      this.sendToSentry(dsn, exception, request).catch((err) => {
-        console.error("Failed to send error to Sentry:", err);
-      });
+      void this.sendToSentry(dsn, exception, request);
     }
 
     response.status(status).json({
@@ -51,6 +60,17 @@ export class SentryFilter implements ExceptionFilter {
       const url = `https://${host}/api/${projectId}/store/`;
 
       const err = exception instanceof Error ? exception : new Error(String(exception));
+      const tenantId = request.user?.tenantId as string | undefined;
+      let subscriptionStatus: string | null = null;
+      if (tenantId) {
+        const row = await this.prisma.tenantSubscription.findUnique({
+          where: { tenantId },
+          select: { status: true }
+        });
+        subscriptionStatus = row?.status ?? null;
+      }
+
+      const { tags, extra } = buildSentryEventContext(request, subscriptionStatus);
 
       const event = {
         event_id: Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2),
@@ -61,6 +81,8 @@ export class SentryFilter implements ExceptionFilter {
           version: "1.0.0"
         },
         logger: "nestjs",
+        tags,
+        extra,
         exception: {
           values: [
             {

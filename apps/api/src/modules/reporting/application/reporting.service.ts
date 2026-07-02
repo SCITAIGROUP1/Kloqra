@@ -114,11 +114,14 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     const from = new Date(query.from);
     const to = new Date(query.to);
 
+    const manageableIds = await this.access.manageableProjectIds(workspaceId, userId, role);
+    const canManage = manageableIds.includes(projectId);
+
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
       projectId,
-      ...(role === "MEMBER" ? { userId } : {})
+      ...(!canManage ? { userId } : {})
     });
 
     const byTask = new Map<

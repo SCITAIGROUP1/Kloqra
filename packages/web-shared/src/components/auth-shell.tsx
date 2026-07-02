@@ -4,6 +4,8 @@ import { BRAND_NAME } from "@kloqra/contracts";
 import type { ReactNode } from "react";
 import { AuthHeroPanel } from "./auth-hero-panel";
 import { BrandMark } from "./brand-mark";
+import { LegalFooterLinks } from "./legal-footer";
+import { PlatformAuthHeroPanel } from "./platform-auth-hero-panel";
 
 export type AuthShellProps = {
   title: string;
@@ -11,9 +13,19 @@ export type AuthShellProps = {
   footer?: ReactNode;
   description?: string;
   portalLabel?: string;
+  variant?: "default" | "platform";
+  hero?: ReactNode;
 };
 
-export function AuthShell({ title, children, footer, description, portalLabel }: AuthShellProps) {
+export function AuthShell({
+  title,
+  children,
+  footer,
+  description,
+  portalLabel,
+  variant = "default",
+  hero
+}: AuthShellProps) {
   const year = new Date().getFullYear();
 
   return (
@@ -40,11 +52,17 @@ export function AuthShell({ title, children, footer, description, portalLabel }:
           </div>
 
           <footer className="px-4 pb-4 text-xs text-muted-foreground sm:px-5 sm:pb-5 md:px-8 md:pb-7 lg:px-10">
-            Copyright © {year} {BRAND_NAME}
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
+              <LegalFooterLinks />
+              <span className="mx-1 hidden sm:inline">·</span>
+              <span>
+                Copyright © {year} {BRAND_NAME}
+              </span>
+            </div>
           </footer>
         </div>
 
-        <AuthHeroPanel />
+        {hero ?? (variant === "platform" ? <PlatformAuthHeroPanel /> : <AuthHeroPanel />)}
       </div>
     </main>
   );

@@ -3,12 +3,18 @@ import { ReportingService } from "./reporting.service";
 
 describe("ReportingService.projectSummary", () => {
   let service: ReportingService;
-  let mockAccess: { assertCanAccessProject: ReturnType<typeof vi.fn> };
+  let mockAccess: {
+    assertCanAccessProject: ReturnType<typeof vi.fn>;
+    manageableProjectIds: ReturnType<typeof vi.fn>;
+  };
   let mockAggregation: { fetchLogs: ReturnType<typeof vi.fn> };
   let mockPrisma: { project: { findFirst: ReturnType<typeof vi.fn> } };
 
   beforeEach(() => {
-    mockAccess = { assertCanAccessProject: vi.fn().mockResolvedValue(undefined) };
+    mockAccess = {
+      assertCanAccessProject: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
     mockAggregation = { fetchLogs: vi.fn().mockResolvedValue([]) };
     mockPrisma = {
       project: {
