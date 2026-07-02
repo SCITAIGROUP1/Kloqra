@@ -134,13 +134,13 @@ function AdminTimeTrackerWeekSection({
     [group.weekStart, group.logs, timezone, weekStartPref, rangeFrom, rangeTo]
   );
 
-  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups));
+  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups, timezone));
 
   useEffect(() => {
     if (!dayGroups.some((day) => day.dayKey === activeDayKey)) {
-      setActiveDayKey(defaultActiveDayKey(dayGroups));
+      setActiveDayKey(defaultActiveDayKey(dayGroups, timezone));
     }
-  }, [group.weekKey, dayGroups, activeDayKey]);
+  }, [group.weekKey, dayGroups, activeDayKey, timezone]);
 
   const activeDay = dayGroups.find((day) => day.dayKey === activeDayKey);
   const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };

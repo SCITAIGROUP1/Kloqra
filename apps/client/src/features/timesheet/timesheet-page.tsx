@@ -8,8 +8,6 @@ import type {
   ListTimeLogsResponseDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
-  TaskDto,
-  ProjectDto,
   TimesheetPeriodDto,
   UserProfileDto,
   BatchTimeLogsResponseDto
@@ -27,8 +25,8 @@ import {
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
-  fetchListItems,
   parseMemberTimesheetSearch,
+  useWorkspaceStaleRefetch,
   WORKSPACE_DATA_STALE_EVENT,
   type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
@@ -77,13 +75,16 @@ import {
   useMySubmissions
 } from "@/features/submissions/use-my-submissions";
 import {
-  isTimeEntryLocked,
-  LOCKED_ENTRY_MESSAGE
+  INACTIVE_ENTITY_MESSAGE,
+  LOCKED_ENTRY_MESSAGE,
+  isTimeEntryReadOnly,
+  resolveTimeEntryFreezeReason
 } from "@/features/time-tracker/entry-approval-status";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
+import { refreshEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -144,7 +145,7 @@ export function TimesheetPage() {
 
   const { logs, setLogs } = useTimesheetStore();
   const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
+  const { tasks, projects, categories, workspaceNamesById } = useProjectsStore();
 
   const [view, setView] = useState<ViewMode>(() => deepLink.view ?? "week");
   const [mobileBannerDismissed, setMobileBannerDismissed] = useState(true);
@@ -294,10 +295,36 @@ export function TimesheetPage() {
 
   const isTimerEntry = useCallback((log: TimeLogDto) => log.source === "timer", []);
 
-  const isEntryLocked = useCallback(
-    (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
-    [projectForTask, submissionByKey]
+  const categoryForTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return undefined;
+      return categories.find((c) => c.id === task.categoryId);
+    },
+    [tasks, categories]
   );
+
+  const isEntryReadOnly = useCallback(
+    (log: TimeLogDto) => {
+      const task = tasks.find((t) => t.id === log.taskId);
+      const project = projectForTask(log.taskId);
+      const category = categoryForTask(log.taskId);
+      return isTimeEntryReadOnly(log, project, task, category, submissionByKey);
+    },
+    [tasks, projectForTask, categoryForTask, submissionByKey]
+  );
+
+  const freezeReasonForEntry = useCallback(
+    (log: TimeLogDto) => {
+      const task = tasks.find((t) => t.id === log.taskId);
+      const project = projectForTask(log.taskId);
+      const category = categoryForTask(log.taskId);
+      return resolveTimeEntryFreezeReason(log, project, task, category, submissionByKey);
+    },
+    [tasks, projectForTask, categoryForTask, submissionByKey]
+  );
+
+  const editingFreezeReason = editingLog ? freezeReasonForEntry(editingLog) : null;
 
   const calendarDays = useMemo(() => {
     if (view === "day") return [startOfDay(anchor)];
@@ -446,9 +473,15 @@ export function TimesheetPage() {
 
   useEffect(() => {
     if (!ws) return;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-  }, [ws, setTasks, setProjects]);
+    void refreshEntryCatalog(ws);
+  }, [ws]);
+
+  const reloadCatalog = useCallback(() => {
+    if (!ws) return;
+    void refreshEntryCatalog(ws);
+  }, [ws]);
+
+  useWorkspaceStaleRefetch(ws, ["projects", "tasks", "categories"], reloadCatalog, Boolean(ws));
 
   function goToday() {
     setAnchor(todayInZone(timezone));
@@ -532,7 +565,7 @@ export function TimesheetPage() {
 
   async function saveEntry() {
     if (isImpersonating) return;
-    if (editingLog && isEntryLocked(editingLog)) return;
+    if (editingLog && isEntryReadOnly(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
       return;
@@ -628,8 +661,10 @@ export function TimesheetPage() {
     if (isImpersonating) return;
     const target = log ?? editingLog;
     if (!target) return;
-    if (isEntryLocked(target)) {
-      toast.error(LOCKED_ENTRY_MESSAGE);
+    if (isEntryReadOnly(target)) {
+      toast.error(
+        freezeReasonForEntry(target) === "approval" ? LOCKED_ENTRY_MESSAGE : INACTIVE_ENTITY_MESSAGE
+      );
       return;
     }
     setConfirmDeleteLog(target);
@@ -640,8 +675,10 @@ export function TimesheetPage() {
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
-    if (isEntryLocked(target)) {
-      toast.error(LOCKED_ENTRY_MESSAGE);
+    if (isEntryReadOnly(target)) {
+      toast.error(
+        freezeReasonForEntry(target) === "approval" ? LOCKED_ENTRY_MESSAGE : INACTIVE_ENTITY_MESSAGE
+      );
       return;
     }
     setSaving(true);
@@ -661,7 +698,7 @@ export function TimesheetPage() {
   }
 
   async function duplicateEntry(log: TimeLogDto, start: Date, end: Date) {
-    if (isImpersonating || isEntryLocked(log)) return;
+    if (isImpersonating || isEntryReadOnly(log)) return;
     if (end <= start) return;
     const conflict = findOccupancyConflict(occupancy, start, end);
     if (conflict) {
@@ -694,7 +731,7 @@ export function TimesheetPage() {
   }
 
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
-    if (isImpersonating || isEntryLocked(log) || isTimerEntry(log)) return;
+    if (isImpersonating || isEntryReadOnly(log) || isTimerEntry(log)) return;
     if (end <= start) return;
 
     const conflict = findOccupancyConflict(occupancy, start, end, log.id);
@@ -923,7 +960,8 @@ export function TimesheetPage() {
             entryColor={entryColor}
             activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
             liveElapsedSec={liveElapsedSec}
-            isEntryLocked={isEntryLocked}
+            isEntryReadOnly={isEntryReadOnly}
+            freezeReasonForEntry={freezeReasonForEntry}
             isTimerEntry={isTimerEntry}
             overlapConflictMessage={overlapConflictMessage}
             onSlotClick={openCreateSlot}
@@ -945,18 +983,20 @@ export function TimesheetPage() {
         draft={draft}
         projects={projects}
         tasks={tasks}
+        categories={categories}
         taskLabel={taskLabel}
         workspaceNames={workspaceNamesById}
         editingLog={editingLog}
         saving={saving}
         error={error}
-        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
+        readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
+        freezeReason={editingFreezeReason}
         workspaceId={ws}
         onClose={closeDialog}
         onDraftChange={setDraft}
         onSave={saveEntry}
         onDelete={
-          !isImpersonating && editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined
+          !isImpersonating && editingLog && !isEntryReadOnly(editingLog) ? deleteEntry : undefined
         }
         timezone={timezone}
         jiraSuggestions={jiraIssues}

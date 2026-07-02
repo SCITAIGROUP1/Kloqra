@@ -34,7 +34,9 @@ import {
   formatDayHeaderShort,
   type TimesheetDisplayFormat
 } from "./display-format";
-import { entryColorsFromProject } from "@/lib/project-color-styles";
+import type { TimeEntryFreezeReason } from "@/features/time-tracker/entry-approval-status";
+import { messageForFreezeReason } from "@/features/time-tracker/entry-approval-status";
+import { entryColorsFromProject, inactiveEntryColors } from "@/lib/project-color-styles";
 
 export type SlotSelect = {
   dayKey: string;
@@ -70,7 +72,8 @@ export type TimesheetCalendarProps = {
   entryColor: (taskId: string) => string;
   activeTimer?: ActiveTimerDto | null;
   liveElapsedSec?: number;
-  isEntryLocked: (log: TimeLogDto) => boolean;
+  isEntryReadOnly: (log: TimeLogDto) => boolean;
+  freezeReasonForEntry?: (log: TimeLogDto) => TimeEntryFreezeReason | null;
   isTimerEntry: (log: TimeLogDto) => boolean;
   overlapConflictMessage: (conflict: {
     workspaceName: string;
@@ -119,7 +122,8 @@ export function TimesheetCalendar({
   entryColor,
   activeTimer,
   liveElapsedSec = 0,
-  isEntryLocked,
+  isEntryReadOnly,
+  freezeReasonForEntry,
   isTimerEntry,
   overlapConflictMessage,
   onSlotClick,
@@ -562,7 +566,8 @@ export function TimesheetCalendar({
                 compact={view === "week"}
                 readOnly={readOnly}
                 timezone={timezone}
-                isEntryLocked={isEntryLocked}
+                isEntryReadOnly={isEntryReadOnly}
+                freezeReasonForEntry={freezeReasonForEntry}
                 isTimerEntry={isTimerEntry}
                 previewConflict={previewConflict}
                 isSlotSelected={(idx) => isSlotSelected(calendarDateKey(day, timezone), idx)}
@@ -609,7 +614,7 @@ export function TimesheetCalendar({
                   deferToParent(() => onEntryClick(log));
                 }}
                 onResizeStart={(log, clip, edge) => {
-                  if (readOnly || isEntryLocked(log) || isTimerEntry(log)) return;
+                  if (readOnly || isEntryReadOnly(log) || isTimerEntry(log)) return;
                   setResize({
                     log,
                     day,
@@ -650,7 +655,8 @@ function DayColumn({
   movingLogId,
   readOnly,
   timezone,
-  isEntryLocked,
+  isEntryReadOnly,
+  freezeReasonForEntry,
   isTimerEntry,
   previewConflict,
   onSlotPointerDown,
@@ -685,7 +691,8 @@ function DayColumn({
   movingLogId: string | null;
   readOnly: boolean;
   timezone: string;
-  isEntryLocked: (log: TimeLogDto) => boolean;
+  isEntryReadOnly: (log: TimeLogDto) => boolean;
+  freezeReasonForEntry?: (log: TimeLogDto) => TimeEntryFreezeReason | null;
   isTimerEntry: (log: TimeLogDto) => boolean;
   previewConflict: (
     logId: string,
@@ -895,14 +902,19 @@ function DayColumn({
           const isResizing = resizePreview?.log.id === log.id;
           const isDraggingCopy = isDuplicatingThis === log.id;
           const isDraggingMove = isMovingThis === log.id;
-          const locked = isEntryLocked(log);
+          const freezeReason = freezeReasonForEntry?.(log) ?? null;
+          const readOnlyEntry = isEntryReadOnly(log);
           const timer = isTimerEntry(log);
-          const entryReadOnly = readOnly || locked || timer;
+          const entryReadOnly = readOnly || readOnlyEntry || timer;
+          const inactiveFrozen =
+            freezeReason === "project" || freezeReason === "category" || freezeReason === "task";
+          const approvalLocked = freezeReason === "approval";
           const display = isResizing
             ? { start: resizePreview.previewStart, end: resizePreview.previewEnd }
             : clip;
           const style = blockStyle(display.start, display.end, timezone);
-          const colors = entryColorsFromProject(entryColor(log.taskId));
+          const baseColors = entryColorsFromProject(entryColor(log.taskId));
+          const colors = inactiveFrozen ? inactiveEntryColors(baseColors) : baseColors;
 
           return (
             <div
@@ -910,8 +922,9 @@ function DayColumn({
               className={cn(
                 "pointer-events-auto absolute left-0.5 right-0.5 overflow-hidden rounded-md border shadow-sm",
                 (isDraggingCopy || isDraggingMove) && "opacity-40",
-                locked && "border-dashed border-muted-foreground/40 opacity-95",
-                timer && !locked && "border-dotted border-muted-foreground/35"
+                (inactiveFrozen || approvalLocked) &&
+                  "border-dashed border-muted-foreground/40 opacity-95",
+                timer && !readOnlyEntry && "border-dotted border-muted-foreground/35"
               )}
               style={{
                 top: style.top,
@@ -969,8 +982,8 @@ function DayColumn({
                   onEntryClick(log);
                 }}
                 title={
-                  locked
-                    ? `${taskName(log.taskId)} — locked (submitted or approved)`
+                  freezeReason
+                    ? `${taskName(log.taskId)} — ${messageForFreezeReason(freezeReason)}`
                     : timer
                       ? `${taskName(log.taskId)} — timer entry (view only)`
                       : readOnly
@@ -983,7 +996,16 @@ function DayColumn({
                   description={log.description}
                   durationSec={log.durationSec}
                   compact={compact}
-                  variant={locked ? "locked" : timer ? "timer" : "default"}
+                  variant={
+                    inactiveFrozen
+                      ? "frozen"
+                      : approvalLocked
+                        ? "locked"
+                        : timer
+                          ? "timer"
+                          : "default"
+                  }
+                  lockTooltip={freezeReason ? messageForFreezeReason(freezeReason) : undefined}
                 />
               </button>
               {!entryReadOnly && (

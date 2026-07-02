@@ -1,16 +1,14 @@
 /** @vitest-environment jsdom */
 /* eslint-disable import/order -- vitest mocks must precede subject import */
-import { ROUTES } from "@kloqra/contracts";
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 const workspaceId = "22222222-2222-4222-8222-222222222222";
 
 const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
-  setProjects: vi.fn(),
-  setTasks: vi.fn(),
-  invalidateListItemsCache: vi.fn(),
-  fetchListItems: vi.fn().mockResolvedValue([])
+  refreshEntryCatalog: vi.fn().mockResolvedValue({ projects: [], tasks: [], categories: [] }),
+  WORKSPACE_DATA_STALE_EVENT: "kloqra:workspace-data-stale"
 }));
 
 vi.mock("@/stores/member-data.store", () => ({
@@ -19,22 +17,15 @@ vi.mock("@/stores/member-data.store", () => ({
   }
 }));
 
-vi.mock("@/stores/projects.store", () => ({
-  useProjectsStore: {
-    getState: () => ({ setProjects: mocks.setProjects, setTasks: mocks.setTasks })
-  }
+vi.mock("./entry-catalog", () => ({
+  refreshEntryCatalog: mocks.refreshEntryCatalog
 }));
 
-vi.mock("@kloqra/web-shared", async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...(actual as Record<string, unknown>),
-    invalidateListItemsCache: mocks.invalidateListItemsCache,
-    fetchListItems: mocks.fetchListItems
-  };
-});
+vi.mock("@kloqra/web-shared", () => ({
+  WORKSPACE_DATA_STALE_EVENT: mocks.WORKSPACE_DATA_STALE_EVENT
+}));
 
-// Import after mocks — workspace-data-sync pulls mocked @kloqra/web-shared at load time.
+// Import after mocks — workspace-data-sync pulls mocked modules at load time.
 import { useClientWorkspaceDataSync } from "./workspace-data-sync";
 
 describe("useClientWorkspaceDataSync", () => {
@@ -42,76 +33,66 @@ describe("useClientWorkspaceDataSync", () => {
     vi.clearAllMocks();
   });
 
-  it("invalidates submissions when timesheet scope is stale", async () => {
-    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
-
+  it("invalidates submissions when timesheet scope is stale", () => {
     renderHook(() => useClientWorkspaceDataSync(workspaceId));
     window.dispatchEvent(
-      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+      new CustomEvent(mocks.WORKSPACE_DATA_STALE_EVENT, {
         detail: { workspaceId, scopes: ["timesheet"] }
       })
     );
 
     expect(mocks.invalidate).toHaveBeenCalledWith(workspaceId);
+    expect(mocks.refreshEntryCatalog).not.toHaveBeenCalled();
   });
 
-  it("refetches projects and tasks when projects scope is stale", async () => {
-    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
-    mocks.fetchListItems.mockResolvedValue([
-      { id: "p1", name: "Alpha", color: "#236bfe", isActive: true, timesheetApprovalEnabled: false }
-    ] as never);
-
+  it("refetches full catalog when projects scope is stale", async () => {
     renderHook(() => useClientWorkspaceDataSync(workspaceId));
     window.dispatchEvent(
-      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+      new CustomEvent(mocks.WORKSPACE_DATA_STALE_EVENT, {
         detail: { workspaceId, scopes: ["projects"] }
       })
     );
 
     await vi.waitFor(() => {
-      expect(mocks.invalidateListItemsCache).toHaveBeenCalledWith({ workspaceId });
-      expect(mocks.fetchListItems).toHaveBeenCalledWith(ROUTES.PROJECTS.LIST, {
-        workspaceId,
-        bypassCache: true
-      });
-      expect(mocks.fetchListItems).toHaveBeenCalledWith(ROUTES.TASKS.LIST, {
-        workspaceId,
-        bypassCache: true
-      });
-      expect(mocks.setProjects).toHaveBeenCalled();
-      expect(mocks.setTasks).toHaveBeenCalled();
+      expect(mocks.refreshEntryCatalog).toHaveBeenCalledWith(workspaceId);
     });
   });
 
-  it("refetches tasks when tasks scope is stale", async () => {
-    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
-
+  it("refetches full catalog when tasks scope is stale", async () => {
     renderHook(() => useClientWorkspaceDataSync(workspaceId));
     window.dispatchEvent(
-      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+      new CustomEvent(mocks.WORKSPACE_DATA_STALE_EVENT, {
         detail: { workspaceId, scopes: ["tasks"] }
       })
     );
 
     await vi.waitFor(() => {
-      expect(mocks.fetchListItems).toHaveBeenCalledWith(ROUTES.TASKS.LIST, {
-        workspaceId,
-        bypassCache: true
-      });
-      expect(mocks.setTasks).toHaveBeenCalled();
+      expect(mocks.refreshEntryCatalog).toHaveBeenCalledWith(workspaceId);
     });
   });
 
-  it("ignores stale events for other workspaces", async () => {
-    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
-
+  it("refetches full catalog when categories scope is stale", async () => {
     renderHook(() => useClientWorkspaceDataSync(workspaceId));
     window.dispatchEvent(
-      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+      new CustomEvent(mocks.WORKSPACE_DATA_STALE_EVENT, {
+        detail: { workspaceId, scopes: ["categories"] }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.refreshEntryCatalog).toHaveBeenCalledWith(workspaceId);
+    });
+  });
+
+  it("ignores stale events for other workspaces", () => {
+    renderHook(() => useClientWorkspaceDataSync(workspaceId));
+    window.dispatchEvent(
+      new CustomEvent(mocks.WORKSPACE_DATA_STALE_EVENT, {
         detail: { workspaceId: "other-ws", scopes: ["submissions"] }
       })
     );
 
     expect(mocks.invalidate).not.toHaveBeenCalled();
+    expect(mocks.refreshEntryCatalog).not.toHaveBeenCalled();
   });
 });

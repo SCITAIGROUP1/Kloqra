@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } fro
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
+import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -42,7 +43,14 @@ export function QuickActions({
   mode = "all"
 }: QuickActionsProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { projects, tasks } = useProjectsStore();
+  const { projects, tasks, categories } = useProjectsStore();
+
+  const loggingProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const loggingTasks = useMemo(
+    () => filterLoggingTasks(tasks, projects, categories),
+    [tasks, projects, categories]
+  );
+  const loggableTaskIds = useMemo(() => new Set(loggingTasks.map((t) => t.id)), [loggingTasks]);
 
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [recents, setRecents] = useState<RecentItem[]>([]);
@@ -54,14 +62,16 @@ export function QuickActions({
   } | null>(null);
 
   const filteredFavorites = useMemo(() => {
-    if (!filterProjectId) return favorites;
-    return favorites.filter((f) => f.projectId === filterProjectId);
-  }, [favorites, filterProjectId]);
+    const loggable = favorites.filter((f) => loggableTaskIds.has(f.taskId));
+    if (!filterProjectId) return loggable;
+    return loggable.filter((f) => f.projectId === filterProjectId);
+  }, [favorites, filterProjectId, loggableTaskIds]);
 
   const filteredRecents = useMemo(() => {
-    if (!filterProjectId) return recents;
-    return recents.filter((r) => r.projectId === filterProjectId);
-  }, [recents, filterProjectId]);
+    const loggable = recents.filter((r) => loggableTaskIds.has(r.taskId));
+    if (!filterProjectId) return loggable;
+    return loggable.filter((r) => r.projectId === filterProjectId);
+  }, [recents, filterProjectId, loggableTaskIds]);
 
   // Load favorites from localStorage
   useEffect(() => {
@@ -87,7 +97,7 @@ export function QuickActions({
 
   // Fetch recent time logs to build recents list
   const fetchRecents = useCallback(async () => {
-    if (!ws || projects.length === 0 || tasks.length === 0) return;
+    if (!ws || loggingProjects.length === 0 || loggingTasks.length === 0) return;
     try {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -112,9 +122,9 @@ export function QuickActions({
 
       const recentItems: RecentItem[] = [];
       for (const tId of sortedTaskIds.slice(0, 3)) {
-        const task = tasks.find((t) => t.id === tId);
+        const task = loggingTasks.find((t) => t.id === tId);
         if (task) {
-          const project = projects.find((p) => p.id === task.projectId);
+          const project = loggingProjects.find((p) => p.id === task.projectId);
           if (project) {
             recentItems.push({
               projectId: project.id,
@@ -131,7 +141,7 @@ export function QuickActions({
     } catch {
       // ignore
     }
-  }, [ws, projects, tasks]);
+  }, [ws, loggingProjects, loggingTasks]);
 
   useEffect(() => {
     void fetchRecents();
@@ -158,8 +168,8 @@ export function QuickActions({
       saveFavorites(updated);
     } else {
       // Add it
-      const task = tasks.find((t) => t.id === currentTaskId);
-      const project = projects.find((p) => p.id === currentProjectId);
+      const task = loggingTasks.find((t) => t.id === currentTaskId);
+      const project = loggingProjects.find((p) => p.id === currentProjectId);
 
       if (task && project) {
         if (favorites.length >= 3) {

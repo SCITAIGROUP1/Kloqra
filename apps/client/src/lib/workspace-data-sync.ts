@@ -1,34 +1,12 @@
 "use client";
 
-import { ROUTES, type ProjectDto, type TaskDto } from "@kloqra/contracts";
-import {
-  fetchListItems,
-  invalidateListItemsCache,
-  WORKSPACE_DATA_STALE_EVENT,
-  type WorkspaceDataStaleDetail
-} from "@kloqra/web-shared";
+import { WORKSPACE_DATA_STALE_EVENT, type WorkspaceDataStaleDetail } from "@kloqra/web-shared";
 import { useEffect } from "react";
+import { refreshEntryCatalog } from "./entry-catalog";
 import { useMySubmissionsStore } from "@/stores/member-data.store";
-import { useProjectsStore } from "@/stores/projects.store";
 
-function refetchProjects(workspaceId: string) {
-  invalidateListItemsCache({ workspaceId });
-  void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
-    workspaceId,
-    bypassCache: true
-  }).then((items) => {
-    useProjectsStore.getState().setProjects(items);
-  });
-}
-
-function refetchTasks(workspaceId: string) {
-  invalidateListItemsCache({ workspaceId });
-  void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
-    workspaceId,
-    bypassCache: true
-  }).then((items) => {
-    useProjectsStore.getState().setTasks(items);
-  });
+function refetchCatalog(workspaceId: string) {
+  void refreshEntryCatalog(workspaceId);
 }
 
 export function useClientWorkspaceDataSync(workspaceId: string) {
@@ -42,11 +20,12 @@ export function useClientWorkspaceDataSync(workspaceId: string) {
       if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
         useMySubmissionsStore.getState().invalidate(workspaceId);
       }
-      if (detail.scopes.includes("projects")) {
-        refetchProjects(workspaceId);
-      }
-      if (detail.scopes.includes("tasks") || detail.scopes.includes("projects")) {
-        refetchTasks(workspaceId);
+      if (
+        detail.scopes.includes("projects") ||
+        detail.scopes.includes("tasks") ||
+        detail.scopes.includes("categories")
+      ) {
+        refetchCatalog(workspaceId);
       }
     };
 

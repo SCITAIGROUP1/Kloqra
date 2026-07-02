@@ -7,6 +7,7 @@ export const categorySchema = z.object({
   workspaceId: uuidSchema,
   name: z.string().min(1).max(120),
   description: z.string().max(500).nullable(),
+  isActive: z.boolean(),
   taskCount: z.number().int().nonnegative().optional()
 });
 
@@ -19,10 +20,16 @@ export const createCategorySchema = z.object({
 
 export const updateCategorySchema = z.object({
   name: z.string().min(1).max(120).optional(),
-  description: z.string().max(500).nullable().optional()
+  description: z.string().max(500).nullable().optional(),
+  isActive: z.boolean().optional()
 });
 
-export const listCategoriesQuerySchema = listPaginationQuerySchema;
+export const listCategoriesQuerySchema = listPaginationQuerySchema.extend({
+  isActive: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === true || v === "true"))
+});
 
 export const listCategoriesResponseSchema =
   createPaginatedListResponseSchema(categoryListItemSchema);

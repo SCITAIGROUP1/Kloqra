@@ -23,7 +23,7 @@ export class ProjectAccessService {
       where: {
         userId,
         isActive: true,
-        team: { project: { workspaceId, isActive: true } }
+        team: { project: { workspaceId } }
       },
       select: { team: { select: { projectId: true } } }
     });
@@ -54,13 +54,35 @@ export class ProjectAccessService {
       where: {
         userId,
         isActive: true,
-        team: { projectId, project: { workspaceId, isActive: true } }
+        team: { projectId, project: { workspaceId } }
       }
     });
     if (!membership) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "You are not on this project's team",
+        HttpStatus.FORBIDDEN
+      );
+    }
+  }
+
+  async assertTaskLoggable(workspaceId: string, taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, project: { workspaceId } },
+      select: {
+        id: true,
+        isActive: true,
+        category: { select: { isActive: true } },
+        project: { select: { isActive: true } }
+      }
+    });
+    if (!task) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
+    }
+    if (!task.project.isActive || !task.category.isActive || !task.isActive) {
+      throw new DomainException(
+        ErrorCodes.ENTITY_INACTIVE,
+        "This task is not available for time logging",
         HttpStatus.FORBIDDEN
       );
     }
@@ -81,6 +103,7 @@ export class ProjectAccessService {
     }
 
     await this.assertCanAccessProject(workspaceId, userId, role, task.projectId);
+    await this.assertTaskLoggable(workspaceId, taskId);
 
     if (role === "ADMIN") return;
     if (task.isCommon) return;

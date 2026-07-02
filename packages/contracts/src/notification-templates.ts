@@ -15,6 +15,8 @@ export const notificationTemplateIdSchema = z.enum([
   "project.assigned",
   "project.unassigned",
   "project.deactivated",
+  "category.statusChanged",
+  "task.statusChanged",
   "project.approvalSettingsChanged",
   "task.assigned",
   "task.unassigned",
@@ -62,6 +64,15 @@ export const projectUnassignedContextSchema = z.object({
 export const projectDeactivatedContextSchema = z.object({
   projectName: z.string().min(1).max(120),
   projectId: uuidSchema
+});
+
+export const entityStatusChangedContextSchema = z.object({
+  categoryName: z.string().min(1).max(120).optional(),
+  categoryId: uuidSchema.optional(),
+  taskName: z.string().min(1).max(120).optional(),
+  taskId: uuidSchema.optional(),
+  projectId: uuidSchema.optional(),
+  isActive: z.boolean()
 });
 
 export const projectApprovalSettingsChangedContextSchema = z.object({
@@ -200,6 +211,8 @@ const TEMPLATE_CONTEXT_SCHEMAS = {
   "project.assigned": projectAssignedContextSchema,
   "project.unassigned": projectUnassignedContextSchema,
   "project.deactivated": projectDeactivatedContextSchema,
+  "category.statusChanged": entityStatusChangedContextSchema,
+  "task.statusChanged": entityStatusChangedContextSchema,
   "project.approvalSettingsChanged": projectApprovalSettingsChangedContextSchema,
   "task.assigned": taskAssignedContextSchema,
   "task.unassigned": taskAssignedContextSchema,
@@ -257,6 +270,14 @@ const TEMPLATE_META: Record<
   "project.deactivated": {
     type: NotificationType.PROJECT_DEACTIVATED,
     preferenceKey: "projectAssignment"
+  },
+  "category.statusChanged": {
+    type: NotificationType.CATEGORY_STATUS_CHANGED,
+    preferenceKey: "projectAssignment"
+  },
+  "task.statusChanged": {
+    type: NotificationType.TASK_STATUS_CHANGED,
+    preferenceKey: "taskAssignment"
   },
   "project.approvalSettingsChanged": {
     type: NotificationType.TIMESHEET_STATUS,
@@ -493,6 +514,52 @@ function renderTemplate(
           variant: "warning",
           ctaLabel: "View projects",
           details: [{ label: "Project", value: c.projectName }]
+        }
+      };
+    }
+    case "category.statusChanged": {
+      const c = context as NotificationTemplateContextMap["category.statusChanged"];
+      const name = c.categoryName ?? "Category";
+      return {
+        type,
+        preferenceKey,
+        title: c.isActive ? "Category activated" : "Category deactivated",
+        body: c.isActive
+          ? `${name} is active again. Tasks in this category may be available for time logging.`
+          : `${name} was deactivated. Tasks in this category are no longer available for time logging.`,
+        emailSubject: subjectPrefix(
+          c.isActive ? `Category activated — ${name}` : `Category deactivated — ${name}`
+        ),
+        preheader: c.isActive ? `${name} is active again.` : `${name} is no longer active.`,
+        metadata: {
+          href: "/categories",
+          variant: c.isActive ? "info" : "warning",
+          ctaLabel: "View categories",
+          details: [{ label: "Category", value: name }]
+        }
+      };
+    }
+    case "task.statusChanged": {
+      const c = context as NotificationTemplateContextMap["task.statusChanged"];
+      const name = c.taskName ?? "Task";
+      return {
+        type,
+        preferenceKey,
+        title: c.isActive ? "Task activated" : "Task deactivated",
+        body: c.isActive
+          ? `${name} is active again and may be available for time logging.`
+          : `${name} was deactivated and is no longer available for time logging.`,
+        emailSubject: subjectPrefix(
+          c.isActive ? `Task activated — ${name}` : `Task deactivated — ${name}`
+        ),
+        preheader: c.isActive ? `${name} is active again.` : `${name} is no longer active.`,
+        metadata: {
+          href: c.projectId ? `/projects/${c.projectId}/tasks` : "/projects",
+          projectId: c.projectId,
+          taskId: c.taskId,
+          variant: c.isActive ? "info" : "warning",
+          ctaLabel: "View tasks",
+          details: [{ label: "Task", value: name }]
         }
       };
     }

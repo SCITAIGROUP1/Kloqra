@@ -1,6 +1,6 @@
 "use client";
 
-import { AppBar, Badge, Button, EmptyState, ProjectNameWithColor, Skeleton } from "@kloqra/ui";
+import { AppBar, Button, EmptyState, ProjectNameWithColor, Skeleton } from "@kloqra/ui";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
@@ -11,6 +11,7 @@ import {
   resolveProjectDetailSection,
   type ProjectDetailSectionId
 } from "./project-detail-nav";
+import { EntityStatusBadge } from "@/components/entity-status-badge";
 
 const SECTION_COPY: Record<ProjectDetailSectionId, { title: string; description: string }> = {
   overview: {
@@ -73,9 +74,7 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
               color={project.color}
               className="text-2xl font-semibold tracking-tight"
             />
-            <Badge variant={project.isActive ? "default" : "secondary"}>
-              {project.isActive ? "Active" : "Inactive"}
-            </Badge>
+            <EntityStatusBadge isActive={project.isActive} />
           </span>
         }
         description={

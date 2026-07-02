@@ -30,6 +30,14 @@ describe("scopesForNotificationType", () => {
     ]);
   });
 
+  it("maps category status change to categories and tasks scopes", () => {
+    expect(scopesForNotificationType("CATEGORY_STATUS_CHANGED")).toEqual(["categories", "tasks"]);
+  });
+
+  it("maps task status change to projects and tasks scopes", () => {
+    expect(scopesForNotificationType("TASK_STATUS_CHANGED")).toEqual(["projects", "tasks"]);
+  });
+
   it("returns empty for unrelated types", () => {
     expect(scopesForNotificationType(NotificationType.EXPORT_SCHEDULE)).toEqual([]);
   });

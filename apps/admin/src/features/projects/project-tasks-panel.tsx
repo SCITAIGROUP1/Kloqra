@@ -5,6 +5,7 @@ import type { CategoryDto, TaskDto } from "@kloqra/contracts";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   Input,
   Label,
   SearchableSelect,
@@ -14,10 +15,16 @@ import {
   CenteredLoader
 } from "@kloqra/ui";
 import { SettingsCard, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
-import { ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
+import { ListTodo, Lock, Pencil, Plus, Trash2, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { getDeleteTaskConfirmationMessage } from "./delete-task-confirmation";
+import { useProjectDetail } from "./project-detail-context";
+import {
+  getActivateTaskConfirmation,
+  getDeactivateTaskConfirmation,
+  getDeleteTaskConfirmation
+} from "./task-confirmation";
+import { EntityStatusBadge } from "@/components/entity-status-badge";
 import { api } from "@/lib/api";
 
 type Props = {
@@ -25,7 +32,21 @@ type Props = {
   projectId: string;
 };
 
+type TaskConfirmAction =
+  | { type: "delete"; task: TaskDto }
+  | { type: "deactivate"; task: TaskDto }
+  | { type: "activate"; task: TaskDto };
+
+function taskIsActive(task: TaskDto): boolean {
+  return task.isActive !== false;
+}
+
+function categoryIsActive(category: CategoryDto | undefined): boolean {
+  return category?.isActive !== false;
+}
+
 export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
+  const { project } = useProjectDetail();
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,12 +69,26 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [editIsCommon, setEditIsCommon] = useState(true);
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<TaskConfirmAction | null>(null);
+
+  const confirmCopy = confirmAction
+    ? confirmAction.type === "delete"
+      ? getDeleteTaskConfirmation(confirmAction.task.taskName)
+      : confirmAction.type === "deactivate"
+        ? getDeactivateTaskConfirmation(confirmAction.task.taskName)
+        : getActivateTaskConfirmation(confirmAction.task.taskName)
+    : null;
 
   const categoryById = useMemo(() => {
     const m = new Map<string, CategoryDto>();
     for (const c of categories) m.set(c.id, c);
     return m;
   }, [categories]);
+
+  const activeCategories = useMemo(
+    () => categories.filter((category) => categoryIsActive(category)),
+    [categories]
+  );
 
   useEffect(() => {
     if (!workspaceId || !projectId) return;
@@ -62,10 +97,10 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   }, [workspaceId, projectId]);
 
   useEffect(() => {
-    if (!newCategoryId && categories.length > 0) {
-      setNewCategoryId(categories[0]!.id);
+    if (!newCategoryId && activeCategories.length > 0) {
+      setNewCategoryId(activeCategories[0]!.id);
     }
-  }, [categories, newCategoryId]);
+  }, [activeCategories, newCategoryId]);
 
   const activeTeamOptions = useMemo(
     () =>
@@ -196,13 +231,11 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   }
 
   async function removeTask(task: TaskDto) {
-    if (!window.confirm(getDeleteTaskConfirmationMessage(task.taskName))) {
-      return;
-    }
     setBusyId(task.id);
     setError(null);
     try {
       await api(ROUTES.TASKS.BY_ID(task.id), { method: "DELETE", workspaceId });
+      setConfirmAction(null);
       toast.success(`"${task.taskName}" deleted.`);
       await refresh();
     } catch (err) {
@@ -212,6 +245,60 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function setTaskActive(task: TaskDto, isActive: boolean) {
+    setBusyId(task.id);
+    setError(null);
+    try {
+      await api(ROUTES.TASKS.BY_ID(task.id), {
+        method: "PATCH",
+        workspaceId,
+        body: JSON.stringify({ isActive })
+      });
+      setConfirmAction(null);
+      toast.success(isActive ? `"${task.taskName}" activated.` : `"${task.taskName}" deactivated.`);
+      await refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not update task status.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function getTaskActivationBlockReason(task: TaskDto): string | null {
+    if (project?.isActive === false) {
+      return "Cannot activate task while the project is inactive.";
+    }
+    const category = categoryById.get(task.categoryId);
+    if (category && !categoryIsActive(category)) {
+      return "Cannot activate task while its category is inactive.";
+    }
+    return null;
+  }
+
+  function handleToggleTaskStatus(task: TaskDto) {
+    if (taskIsActive(task)) {
+      setConfirmAction({ type: "deactivate", task });
+      return;
+    }
+    const blockReason = getTaskActivationBlockReason(task);
+    if (blockReason) {
+      toast.error(blockReason);
+      return;
+    }
+    setConfirmAction({ type: "activate", task });
+  }
+
+  function handleConfirmAction() {
+    if (!confirmAction) return;
+    if (confirmAction.type === "delete") {
+      void removeTask(confirmAction.task);
+      return;
+    }
+    void setTaskActive(confirmAction.task, confirmAction.type === "activate");
   }
 
   const grouped = useMemo(() => {
@@ -238,6 +325,10 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
         <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-sm">
           No categories yet. Create at least one category before adding tasks.
         </div>
+      ) : activeCategories.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-sm">
+          No active categories. Activate a category before adding tasks.
+        </div>
       ) : (
         <SettingsCard
           icon={Plus}
@@ -263,7 +354,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                   id="new-task-category"
                   value={newCategoryId}
                   onValueChange={setNewCategoryId}
-                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                  options={activeCategories.map((c) => ({ value: c.id, label: c.name }))}
                   placeholder="Choose category"
                   searchPlaceholder="Search categories…"
                   aria-label="Category"
@@ -513,9 +604,12 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 </p>
                               )}
                             </div>
-                            <Badge variant={task.billableDefault ? "default" : "secondary"}>
-                              {task.billableDefault ? "Billable" : "Non-billable"}
-                            </Badge>
+                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                              {!taskIsActive(task) ? <EntityStatusBadge isActive={false} /> : null}
+                              <Badge variant={task.billableDefault ? "default" : "secondary"}>
+                                {task.billableDefault ? "Billable" : "Non-billable"}
+                              </Badge>
+                            </div>
                             <div className="flex shrink-0 items-center gap-1">
                               <Button
                                 type="button"
@@ -531,8 +625,36 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 type="button"
                                 size="icon"
                                 variant="ghost"
+                                className="size-8"
+                                disabled={
+                                  busyId === task.id ||
+                                  (!taskIsActive(task) &&
+                                    getTaskActivationBlockReason(task) !== null)
+                                }
+                                title={
+                                  !taskIsActive(task)
+                                    ? (getTaskActivationBlockReason(task) ?? undefined)
+                                    : undefined
+                                }
+                                onClick={() => handleToggleTaskStatus(task)}
+                                aria-label={
+                                  taskIsActive(task)
+                                    ? `Deactivate ${task.taskName}`
+                                    : `Activate ${task.taskName}`
+                                }
+                              >
+                                {taskIsActive(task) ? (
+                                  <Lock className="size-4" aria-hidden />
+                                ) : (
+                                  <Unlock className="size-4" aria-hidden />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
                                 className="size-8 text-destructive hover:text-destructive"
-                                onClick={() => void removeTask(task)}
+                                onClick={() => setConfirmAction({ type: "delete", task })}
                                 disabled={busyId === task.id}
                                 aria-label={`Delete ${task.taskName}`}
                               >
@@ -550,6 +672,16 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           </div>
         )}
       </SettingsCard>
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmCopy?.title ?? ""}
+        description={confirmCopy?.description}
+        confirmLabel={confirmCopy?.confirmLabel}
+        destructive={confirmCopy?.destructive}
+        onConfirm={() => void handleConfirmAction()}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import type {
   TimeLogDto,
   TaskDto,
   ProjectDto,
+  CategoryDto,
   ListTimelogAuditEventsResponseDto,
   JiraIssueDto
 } from "@kloqra/contracts";
@@ -32,7 +33,13 @@ import {
   taskSaveHint
 } from "./time-entry-draft";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
+import {
+  INACTIVE_ENTITY_MESSAGE,
+  LOCKED_ENTRY_MESSAGE,
+  type TimeEntryFreezeReason
+} from "@/features/time-tracker/entry-approval-status";
 import { api } from "@/lib/api";
+import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { formatProjectLabel } from "@/lib/project-labels";
 
 export type { TimeEntryDraft } from "./time-entry-draft";
@@ -52,6 +59,7 @@ type TimeEntryDialogProps = {
   draft: TimeEntryDraft | null;
   projects: ProjectDto[];
   tasks: TaskDto[];
+  categories?: CategoryDto[];
   taskLabel: (taskId: string) => string;
   workspaceNames?: Record<string, string>;
   editingLog?: TimeLogDto | null;
@@ -62,6 +70,7 @@ type TimeEntryDialogProps = {
   onSave: () => void;
   onDelete?: () => void;
   readOnly?: boolean;
+  freezeReason?: TimeEntryFreezeReason | null;
   workspaceId?: string;
   timezone?: string;
   jiraSuggestions?: JiraIssueDto[];
@@ -73,6 +82,7 @@ export function TimeEntryDialog({
   draft,
   projects,
   tasks,
+  categories = [],
   workspaceNames,
   editingLog,
   saving,
@@ -82,6 +92,7 @@ export function TimeEntryDialog({
   onSave,
   onDelete,
   readOnly = false,
+  freezeReason = null,
   workspaceId,
   timezone = "UTC",
   jiraSuggestions = []
@@ -113,9 +124,21 @@ export function TimeEntryDialog({
     }
   }, [open, editingLog]);
 
+  const editingAllowed = !readOnly && editingLog?.source !== "timer";
+
+  const selectableProjects = useMemo(() => {
+    if (!editingAllowed) return projects;
+    return filterLoggingProjects(projects);
+  }, [editingAllowed, projects]);
+
+  const selectableTasks = useMemo(() => {
+    if (!editingAllowed) return tasks;
+    return filterLoggingTasks(tasks, projects, categories);
+  }, [editingAllowed, tasks, projects, categories]);
+
   const projectTasks = useMemo(
-    () => (draft ? tasks.filter((t) => t.projectId === draft.projectId) : []),
-    [tasks, draft]
+    () => (draft ? selectableTasks.filter((t) => t.projectId === draft.projectId) : []),
+    [selectableTasks, draft]
   );
 
   const projectTasksByCategory = useMemo(() => {
@@ -288,7 +311,7 @@ export function TimeEntryDialog({
                   isBillable: true
                 })
               }
-              options={projects.map((p) => ({
+              options={selectableProjects.map((p) => ({
                 value: p.id,
                 label: formatProjectLabel(p, workspaceNames)
               }))}
@@ -480,8 +503,11 @@ export function TimeEntryDialog({
 
           {readOnly && editingLog ? (
             <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
-              This timesheet period is locked (submitted or approved). Entries cannot be edited or
-              deleted.
+              {freezeReason === "approval"
+                ? "This timesheet period is locked (submitted or approved). Entries cannot be edited or deleted."
+                : freezeReason
+                  ? INACTIVE_ENTITY_MESSAGE
+                  : LOCKED_ENTRY_MESSAGE}
             </p>
           ) : null}
           {parsedValidation.formError ? (

@@ -1,10 +1,13 @@
 "use client";
 
 import type { TimeLogDto, ProjectDto, TaskDto } from "@kloqra/contracts";
-import { Button, ProjectColorDot } from "@kloqra/ui";
+import { Button, ProjectColorDot, cn } from "@kloqra/ui";
 import { toDateKeyInZone, todayInZone } from "@kloqra/web-shared";
 import { Lock, Play, Trash2, Clock } from "lucide-react";
 import React, { useMemo } from "react";
+import type { TimeEntryFreezeReason } from "@/features/time-tracker/entry-approval-status";
+import { messageForFreezeReason } from "@/features/time-tracker/entry-approval-status";
+import { frozenEntryRowClassName } from "@/lib/project-color-styles";
 
 export type TodayLogsWidgetProps = {
   logs: TimeLogDto[];
@@ -12,7 +15,8 @@ export type TodayLogsWidgetProps = {
   tasks: TaskDto[];
   onDeleteLog: (id: string) => Promise<void>;
   onResumeTask: (taskId: string) => Promise<void>;
-  isLogLocked?: (log: TimeLogDto) => boolean;
+  isLogReadOnly?: (log: TimeLogDto) => boolean;
+  freezeReasonForLog?: (log: TimeLogDto) => TimeEntryFreezeReason | null;
   timezone?: string;
 };
 
@@ -22,7 +26,8 @@ export function TodayLogsWidget({
   tasks,
   onDeleteLog,
   onResumeTask,
-  isLogLocked,
+  isLogReadOnly,
+  freezeReasonForLog,
   timezone
 }: TodayLogsWidgetProps) {
   const resolvedTz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -72,12 +77,20 @@ export function TodayLogsWidget({
         const project = task ? projects.find((p) => p.id === task.projectId) : null;
         const projectName = project?.name ?? "No Project";
         const projectColor = project?.color ?? "var(--muted)";
-        const locked = isLogLocked?.(log) ?? false;
+        const readOnly = isLogReadOnly?.(log) ?? false;
+        const freezeReason = freezeReasonForLog?.(log) ?? null;
+        const lockTooltip = freezeReason
+          ? messageForFreezeReason(freezeReason)
+          : "Locked — submitted or approved";
 
         return (
           <div
             key={log.id}
-            className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/10 p-3 text-xs transition-all hover:bg-muted/20 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+            className={cn(
+              "flex min-w-0 flex-col gap-2 rounded-lg border border-border/60 p-3 text-xs transition-all sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+              frozenEntryRowClassName(readOnly),
+              !readOnly && "bg-muted/10"
+            )}
           >
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -87,10 +100,10 @@ export function TodayLogsWidget({
                 </span>
                 <span className="shrink-0 text-muted-foreground/40">&bull;</span>
                 <span className="truncate text-muted-foreground">{task?.taskName ?? "Other"}</span>
-                {locked ? (
+                {readOnly ? (
                   <span
                     className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground"
-                    title="Locked — submitted or approved"
+                    title={lockTooltip}
                   >
                     <Lock className="size-2.5" aria-hidden />
                     Locked
@@ -117,16 +130,18 @@ export function TodayLogsWidget({
                 {formatDuration(log.durationSec)}
               </span>
               <div className="flex items-center gap-1 border-l border-border/40 pl-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 rounded text-primary hover:bg-primary/10"
-                  onClick={() => void onResumeTask(log.taskId)}
-                  title="Restart timer for this task"
-                >
-                  <Play className="size-3.5 fill-current" />
-                </Button>
-                {!locked ? (
+                {!readOnly ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded text-primary hover:bg-primary/10"
+                    onClick={() => void onResumeTask(log.taskId)}
+                    title="Restart timer for this task"
+                  >
+                    <Play className="size-3.5 fill-current" />
+                  </Button>
+                ) : null}
+                {!readOnly ? (
                   <Button
                     variant="ghost"
                     size="icon"

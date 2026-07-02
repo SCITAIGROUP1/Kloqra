@@ -12,13 +12,19 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  cn
 } from "@kloqra/ui";
 import { SettingsCard, SettingsSaveBar, extractFieldErrorsFromMessage } from "@kloqra/web-shared";
-import { Palette, Save, Settings2 } from "lucide-react";
+import { Lock, Palette, Save, Settings2, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  getActivateProjectConfirmation,
+  getDeactivateProjectConfirmation
+} from "./project-confirmation";
 import { useProjectDetail } from "./project-detail-context";
+import { EntityStatusBadge } from "@/components/entity-status-badge";
 import { api } from "@/lib/api";
 
 type ProjectFormSnapshot = {
@@ -57,6 +63,14 @@ export function ProjectSettingsTab() {
   const [saving, setSaving] = useState(false);
   const [approvalConfirmOpen, setApprovalConfirmOpen] = useState(false);
   const [pendingSaveEvent, setPendingSaveEvent] = useState<React.FormEvent | null>(null);
+  const [statusConfirmTarget, setStatusConfirmTarget] = useState<boolean | null>(null);
+
+  const statusConfirmCopy =
+    statusConfirmTarget === null
+      ? null
+      : statusConfirmTarget
+        ? getActivateProjectConfirmation(editName.trim() || project?.name || "this project")
+        : getDeactivateProjectConfirmation(editName.trim() || project?.name || "this project");
 
   useEffect(() => {
     if (!project) return;
@@ -132,6 +146,17 @@ export function ProjectSettingsTab() {
     void performSave(e);
   }
 
+  function handleStatusChange(nextActive: boolean) {
+    if (nextActive === editIsActive) return;
+    setStatusConfirmTarget(nextActive);
+  }
+
+  function confirmStatusChange() {
+    if (statusConfirmTarget === null) return;
+    setEditIsActive(statusConfirmTarget);
+    setStatusConfirmTarget(null);
+  }
+
   return (
     <form onSubmit={(e) => void handleSave(e)} className="space-y-6">
       <SettingsCard
@@ -168,15 +193,47 @@ export function ProjectSettingsTab() {
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 rounded border border-input accent-primary"
-              checked={editIsActive}
-              onChange={(e) => setEditIsActive(e.target.checked)}
-            />
-            <span>Project is active (inactive projects are hidden from members)</span>
-          </label>
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Project status</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <EntityStatusBadge isActive={editIsActive} />
+                  <span className="text-xs text-muted-foreground">
+                    {editIsActive ? "Available for time logging" : "Hidden from time logging"}
+                  </span>
+                </div>
+                <p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
+                  {editIsActive
+                    ? "Members can log time on this project. Deactivating hides it from logging and freezes all existing entries as read-only."
+                    : "All time entries on this project are frozen (read-only) until you activate it again."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant={editIsActive ? "outline" : "default"}
+                size="sm"
+                className={cn(
+                  "shrink-0 gap-2",
+                  editIsActive &&
+                    "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                )}
+                onClick={() => handleStatusChange(!editIsActive)}
+              >
+                {editIsActive ? (
+                  <>
+                    <Lock className="size-4" aria-hidden />
+                    Deactivate
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="size-4" aria-hidden />
+                    Activate
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
 
           <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
             <p className="text-sm font-medium">Timesheet approval</p>
@@ -235,6 +292,16 @@ export function ProjectSettingsTab() {
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </SettingsSaveBar>
+
+      <ConfirmDialog
+        open={statusConfirmTarget !== null}
+        title={statusConfirmCopy?.title ?? ""}
+        description={statusConfirmCopy?.description}
+        confirmLabel={statusConfirmCopy?.confirmLabel}
+        destructive={statusConfirmCopy?.destructive}
+        onConfirm={confirmStatusChange}
+        onCancel={() => setStatusConfirmTarget(null)}
+      />
 
       <ConfirmDialog
         open={approvalConfirmOpen}

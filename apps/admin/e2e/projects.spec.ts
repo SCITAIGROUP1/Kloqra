@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { expectProjectInList } from "./helpers/projects";
 
 test.describe("Admin projects", () => {
   test.beforeEach(async ({ page }) => {
@@ -15,9 +16,7 @@ test.describe("Admin projects", () => {
     await page.locator("#client").fill(clientName);
     await page.getByRole("button", { name: "Create project" }).click();
 
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
 
     await expect(page.getByRole("columnheader", { name: "Project Name" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Client Name" })).toBeVisible();
@@ -53,9 +52,7 @@ test.describe("Admin projects", () => {
     await page.locator("#client").fill(clientName);
     await page.getByRole("button", { name: "Create project" }).click();
 
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
     const projectRow = page.getByRole("link", { name: `Open ${projectName}` });
     await expect(projectRow.getByText(clientName, { exact: true })).toBeVisible();
   });
@@ -67,9 +64,7 @@ test.describe("Admin projects", () => {
     await page.locator("#name").fill(existingName);
     await page.locator("#client").fill("First Client");
     await page.getByRole("button", { name: "Create project" }).click();
-    await expect(page.getByRole("link", { name: `Open ${existingName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, existingName);
 
     await page.getByRole("button", { name: "New project" }).click();
     await page.locator("#name").fill(existingName);
@@ -97,12 +92,10 @@ test.describe("Admin projects", () => {
     await page.locator("#name").fill(projectName);
     await page.locator("#client").fill(clientName);
     await page.getByRole("button", { name: "Create project" }).click();
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
 
     await page.getByRole("link", { name: `Open ${projectName}` }).click();
-    await expect(page.getByText(projectName)).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
     await expect(page.getByText(`Client: ${clientName}`)).toBeVisible();
   });
 
@@ -113,9 +106,7 @@ test.describe("Admin projects", () => {
     await page.locator("#name").fill(projectName);
     await page.locator("#client").fill("Overview Client");
     await page.getByRole("button", { name: "Create project" }).click();
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
 
     await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
@@ -131,9 +122,7 @@ test.describe("Admin projects", () => {
     await page.locator("#name").fill(projectName);
     await page.locator("#client").fill("Tasks Client");
     await page.getByRole("button", { name: "Create project" }).click();
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
 
     await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
@@ -154,9 +143,7 @@ test.describe("Admin projects", () => {
     await page.locator("#name").fill(projectName);
     await page.locator("#client").fill("Team Client");
     await page.getByRole("button", { name: "Create project" }).click();
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
 
     await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await page
@@ -174,9 +161,7 @@ test.describe("Admin projects", () => {
     await page.locator("#name").fill(projectName);
     await page.locator("#client").fill("Team Modal Client");
     await page.getByRole("button", { name: "Create project" }).click();
-    await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
-      timeout: 15_000
-    });
+    await expectProjectInList(page, projectName);
 
     await page.getByRole("link", { name: `Open ${projectName}` }).click();
     await page

@@ -1,14 +1,7 @@
 "use client";
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  TimeLogDto,
-  ProjectDto,
-  TaskDto,
-  ActiveTimerDto,
-  CategoryDto,
-  WorkspaceMemberDto
-} from "@kloqra/contracts";
+import type { TimeLogDto, TaskDto, ActiveTimerDto, WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
@@ -74,13 +67,17 @@ import {
 } from "@/features/submissions/use-my-submissions";
 import {
   buildSubmissionByKey,
-  isTimeEntryLocked,
-  LOCKED_ENTRY_MESSAGE
+  INACTIVE_ENTITY_MESSAGE,
+  LOCKED_ENTRY_MESSAGE,
+  isTimeEntryReadOnly,
+  resolveTimeEntryFreezeReason
 } from "@/features/time-tracker/entry-approval-status";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
+import { refreshEntryCatalog } from "@/lib/entry-catalog";
+import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { useActiveTimerSessionStore } from "@/stores/member-data.store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
@@ -109,7 +106,7 @@ export function DashboardPage() {
   const isAdmin = session?.workspaceRole === "ADMIN";
   const isImpersonating = useIsImpersonating();
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
-  const { tasks, projects, setTasks, setProjects } = useProjectsStore();
+  const { tasks, projects, categories } = useProjectsStore();
   const { profile } = useUserProfile();
 
   const timezone = useMemo(() => {
@@ -131,7 +128,6 @@ export function DashboardPage() {
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTaskId, setFilterTaskId] = useState("");
   const [filterUserId, setFilterUserId] = useState("");
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [scopeTasks, setScopeTasks] = useState<TaskDto[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -256,9 +252,15 @@ export function DashboardPage() {
 
   const canStart = Boolean(projectId) && Boolean(taskChoice);
 
+  const loggingProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const loggingTasks = useMemo(
+    () => filterLoggingTasks(tasks, projects, categories),
+    [tasks, projects, categories]
+  );
+
   const projectTasks = useMemo(
-    () => tasks.filter((t) => t.projectId === projectId),
-    [tasks, projectId]
+    () => loggingTasks.filter((t) => t.projectId === projectId),
+    [loggingTasks, projectId]
   );
 
   const projectTasksByCategory = useMemo(() => {
@@ -356,11 +358,7 @@ export function DashboardPage() {
     setLoading(true);
     try {
       await Promise.all([
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
-        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
-          setCategories
-        ),
+        refreshEntryCatalog(ws),
         isAdmin
           ? api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(
               setWorkspaceMembers
@@ -373,7 +371,7 @@ export function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [ws, isAdmin, setProjects, setTasks, fetchLogs]);
+  }, [ws, isAdmin, fetchLogs]);
 
   useEffect(() => {
     void loadAll();
@@ -393,18 +391,21 @@ export function DashboardPage() {
 
   const refreshTaskCatalog = useCallback(() => {
     if (!ws) return;
-    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-      setTasks
-    );
+    void refreshEntryCatalog(ws);
     if (!filterProjectId) return;
     const filters: Record<string, string> = { projectId: filterProjectId };
     if (filterCategoryId) filters.categoryId = filterCategoryId;
     void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters, bypassCache: true })
       .then(setScopeTasks)
       .catch(() => setScopeTasks([]));
-  }, [ws, filterProjectId, filterCategoryId, setTasks]);
+  }, [ws, filterProjectId, filterCategoryId]);
 
-  useWorkspaceStaleRefetch(ws, ["tasks", "projects"], refreshTaskCatalog, Boolean(ws));
+  useWorkspaceStaleRefetch(
+    ws,
+    ["tasks", "projects", "categories"],
+    refreshTaskCatalog,
+    Boolean(ws)
+  );
 
   useEffect(() => {
     if (!filterUserId) return;
@@ -540,20 +541,33 @@ export function DashboardPage() {
 
   const submissionByKey = useMemo(() => buildSubmissionByKey(todaySubmissions), [todaySubmissions]);
 
-  const isLogLocked = useCallback(
+  const isLogReadOnly = useCallback(
     (log: TimeLogDto) => {
       const task = tasks.find((t) => t.id === log.taskId);
       const project = task ? projects.find((p) => p.id === task.projectId) : undefined;
-      return isTimeEntryLocked(log, project, submissionByKey);
+      const category = task ? categories.find((c) => c.id === task.categoryId) : undefined;
+      return isTimeEntryReadOnly(log, project, task, category, submissionByKey);
     },
-    [tasks, projects, submissionByKey]
+    [tasks, projects, categories, submissionByKey]
+  );
+
+  const freezeReasonForLog = useCallback(
+    (log: TimeLogDto) => {
+      const task = tasks.find((t) => t.id === log.taskId);
+      const project = task ? projects.find((p) => p.id === task.projectId) : undefined;
+      const category = task ? categories.find((c) => c.id === task.categoryId) : undefined;
+      return resolveTimeEntryFreezeReason(log, project, task, category, submissionByKey);
+    },
+    [tasks, projects, categories, submissionByKey]
   );
 
   const handleDeleteLog = async (logId: string) => {
     if (isImpersonating) return;
     const log = logs.find((item) => item.id === logId);
-    if (log && isLogLocked(log)) {
-      toast.error(LOCKED_ENTRY_MESSAGE);
+    if (log && isLogReadOnly(log)) {
+      toast.error(
+        freezeReasonForLog(log) === "approval" ? LOCKED_ENTRY_MESSAGE : INACTIVE_ENTITY_MESSAGE
+      );
       return;
     }
     try {
@@ -1020,7 +1034,8 @@ export function DashboardPage() {
                               tasks={tasks}
                               onDeleteLog={handleDeleteLog}
                               onResumeTask={handleResumeTask}
-                              isLogLocked={isLogLocked}
+                              isLogReadOnly={isLogReadOnly}
+                              freezeReasonForLog={freezeReasonForLog}
                               timezone={timezone}
                             />
                           );
@@ -1132,7 +1147,7 @@ export function DashboardPage() {
                                           <SelectValue placeholder="Select" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          {projects.map((p) => (
+                                          {loggingProjects.map((p) => (
                                             <SelectItem key={p.id} value={p.id}>
                                               <span className="flex items-center gap-1.5 text-xs">
                                                 <ProjectColorDot color={p.color} size="sm" />

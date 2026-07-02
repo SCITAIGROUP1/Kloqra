@@ -19,6 +19,7 @@ export const workspaceDataInvalidateScopeSchema = z.enum([
   "timesheet",
   "projects",
   "tasks",
+  "categories",
   "pending_approvals"
 ]);
 

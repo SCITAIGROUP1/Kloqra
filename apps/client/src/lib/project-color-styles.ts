@@ -19,6 +19,17 @@ export function entryColorsFromProject(color: string) {
   };
 }
 
+export function inactiveEntryColors(colors: ReturnType<typeof entryColorsFromProject>) {
+  return {
+    ...colors,
+    opacity: 0.55
+  };
+}
+
+export function frozenEntryRowClassName(frozen: boolean): string {
+  return frozen ? "bg-muted/40 hover:bg-muted/40" : "hover:bg-muted/20";
+}
+
 function resolveProjectColor(project: ProjectDto | undefined): string {
   if (!project) return DEFAULT_PROJECT_COLOR;
   return project.myColor ?? project.color ?? DEFAULT_PROJECT_COLOR;

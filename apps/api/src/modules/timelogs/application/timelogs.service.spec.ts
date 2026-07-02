@@ -529,3 +529,68 @@ describe("TimelogsService createBatch", () => {
     expect(res.skipped[0]?.reason).toContain("Locked");
   });
 });
+
+describe("TimelogsService inactive entity guards", () => {
+  let service: TimelogsService;
+  let mockPrisma: {
+    timeLog: { findFirst: ReturnType<typeof vi.fn> };
+  };
+
+  const baseLog = {
+    id: "log-1",
+    userId: "user-1",
+    taskId: "task-1",
+    startTime: new Date("2026-06-01T09:00:00.000Z"),
+    endTime: new Date("2026-06-01T10:00:00.000Z"),
+    durationSec: 3600,
+    description: "Work",
+    isBillable: true,
+    source: "manual" as const,
+    task: {
+      id: "task-1",
+      projectId: "proj-1",
+      isActive: true,
+      category: { isActive: true },
+      project: { isActive: true, id: "proj-1" }
+    }
+  };
+
+  beforeEach(() => {
+    mockPrisma = {
+      timeLog: { findFirst: vi.fn().mockResolvedValue(baseLog) }
+    };
+    service = new TimelogsService(
+      mockPrisma as never,
+      {} as never,
+      {} as never,
+      { assertPeriodEditable: vi.fn().mockResolvedValue(undefined) } as never,
+      {} as never
+    );
+  });
+
+  it("rejects update when project is inactive", async () => {
+    mockPrisma.timeLog.findFirst.mockResolvedValue({
+      ...baseLog,
+      task: { ...baseLog.task, project: { isActive: false, id: "proj-1" } }
+    });
+
+    await expect(
+      service.update("ws-1", "user-1", "MEMBER", "log-1", { description: "Updated" })
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException && err.code === ErrorCodes.TIMELOG_NOT_EDITABLE
+    );
+  });
+
+  it("rejects delete when task is inactive", async () => {
+    mockPrisma.timeLog.findFirst.mockResolvedValue({
+      ...baseLog,
+      task: { ...baseLog.task, isActive: false }
+    });
+
+    await expect(service.remove("ws-1", "user-1", "MEMBER", "log-1")).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException && err.code === ErrorCodes.TIMELOG_NOT_EDITABLE
+    );
+  });
+});

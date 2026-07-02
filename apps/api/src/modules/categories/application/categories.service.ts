@@ -14,19 +14,22 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 
 type CategoryRow = {
   id: string;
   workspaceId: string;
   name: string;
   description: string | null;
+  isActive: boolean;
 };
 
 @Injectable()
 export class CategoriesService {
   constructor(
     private prisma: PrismaService,
-    @InjectQueue(QUEUES.BULK_CATEGORY) private readonly bulkCategoryQueue: Queue
+    @InjectQueue(QUEUES.BULK_CATEGORY) private readonly bulkCategoryQueue: Queue,
+    private notificationsDispatch: NotificationsDispatchService
   ) {}
 
   toListItem(c: CategoryRow, taskCount?: number) {
@@ -34,6 +37,7 @@ export class CategoriesService {
       id: c.id,
       name: c.name,
       description: c.description,
+      isActive: c.isActive,
       ...(typeof taskCount === "number" ? { taskCount } : {})
     };
   }
@@ -44,6 +48,7 @@ export class CategoriesService {
       workspaceId: c.workspaceId,
       name: c.name,
       description: c.description,
+      isActive: c.isActive,
       ...(typeof taskCount === "number" ? { taskCount } : {})
     };
   }
@@ -51,6 +56,7 @@ export class CategoriesService {
   async list(workspaceId: string, query: ListCategoriesQuery) {
     const where = {
       workspaceId,
+      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
       ...(query.search
         ? {
             OR: [
@@ -100,11 +106,39 @@ export class CategoriesService {
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {})
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {})
       },
       include: { _count: { select: { tasks: true } } }
     });
+    if (dto.isActive !== undefined && dto.isActive !== existing.isActive) {
+      void this.notifyCategoryStatusChanged(workspaceId, row.id, row.name, row.isActive).catch(
+        () => undefined
+      );
+    }
     return this.toDto(row, row._count.tasks);
+  }
+
+  private async notifyCategoryStatusChanged(
+    workspaceId: string,
+    categoryId: string,
+    categoryName: string,
+    isActive: boolean
+  ) {
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      select: { userId: true }
+    });
+    for (const member of members) {
+      void this.notificationsDispatch
+        .notify({
+          userId: member.userId,
+          workspaceId,
+          templateId: "category.statusChanged",
+          context: { categoryName, categoryId, isActive }
+        })
+        .catch(() => undefined);
+    }
   }
 
   async remove(workspaceId: string, id: string) {

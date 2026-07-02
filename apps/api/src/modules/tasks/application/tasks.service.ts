@@ -18,7 +18,9 @@ type TaskWithRelations = {
   taskName: string;
   billableDefault: boolean;
   isCommon: boolean;
-  category?: { name: string } | null;
+  isActive: boolean;
+  category?: { name: string; isActive?: boolean } | null;
+  project?: { isActive?: boolean } | null;
   assignees?: { userId: string; user: { name: string } }[];
 };
 
@@ -38,7 +40,8 @@ export class TasksService {
       ...(t.category?.name ? { categoryName: t.category.name } : {}),
       taskName: t.taskName,
       billableDefault: t.billableDefault,
-      isCommon: t.isCommon
+      isCommon: t.isCommon,
+      isActive: t.isActive
     };
   }
 
@@ -51,6 +54,7 @@ export class TasksService {
       taskName: t.taskName,
       billableDefault: t.billableDefault,
       isCommon: t.isCommon,
+      isActive: t.isActive,
       assignees: (t.assignees ?? []).map((a) => ({
         userId: a.userId,
         userName: a.user.name
@@ -60,7 +64,8 @@ export class TasksService {
 
   private taskInclude() {
     return {
-      category: { select: { name: true } },
+      category: { select: { name: true, isActive: true } },
+      project: { select: { isActive: true } },
       assignees: {
         include: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" as const } }
@@ -88,6 +93,14 @@ export class TasksService {
     const where = {
       projectId: { in: projectIds },
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
+      ...(query.loggableOnly
+        ? {
+            isActive: true,
+            category: { isActive: true },
+            project: { isActive: true }
+          }
+        : {}),
       ...(role === "MEMBER"
         ? {
             OR: [{ isCommon: true }, { assignees: { some: { userId } } }]
@@ -123,7 +136,14 @@ export class TasksService {
 
   async create(workspaceId: string, dto: CreateTaskDto) {
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
-    await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
+    const category = await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
+    if (!category.isActive) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot create a task in an inactive category",
+        HttpStatus.BAD_REQUEST
+      );
+    }
     if (!dto.isCommon) {
       await this.assertAssigneesOnProject(dto.projectId, dto.assigneeUserIds);
     }
@@ -179,6 +199,23 @@ export class TasksService {
 
   async update(workspaceId: string, id: string, dto: UpdateTaskDto) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    if (dto.isActive === true) {
+      const category = await this.prisma.category.findFirst({
+        where: { id: task.categoryId, workspaceId },
+        select: { isActive: true }
+      });
+      const project = await this.prisma.project.findFirst({
+        where: { id: task.projectId, workspaceId },
+        select: { isActive: true }
+      });
+      if (!category?.isActive || !project?.isActive) {
+        throw new DomainException(
+          ErrorCodes.VALIDATION_ERROR,
+          "Activate the project and category before enabling this task",
+          HttpStatus.BAD_REQUEST
+        );
+      }
+    }
     const willBeCommon = dto.isCommon !== undefined ? dto.isCommon : task.isCommon;
     const existingAssigneeIds = dto.assigneeUserIds
       ? (
@@ -189,7 +226,14 @@ export class TasksService {
         ).map((row) => row.userId)
       : [];
     if (dto.categoryId && dto.categoryId !== task.categoryId) {
-      await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
+      const category = await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
+      if (!category.isActive) {
+        throw new DomainException(
+          ErrorCodes.VALIDATION_ERROR,
+          "Cannot assign a task to an inactive category",
+          HttpStatus.BAD_REQUEST
+        );
+      }
     }
     if (!willBeCommon && dto.assigneeUserIds) {
       await this.assertAssigneesOnProject(task.projectId, dto.assigneeUserIds);
@@ -214,11 +258,22 @@ export class TasksService {
           ...(dto.taskName !== undefined ? { taskName: dto.taskName } : {}),
           ...(dto.billableDefault !== undefined ? { billableDefault: dto.billableDefault } : {}),
           ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
-          ...(dto.isCommon !== undefined ? { isCommon: dto.isCommon } : {})
+          ...(dto.isCommon !== undefined ? { isCommon: dto.isCommon } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {})
         },
         include: this.taskInclude()
       });
     });
+
+    if (dto.isActive !== undefined && dto.isActive !== task.isActive) {
+      void this.notifyTaskStatusChanged(
+        workspaceId,
+        t.id,
+        t.taskName,
+        t.projectId,
+        dto.isActive
+      ).catch(() => undefined);
+    }
 
     if (!willBeCommon && dto.assigneeUserIds) {
       const addedAssigneeIds = dto.assigneeUserIds.filter(
@@ -378,7 +433,7 @@ export class TasksService {
   private async assertCategoryInWorkspace(workspaceId: string, categoryId: string) {
     const category = await this.prisma.category.findFirst({
       where: { id: categoryId, workspaceId },
-      select: { id: true }
+      select: { id: true, isActive: true }
     });
     if (!category) {
       throw new DomainException(
@@ -386,6 +441,35 @@ export class TasksService {
         "Category not found in this workspace",
         HttpStatus.BAD_REQUEST
       );
+    }
+    return category;
+  }
+
+  private async notifyTaskStatusChanged(
+    workspaceId: string,
+    taskId: string,
+    taskName: string,
+    projectId: string,
+    isActive: boolean
+  ) {
+    const members = await this.prisma.teamMember.findMany({
+      where: { isActive: true, team: { projectId } },
+      select: { userId: true }
+    });
+    const admins = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId, role: "ADMIN" },
+      select: { userId: true }
+    });
+    const userIds = new Set([...members.map((m) => m.userId), ...admins.map((a) => a.userId)]);
+    for (const userId of userIds) {
+      void this.notificationsDispatch
+        .notify({
+          userId,
+          workspaceId,
+          templateId: "task.statusChanged",
+          context: { taskName, taskId, projectId, isActive }
+        })
+        .catch(() => undefined);
     }
   }
 }

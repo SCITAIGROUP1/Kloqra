@@ -3,7 +3,8 @@
 import type { TimesheetApprovalStatus } from "@kloqra/ui";
 import { Badge, cn } from "@kloqra/ui";
 import { Lock } from "lucide-react";
-import type { EntryApprovalDisplay } from "./entry-approval-status";
+import type { EntryApprovalDisplay, TimeEntryFreezeReason } from "./entry-approval-status";
+import { messageForFreezeReason } from "./entry-approval-status";
 
 const APPROVAL_STYLES: Partial<
   Record<TimesheetApprovalStatus, { label: string; className: string }>
@@ -27,18 +28,31 @@ const APPROVAL_STYLES: Partial<
 
 export function TimeTrackerEntryStatus({
   approval,
-  isBillable
+  isBillable,
+  freezeReason = null
 }: {
   approval: EntryApprovalDisplay;
   isBillable: boolean;
+  freezeReason?: TimeEntryFreezeReason | null;
 }) {
   const approvalStyle =
     approval.status && approval.showApproval ? APPROVAL_STYLES[approval.status] : undefined;
-  const isLocked = approval.status === "SUBMITTED" || approval.status === "APPROVED";
+  const isApprovalLocked = approval.status === "SUBMITTED" || approval.status === "APPROVED";
+  const showInactiveLock = freezeReason !== null && freezeReason !== "approval";
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {isLocked ? (
+      {showInactiveLock ? (
+        <Badge
+          variant="outline"
+          className="gap-1 border-muted-foreground/30 bg-muted/40 text-muted-foreground text-xs font-medium normal-case tracking-normal"
+          title={messageForFreezeReason(freezeReason)}
+        >
+          <Lock className="size-3" aria-hidden />
+          Locked
+        </Badge>
+      ) : null}
+      {isApprovalLocked ? (
         <Badge
           variant="outline"
           className="gap-1 border-muted-foreground/30 bg-muted/40 text-muted-foreground text-xs font-medium normal-case tracking-normal"

@@ -34,6 +34,7 @@ import { ChevronRight, FolderPlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { EntityStatusBadge } from "@/components/entity-status-badge";
 import { formatDurationClock } from "@/components/report-charts";
 import { validateCreateProjectForm } from "@/features/projects/create-project-validation";
 import { projectListHref } from "@/features/projects/project-detail-nav";
@@ -177,7 +178,7 @@ export function ProjectsListPage() {
 
       <DataTableCard>
         {loading ? (
-          <TableLoadingState rows={6} columns={4} />
+          <TableLoadingState rows={6} columns={5} />
         ) : projects.length === 0 ? (
           <div className="p-6">
             <EmptyState
@@ -207,6 +208,7 @@ export function ProjectsListPage() {
                 <DataTableHeaderRow>
                   <DataTableHead>Project Name</DataTableHead>
                   <DataTableHead>Client Name</DataTableHead>
+                  <DataTableHead>Status</DataTableHead>
                   <DataTableHead className="text-right">Total Time Tracked</DataTableHead>
                   <DataTableHead className="w-10" />
                 </DataTableHeaderRow>
@@ -234,6 +236,9 @@ export function ProjectsListPage() {
                       </DataTableCell>
                       <DataTableCell className="text-muted-foreground">
                         {p.clientName ?? "—"}
+                      </DataTableCell>
+                      <DataTableCell>
+                        <EntityStatusBadge isActive={p.isActive} />
                       </DataTableCell>
                       <DataTableCell className="text-right tabular-nums text-muted-foreground">
                         {formatTotalTracked(p.totalTrackedSec)}

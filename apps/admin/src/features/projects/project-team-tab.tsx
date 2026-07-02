@@ -294,9 +294,11 @@ export function ProjectTeamTab() {
           searchPlaceholder="Search team members…"
           searchAriaLabel="Search project team members"
           actions={
-            <Button type="button" className="h-10" onClick={() => void openAddModal()}>
-              Add team member
-            </Button>
+            !loadingTeam && members.length > 0 ? (
+              <Button type="button" className="h-10" onClick={() => void openAddModal()}>
+                Add team member
+              </Button>
+            ) : null
           }
         />
         <div className="border-b border-border/60 px-6 py-3">

@@ -15,8 +15,9 @@ type CalendarEntryContentProps = {
   description?: string | null;
   durationSec: number;
   compact: boolean;
-  variant?: "default" | "timer" | "live" | "locked";
+  variant?: "default" | "timer" | "live" | "locked" | "frozen";
   liveElapsedSec?: number;
+  lockTooltip?: string;
 };
 
 export function CalendarEntryContent({
@@ -25,7 +26,8 @@ export function CalendarEntryContent({
   durationSec,
   compact,
   variant = "default",
-  liveElapsedSec
+  liveElapsedSec,
+  lockTooltip
 }: CalendarEntryContentProps) {
   const elapsedLabel =
     variant === "live" && liveElapsedSec !== undefined
@@ -33,7 +35,10 @@ export function CalendarEntryContent({
       : formatDuration(durationSec);
   const isShort = durationSec < 15 * 60 && variant !== "live";
   const showDescription = Boolean(description?.trim()) && !compact && !isShort;
-  const isLocked = variant === "locked";
+  const isLocked = variant === "locked" || variant === "frozen";
+  const resolvedLockTooltip =
+    lockTooltip ??
+    (variant === "frozen" ? "Locked — entity is inactive" : "Locked — submitted or approved");
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-0.5 overflow-hidden text-left">
@@ -48,7 +53,7 @@ export function CalendarEntryContent({
         </span>
         <div className="flex shrink-0 items-center gap-1">
           {isLocked ? (
-            <span title="Locked — submitted or approved">
+            <span title={resolvedLockTooltip}>
               <Lock
                 className={cn(
                   "shrink-0 text-muted-foreground",

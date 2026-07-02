@@ -23,6 +23,10 @@
 
 Timesheet routes are documented in [submissions.md](./submissions.md). Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts), [timesheets.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timesheets.controller.ts).
 
+## Related specs
+
+- Entity active/inactive lifecycle: [entity-lifecycle.md](./entity-lifecycle.md)
+
 ## Given / When / Then
 
 ### List

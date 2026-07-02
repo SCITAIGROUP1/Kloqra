@@ -97,12 +97,18 @@ export function formatDayTabDateLabel(day: Date, timezone: string): string {
   }).format(day);
 }
 
-export function defaultActiveDayKey(days: DayLogGroup[]): string {
+export function defaultActiveDayKey(days: DayLogGroup[], timezone: string): string {
+  if (days.length === 0) return "";
+
+  const todayKey = toDateKeyInZone(new Date(), timezone);
+  const todayInWeek = days.find((day) => day.dayKey === todayKey);
+  if (todayInWeek) return todayInWeek.dayKey;
+
   const withEntries = days.filter((day) => day.logs.length > 0);
   if (withEntries.length > 0) {
     return withEntries[withEntries.length - 1]!.dayKey;
   }
-  return days[days.length - 1]?.dayKey ?? "";
+  return days[days.length - 1]!.dayKey;
 }
 
 export function groupLogsByWeek(

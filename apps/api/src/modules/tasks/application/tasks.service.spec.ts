@@ -222,7 +222,7 @@ describe("TasksService", () => {
         name: "Website",
         workspaceId: "w1"
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1", isActive: true });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)
@@ -264,7 +264,7 @@ describe("TasksService", () => {
         name: "Website",
         workspaceId: "w1"
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1", isActive: true });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)
@@ -313,7 +313,7 @@ describe("TasksService", () => {
         name: "Website",
         workspaceId: "w1"
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1", isActive: true });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)
@@ -537,7 +537,11 @@ describe("TasksService", () => {
           projectId: "p1",
           taskName: "Uncategorized Task"
         });
-      prisma.category.findFirst.mockResolvedValue({ id: "uncat-cat-id", name: "Uncategorized" });
+      prisma.category.findFirst.mockResolvedValue({
+        id: "uncat-cat-id",
+        name: "Uncategorized",
+        isActive: true
+      });
       prisma.timeLog.updateMany.mockResolvedValue({ count: 3 });
       prisma.task.delete.mockResolvedValue({ id: "t-deleted" });
 

@@ -28,8 +28,11 @@ const PROJECT_TYPES = new Set<string>([
   NotificationType.PROJECT_UNASSIGNED,
   NotificationType.PROJECT_DEACTIVATED,
   NotificationType.TASK_ASSIGNMENT,
-  NotificationType.TASK_UNASSIGNED
+  NotificationType.TASK_UNASSIGNED,
+  "TASK_STATUS_CHANGED"
 ]);
+
+const CATEGORY_TYPES = new Set<string>(["CATEGORY_STATUS_CHANGED"]);
 
 export function scopesForNotificationType(type: string): WorkspaceDataInvalidateScope[] {
   const scopes = new Set<WorkspaceDataInvalidateScope>();
@@ -45,6 +48,10 @@ export function scopesForNotificationType(type: string): WorkspaceDataInvalidate
   }
   if (PROJECT_TYPES.has(type)) {
     scopes.add("projects");
+    scopes.add("tasks");
+  }
+  if (CATEGORY_TYPES.has(type)) {
+    scopes.add("categories");
     scopes.add("tasks");
   }
   return [...scopes];

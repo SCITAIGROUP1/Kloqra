@@ -4,6 +4,7 @@ import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqr
 import { Card, CardContent, EmptyState, TablePagination } from "@kloqra/ui";
 import { CalendarDays, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { TimeEntryFreezeReason } from "./entry-approval-status";
 import type { WeekLogGroup } from "./group-logs-by-week";
 import {
   buildWeekDayTabs,
@@ -25,7 +26,8 @@ export type TimeTrackerWeekListProps = {
   workspaceNamesById: Record<string, string>;
   submissionByKey: Map<string, TimesheetPeriodDto>;
   entryColor: (taskId: string) => string;
-  isEntryLocked: (log: TimeLogDto) => boolean;
+  isEntryReadOnly: (log: TimeLogDto) => boolean;
+  freezeReasonForEntry?: (log: TimeLogDto) => TimeEntryFreezeReason | null;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
@@ -113,7 +115,8 @@ type WeekSectionProps = {
   workspaceNamesById: Record<string, string>;
   submissionByKey: Map<string, TimesheetPeriodDto>;
   entryColor: (taskId: string) => string;
-  isEntryLocked: (log: TimeLogDto) => boolean;
+  isEntryReadOnly: (log: TimeLogDto) => boolean;
+  freezeReasonForEntry?: (log: TimeLogDto) => TimeEntryFreezeReason | null;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
@@ -131,7 +134,8 @@ function TimeTrackerWeekSection({
   workspaceNamesById,
   submissionByKey,
   entryColor,
-  isEntryLocked,
+  isEntryReadOnly,
+  freezeReasonForEntry,
   onEdit,
   onDelete,
   timezone,
@@ -146,13 +150,13 @@ function TimeTrackerWeekSection({
     [group.weekStart, group.logs, timezone, weekStartPref, rangeFrom, rangeTo]
   );
 
-  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups));
+  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups, timezone));
 
   useEffect(() => {
     if (!dayGroups.some((day) => day.dayKey === activeDayKey)) {
-      setActiveDayKey(defaultActiveDayKey(dayGroups));
+      setActiveDayKey(defaultActiveDayKey(dayGroups, timezone));
     }
-  }, [group.weekKey, dayGroups, activeDayKey]);
+  }, [group.weekKey, dayGroups, activeDayKey, timezone]);
 
   const activeDay = dayGroups.find((day) => day.dayKey === activeDayKey);
   const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
@@ -192,7 +196,8 @@ function TimeTrackerWeekSection({
                     projectName={project ? formatProjectLabel(project, workspaceNamesById) : "—"}
                     entryColor={entryColor(log.taskId)}
                     submissionByKey={submissionByKey}
-                    locked={isEntryLocked(log)}
+                    locked={isEntryReadOnly(log)}
+                    freezeReason={freezeReasonForEntry?.(log) ?? null}
                     onEdit={onEdit}
                     onDelete={onDelete}
                     readOnly={readOnly}
@@ -219,7 +224,8 @@ export function TimeTrackerWeekList({
   workspaceNamesById,
   submissionByKey,
   entryColor,
-  isEntryLocked,
+  isEntryReadOnly,
+  freezeReasonForEntry,
   onEdit,
   onDelete,
   timezone,
@@ -275,7 +281,8 @@ export function TimeTrackerWeekList({
           workspaceNamesById={workspaceNamesById}
           submissionByKey={submissionByKey}
           entryColor={entryColor}
-          isEntryLocked={isEntryLocked}
+          isEntryReadOnly={isEntryReadOnly}
+          freezeReasonForEntry={freezeReasonForEntry}
           onEdit={onEdit}
           onDelete={onDelete}
           timezone={timezone}

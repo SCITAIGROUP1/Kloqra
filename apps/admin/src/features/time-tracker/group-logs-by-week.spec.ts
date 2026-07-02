@@ -1,7 +1,8 @@
 import type { TimeLogDto } from "@kloqra/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildWeekDayTabs,
+  defaultActiveDayKey,
   formatDayTabLabel,
   formatHoursCompact,
   formatHoursDecimal,
@@ -90,6 +91,47 @@ describe("format helpers", () => {
   it("formats day tab label", () => {
     const label = formatDayTabLabel(new Date(Date.UTC(2026, 5, 9)), "UTC");
     expect(label).toBe("Tue");
+  });
+});
+
+describe("defaultActiveDayKey", () => {
+  it("prefers today when it is in the visible week", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
+
+    const weekStart = new Date(Date.UTC(2026, 5, 29));
+    const days = buildWeekDayTabs(
+      weekStart,
+      [
+        log({ id: "a", startTime: "2026-06-30T10:00:00.000Z", durationSec: 3600 }),
+        log({ id: "b", startTime: "2026-07-02T10:00:00.000Z", durationSec: 3600 })
+      ],
+      "UTC",
+      "monday",
+      "2026-06-29",
+      "2026-07-05"
+    );
+
+    expect(defaultActiveDayKey(days, "UTC")).toBe("2026-07-01");
+
+    vi.useRealTimers();
+  });
+
+  it("falls back to the latest day with entries when today is outside the week", () => {
+    const weekStart = new Date(Date.UTC(2026, 5, 15));
+    const days = buildWeekDayTabs(
+      weekStart,
+      [
+        log({ id: "a", startTime: "2026-06-16T10:00:00.000Z", durationSec: 3600 }),
+        log({ id: "b", startTime: "2026-06-18T10:00:00.000Z", durationSec: 3600 })
+      ],
+      "UTC",
+      "monday",
+      "2026-06-15",
+      "2026-06-21"
+    );
+
+    expect(defaultActiveDayKey(days, "UTC")).toBe("2026-06-18");
   });
 });
 

@@ -3,10 +3,9 @@
 import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
-  TaskDto,
-  ProjectDto,
   ListTimeLogsResponseDto,
-  AutoStoppedTimerDto
+  AutoStoppedTimerDto,
+  TimeLogDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -23,7 +22,6 @@ import {
   EmptyState
 } from "@kloqra/ui";
 import {
-  fetchListItems,
   useRefetchOnWindowFocus,
   useUserProfile,
   useWorkspaceStaleRefetch,
@@ -40,6 +38,8 @@ import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { api } from "@/lib/api";
+import { refreshEntryCatalog } from "@/lib/entry-catalog";
+import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -143,7 +143,7 @@ function TimerRing({
 export function TimerPage() {
   const session = useSessionStore((s) => s.session);
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
+  const { tasks, projects, categories, workspaceNamesById } = useProjectsStore();
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
   const { profile } = useUserProfile();
   const timezone = useMemo(() => {
@@ -160,7 +160,7 @@ export function TimerPage() {
   const [resuming, setResuming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [todayLogs, setTodayLogs] = useState<TimeLogDto[]>([]);
   const [jiraConnected, setJiraConnected] = useState(false);
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
@@ -228,28 +228,22 @@ export function TimerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
-      fetchActiveTimer(),
-      fetchTodayLogs()
-    ]);
-  }, [ws, setProjects, setTasks, fetchActiveTimer, fetchTodayLogs]);
+    void Promise.all([refreshEntryCatalog(ws), fetchActiveTimer(), fetchTodayLogs()]);
+  }, [ws, fetchActiveTimer, fetchTodayLogs]);
 
   const reloadCatalog = useCallback(() => {
     if (!ws) return;
-    void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        setProjects
-      ),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        setTasks
-      )
-    ]);
-  }, [ws, setProjects, setTasks]);
+    void refreshEntryCatalog(ws);
+  }, [ws]);
 
   useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
-  useWorkspaceStaleRefetch(ws, ["tasks", "projects"], reloadCatalog, Boolean(ws));
+  useWorkspaceStaleRefetch(ws, ["tasks", "projects", "categories"], reloadCatalog, Boolean(ws));
+
+  const loggingProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const loggingTasks = useMemo(
+    () => filterLoggingTasks(tasks, projects, categories),
+    [tasks, projects, categories]
+  );
 
   // Handle active status ticks
   useEffect(() => {
@@ -265,8 +259,8 @@ export function TimerPage() {
   }, [ws, fetchActiveTimer]);
 
   const projectTasks = useMemo(
-    () => tasks.filter((t) => t.projectId === projectId),
-    [tasks, projectId]
+    () => loggingTasks.filter((t) => t.projectId === projectId),
+    [loggingTasks, projectId]
   );
 
   const projectTasksByCategory = useMemo(() => {
@@ -615,7 +609,7 @@ export function TimerPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.length === 0 ? (
+                    {loggingProjects.length === 0 ? (
                       <EmptyState
                         title="No projects assigned"
                         description="You are not on any projects yet. Ask your admin to add you to a project."
@@ -627,7 +621,7 @@ export function TimerPage() {
                           <SearchableSelect
                             value={projectId}
                             onValueChange={onProjectChange}
-                            options={projects.map((p) => ({
+                            options={loggingProjects.map((p) => ({
                               value: p.id,
                               label: formatProjectLabel(p, workspaceNamesById)
                             }))}

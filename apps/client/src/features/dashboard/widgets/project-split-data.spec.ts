@@ -37,6 +37,7 @@ function task(partial: Partial<TaskDto> & Pick<TaskDto, "id" | "projectId">): Ta
     categoryName: "Dev",
     billableDefault: true,
     isCommon: false,
+    isActive: true,
     assignees: [],
     ...partial
   };

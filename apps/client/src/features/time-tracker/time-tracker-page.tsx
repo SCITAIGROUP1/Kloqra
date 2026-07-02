@@ -3,16 +3,13 @@
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   BatchTimeLogsResponseDto,
-  CategoryDto,
   ListTimesheetSubmissionsResponseDto,
-  ProjectDto,
-  TaskDto,
   TimeLogDto,
   TimesheetPeriodDto,
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
-import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
+import { api as sharedApi, useWorkspaceStaleRefetch } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { todayInZone } from "../timesheet/calendar-utils";
@@ -25,7 +22,12 @@ import {
   type TimeEntryDraft
 } from "../timesheet/time-entry-draft";
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
-import { isTimeEntryLocked, LOCKED_ENTRY_MESSAGE } from "./entry-approval-status";
+import {
+  INACTIVE_ENTITY_MESSAGE,
+  LOCKED_ENTRY_MESSAGE,
+  isTimeEntryReadOnly,
+  resolveTimeEntryFreezeReason
+} from "./entry-approval-status";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
@@ -43,6 +45,7 @@ import { formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
+import { refreshEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -72,8 +75,7 @@ export function TimeTrackerPage() {
 
   const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const { tasks, projects, categories, workspaceNamesById } = useProjectsStore();
 
   const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
   const [rangeFrom, setRangeFrom] = useState(
@@ -245,10 +247,24 @@ export function TimeTrackerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
-  }, [ws, setTasks, setProjects]);
+    void refreshEntryCatalog(ws);
+  }, [ws]);
+
+  const reloadCatalog = useCallback(() => {
+    if (!ws) return;
+    void refreshEntryCatalog(ws);
+  }, [ws]);
+
+  useWorkspaceStaleRefetch(ws, ["projects", "tasks", "categories"], reloadCatalog, Boolean(ws));
+
+  const categoryForTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return undefined;
+      return categories.find((c) => c.id === task.categoryId);
+    },
+    [tasks, categories]
+  );
 
   const projectForTask = useCallback(
     (taskId: string) => {
@@ -259,10 +275,27 @@ export function TimeTrackerPage() {
     [tasks, projects]
   );
 
-  const isEntryLocked = useCallback(
-    (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
-    [projectForTask, submissionByKey]
+  const isEntryReadOnly = useCallback(
+    (log: TimeLogDto) => {
+      const task = tasks.find((t) => t.id === log.taskId);
+      const project = projectForTask(log.taskId);
+      const category = categoryForTask(log.taskId);
+      return isTimeEntryReadOnly(log, project, task, category, submissionByKey);
+    },
+    [tasks, projectForTask, categoryForTask, submissionByKey]
   );
+
+  const freezeReasonForEntry = useCallback(
+    (log: TimeLogDto) => {
+      const task = tasks.find((t) => t.id === log.taskId);
+      const project = projectForTask(log.taskId);
+      const category = categoryForTask(log.taskId);
+      return resolveTimeEntryFreezeReason(log, project, task, category, submissionByKey);
+    },
+    [tasks, projectForTask, categoryForTask, submissionByKey]
+  );
+
+  const editingFreezeReason = editingLog ? freezeReasonForEntry(editingLog) : null;
 
   const taskLabel = useCallback(
     (taskId: string) => {
@@ -320,7 +353,7 @@ export function TimeTrackerPage() {
 
   async function saveEntry() {
     if (isImpersonating) return;
-    if (editingLog && isEntryLocked(editingLog)) return;
+    if (editingLog && isEntryReadOnly(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
       return;
@@ -414,8 +447,10 @@ export function TimeTrackerPage() {
 
   function deleteEntry(log: TimeLogDto) {
     if (isImpersonating) return;
-    if (isEntryLocked(log)) {
-      toast.error(LOCKED_ENTRY_MESSAGE);
+    if (isEntryReadOnly(log)) {
+      toast.error(
+        freezeReasonForEntry(log) === "approval" ? LOCKED_ENTRY_MESSAGE : INACTIVE_ENTITY_MESSAGE
+      );
       return;
     }
     setConfirmDeleteLog(log);
@@ -426,8 +461,10 @@ export function TimeTrackerPage() {
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
-    if (isEntryLocked(target)) {
-      toast.error(LOCKED_ENTRY_MESSAGE);
+    if (isEntryReadOnly(target)) {
+      toast.error(
+        freezeReasonForEntry(target) === "approval" ? LOCKED_ENTRY_MESSAGE : INACTIVE_ENTITY_MESSAGE
+      );
       return;
     }
     setSaving(true);
@@ -490,7 +527,8 @@ export function TimeTrackerPage() {
         workspaceNamesById={workspaceNamesById}
         submissionByKey={submissionByKey}
         entryColor={entryColor}
-        isEntryLocked={isEntryLocked}
+        isEntryReadOnly={isEntryReadOnly}
+        freezeReasonForEntry={freezeReasonForEntry}
         onEdit={openEditEntry}
         onDelete={deleteEntry}
         timezone={timezone}
@@ -514,6 +552,7 @@ export function TimeTrackerPage() {
         draft={draft}
         projects={projects}
         tasks={tasks}
+        categories={categories}
         taskLabel={taskLabel}
         workspaceNames={workspaceNamesById}
         workspaceId={ws}
@@ -521,12 +560,13 @@ export function TimeTrackerPage() {
         saving={saving}
         error={error}
         editingLog={editingLog}
-        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
+        readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
+        freezeReason={editingFreezeReason}
         onDraftChange={setDraft}
         onClose={closeDialog}
         onSave={() => void saveEntry()}
         onDelete={
-          !isImpersonating && editingLog && !isEntryLocked(editingLog)
+          !isImpersonating && editingLog && !isEntryReadOnly(editingLog)
             ? () => deleteEntry(editingLog)
             : undefined
         }

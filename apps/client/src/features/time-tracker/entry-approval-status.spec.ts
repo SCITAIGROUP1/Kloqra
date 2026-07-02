@@ -1,9 +1,22 @@
-import type { ProjectDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
+import type {
+  CategoryDto,
+  ProjectDto,
+  TaskDto,
+  TimeLogDto,
+  TimesheetPeriodDto
+} from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  INACTIVE_CATEGORY_MESSAGE,
+  INACTIVE_PROJECT_MESSAGE,
+  INACTIVE_TASK_MESSAGE,
+  buildSubmissionByKey,
   isTimeEntryLocked,
-  resolveEntryApprovalStatus,
-  buildSubmissionByKey
+  isTimeEntryReadOnly,
+  messageForFreezeReason,
+  resolveInactiveFreezeReason,
+  resolveTimeEntryFreezeReason,
+  resolveEntryApprovalStatus
 } from "./entry-approval-status";
 
 const project: ProjectDto = {
@@ -16,6 +29,26 @@ const project: ProjectDto = {
   isActive: true,
   timesheetApprovalEnabled: true,
   timesheetApprovalPeriod: "weekly"
+};
+
+const category: CategoryDto = {
+  id: "cat-1",
+  workspaceId: "ws-1",
+  name: "Development",
+  description: null,
+  isActive: true
+};
+
+const task: TaskDto = {
+  id: "task-1",
+  projectId: "proj-1",
+  categoryId: "cat-1",
+  categoryName: "Development",
+  taskName: "Code review",
+  billableDefault: true,
+  isCommon: true,
+  isActive: true,
+  assignees: []
 };
 
 const log: TimeLogDto = {
@@ -71,6 +104,81 @@ describe("isTimeEntryLocked", () => {
     ]);
 
     expect(isTimeEntryLocked(log, project, submissionByKey)).toBe(false);
+  });
+});
+
+describe("resolveInactiveFreezeReason", () => {
+  it("prioritizes project over category and task", () => {
+    expect(
+      resolveInactiveFreezeReason(
+        { ...project, isActive: false },
+        { ...task, isActive: false },
+        { ...category, isActive: false }
+      )
+    ).toBe("project");
+  });
+
+  it("returns category when only category is inactive", () => {
+    expect(resolveInactiveFreezeReason(project, task, { ...category, isActive: false })).toBe(
+      "category"
+    );
+  });
+
+  it("returns task when only task is inactive", () => {
+    expect(resolveInactiveFreezeReason(project, { ...task, isActive: false }, category)).toBe(
+      "task"
+    );
+  });
+});
+
+describe("isTimeEntryReadOnly", () => {
+  const submissionByKey = new Map<string, TimesheetPeriodDto>();
+
+  it("returns true when project is inactive", () => {
+    expect(
+      isTimeEntryReadOnly(log, { ...project, isActive: false }, task, category, submissionByKey)
+    ).toBe(true);
+    expect(
+      resolveTimeEntryFreezeReason(
+        log,
+        { ...project, isActive: false },
+        task,
+        category,
+        submissionByKey
+      )
+    ).toBe("project");
+  });
+
+  it("returns true when category is inactive", () => {
+    expect(
+      isTimeEntryReadOnly(log, project, task, { ...category, isActive: false }, submissionByKey)
+    ).toBe(true);
+  });
+
+  it("returns true when task is inactive", () => {
+    expect(
+      isTimeEntryReadOnly(log, project, { ...task, isActive: false }, category, submissionByKey)
+    ).toBe(true);
+  });
+
+  it("returns true when entry is approval-locked", () => {
+    const lockedSubmissions = new Map([["proj-1:2026-06-09T00:00:00.000Z", submittedPeriod]]);
+    expect(isTimeEntryReadOnly(log, project, task, category, lockedSubmissions)).toBe(true);
+    expect(resolveTimeEntryFreezeReason(log, project, task, category, lockedSubmissions)).toBe(
+      "approval"
+    );
+  });
+
+  it("returns false when all entities are active and period is draft", () => {
+    expect(isTimeEntryReadOnly(log, project, task, category, submissionByKey)).toBe(false);
+  });
+});
+
+describe("messageForFreezeReason", () => {
+  it("returns inactive entity messages", () => {
+    expect(messageForFreezeReason("project")).toBe(INACTIVE_PROJECT_MESSAGE);
+    expect(messageForFreezeReason("category")).toBe(INACTIVE_CATEGORY_MESSAGE);
+    expect(messageForFreezeReason("task")).toBe(INACTIVE_TASK_MESSAGE);
   });
 });
 

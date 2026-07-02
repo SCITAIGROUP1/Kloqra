@@ -42,7 +42,8 @@ describe("global-search-results", () => {
           categoryName: "Development",
           taskName: "Code review",
           billableDefault: true,
-          isCommon: true
+          isCommon: true,
+          isActive: true
         }
       ],
       1,
@@ -61,7 +62,8 @@ describe("global-search-results", () => {
           categoryId: "c1",
           taskName: "Orphan",
           billableDefault: true,
-          isCommon: true
+          isCommon: true,
+          isActive: true
         }
       ],
       1,
@@ -76,7 +78,8 @@ describe("global-search-results", () => {
       Array.from({ length: 5 }, (_, index) => ({
         id: `c${index}`,
         name: `Category ${index}`,
-        description: null
+        description: null,
+        isActive: true
       })),
       8,
       "category"

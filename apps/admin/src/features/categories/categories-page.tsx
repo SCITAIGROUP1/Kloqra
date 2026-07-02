@@ -8,28 +8,69 @@ import {
   AppModal,
   Badge,
   Button,
+  ConfirmDialog,
   DataTableCard,
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableHeader,
   TablePagination,
   TableRow,
-  TableLoadingState
+  TableLoadingState,
+  appBarListFilterTriggerClass
 } from "@kloqra/ui";
 import { apiDownloadGet, saveDownloadResponse, usePaginatedList } from "@kloqra/web-shared";
-import { Download, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from "lucide-react";
-import { useState } from "react";
+import {
+  Download,
+  FileSpreadsheet,
+  Lock,
+  Pencil,
+  Plus,
+  Trash2,
+  Unlock,
+  Upload
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  getActivateCategoryConfirmation,
+  getDeactivateCategoryConfirmation,
+  getDeleteCategoryConfirmation
+} from "./category-confirmation";
+import { EntityStatusBadge } from "@/components/entity-status-badge";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
+type CategoryConfirmAction =
+  | { type: "delete"; category: CategoryDto }
+  | { type: "deactivate"; category: CategoryDto }
+  | { type: "activate"; category: CategoryDto };
+
+function categoryIsActive(category: CategoryDto): boolean {
+  return category.isActive !== false;
+}
+
 export function AdminCategoriesPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
+  const listFilters = useMemo(
+    () =>
+      statusFilter === "active"
+        ? { isActive: "true" }
+        : statusFilter === "inactive"
+          ? { isActive: "false" }
+          : undefined,
+    [statusFilter]
+  );
   const {
     items: categories,
     page,
@@ -44,7 +85,8 @@ export function AdminCategoriesPage() {
     reload
   } = usePaginatedList<CategoryDto>({
     workspaceId: ws,
-    basePath: ROUTES.CATEGORIES.LIST
+    basePath: ROUTES.CATEGORIES.LIST,
+    filters: listFilters
   });
 
   const [name, setName] = useState("");
@@ -58,6 +100,15 @@ export function AdminCategoriesPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<CategoryConfirmAction | null>(null);
+
+  const confirmCopy = confirmAction
+    ? confirmAction.type === "delete"
+      ? getDeleteCategoryConfirmation(confirmAction.category.name)
+      : confirmAction.type === "deactivate"
+        ? getDeactivateCategoryConfirmation(confirmAction.category.name)
+        : getActivateCategoryConfirmation(confirmAction.category.name)
+    : null;
 
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -131,6 +182,7 @@ export function AdminCategoriesPage() {
         method: "DELETE",
         workspaceId: ws
       });
+      setConfirmAction(null);
       toast.success(`"${category.name}" deleted.`);
       await reload();
     } catch (err) {
@@ -140,6 +192,36 @@ export function AdminCategoriesPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function setCategoryActive(category: CategoryDto, isActive: boolean) {
+    setBusyId(category.id);
+    setError(null);
+    try {
+      await api(ROUTES.CATEGORIES.BY_ID(category.id), {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify({ isActive })
+      });
+      setConfirmAction(null);
+      toast.success(isActive ? `"${category.name}" activated.` : `"${category.name}" deactivated.`);
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not update category status.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function handleConfirmAction() {
+    if (!confirmAction) return;
+    if (confirmAction.type === "delete") {
+      void removeCategory(confirmAction.category);
+      return;
+    }
+    void setCategoryActive(confirmAction.category, confirmAction.type === "activate");
   }
 
   async function handleDownloadTemplate() {
@@ -196,6 +278,24 @@ export function AdminCategoriesPage() {
             onSearchChange={setSearch}
             searchPlaceholder="Search categories…"
             searchAriaLabel="Search categories"
+            filters={
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+              >
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            }
           />
         }
       />
@@ -242,7 +342,7 @@ export function AdminCategoriesPage() {
 
       <DataTableCard>
         {loading ? (
-          <TableLoadingState rows={6} columns={4} />
+          <TableLoadingState rows={6} columns={5} />
         ) : (
           <>
             <Table>
@@ -250,6 +350,7 @@ export function AdminCategoriesPage() {
                 <DataTableHeaderRow>
                   <DataTableHead>Name</DataTableHead>
                   <DataTableHead>Description</DataTableHead>
+                  <DataTableHead>Status</DataTableHead>
                   <DataTableHead>Tasks</DataTableHead>
                   <DataTableHead className="text-right">Actions</DataTableHead>
                 </DataTableHeaderRow>
@@ -280,6 +381,9 @@ export function AdminCategoriesPage() {
                         ) : (
                           (category.description ?? "—")
                         )}
+                      </DataTableCell>
+                      <DataTableCell>
+                        <EntityStatusBadge isActive={categoryIsActive(category)} />
                       </DataTableCell>
                       <DataTableCell>
                         <Badge variant="secondary">{category.taskCount ?? 0}</Badge>
@@ -321,7 +425,30 @@ export function AdminCategoriesPage() {
                                 size="sm"
                                 variant="ghost"
                                 disabled={busyId === category.id}
-                                onClick={() => void removeCategory(category)}
+                                onClick={() =>
+                                  setConfirmAction({
+                                    type: categoryIsActive(category) ? "deactivate" : "activate",
+                                    category
+                                  })
+                                }
+                                aria-label={
+                                  categoryIsActive(category)
+                                    ? `Deactivate ${category.name}`
+                                    : `Activate ${category.name}`
+                                }
+                              >
+                                {categoryIsActive(category) ? (
+                                  <Lock className="size-4" />
+                                ) : (
+                                  <Unlock className="size-4" />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={busyId === category.id}
+                                onClick={() => setConfirmAction({ type: "delete", category })}
                                 aria-label={`Delete ${category.name}`}
                               >
                                 <Trash2 className="size-4" />
@@ -349,6 +476,16 @@ export function AdminCategoriesPage() {
       </DataTableCard>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmCopy?.title ?? ""}
+        description={confirmCopy?.description}
+        confirmLabel={confirmCopy?.confirmLabel}
+        destructive={confirmCopy?.destructive}
+        onConfirm={() => void handleConfirmAction()}
+        onCancel={() => setConfirmAction(null)}
+      />
 
       <AppModal
         open={bulkOpen}

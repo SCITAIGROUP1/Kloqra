@@ -19,6 +19,9 @@ function makePrisma() {
     task: {
       count: vi.fn() as AnyMock,
       updateMany: vi.fn() as AnyMock
+    },
+    workspaceMember: {
+      findMany: vi.fn().mockResolvedValue([]) as AnyMock
     }
   };
 }
@@ -33,7 +36,8 @@ describe("CategoriesService", () => {
       prisma as any,
       {
         add: vi.fn().mockResolvedValue({ id: "job-1" })
-      } as any
+      } as any,
+      { notify: vi.fn().mockResolvedValue(undefined) } as any
     );
   });
 
@@ -43,19 +47,21 @@ describe("CategoriesService", () => {
         id: "c1",
         workspaceId: "w1",
         name: "Design",
-        description: null
+        description: null,
+        isActive: true
       });
       expect(dto).toEqual({
         id: "c1",
         workspaceId: "w1",
         name: "Design",
-        description: null
+        description: null,
+        isActive: true
       });
     });
 
     it("includes taskCount when provided", () => {
       const dto = service.toDto(
-        { id: "c1", workspaceId: "w1", name: "Design", description: "UI work" },
+        { id: "c1", workspaceId: "w1", name: "Design", description: "UI work", isActive: true },
         3
       );
       expect(dto.taskCount).toBe(3);
@@ -251,7 +257,11 @@ describe("CategoriesService", () => {
     it("enqueues a bulk category job", async () => {
       prisma.workspace.findUnique.mockResolvedValue({ id: "w1" });
       const queue = { add: vi.fn().mockResolvedValue({ id: "job-42" }) };
-      service = new CategoriesService(prisma as any, queue as any);
+      service = new CategoriesService(
+        prisma as any,
+        queue as any,
+        { notify: vi.fn().mockResolvedValue(undefined) } as any
+      );
 
       const result = await service.bulkImport("w1", [
         { name: "Development", description: "Build" },

@@ -20,6 +20,7 @@ import {
   formatUserDateTime,
   listTimeLogOccupancyQuerySchema,
   listTimeLogsQuerySchema,
+  listTasksQuerySchema,
   loginSchema,
   mergeUserPreferences,
   normalizeNotificationChannels,
@@ -479,6 +480,17 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("allows category isActive toggle in update", () => {
+    const r = updateCategorySchema.safeParse({ isActive: false });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts loggableOnly on task list query", () => {
+    const r = listTasksQuerySchema.safeParse({ loggableOnly: "true" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.loggableOnly).toBe(true);
+  });
+
   it("requires categoryId when creating a task", () => {
     const r = createTaskSchema.safeParse({
       projectId: UUID,
@@ -505,7 +517,7 @@ describe("contracts", () => {
       taskName: "Implement feature",
       billableDefault: true,
       isCommon: true,
-      assignees: [{ userId: UUID, userName: "Sam" }]
+      isActive: true
     });
     expect(r.success).toBe(true);
     if (r.success) {
