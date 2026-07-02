@@ -10,6 +10,7 @@ jobs:
   sync:
     name: Sync main branch to Kloqra
     runs-on: ubuntu-latest
+    if: github.repository == 'SCITAIGROUP1/ChronoMint'
     steps:
       - name: Checkout ChronoMint
         uses: actions/checkout@v4
