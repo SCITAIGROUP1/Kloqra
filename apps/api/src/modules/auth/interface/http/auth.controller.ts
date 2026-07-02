@@ -273,7 +273,11 @@ export class AuthController {
         { userAgent: req.headers["user-agent"] }
       );
       if (!session) return { error: "No platform session" };
-      const access = this.auth.signPlatformAccessToken(session.user.id, family);
+      const access = this.auth.signPlatformAccessToken(
+        session.user.id,
+        session.platformRole,
+        family
+      );
       const cookieOpts = getCookieOpts();
       res.cookie(accessCookieName(scope), access, {
         ...cookieOpts,
@@ -548,7 +552,11 @@ export class AuthController {
       undefined,
       this.sessionMetaFromRequest(req)
     );
-    const access = this.auth.signPlatformAccessToken(session.user.id, issued.family);
+    const access = this.auth.signPlatformAccessToken(
+      session.user.id,
+      session.platformRole,
+      issued.family
+    );
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,

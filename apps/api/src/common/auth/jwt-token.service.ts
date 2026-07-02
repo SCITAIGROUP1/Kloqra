@@ -15,7 +15,7 @@ export type AuthTokenFailureReason =
 export interface VerifiedPlatformAccessPayload {
   sub: string;
   platformUserId: string;
-  platformRole: "SUPERADMIN";
+  platformRole: "SUPERADMIN" | "SUPPORT";
   scope: "platform";
   family?: string;
 }
@@ -198,7 +198,11 @@ export class JwtTokenService {
         details: { reason: "missing_claims" as AuthTokenFailureReason }
       });
     }
-    if (!sub || platformRole !== "SUPERADMIN" || scope !== "platform") {
+    if (
+      !sub ||
+      (platformRole !== "SUPERADMIN" && platformRole !== "SUPPORT") ||
+      scope !== "platform"
+    ) {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Invalid token claims",
@@ -210,7 +214,7 @@ export class JwtTokenService {
     return {
       sub,
       platformUserId: sub,
-      platformRole: "SUPERADMIN",
+      platformRole: platformRole as "SUPERADMIN" | "SUPPORT",
       scope: "platform",
       family
     };

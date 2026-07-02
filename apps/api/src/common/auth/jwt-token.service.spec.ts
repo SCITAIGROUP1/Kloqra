@@ -79,6 +79,18 @@ describe("JwtTokenService", () => {
     expect(payload.platformRole).toBe("SUPERADMIN");
   });
 
+  it("verifyPlatformAccessToken accepts platform typ for SUPPORT role", () => {
+    mockJwt.verify.mockReturnValue({
+      sub: "p1",
+      platformRole: "SUPPORT",
+      typ: "platform",
+      scope: "platform"
+    });
+    const payload = service.verifyPlatformAccessToken("token");
+    expect(payload.platformUserId).toBe("p1");
+    expect(payload.platformRole).toBe("SUPPORT");
+  });
+
   it("verifyPlatformAccessToken rejects tenant claims", () => {
     mockJwt.verify.mockReturnValue({
       sub: "p1",

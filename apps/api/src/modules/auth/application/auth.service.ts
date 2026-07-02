@@ -1303,7 +1303,11 @@ export class AuthService {
     };
   }
 
-  signPlatformAccessToken(platformUserId: string, family?: string): string {
+  signPlatformAccessToken(
+    platformUserId: string,
+    platformRole: "SUPERADMIN" | "SUPPORT",
+    family?: string
+  ): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) {
       throw new Error("JWT_ACCESS_SECRET is not set on the API service");
@@ -1311,7 +1315,7 @@ export class AuthService {
     return this.jwt.sign(
       {
         sub: platformUserId,
-        platformRole: "SUPERADMIN",
+        platformRole,
         typ: "platform",
         scope: "platform",
         ...(family ? { family } : {})

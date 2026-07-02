@@ -494,11 +494,26 @@ describe("AuthService unit tests", () => {
   describe("signPlatformAccessToken", () => {
     it("signs platform token with typ platform", () => {
       process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
-      authService.signPlatformAccessToken("platform-1", "fam-1");
+      authService.signPlatformAccessToken("platform-1", "SUPERADMIN", "fam-1");
       expect(mockJwt.sign).toHaveBeenCalledWith(
         {
           sub: "platform-1",
           platformRole: "SUPERADMIN",
+          typ: "platform",
+          scope: "platform",
+          family: "fam-1"
+        },
+        expect.objectContaining({ secret: "my-secret-key-32-chars-long-or-more" })
+      );
+    });
+
+    it("signs platform token for SUPPORT role", () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      authService.signPlatformAccessToken("platform-1", "SUPPORT", "fam-1");
+      expect(mockJwt.sign).toHaveBeenCalledWith(
+        {
+          sub: "platform-1",
+          platformRole: "SUPPORT",
           typ: "platform",
           scope: "platform",
           family: "fam-1"
