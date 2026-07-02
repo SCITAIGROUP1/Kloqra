@@ -26,16 +26,17 @@ export default function PricingPage() {
         ) : error ? (
           <div className="text-center py-20 text-destructive">{error}</div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 items-stretch max-w-5xl mx-auto">
             {plans.map((plan) => (
               <div
                 key={plan.id}
-                className={`glass-card p-8 rounded-3xl flex flex-col relative ${
+                className={`glass-card rounded-3xl flex flex-col relative transition-all duration-300 ${
                   plan.recommended
-                    ? "border-4 border-premium transform md:-translate-y-4 shadow-xl shadow-premium/10"
-                    : plan.billingMode === "contact"
-                      ? "border-t-4 border-t-muted-foreground"
-                      : "border-t-4 border-t-primary"
+                    ? "border-4 border-premium p-10 md:scale-105 z-10 md:-translate-y-4 shadow-2xl shadow-premium/20"
+                    : "p-8 md:scale-95 border-t-4 " +
+                      (plan.billingMode === "contact"
+                        ? "border-t-muted-foreground"
+                        : "border-t-primary")
                 }`}
               >
                 {plan.recommended && (
@@ -88,7 +89,9 @@ export default function PricingPage() {
       </div>
 
       {/* FAQ Section */}
-      <FAQAccordion />
+      <div className="mt-32 border-t border-border/20 pt-24 max-w-5xl mx-auto px-4">
+        <FAQAccordion />
+      </div>
     </div>
   );
 }

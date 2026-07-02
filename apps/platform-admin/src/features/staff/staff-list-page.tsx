@@ -24,9 +24,11 @@ import {
 } from "@kloqra/ui";
 import { api, usePlatformStaff } from "@kloqra/web-shared";
 import { format } from "date-fns";
-import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { StaffActions } from "./staff-actions";
+import { StaffChangePasswordModal } from "./staff-change-password-modal";
 import { StaffCreateModal } from "./staff-create-modal";
+import { StaffEditModal } from "./staff-edit-modal";
 
 const ALL = "__all__";
 
@@ -42,10 +44,22 @@ const STATUS_OPTIONS = [
   { value: "false", label: "Inactive" }
 ];
 
+type StaffType = {
+  id: string;
+  email: string;
+  name: string;
+  role: "SUPERADMIN" | "SUPPORT";
+  isActive: boolean;
+  createdAt: string;
+};
+
 export function StaffListPage() {
   const [roleFilter, setRoleFilter] = useState<string>(ALL);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffType | null>(null);
 
   const isActive = statusFilter === ALL ? undefined : statusFilter === "true";
 
@@ -64,10 +78,22 @@ export function StaffListPage() {
     reload
   } = usePlatformStaff({ role: roleFilter, isActive });
 
-  const deleteStaff = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this staff member?")) return;
+  const toggleStaffStatus = async (id: string, nextStatus: boolean) => {
     try {
-      await api(`/platform/staff/${id}`, { method: "DELETE" });
+      await api(`/platform/staff/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: nextStatus })
+      });
+      void reload();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update staff member status.");
+    }
+  };
+
+  const deleteStaff = async (user: StaffType) => {
+    if (!window.confirm(`Are you sure you want to delete ${user.name}?`)) return;
+    try {
+      await api(`/platform/staff/${user.id}`, { method: "DELETE" });
       void reload();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete staff member.");
@@ -165,15 +191,19 @@ export function StaffListPage() {
                     </DataTableCell>
                     <DataTableCell>{format(new Date(user.createdAt), "MMM d, yyyy")}</DataTableCell>
                     <DataTableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        onClick={() => deleteStaff(user.id)}
-                        aria-label="Delete staff member"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <StaffActions
+                        staff={user}
+                        onEdit={() => {
+                          setSelectedStaff(user);
+                          setEditOpen(true);
+                        }}
+                        onChangeStatus={(nextStatus) => toggleStaffStatus(user.id, nextStatus)}
+                        onChangePassword={() => {
+                          setSelectedStaff(user);
+                          setChangePasswordOpen(true);
+                        }}
+                        onDelete={() => deleteStaff(user)}
+                      />
                     </DataTableCell>
                   </TableRow>
                 ))}
@@ -194,6 +224,18 @@ export function StaffListPage() {
       </DataTableCard>
 
       <StaffCreateModal open={createOpen} onOpenChange={setCreateOpen} onCreated={reload} />
+      <StaffEditModal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        staff={selectedStaff}
+        onUpdated={reload}
+      />
+      <StaffChangePasswordModal
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+        staff={selectedStaff}
+        onUpdated={reload}
+      />
     </div>
   );
 }

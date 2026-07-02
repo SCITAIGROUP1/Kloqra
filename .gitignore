@@ -23,3 +23,6 @@ apps/client/playwright-report/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.local-serve/
+apps/api/.billing-receipts/
+.tmp-bin/

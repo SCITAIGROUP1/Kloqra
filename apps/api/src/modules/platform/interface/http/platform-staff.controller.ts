@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import { z } from "zod";
@@ -6,7 +16,7 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
 import { PrismaService } from "../../../../common/prisma/prisma.service";
 
 const createStaffSchema = z.object({
@@ -16,8 +26,16 @@ const createStaffSchema = z.object({
   password: z.string().min(8)
 });
 
+const updateStaffSchema = z.object({
+  email: z.string().email().optional(),
+  name: z.string().min(1).optional(),
+  role: z.enum(["SUPERADMIN", "SUPPORT"]).optional(),
+  isActive: z.boolean().optional(),
+  password: z.string().min(8).optional()
+});
+
 @Controller("platform/staff")
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformSuperadminGuard)
 export class PlatformStaffController {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -126,5 +144,54 @@ export class PlatformStaffController {
     });
 
     return { success: true };
+  }
+
+  @Patch(":id")
+  async updateStaff(
+    @CurrentPlatformUser() user: PlatformRequestUser,
+    @Param("id") id: string,
+    @Body() body: any
+  ) {
+    if (user.platformRole !== "SUPERADMIN") {
+      throw new Error("Unauthorized");
+    }
+
+    const parsed = updateStaffSchema.parse(body);
+
+    if (parsed.email) {
+      const existingUser = await this.prisma.platformUser.findUnique({
+        where: { email: parsed.email }
+      });
+      if (existingUser && existingUser.id !== id) {
+        throw new Error("User with this email already exists");
+      }
+    }
+
+    if (user.platformUserId === id) {
+      if (parsed.isActive === false) {
+        throw new Error("Cannot deactivate yourself");
+      }
+      if (parsed.role && parsed.role !== "SUPERADMIN") {
+        throw new Error("Cannot demote yourself");
+      }
+    }
+
+    const data: Prisma.PlatformUserUpdateInput = {};
+    if (parsed.name !== undefined) data.name = parsed.name;
+    if (parsed.email !== undefined) data.email = parsed.email;
+    if (parsed.role !== undefined) data.role = parsed.role;
+    if (parsed.isActive !== undefined) data.isActive = parsed.isActive;
+
+    if (parsed.password) {
+      const salt = await bcrypt.genSalt(10);
+      data.passwordHash = await bcrypt.hash(parsed.password, salt);
+    }
+
+    const updatedUser = await this.prisma.platformUser.update({
+      where: { id },
+      data
+    });
+
+    return { id: updatedUser.id, success: true };
   }
 }

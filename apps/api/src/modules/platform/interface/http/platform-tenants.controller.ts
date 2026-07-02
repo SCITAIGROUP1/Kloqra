@@ -23,13 +23,13 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { platformAuditContextFromRequest } from "../../application/platform-audit-context.util";
 import { PlatformTenantsService } from "../../application/platform-tenants.service";
 
 @Controller()
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformSuperadminGuard)
 export class PlatformTenantsController {
   constructor(private platformTenants: PlatformTenantsService) {}
 

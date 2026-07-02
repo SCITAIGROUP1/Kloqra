@@ -10,7 +10,7 @@
     "start": "next start -p 3004",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:e2e": "node ../../scripts/e2e-prep.mjs && playwright test"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 import { BullModule } from "@nestjs/bullmq";
 import { Module, forwardRef } from "@nestjs/common";
 import { PlatformJwtAuthGuard } from "../../common/guards/platform-jwt-auth.guard";
+import { PlatformSuperadminGuard } from "../../common/guards/platform-superadmin.guard";
 import { PlatformGuard } from "../../common/guards/platform.guard";
 import { MailerModule } from "../../common/mailer/mailer.module";
 import { NotificationMailer } from "../../common/mailer/notification.mailer";
@@ -13,6 +14,7 @@ import { PlatformCatalogSettingsService } from "./application/platform-catalog-s
 import { PlatformNotificationsDispatchService } from "./application/platform-notifications-dispatch.service";
 import { PlatformNotificationsRealtimeService } from "./application/platform-notifications-realtime.service";
 import { PlatformNotificationsService } from "./application/platform-notifications.service";
+import { PlatformOperationsControlsService } from "./application/platform-operations-controls.service";
 import { PlatformOpsService } from "./application/platform-ops.service";
 import { PlatformPlansService } from "./application/platform-plans.service";
 import { PlatformSubscriptionsService } from "./application/platform-subscriptions.service";
@@ -23,6 +25,7 @@ import { PlatformUsersService } from "./application/platform-users.service";
 import { PlatformAuditController } from "./interface/http/platform-audit.controller";
 import { PlatformCatalogSettingsController } from "./interface/http/platform-catalog-settings.controller";
 import { PlatformNotificationsController } from "./interface/http/platform-notifications.controller";
+import { PlatformOperationsControlsController } from "./interface/http/platform-operations-controls.controller";
 import { PlatformOpsController } from "./interface/http/platform-ops.controller";
 import { PlatformPlansController } from "./interface/http/platform-plans.controller";
 import { PlatformSalesInquiriesController } from "./interface/http/platform-sales-inquiries.controller";
@@ -57,7 +60,8 @@ import { PlatformAuditModule } from "./platform-audit.module";
     PlatformOpsController,
     PlatformUsersController,
     PlatformStaffController,
-    PlatformNotificationsController
+    PlatformNotificationsController,
+    PlatformOperationsControlsController
   ],
   providers: [
     PlatformTenantsService,
@@ -73,14 +77,18 @@ import { PlatformAuditModule } from "./platform-audit.module";
     PlatformNotificationsDispatchService,
     NotificationMailer,
     PlatformGuard,
-    PlatformJwtAuthGuard
+    PlatformSuperadminGuard,
+    PlatformJwtAuthGuard,
+    PlatformOperationsControlsService
   ],
   exports: [
     PlatformTenantsService,
     PlatformSubscriptionsService,
     PlatformOpsService,
     PlatformNotificationsDispatchService,
-    PlatformNotificationsRealtimeService
+    PlatformNotificationsRealtimeService,
+    PlatformNotificationsService,
+    PlatformSuperadminGuard
   ]
 })
 export class PlatformModule {}

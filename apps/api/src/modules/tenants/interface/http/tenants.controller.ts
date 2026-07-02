@@ -132,6 +132,12 @@ export class TenantsController {
   }
 
   @TenantRoles("OWNER", "ADMIN")
+  @Get(ROUTES.TENANTS.WORKSPACES_TREE)
+  getWorkspacesTree(@CurrentUser() user: RequestUser) {
+    return this.workspace.getWorkspacesTree(user.tenantId);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
   @Post(ROUTES.TENANTS.WORKSPACES)
   createWorkspace(
     @CurrentUser() user: RequestUser,

@@ -1291,7 +1291,7 @@ export class AuthService {
     name: string;
     role: string;
   }): PlatformSessionDto {
-    const platformRole = user.role === "SUPERADMIN" ? "SUPERADMIN" : "SUPERADMIN";
+    const platformRole = user.role === "SUPERADMIN" ? "SUPERADMIN" : "SUPPORT";
     return {
       user: {
         id: user.id,
@@ -1462,14 +1462,15 @@ export class AuthService {
   async refreshPlatformSession(platformUserId: string): Promise<PlatformSessionDto | null> {
     const db = this.db();
     const user = await db.platformUser.findUnique({ where: { id: platformUserId } });
-    if (!user || !user.isActive || user.role !== "SUPERADMIN") return null;
+    if (!user || !user.isActive || (user.role !== "SUPERADMIN" && user.role !== "SUPPORT"))
+      return null;
     return this.buildPlatformSession(user);
   }
 
   async getPlatformMe(platformUserId: string): Promise<PlatformSessionDto> {
     const db = this.db();
     const user = await db.platformUser.findUniqueOrThrow({ where: { id: platformUserId } });
-    if (!user.isActive || user.role !== "SUPERADMIN") {
+    if (!user.isActive || (user.role !== "SUPERADMIN" && user.role !== "SUPPORT")) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Platform access required",

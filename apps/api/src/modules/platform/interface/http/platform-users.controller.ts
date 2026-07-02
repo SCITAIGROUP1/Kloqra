@@ -4,9 +4,23 @@ import {
   twoFactorDisableSchema,
   twoFactorVerifySchema,
   updatePlatformPreferencesSchema,
-  updatePlatformUserProfileSchema
+  updatePlatformUserProfileSchema,
+  dashboardLayoutQuerySchema,
+  updateDashboardLayoutSchema
 } from "@kloqra/contracts";
-import { Body, Controller, Delete, Get, Patch, Post, Param, Req, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Param,
+  Req,
+  UseGuards
+} from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { refreshCookieName, getAuthScope } from "../../../../common/auth/auth-scope";
@@ -56,6 +70,25 @@ export class PlatformUsersController {
     return this.users.updatePreferences(
       user.platformUserId,
       body as Parameters<PlatformUsersService["updatePreferences"]>[1]
+    );
+  }
+
+  @Get(ROUTES.PLATFORM.ME_DASHBOARD_LAYOUT)
+  getDashboardLayout(
+    @CurrentPlatformUser() user: PlatformRequestUser,
+    @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) _query: { app: "platform" }
+  ) {
+    return this.users.getDashboardLayout(user.platformUserId);
+  }
+
+  @Put(ROUTES.PLATFORM.ME_DASHBOARD_LAYOUT)
+  updateDashboardLayout(
+    @CurrentPlatformUser() user: PlatformRequestUser,
+    @Body(new ZodValidationPipe(updateDashboardLayoutSchema)) body: unknown
+  ) {
+    return this.users.updateDashboardLayout(
+      user.platformUserId,
+      body as Parameters<PlatformUsersService["updateDashboardLayout"]>[1]
     );
   }
 

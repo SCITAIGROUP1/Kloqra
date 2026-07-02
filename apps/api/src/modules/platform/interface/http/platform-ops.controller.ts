@@ -4,11 +4,11 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
 import { PlatformOpsService } from "../../application/platform-ops.service";
 
 @Controller()
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformSuperadminGuard)
 export class PlatformOpsController {
   constructor(private ops: PlatformOpsService) {}
 

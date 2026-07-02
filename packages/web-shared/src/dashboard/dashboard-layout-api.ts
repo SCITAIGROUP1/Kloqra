@@ -11,7 +11,13 @@ export async function fetchDashboardLayout(
   workspaceId: string,
   app: DashboardApp
 ): Promise<DashboardLayoutResponseDto> {
+  if (app === "platform" && process.env.NEXT_PUBLIC_AUTH_SCOPE !== "platform") {
+    return { layout: null, defaultLayout: null };
+  }
   const params = new URLSearchParams({ app });
+  if (app === "platform") {
+    return api<DashboardLayoutResponseDto>(`${ROUTES.PLATFORM.ME_DASHBOARD_LAYOUT}?${params}`);
+  }
   return api<DashboardLayoutResponseDto>(`${ROUTES.USERS.DASHBOARD_LAYOUT}?${params}`, {
     workspaceId
   });
@@ -21,6 +27,15 @@ export async function saveDashboardLayout(
   workspaceId: string,
   update: UpdateDashboardLayoutDto
 ): Promise<DashboardLayoutResponseDto> {
+  if (update.app === "platform" && process.env.NEXT_PUBLIC_AUTH_SCOPE !== "platform") {
+    return { layout: null, defaultLayout: null };
+  }
+  if (update.app === "platform") {
+    return api<DashboardLayoutResponseDto>(ROUTES.PLATFORM.ME_DASHBOARD_LAYOUT, {
+      method: "PUT",
+      body: JSON.stringify(update)
+    });
+  }
   return api<DashboardLayoutResponseDto>(ROUTES.USERS.DASHBOARD_LAYOUT, {
     method: "PUT",
     workspaceId,

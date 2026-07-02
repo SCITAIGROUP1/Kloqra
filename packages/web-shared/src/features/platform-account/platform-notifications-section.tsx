@@ -104,6 +104,19 @@ export function PlatformNotificationsSection({
     }
   }
 
+  const visibleRows =
+    profile.platformRole === "SUPPORT"
+      ? [
+          {
+            key: "securityAlerts" as const,
+            title: "Ticket mentions & security alerts",
+            description:
+              "Get notified when you are @mentioned in a ticket note or when account events occur",
+            icon: Shield
+          }
+        ]
+      : ROWS;
+
   return (
     <div className="space-y-4">
       <SettingsCard
@@ -113,7 +126,7 @@ export function PlatformNotificationsSection({
         action={<MasterToggle enabled={enabled} onToggle={() => setEnabled((value) => !value)} />}
       />
 
-      {ROWS.map(({ key, title, description, icon: Icon }) => (
+      {visibleRows.map(({ key, title, description, icon: Icon }) => (
         <SettingsCard
           key={key}
           icon={Icon}

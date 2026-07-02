@@ -19,7 +19,10 @@ export const PlatformNotificationType = {
   QUEUE_FAILURE: "QUEUE_FAILURE",
   SECURITY_ALERT: "SECURITY_ALERT",
   SALES_INQUIRY: "SALES_INQUIRY",
-  SALES_RECEIPT_UPLOADED: "SALES_RECEIPT_UPLOADED"
+  SALES_RECEIPT_UPLOADED: "SALES_RECEIPT_UPLOADED",
+  TICKET_MENTION: "TICKET_MENTION",
+  TICKET_ASSIGNED: "TICKET_ASSIGNED",
+  TICKET_STATUS_CHANGED: "TICKET_STATUS_CHANGED"
 } as const;
 
 export type PlatformNotificationType =
@@ -61,7 +64,10 @@ export const platformNotificationPreferenceKeyMap: Record<
   SALES_RECEIPT_UPLOADED: "tenantLifecycle",
   SUBSCRIPTION_DRIFT: "subscriptionDrift",
   QUEUE_FAILURE: "queueFailures",
-  SECURITY_ALERT: "securityAlerts"
+  SECURITY_ALERT: "securityAlerts",
+  TICKET_MENTION: "securityAlerts",
+  TICKET_ASSIGNED: "securityAlerts",
+  TICKET_STATUS_CHANGED: "securityAlerts"
 };
 
 export type PlatformNotificationDto = z.infer<typeof platformNotificationSchema>;

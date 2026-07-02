@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 function formatPlatformRole(role: string) {
   if (role === "SUPERADMIN") return "Super Admin";
+  if (role === "SUPPORT") return "Support Agent";
   return role;
 }
 

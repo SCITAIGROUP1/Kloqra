@@ -1,11 +1,11 @@
 import { listPlatformAuditEventsQuerySchema, ROUTES } from "@kloqra/contracts";
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { PlatformAuditService } from "../../application/platform-audit.service";
 
 @Controller()
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformSuperadminGuard)
 export class PlatformAuditController {
   constructor(private audit: PlatformAuditService) {}
 

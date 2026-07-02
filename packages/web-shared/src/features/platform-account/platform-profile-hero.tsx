@@ -6,6 +6,7 @@ import { Mail, Shield, ShieldCheck } from "lucide-react";
 
 function formatPlatformRole(role: string) {
   if (role === "SUPERADMIN") return "Super Admin";
+  if (role === "SUPPORT") return "Support Agent";
   return role;
 }
 

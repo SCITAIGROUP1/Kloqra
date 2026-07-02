@@ -46,7 +46,9 @@ export default function HelpDeskPage() {
     statusFilter,
     setStatusFilter,
     channelFilter,
-    setChannelFilter
+    setChannelFilter,
+    assigneeFilter,
+    setAssigneeFilter
   } = useHelpdeskTickets();
 
   return (
@@ -89,6 +91,19 @@ export default function HelpDeskPage() {
                     <SelectItem value="EMAIL">Email</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={assigneeFilter} onValueChange={(value) => setAssigneeFilter(value)}>
+                  <SelectTrigger
+                    className={appBarListFilterTriggerClass}
+                    aria-label="Filter by assignee"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All tickets</SelectItem>
+                    <SelectItem value="ASSIGNED_TO_ME">Assigned to me</SelectItem>
+                    <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
+                  </SelectContent>
+                </Select>
               </>
             }
           />
@@ -99,7 +114,7 @@ export default function HelpDeskPage() {
         {error ? (
           <div className="p-6 text-sm text-destructive">{error}</div>
         ) : loading ? (
-          <TableLoadingState rows={5} columns={6} />
+          <TableLoadingState rows={5} columns={7} />
         ) : tickets.length === 0 ? (
           <div className="p-6">
             <EmptyState
@@ -114,6 +129,7 @@ export default function HelpDeskPage() {
                 <DataTableHeaderRow>
                   <DataTableHead>Subject</DataTableHead>
                   <DataTableHead>Requester</DataTableHead>
+                  <DataTableHead>Assignee</DataTableHead>
                   <DataTableHead>Queue & Channel</DataTableHead>
                   <DataTableHead>Priority</DataTableHead>
                   <DataTableHead>Status</DataTableHead>
@@ -139,13 +155,22 @@ export default function HelpDeskPage() {
                       <div className="text-xs text-muted-foreground">{ticket.requesterEmail}</div>
                     </DataTableCell>
                     <DataTableCell>
+                      {ticket.assignedToName ? (
+                        <div className="font-medium text-sm text-foreground">
+                          {ticket.assignedToName}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                      )}
+                    </DataTableCell>
+                    <DataTableCell>
                       <div className="font-medium text-sm">{ticket.queueName}</div>
                       <div className="text-xs text-muted-foreground">
                         {ticket.channel.replace("_", " ")}
                       </div>
                     </DataTableCell>
                     <DataTableCell>
-                      <PriorityDot priority={ticket.priority} />
+                      <PriorityDot priority={ticket.priority as any} />
                     </DataTableCell>
                     <DataTableCell>
                       <StatusBadge status={ticket.status} />

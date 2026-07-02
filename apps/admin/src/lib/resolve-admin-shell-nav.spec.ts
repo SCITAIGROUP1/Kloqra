@@ -45,6 +45,7 @@ describe("resolveAdminShellNav", () => {
     expect(navItems.map((item) => item.href)).toEqual([
       "/account",
       "/account/workspaces",
+      "/account/workspaces-tree",
       "/account/workspace-admins",
       "/account/organization",
       "/account/members",

@@ -6,10 +6,12 @@ import { ArrowLeft, Shield } from "lucide-react";
 import Link from "next/link";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+
 export type PlatformContextPanelProps = {
   backHref?: string;
   collapsed?: boolean;
   showBackLink?: boolean;
+  platformRole?: string;
 };
 
 const CONSOLE_SCOPE_LABEL = "Console";
@@ -30,7 +32,8 @@ function PlatformIcon({ className }: { className?: string }) {
 export function PlatformContextPanel({
   backHref = "/tenants",
   collapsed = false,
-  showBackLink = false
+  showBackLink = false,
+  platformRole
 }: PlatformContextPanelProps) {
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,6 +41,7 @@ export function PlatformContextPanel({
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
 
+  const portalLabel = platformRole === "SUPPORT" ? "Platform Support" : PLATFORM_PORTAL_LABEL;
   const scopeLabel = showBackLink ? "Account" : CONSOLE_SCOPE_LABEL;
 
   useLayoutEffect(() => {
@@ -112,10 +116,10 @@ export function PlatformContextPanel({
           aria-expanded={open}
           aria-haspopup="true"
           aria-controls={menuId}
-          aria-label={PLATFORM_PORTAL_LABEL}
+          aria-label={portalLabel}
           onClick={() => setOpen((value) => !value)}
           className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border/80 bg-muted/20 text-primary shadow-sm transition-colors hover:bg-muted/40"
-          title={PLATFORM_PORTAL_LABEL}
+          title={portalLabel}
         >
           <Shield className="size-4" aria-hidden />
         </button>
@@ -134,7 +138,7 @@ export function PlatformContextPanel({
             <span>{scopeLabel}</span>
             <span aria-hidden>·</span>
             <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-medium">
-              {PLATFORM_PORTAL_LABEL}
+              {portalLabel}
             </Badge>
           </p>
         </div>

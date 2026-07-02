@@ -5,7 +5,7 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { PlatformSubscriptionsService } from "../../application/platform-subscriptions.service";
 
@@ -15,7 +15,7 @@ const paginationQuerySchema = z.object({
 });
 
 @Controller()
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformSuperadminGuard)
 export class PlatformSubscriptionsController {
   constructor(private subscriptionsService: PlatformSubscriptionsService) {}
 

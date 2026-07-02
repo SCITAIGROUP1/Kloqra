@@ -875,6 +875,53 @@ export class WorkspaceService {
     return this.resendMemberCredentials(workspaceId, memberId);
   }
 
+  async getWorkspacesTree(tenantId: string) {
+    return this.prisma.workspace.findMany({
+      where: { tenantId } as any,
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true,
+                jobTitle: true,
+                department: true,
+                workStartDate: true
+              }
+            }
+          }
+        },
+        projects: {
+          include: {
+            team: {
+              include: {
+                members: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        avatarUrl: true,
+                        jobTitle: true,
+                        department: true,
+                        workStartDate: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { name: "asc" }
+    });
+  }
+
   private toMemberDto(member: WorkspaceMemberWithUser) {
     return {
       id: member.id,

@@ -6,7 +6,9 @@ import {
   type ChangePlatformPasswordDto,
   type PlatformUserProfileDto,
   type UpdatePlatformPreferencesDto,
-  type UpdatePlatformUserProfileDto
+  type UpdatePlatformUserProfileDto,
+  type DashboardLayoutResponseDto,
+  type UpdateDashboardLayoutDto
 } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
@@ -97,6 +99,43 @@ export class PlatformUsersService {
     return { ok: true };
   }
 
+  async getDashboardLayout(platformUserId: string): Promise<DashboardLayoutResponseDto> {
+    const user = await this.prisma.platformUser.findUniqueOrThrow({
+      where: { id: platformUserId },
+      select: { preferences: true }
+    });
+    const preferences = parsePlatformPreferences(user.preferences) as any;
+    const stored = preferences.dashboardLayout ?? {};
+    return {
+      layout: stored.layout ?? null,
+      defaultLayout: stored.defaultLayout ?? null
+    };
+  }
+
+  async updateDashboardLayout(
+    platformUserId: string,
+    dto: UpdateDashboardLayoutDto
+  ): Promise<DashboardLayoutResponseDto> {
+    const existing = await this.prisma.platformUser.findUniqueOrThrow({
+      where: { id: platformUserId },
+      select: { preferences: true }
+    });
+    const current = parsePlatformPreferences(existing.preferences) as any;
+    const dashboardLayout = {
+      layout: dto.layout,
+      defaultLayout: dto.defaultLayout
+    };
+    const merged = {
+      ...current,
+      dashboardLayout
+    };
+    await this.prisma.platformUser.update({
+      where: { id: platformUserId },
+      data: { preferences: merged as Prisma.InputJsonValue }
+    });
+    return this.getDashboardLayout(platformUserId);
+  }
+
   private async revokeAllRefreshTokens(platformUserId: string): Promise<void> {
     const now = new Date();
     const sessions = await this.prisma.platformRefreshToken.findMany({
@@ -133,7 +172,7 @@ export class PlatformUsersService {
       id: user.id,
       email: user.email,
       name: user.name,
-      platformRole: "SUPERADMIN",
+      platformRole: user.role === "SUPERADMIN" ? "SUPERADMIN" : "SUPPORT",
       preferences,
       effectiveTheme: resolveEffectiveTheme(preferences),
       twoFactorEnabled: Boolean(user.totpEnabledAt)

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { uuidSchema } from "./dto/common.dto";
 import type { UserPreferences } from "./user-preferences";
 
-export const dashboardAppSchema = z.enum(["client", "admin"]);
+export const dashboardAppSchema = z.enum(["client", "admin", "platform"]);
 export type DashboardApp = z.infer<typeof dashboardAppSchema>;
 
 export const widgetLayoutItemSchema = z.object({
@@ -56,7 +56,8 @@ export function getWorkspaceDashboardLayout(
   workspaceId: string,
   app: DashboardApp
 ): { layout?: WidgetLayoutItemDto[]; defaultLayout?: WidgetLayoutItemDto[] } {
-  const bundle = preferences.dashboardLayouts?.[workspaceId]?.[app];
+  if (app === "platform") return {};
+  const bundle = preferences.dashboardLayouts?.[workspaceId]?.[app as "client" | "admin"];
   return bundle ?? {};
 }
 
@@ -65,9 +66,10 @@ export function mergeDashboardLayoutUpdate(
   workspaceId: string,
   update: UpdateDashboardLayoutDto
 ): UserPreferences {
+  if (update.app === "platform") return preferences;
   const dashboards = { ...(preferences.dashboardLayouts ?? {}) };
   const workspaceBundle = { ...(dashboards[workspaceId] ?? {}) };
-  const appBundle = { ...(workspaceBundle[update.app] ?? {}) };
+  const appBundle = { ...(workspaceBundle[update.app as "client" | "admin"] ?? {}) };
 
   if (update.layout !== undefined) {
     appBundle.layout = update.layout;
@@ -76,7 +78,7 @@ export function mergeDashboardLayoutUpdate(
     appBundle.defaultLayout = update.defaultLayout;
   }
 
-  workspaceBundle[update.app] = appBundle;
+  workspaceBundle[update.app as "client" | "admin"] = appBundle;
   dashboards[workspaceId] = workspaceBundle;
 
   return {

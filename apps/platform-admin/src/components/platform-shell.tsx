@@ -79,15 +79,20 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   }
 
   // Role Guard
-  if (session.platformRole === "SUPPORT") {
-    const allowedPrefixes = ["/helpdesk", "/notifications", "/profile", "/settings"];
-    const isAllowed = allowedPrefixes.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-    );
+  const isSupport = session?.platformRole === "SUPPORT";
+  const allowedPrefixes = ["/helpdesk", "/notifications", "/profile", "/settings"];
+  const isAllowed =
+    !isSupport ||
+    allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+  useEffect(() => {
     if (!isAllowed) {
       router.replace("/helpdesk");
-      return null;
     }
+  }, [isAllowed, router]);
+
+  if (!isAllowed) {
+    return null;
   }
 
   return (
@@ -95,7 +100,13 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
       navItems={navItems}
       logoIcon={<BrandMark size="lg" iconOnly />}
       logoTitle={BRAND_NAME}
-      logoSubtitle={isAccountMode ? "Account" : PLATFORM_PORTAL_LABEL}
+      logoSubtitle={
+        isAccountMode
+          ? "Account"
+          : session.platformRole === "SUPPORT"
+            ? "Platform Support"
+            : PLATFORM_PORTAL_LABEL
+      }
       logoLinkHref={isAccountMode ? "/profile" : "/tenants"}
       navSectionLabel={isAccountMode ? "Account" : "Platform"}
       navAriaLabel={isAccountMode ? "Account navigation" : "Platform navigation"}
@@ -113,6 +124,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
           collapsed={collapsed}
           showBackLink={isAccountMode}
           backHref="/tenants"
+          platformRole={session.platformRole}
         />
       )}
       footerContent={(collapsed) => (

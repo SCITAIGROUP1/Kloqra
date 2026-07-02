@@ -15,7 +15,8 @@ export class PlatformGuard extends PlatformJwtAuthGuard implements CanActivate {
     if (!ok) return false;
 
     const req = context.switchToHttp().getRequest();
-    if (req.platformUser?.platformRole !== "SUPERADMIN") {
+    const role = req.platformUser?.platformRole;
+    if (role !== "SUPERADMIN" && role !== "SUPPORT") {
       throw new ForbiddenException({
         code: ErrorCodes.FORBIDDEN,
         message: "Platform access required"

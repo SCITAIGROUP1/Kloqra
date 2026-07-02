@@ -201,6 +201,7 @@ export const ROUTES = {
     WORKSPACE_MEMBER_RESEND: (workspaceId: string, memberId: string) =>
       `/tenants/current/workspaces/${workspaceId}/members/${memberId}/resend-credentials`,
     WORKSPACES: "/tenants/current/workspaces",
+    WORKSPACES_TREE: "/tenants/current/workspaces-tree",
     SUBSCRIPTION: "/tenants/current/subscription",
     SALES_INQUIRY: "/tenants/current/subscription/sales-inquiry",
     SALES_INQUIRY_RECEIPTS: "/tenants/current/subscription/sales-inquiry/receipts",
@@ -241,6 +242,7 @@ export const ROUTES = {
     AUDIT_EVENTS: "/platform/audit-events",
     ME: "/platform/me",
     ME_PREFERENCES: "/platform/me/preferences",
+    ME_DASHBOARD_LAYOUT: "/platform/me/dashboard-layout",
     ME_PASSWORD: "/platform/me/password",
     ME_SESSIONS: "/platform/me/sessions",
     ME_SESSIONS_REVOKE_OTHERS: "/platform/me/sessions/revoke-others",
@@ -251,6 +253,19 @@ export const ROUTES = {
     NOTIFICATIONS: "/platform/notifications",
     NOTIFICATIONS_UNREAD_COUNT: "/platform/notifications/unread-count",
     NOTIFICATION: (id: string) => `/platform/notifications/${id}`,
-    NOTIFICATIONS_MARK_ALL_READ: "/platform/notifications/mark-all-read"
+    NOTIFICATIONS_MARK_ALL_READ: "/platform/notifications/mark-all-read",
+    QUEUES: "/platform/queues",
+    QUEUE_PAUSE: (name: string) => `/platform/queues/${name}/pause`,
+    QUEUE_RESUME: (name: string) => `/platform/queues/${name}/resume`,
+    QUEUE_RETRY_FAILED: (name: string) => `/platform/queues/${name}/retry-failed`,
+    QUEUE_FAILED_JOBS: (name: string) => `/platform/queues/${name}/failed-jobs`,
+    QUEUE_RETRY_JOB: (name: string, jobId: string) =>
+      `/platform/queues/${name}/jobs/${jobId}/retry`,
+    TENANT_LIMITS_OVERRIDE: (id: string) => `/platform/tenants/${id}/limits-override`,
+    TENANT_GRACE_PERIOD: (id: string) => `/platform/tenants/${id}/grace-period`,
+    TENANT_REVOKE_SESSIONS: (id: string) => `/platform/tenants/${id}/sessions/revoke`,
+    TENANT_RESET_MFA: (id: string) => `/platform/tenants/${id}/2fa/reset`,
+    TENANT_GDPR_EXPORT: (id: string) => `/platform/tenants/${id}/gdpr/export`,
+    TENANT_GDPR_DELETE: (id: string) => `/platform/tenants/${id}/gdpr/delete`
   }
 } as const;

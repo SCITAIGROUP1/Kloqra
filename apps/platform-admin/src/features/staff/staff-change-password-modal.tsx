@@ -1,33 +1,24 @@
 "use client";
 
-import {
-  AppModal,
-  Button,
-  Input,
-  Label,
-  PasswordInput,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  cn
-} from "@kloqra/ui";
+import { AppModal, Button, Label, PasswordInput, cn } from "@kloqra/ui";
 import { api } from "@kloqra/web-shared";
-import { Key, Users } from "lucide-react";
+import { Key, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-type StaffCreateModalProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onCreated?: () => void;
+type StaffType = {
+  id: string;
+  name: string;
 };
 
-const createStaffSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1),
-  role: z.enum(["SUPERADMIN", "SUPPORT"]),
+type StaffChangePasswordModalProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  staff: StaffType | null;
+  onUpdated?: () => void;
+};
+
+const changePasswordSchema = z.object({
   password: z.string().min(8)
 });
 
@@ -86,19 +77,18 @@ function getPasswordStrength(pwd: string) {
   }
 }
 
-export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateModalProps) {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<"SUPERADMIN" | "SUPPORT">("SUPPORT");
+export function StaffChangePasswordModal({
+  open,
+  onOpenChange,
+  staff,
+  onUpdated
+}: StaffChangePasswordModalProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setEmail("");
-    setName("");
-    setRole("SUPPORT");
     setPassword("");
     setError("");
     setSaving(false);
@@ -111,29 +101,25 @@ export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateM
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!staff) return;
     setError("");
 
-    const parsed = createStaffSchema.safeParse({
-      email: email.trim(),
-      name: name.trim(),
-      role,
-      password
-    });
+    const parsed = changePasswordSchema.safeParse({ password });
     if (!parsed.success) {
-      setError("Please fill all fields correctly. Password must be at least 8 characters.");
+      setError("Password must be at least 8 characters.");
       return;
     }
 
     setSaving(true);
     try {
-      await api("/platform/staff", {
-        method: "POST",
-        body: JSON.stringify(parsed.data)
+      await api(`/platform/staff/${staff.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ password })
       });
       onOpenChange(false);
-      onCreated?.();
+      onUpdated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create staff member.");
+      setError(err instanceof Error ? err.message : "Failed to change password.");
     } finally {
       setSaving(false);
     }
@@ -145,9 +131,9 @@ export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateM
     <AppModal
       open={open}
       onOpenChange={onOpenChange}
-      title="Create staff member"
-      description="Provision a new platform admin or support agent."
-      icon={<Users className="h-5 w-5" />}
+      title="Change staff password"
+      description={`Set a new password for ${staff?.name}.`}
+      icon={<Lock className="h-5 w-5" />}
       size="md"
       footer={
         <div className="flex w-full justify-end gap-2">
@@ -159,42 +145,16 @@ export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateM
           >
             Cancel
           </Button>
-          <Button type="submit" form="staff-create-form" disabled={saving}>
-            {saving ? "Creating…" : "Create staff"}
+          <Button type="submit" form="staff-password-form" disabled={saving}>
+            {saving ? "Saving…" : "Save password"}
           </Button>
         </div>
       }
     >
-      <form id="staff-create-form" onSubmit={submit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="staff-name">Name</Label>
-          <Input id="staff-name" value={name} onChange={(e) => setName(e.target.value)} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="staff-email">Email</Label>
-          <Input
-            id="staff-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="staff-role">Role</Label>
-          <Select value={role} onValueChange={(v) => setRole(v as "SUPERADMIN" | "SUPPORT")}>
-            <SelectTrigger aria-label="Select role">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="SUPPORT">Support Agent</SelectItem>
-              <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <form id="staff-password-form" onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <Label htmlFor="staff-password">Initial Password</Label>
+            <Label htmlFor="change-staff-password">New Password</Label>
             <button
               type="button"
               onClick={handleSuggestPassword}
@@ -205,12 +165,12 @@ export function StaffCreateModal({ open, onOpenChange, onCreated }: StaffCreateM
             </button>
           </div>
           <PasswordInput
-            id="staff-password"
+            id="change-staff-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            placeholder="Enter initial password"
+            placeholder="Enter new password"
           />
         </div>
 
