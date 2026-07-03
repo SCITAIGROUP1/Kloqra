@@ -32,7 +32,8 @@ export function TimesheetSubmissionsWidget({
   timezone
 }: TimesheetSubmissionsWidgetProps) {
   function formatPeriod(start: string) {
-    const [y, m, d] = start.split("-").map(Number);
+    const cleanStart = start.split("T")[0]!;
+    const [y, m, d] = cleanStart.split("-").map(Number);
     const date = localMidnightUtcInZone(y!, m!, d!, timezone || "UTC");
     return formatWeekRange(date, timezone);
   }
