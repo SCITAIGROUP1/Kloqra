@@ -76,13 +76,15 @@ export function NotificationDropdown({
   }
 
   async function handleItemClick(item: NotificationDto) {
-    await activateNotification(workspaceId, item, undefined);
-    setItems((items) =>
-      items.map((row) =>
-        row.id === item.id && !row.readAt ? { ...row, readAt: new Date().toISOString() } : row
-      )
-    );
-    void refreshUnread();
+    if (!item.readAt) {
+      await activateNotification(workspaceId, item, undefined);
+      setItems((items) =>
+        items.map((row) =>
+          row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row
+        )
+      );
+      void refreshUnread();
+    }
   }
 
   return (
