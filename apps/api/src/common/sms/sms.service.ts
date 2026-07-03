@@ -30,7 +30,7 @@ export class SmsService {
 
       this.logger.log(`Sending Brevo SMS to ${phone}...`);
       try {
-        const response = await fetch("https://api.brevo.com/v3/transactionalSMS/sms", {
+        const response = await fetch("https://api.brevo.com/v3/transactionalSMS/send", {
           method: "POST",
           headers: {
             "api-key": this.brevoApiKey,
