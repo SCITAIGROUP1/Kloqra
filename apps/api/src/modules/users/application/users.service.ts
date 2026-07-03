@@ -1,3 +1,4 @@
+import { randomInt, createHash } from "crypto";
 import {
   ErrorCodes,
   getWorkspaceDashboardLayout,
@@ -27,9 +28,14 @@ import { ProjectAccessService } from "../../../common/access/project-access.serv
 import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { SmsService } from "../../../common/sms/sms.service";
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { composeDisplayName, splitDisplayName } from "./user-name.util";
+
+function hashToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
 
 const userProfileSelect = {
   id: true,
@@ -47,7 +53,9 @@ const userProfileSelect = {
   defaultHourlyRate: true,
   preferences: true,
   createdAt: true,
-  jiraEmail: true
+  jiraEmail: true,
+  phoneVerifiedAt: true,
+  pendingPhone: true
 } as const;
 
 type UserProfileRecord = {
@@ -67,6 +75,8 @@ type UserProfileRecord = {
   preferences: Prisma.JsonValue;
   createdAt: Date;
   jiraEmail: string | null;
+  phoneVerifiedAt: Date | null;
+  pendingPhone: string | null;
 };
 
 @Injectable()
@@ -75,7 +85,8 @@ export class UsersService {
     private prisma: PrismaService,
     private auth: AuthService,
     private authRevocation: AuthRevocationService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private sms: SmsService
   ) {}
 
   async getProfile(
@@ -117,7 +128,12 @@ export class UsersService {
         name,
         firstName,
         lastName,
-        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.phone !== undefined
+          ? {
+              phone: dto.phone,
+              phoneVerifiedAt: dto.phone === existing.phone ? existing.phoneVerifiedAt : null
+            }
+          : {}),
         ...(dto.location !== undefined ? { location: dto.location } : {}),
         ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),
         ...(dto.jobTitle !== undefined ? { jobTitle: dto.jobTitle } : {}),
@@ -314,6 +330,8 @@ export class UsersService {
       effectiveTimeFormat: resolveEffectiveTimeFormat(parsedPreferences),
       effectiveTheme: resolveEffectiveTheme(parsedPreferences),
       twoFactorEnabled: Boolean(user.totpEnabledAt),
+      phoneVerifiedAt: user.phoneVerifiedAt ? user.phoneVerifiedAt.toISOString() : null,
+      pendingPhone: user.pendingPhone,
       workContext: {
         organizationName: workspace.tenant.name,
         workspaceName: workspace.name,
@@ -326,5 +344,84 @@ export class UsersService {
       ),
       workspaceJiraSiteUrl: workspaceSettings.jiraSiteUrl ?? null
     };
+  }
+
+  async sendPhoneOtp(
+    userId: string,
+    workspaceId: string,
+    phone: string,
+    role: "ADMIN" | "MEMBER"
+  ): Promise<UserProfileDto> {
+    const code = randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    const user = (await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        pendingPhone: phone,
+        phoneVerificationCodeHash: hashToken(code),
+        phoneVerificationExpiresAt: expiresAt
+      },
+      select: userProfileSelect as Prisma.UserSelect
+    })) as unknown as UserProfileRecord;
+
+    await this.sms.sendVerificationCode(phone, code);
+
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      include: { tenant: { select: { name: true, slug: true } } }
+    });
+    const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
+    return this.toProfileDto(user, workspace, activityStats, role);
+  }
+
+  async verifyPhoneOtp(
+    userId: string,
+    workspaceId: string,
+    code: string,
+    role: "ADMIN" | "MEMBER"
+  ): Promise<UserProfileDto> {
+    const userRecord = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId }
+    });
+
+    if (
+      !userRecord.phoneVerificationCodeHash ||
+      !userRecord.phoneVerificationExpiresAt ||
+      userRecord.phoneVerificationExpiresAt < new Date()
+    ) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Verification code has expired or is invalid",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    if (userRecord.phoneVerificationCodeHash !== hashToken(code)) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Verification code has expired or is invalid",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const updatedUser = (await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        phone: userRecord.pendingPhone,
+        phoneVerifiedAt: new Date(),
+        pendingPhone: null,
+        phoneVerificationCodeHash: null,
+        phoneVerificationExpiresAt: null
+      },
+      select: userProfileSelect as Prisma.UserSelect
+    })) as unknown as UserProfileRecord;
+
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      include: { tenant: { select: { name: true, slug: true } } }
+    });
+    const activityStats = await this.getActivityStats(userId, workspaceId, updatedUser.createdAt);
+    return this.toProfileDto(updatedUser, workspace, activityStats, role);
   }
 }

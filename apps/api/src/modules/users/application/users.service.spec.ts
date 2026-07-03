@@ -11,6 +11,7 @@ describe("UsersService", () => {
   let service: UsersService;
   let mockPrisma: any;
   let mockAuth: any;
+  let mockSms: any;
 
   const baseUser = {
     id: "user-1",
@@ -50,13 +51,17 @@ describe("UsersService", () => {
     mockAuth = {
       revokeAllRefreshTokens: vi.fn()
     };
+    mockSms = {
+      sendVerificationCode: vi.fn().mockResolvedValue({ sent: true })
+    };
     const mockAuthRevocation = { revokeUser: vi.fn() };
     const mockAccess = { assertCanAccessProject: vi.fn() };
     service = new UsersService(
       mockPrisma,
       mockAuth,
       mockAuthRevocation as never,
-      mockAccess as never
+      mockAccess as never,
+      mockSms as never
     );
   });
 
@@ -344,5 +349,88 @@ describe("UsersService", () => {
     });
     expect(mockAuth.revokeAllRefreshTokens).toHaveBeenCalledWith("user-1");
     expect(result).toEqual({ ok: true });
+  });
+
+  it("sendPhoneOtp generates code, hashes it, updates DB, and sends SMS", async () => {
+    mockPrisma.user.update.mockResolvedValue(baseUser);
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      name: "Acme Corporation",
+      settings: {},
+      tenant: { name: "Acme Corporation", slug: "acme" }
+    });
+
+    const profile = await service.sendPhoneOtp("user-1", "ws-1", "+12025550143", "ADMIN");
+
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "user-1" },
+        data: expect.objectContaining({
+          pendingPhone: "+12025550143",
+          phoneVerificationCodeHash: expect.any(String),
+          phoneVerificationExpiresAt: expect.any(Date)
+        })
+      })
+    );
+    expect(mockSms.sendVerificationCode).toHaveBeenCalledWith("+12025550143", expect.any(String));
+    expect(profile).toBeDefined();
+  });
+
+  it("verifyPhoneOtp validates OTP and updates phone info in DB", async () => {
+    const code = "123456";
+    const crypto = await import("crypto");
+    const hash = crypto.createHash("sha256").update(code).digest("hex");
+
+    // Case 1: Expired/Missing code
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "user-1",
+      phoneVerificationCodeHash: hash,
+      phoneVerificationExpiresAt: new Date(Date.now() - 1000) // expired
+    });
+
+    await expect(service.verifyPhoneOtp("user-1", "ws-1", code, "ADMIN")).rejects.toThrow(
+      "Verification code has expired or is invalid"
+    );
+
+    // Case 2: Invalid code
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "user-1",
+      phoneVerificationCodeHash: "different-hash",
+      phoneVerificationExpiresAt: new Date(Date.now() + 60000)
+    });
+
+    await expect(service.verifyPhoneOtp("user-1", "ws-1", code, "ADMIN")).rejects.toThrow(
+      "Verification code has expired or is invalid"
+    );
+
+    // Case 3: Success
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValueOnce({
+      id: "user-1",
+      pendingPhone: "+12025550143",
+      phoneVerificationCodeHash: hash,
+      phoneVerificationExpiresAt: new Date(Date.now() + 60000)
+    });
+    mockPrisma.user.update.mockResolvedValue(baseUser);
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      name: "Acme Corporation",
+      settings: {},
+      tenant: { name: "Acme Corporation", slug: "acme" }
+    });
+
+    const profile = await service.verifyPhoneOtp("user-1", "ws-1", code, "ADMIN");
+
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: {
+        phone: "+12025550143",
+        phoneVerifiedAt: expect.any(Date),
+        pendingPhone: null,
+        phoneVerificationCodeHash: null,
+        phoneVerificationExpiresAt: null
+      },
+      select: expect.any(Object)
+    });
+    expect(profile).toBeDefined();
   });
 });

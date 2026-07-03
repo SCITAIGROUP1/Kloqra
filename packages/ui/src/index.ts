@@ -149,6 +149,15 @@ export {
 } from "./components/ui/searchable-select.js";
 
 export {
+  CountryPhoneInput,
+  type CountryPhoneInputProps,
+  type Country,
+  COUNTRIES,
+  getCountryFromTimezone,
+  parsePhoneNumber
+} from "./components/ui/country-phone-input.js";
+
+export {
   SearchableMultiSelect,
   type SearchableMultiSelectOption,
   type SearchableMultiSelectProps

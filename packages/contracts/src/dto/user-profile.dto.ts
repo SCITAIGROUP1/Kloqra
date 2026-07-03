@@ -46,6 +46,8 @@ export const userProfileSchema = z.object({
   twoFactorEnabled: z.boolean(),
   workContext: userWorkContextSchema,
   activityStats: userActivityStatsSchema,
+  phoneVerifiedAt: z.string().datetime().nullable().optional(),
+  pendingPhone: z.string().max(40).nullable().optional(),
   jiraEmail: z.string().email().nullable().optional(),
   jiraConnected: z.boolean().optional(),
   workspaceJiraSiteUrl: z.string().url().nullable().optional()
@@ -122,3 +124,16 @@ export type TwoFactorVerifyDto = z.infer<typeof twoFactorVerifySchema>;
 export type TwoFactorDisableDto = z.infer<typeof twoFactorDisableSchema>;
 export type LoginWith2faDto = z.infer<typeof loginWith2faSchema>;
 export type LoginRequires2faResponseDto = z.infer<typeof loginRequires2faResponseSchema>;
+
+export const sendPhoneOtpSchema = z.object({
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{1,14}$/, "Phone number must be in valid E.164 format (e.g., +12025550143)")
+});
+
+export const verifyPhoneOtpSchema = z.object({
+  code: z.string().length(6).regex(/^\d+$/, "Verification code must be a 6-digit number")
+});
+
+export type SendPhoneOtpDto = z.infer<typeof sendPhoneOtpSchema>;
+export type VerifyPhoneOtpDto = z.infer<typeof verifyPhoneOtpSchema>;

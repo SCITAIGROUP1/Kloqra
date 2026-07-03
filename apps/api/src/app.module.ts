@@ -10,6 +10,7 @@ import { RequestLoggerMiddleware } from "./common/logger/request-logger.middlewa
 import { MailerModule } from "./common/mailer/mailer.module";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { RedisModule } from "./common/redis/redis.module";
+import { SmsModule } from "./common/sms/sms.module";
 import { AssistantModule } from "./modules/assistant/assistant.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
@@ -53,6 +54,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     RedisModule,
     CacheModule,
     MailerModule,
+    SmsModule,
     HealthModule,
     AssistantModule,
     AuthModule,

@@ -30,6 +30,8 @@ export const ROUTES = {
     TWO_FA_ENABLE: "/users/me/2fa/enable",
     TWO_FA_VERIFY: "/users/me/2fa/verify",
     TWO_FA_DISABLE: "/users/me/2fa/disable",
+    PHONE_SEND_OTP: "/users/me/phone/send-otp",
+    PHONE_VERIFY_OTP: "/users/me/phone/verify-otp",
     ACTIVITY: "/users/me/activity",
     PROJECT_COLOR: (projectId: string) => `/users/me/projects/${projectId}/color`
   },

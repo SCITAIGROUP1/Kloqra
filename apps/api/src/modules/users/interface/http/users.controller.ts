@@ -3,6 +3,8 @@ import {
   dashboardLayoutQuerySchema,
   ErrorCodes,
   ROUTES,
+  sendPhoneOtpSchema,
+  verifyPhoneOtpSchema,
   setUserProjectColorSchema,
   twoFactorDisableSchema,
   twoFactorVerifySchema,
@@ -180,6 +182,24 @@ export class UsersController {
   ) {
     this.assertNotImpersonating(user);
     return this.twoFa.disable(user.userId, body as Parameters<Users2faService["disable"]>[1]);
+  }
+
+  @Post(ROUTES.USERS.PHONE_SEND_OTP)
+  sendPhoneOtp(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(sendPhoneOtpSchema)) body: any
+  ) {
+    this.assertNotImpersonating(user);
+    return this.users.sendPhoneOtp(user.userId, user.workspaceId, body.phone, user.role);
+  }
+
+  @Post(ROUTES.USERS.PHONE_VERIFY_OTP)
+  verifyPhoneOtp(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(verifyPhoneOtpSchema)) body: any
+  ) {
+    this.assertNotImpersonating(user);
+    return this.users.verifyPhoneOtp(user.userId, user.workspaceId, body.code, user.role);
   }
 
   private assertNotImpersonating(user: RequestUser) {
