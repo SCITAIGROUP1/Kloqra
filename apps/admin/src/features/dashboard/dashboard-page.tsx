@@ -884,7 +884,7 @@ export function DashboardPage() {
               className="text-sm font-medium text-primary hover:underline hover:text-primary/80 transition-colors self-center px-3"
               aria-label="Export this period"
             >
-              Export period
+              Export
             </Link>
             <AppBarActionButton
               active={isCatalogOpen}

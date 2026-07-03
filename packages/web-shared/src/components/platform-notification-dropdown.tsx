@@ -130,7 +130,15 @@ export function PlatformNotificationDropdown({
                   >
                     <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{item.title}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground">{item.title}</p>
+                        {!item.readAt ? (
+                          <span
+                            className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+                            aria-label="Unread"
+                          />
+                        ) : null}
+                      </div>
                       <p className="text-xs text-muted-foreground">{item.body}</p>
                       <NotificationDetails details={item.metadata?.details} />
                       <p className="mt-1 text-[11px] text-muted-foreground">
