@@ -67,7 +67,7 @@ export function LoginForm() {
       );
       router.push(next && next.startsWith("/") ? next : startup);
     } catch {
-      router.push(next && next.startsWith("/") ? next : "/timer");
+      router.push(next && next.startsWith("/") ? next : "/dashboard");
     }
   }
 

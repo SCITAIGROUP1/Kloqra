@@ -127,7 +127,11 @@ export function AccountSettingsPage({
               />
             ) : null}
             {activeSection === "account" ? (
-              <AccountPreferencesSection profile={profile} onSavePreferences={updatePreferences} />
+              <AccountPreferencesSection
+                profile={profile}
+                onSavePreferences={updatePreferences}
+                isAdminApp={notificationsVariant === "admin"}
+              />
             ) : null}
           </CrossfadePresence>
         </SettingsShell>

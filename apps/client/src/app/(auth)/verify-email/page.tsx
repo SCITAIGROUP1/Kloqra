@@ -22,7 +22,7 @@ function VerifyEmailContent() {
         if (multi) {
           router.push("/select-workspace");
         } else {
-          router.push("/timer");
+          router.push("/dashboard");
         }
       }}
     />

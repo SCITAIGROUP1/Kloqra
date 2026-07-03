@@ -54,7 +54,7 @@ export function SetPasswordPageForm() {
       );
       router.push(resolveStartupPath(profile.preferences.startupPage));
     } catch {
-      router.push("/timer");
+      router.push("/dashboard");
     }
   }
 

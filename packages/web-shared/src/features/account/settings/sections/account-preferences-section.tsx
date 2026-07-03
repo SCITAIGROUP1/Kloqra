@@ -35,10 +35,12 @@ const STARTUP_OPTIONS: { value: StartupPagePreference; label: string }[] = [
 
 export function AccountPreferencesSection({
   profile,
-  onSavePreferences
+  onSavePreferences,
+  isAdminApp
 }: {
   profile: UserProfileDto;
   onSavePreferences: (prefs: Record<string, unknown>) => Promise<unknown>;
+  isAdminApp?: boolean;
 }) {
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const [language, setLanguage] = useState(profile.preferences.language ?? "en");
@@ -125,27 +127,29 @@ export function AccountPreferencesSection({
         />
       </SettingsCard>
 
-      <SettingsCard
-        icon={Home}
-        title="Startup Page"
-        description="Choose the page you see when you log in"
-      >
-        <Select
-          value={startupPage}
-          onValueChange={(v) => setStartupPage(v as StartupPagePreference)}
+      {!isAdminApp ? (
+        <SettingsCard
+          icon={Home}
+          title="Startup Page"
+          description="Choose the page you see when you log in"
         >
-          <SelectTrigger className="h-10 max-w-md bg-background">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STARTUP_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </SettingsCard>
+          <Select
+            value={startupPage}
+            onValueChange={(v) => setStartupPage(v as StartupPagePreference)}
+          >
+            <SelectTrigger className="h-10 max-w-md bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STARTUP_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingsCard>
+      ) : null}
 
       <SettingsSaveBar onSave={() => void handleSave()} saving={saving} disabled={!isDirty} />
     </div>

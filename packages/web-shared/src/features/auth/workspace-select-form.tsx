@@ -14,6 +14,8 @@ import {
 } from "../../auth/admin-access-label";
 import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
 import { useSessionStore } from "../../stores/session.store";
+import { fetchUserProfile } from "../../stores/user-profile.store";
+import { resolveStartupPath } from "../../utils/startup-page";
 import { useTenantCurrent } from "../tenant/use-tenant-current";
 
 interface WorkspaceSelectFormProps {
@@ -86,14 +88,24 @@ export function WorkspaceSelectForm({
     if (!session) return;
     setSwitchingId(workspaceId);
     try {
-      const resolveTarget = (activeSession: typeof session) => {
+      const resolveTarget = async (activeSession: typeof session) => {
         if (next && next.startsWith("/")) return next;
         if (activeSession.tenantRole === "OWNER") return "/account";
+        if (memberPortal) {
+          try {
+            const profile = await fetchUserProfile(workspaceId);
+            if (profile?.preferences?.startupPage) {
+              return resolveStartupPath(profile.preferences.startupPage);
+            }
+          } catch {
+            // Fall through to defaultRedirect
+          }
+        }
         return defaultRedirect;
       };
 
       if (workspaceId === session.workspaceId) {
-        router.push(resolveTarget(session));
+        router.push(await resolveTarget(session));
         return;
       }
 
@@ -105,7 +117,7 @@ export function WorkspaceSelectForm({
       setSession(res, res.accessToken, res.refreshToken);
       toast.success(`Switched to ${workspaceName}.`);
 
-      router.push(resolveTarget(res));
+      router.push(await resolveTarget(res));
     } catch {
       toast.error("Could not switch to selected workspace.");
       setSwitchingId(null);
