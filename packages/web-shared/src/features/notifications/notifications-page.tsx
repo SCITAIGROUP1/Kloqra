@@ -55,6 +55,12 @@ function NotificationRow({
     onUpdated();
   }
 
+  async function handleCardClick() {
+    if (isUnread) {
+      await setRead(true);
+    }
+  }
+
   const content = (
     <div
       className={cn(
@@ -62,22 +68,18 @@ function NotificationRow({
         "transition-[background-color,border-color,opacity] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
         isUnread && "border-primary/30",
         !isUnread && "opacity-90",
-        href && "cursor-pointer hover:border-primary/40 hover:bg-muted/30",
+        isUnread && "cursor-pointer hover:border-primary/40 hover:bg-muted/30",
         notificationVariantClass(item.metadata)
       )}
-      {...(href
-        ? {
-            role: "button" as const,
-            tabIndex: 0,
-            onClick: () => void handleActivate(),
-            onKeyDown: (event: KeyboardEvent) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                void handleActivate();
-              }
-            }
-          }
-        : {})}
+      role="button"
+      tabIndex={0}
+      onClick={() => void handleCardClick()}
+      onKeyDown={(event: KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          void handleCardClick();
+        }
+      }}
     >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Icon className="size-4" aria-hidden />
@@ -98,16 +100,39 @@ function NotificationRow({
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {href ? (
-            <Button type="button" size="sm" onClick={() => void handleActivate()}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleActivate();
+              }}
+            >
               {item.metadata?.ctaLabel ?? "Open"}
             </Button>
           ) : null}
           {isUnread ? (
-            <Button type="button" size="sm" variant="outline" onClick={() => void setRead(true)}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                void setRead(true);
+              }}
+            >
               Mark read
             </Button>
           ) : (
-            <Button type="button" size="sm" variant="outline" onClick={() => void setRead(false)}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                void setRead(false);
+              }}
+            >
               Mark unread
             </Button>
           )}

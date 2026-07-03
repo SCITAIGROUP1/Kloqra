@@ -4,7 +4,6 @@ import type { NotificationDto, NotificationType } from "@kloqra/contracts";
 import { AppBarIconButton, cn } from "@kloqra/ui";
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { activateNotification } from "../features/notifications/notification-actions";
 import {
@@ -36,7 +35,6 @@ export function NotificationDropdown({
   viewAllHref = "/notifications",
   className
 }: NotificationDropdownProps) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { count: unreadCount, refresh: refreshUnread } = useNotificationUnreadCount(
@@ -78,10 +76,7 @@ export function NotificationDropdown({
   }
 
   async function handleItemClick(item: NotificationDto) {
-    await activateNotification(workspaceId, item, (href) => {
-      setOpen(false);
-      router.push(href);
-    });
+    await activateNotification(workspaceId, item, undefined);
     setItems((items) =>
       items.map((row) =>
         row.id === item.id && !row.readAt ? { ...row, readAt: new Date().toISOString() } : row

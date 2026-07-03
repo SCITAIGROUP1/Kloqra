@@ -4,7 +4,6 @@ import type { PlatformNotificationDto } from "@kloqra/contracts";
 import { AppBarIconButton, cn } from "@kloqra/ui";
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { NotificationDetails } from "../features/notifications/notification-ui";
 import {
@@ -14,6 +13,7 @@ import {
 import {
   formatPlatformNotificationTimeAgo,
   markAllPlatformNotificationsRead,
+  markPlatformNotificationRead,
   usePlatformNotificationUnreadCount,
   useRecentPlatformNotifications
 } from "../hooks/use-platform-notifications";
@@ -26,7 +26,6 @@ export function PlatformNotificationDropdown({
   viewAllHref?: string;
   className?: string;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { count: unreadCount, refresh: refreshUnread } = usePlatformNotificationUnreadCount();
@@ -60,10 +59,14 @@ export function PlatformNotificationDropdown({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [open]);
 
-  async function handleActivate(item: PlatformNotificationDto) {
-    const href = item.metadata?.href;
-    setOpen(false);
-    if (href) router.push(href);
+  async function handleItemClick(item: PlatformNotificationDto) {
+    if (!item.readAt) {
+      await markPlatformNotificationRead(item.id, true);
+      setItems((prev) =>
+        prev.map((row) => (row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row))
+      );
+      void refreshUnread();
+    }
   }
 
   return (
@@ -123,7 +126,7 @@ export function PlatformNotificationDropdown({
                       !item.readAt && "bg-primary/5",
                       platformNotificationVariantClass(item.metadata)
                     )}
-                    onClick={() => void handleActivate(item)}
+                    onClick={() => void handleItemClick(item)}
                   >
                     <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                     <div className="min-w-0 flex-1">
