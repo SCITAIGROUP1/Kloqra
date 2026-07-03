@@ -8,6 +8,12 @@ describe("buildClientImpersonationUrl", () => {
     );
   });
 
+  it("handles comma-separated client URLs and picks the first one", () => {
+    expect(
+      buildClientImpersonationUrl("http://localhost:3000,http://localhost:3001", "handoff-token")
+    ).toBe("http://localhost:3000/dashboard?handoff=handoff-token");
+  });
+
   it("rejects empty handoff tokens", () => {
     expect(() => buildClientImpersonationUrl("http://localhost:3000", "")).toThrow(
       "Impersonation handoff token missing from API response"

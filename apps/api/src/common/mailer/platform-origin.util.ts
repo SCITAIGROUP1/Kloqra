@@ -2,17 +2,17 @@
 export function platformClientOrigin(): string {
   const explicit = process.env.PUBLIC_PLATFORM_URL?.trim();
   if (explicit) {
-    return explicit.replace(/\/$/, "");
+    const parts = explicit
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      const platformLike = parts.find(
+        (origin) => origin.includes(":3003") || /platform/i.test(origin)
+      );
+      return (platformLike ?? parts[0]!).replace(/\/$/, "");
+    }
   }
 
-  const origins = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3003")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  const platformLike = origins.find(
-    (origin) => origin.includes(":3003") || /platform/i.test(origin)
-  );
-
-  return (platformLike ?? origins[0] ?? "http://localhost:3003").replace(/\/$/, "");
+  return "http://localhost:3003";
 }

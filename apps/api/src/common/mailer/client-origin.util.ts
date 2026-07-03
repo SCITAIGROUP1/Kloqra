@@ -6,15 +6,17 @@ export function clientOrigin(): string {
 export function memberClientOrigin(): string {
   const explicit = process.env.PUBLIC_CLIENT_URL?.trim();
   if (explicit) {
-    return explicit.replace(/\/$/, "");
+    const parts = explicit
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      const clientLike = parts.find(
+        (origin) => !origin.includes(":3002") && !/admin/i.test(origin)
+      );
+      return (clientLike ?? parts[0]!).replace(/\/$/, "");
+    }
   }
 
-  const origins = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  const clientLike = origins.find((origin) => !origin.includes(":3002") && !/admin/i.test(origin));
-
-  return (clientLike ?? origins[0] ?? "http://localhost:3000").replace(/\/$/, "");
+  return "http://localhost:3000";
 }

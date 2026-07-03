@@ -1,4 +1,5 @@
 import type { CookieOptions } from "express";
+import { getAllowedFrontendOrigins } from "./allowed-origins";
 
 type SameSiteValue = "lax" | "strict" | "none";
 
@@ -24,13 +25,10 @@ function parseOriginHost(origin: string): string | null {
   }
 }
 
-/** True when any FRONTEND_ORIGIN host differs from the API host registrable domain. */
+/** True when any allowed frontend origin host differs from the API host registrable domain. */
 export function isCrossSiteFrontendSetup(): boolean {
   const apiHost = process.env.RAILWAY_PUBLIC_DOMAIN?.trim() || process.env.API_PUBLIC_HOST?.trim();
-  const origins = (process.env.FRONTEND_ORIGIN ?? "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
+  const origins = getAllowedFrontendOrigins();
 
   if (origins.length === 0) return false;
 
@@ -111,9 +109,15 @@ function failStartup(message: string): never {
 export function validateProductionCookieConfig(): void {
   if (process.env.NODE_ENV !== "production") return;
 
-  const origins = (process.env.FRONTEND_ORIGIN ?? "").trim();
-  if (!origins) {
-    failStartup("FRONTEND_ORIGIN is required in production (comma-separated Vercel URLs).");
+  const hasCustomOrigins = !!(
+    process.env.PUBLIC_CLIENT_URL ||
+    process.env.PUBLIC_ADMIN_URL ||
+    process.env.PUBLIC_PLATFORM_URL
+  );
+  if (!hasCustomOrigins) {
+    failStartup(
+      "At least one of PUBLIC_CLIENT_URL, PUBLIC_ADMIN_URL, or PUBLIC_PLATFORM_URL is required in production."
+    );
   }
 
   const sameSite = resolveAuthCookieSameSite();

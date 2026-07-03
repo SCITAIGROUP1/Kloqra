@@ -1,17 +1,14 @@
+import { adminClientOrigin } from "./admin-origin.util";
+import { memberClientOrigin } from "./client-origin.util";
 import { platformClientOrigin } from "./platform-origin.util";
 
 export function clientOrigin(): string {
-  const raw = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
-  return raw.split(",")[0]?.trim() || "http://localhost:3000";
+  return memberClientOrigin();
 }
 
 /** Second origin in FRONTEND_ORIGIN list, or localhost admin default. */
 export function adminOrigin(): string {
-  const parts = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000,http://localhost:3002")
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  return parts[1] ?? parts[0] ?? "http://localhost:3002";
+  return adminClientOrigin();
 }
 
 export function originForNotificationHref(href: string): string {

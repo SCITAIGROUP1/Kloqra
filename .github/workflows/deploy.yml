@@ -88,7 +88,9 @@ jobs:
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
-      FRONTEND_ORIGIN: http://localhost:3000
+      PUBLIC_CLIENT_URL: http://localhost:3000
+      PUBLIC_ADMIN_URL: http://localhost:3002
+      PUBLIC_PLATFORM_URL: http://localhost:3003
     steps:
       - uses: actions/checkout@v4
         with:

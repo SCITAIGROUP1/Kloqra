@@ -19,7 +19,9 @@ concurrency:
 env:
   JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
   JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
-  FRONTEND_ORIGIN: http://localhost:3000,http://localhost:3002,http://localhost:3003
+  PUBLIC_CLIENT_URL: http://localhost:3000
+  PUBLIC_ADMIN_URL: http://localhost:3002
+  PUBLIC_PLATFORM_URL: http://localhost:3003
   NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}

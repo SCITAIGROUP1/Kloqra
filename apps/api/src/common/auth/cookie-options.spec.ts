@@ -29,12 +29,13 @@ describe("cookie-options", () => {
     expect(resolveAuthCookieSecure("none")).toBe(true);
   });
 
-  it("detects cross-site vercel + railway setup", () => {
+  it("detects cross-site setup using dedicated app URLs", () => {
     process.env.NODE_ENV = "production";
-    process.env.FRONTEND_ORIGIN =
-      "https://kloqra-client.vercel.app,https://kloqra-admin.vercel.app";
+    process.env.PUBLIC_CLIENT_URL = "https://kloqra-client.vercel.app";
+    process.env.PUBLIC_ADMIN_URL = "https://kloqra-admin.vercel.app";
     process.env.RAILWAY_PUBLIC_DOMAIN = "kloqra-api.up.railway.app";
     delete process.env.AUTH_COOKIE_SAME_SITE;
+
     expect(isCrossSiteFrontendSetup()).toBe(true);
     expect(resolveAuthCookieSameSite()).toBe("none");
   });

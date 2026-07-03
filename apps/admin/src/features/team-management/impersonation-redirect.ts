@@ -2,5 +2,10 @@ export function buildClientImpersonationUrl(clientUrl: string, handoffToken: str
   if (!handoffToken.trim()) {
     throw new Error("Impersonation handoff token missing from API response");
   }
-  return `${clientUrl}/dashboard?handoff=${encodeURIComponent(handoffToken)}`;
+  const cleanUrl =
+    clientUrl
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean)[0] ?? "http://localhost:3000";
+  return `${cleanUrl.replace(/\/$/, "")}/dashboard?handoff=${encodeURIComponent(handoffToken)}`;
 }

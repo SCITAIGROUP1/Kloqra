@@ -20,6 +20,7 @@ import {
   paginationSkipTake,
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
+import { clientOrigin } from "../../../common/mailer/client-origin.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { waiveOpenTimesheetPeriods } from "../../../common/time/timesheet-approval-policy.util";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
@@ -33,8 +34,7 @@ export class ProjectsService {
   ) {}
 
   private clientOrigin() {
-    const origins = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
-    return origins.split(",")[0]!.trim();
+    return clientOrigin();
   }
 
   private async ensureTeam(projectId: string) {

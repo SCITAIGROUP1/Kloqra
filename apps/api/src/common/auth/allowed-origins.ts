@@ -4,16 +4,45 @@ import type { Request } from "express";
 import { DomainException } from "../errors/domain.exception";
 
 export function getAllowedFrontendOrigins(): string[] {
-  return (
-    process.env.FRONTEND_ORIGIN ??
-    "http://localhost:3000,http://localhost:3002,http://localhost:3003,http://localhost:3004"
-  )
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const customOrigins: string[] = [];
+
+  if (process.env.PUBLIC_CLIENT_URL) {
+    customOrigins.push(
+      ...process.env.PUBLIC_CLIENT_URL.split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+    );
+  }
+
+  if (process.env.PUBLIC_ADMIN_URL) {
+    customOrigins.push(
+      ...process.env.PUBLIC_ADMIN_URL.split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+    );
+  }
+
+  if (process.env.PUBLIC_PLATFORM_URL) {
+    customOrigins.push(
+      ...process.env.PUBLIC_PLATFORM_URL.split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+    );
+  }
+
+  if (customOrigins.length > 0) {
+    return Array.from(new Set(customOrigins));
+  }
+
+  return [
+    "http://localhost:3000",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "http://localhost:3004"
+  ];
 }
 
-/** Matches CORS policy — explicit FRONTEND_ORIGIN list plus *.vercel.app previews. */
+/** Matches CORS policy — explicit dedicated URLs list plus *.vercel.app previews. */
 export function isAllowedBrowserOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
   const allowed = getAllowedFrontendOrigins();
@@ -27,7 +56,7 @@ export function isAllowedBrowserOrigin(origin: string | undefined): boolean {
 
 /**
  * CSRF mitigation for cookie-auth endpoints when SameSite=None (cross-site).
- * Browser requests must send an Origin header matching FRONTEND_ORIGIN.
+ * Browser requests must send an Origin header matching allowed frontend origins.
  */
 export function assertAllowedAuthOrigin(req: Request): void {
   if (process.env.NODE_ENV !== "production") return;

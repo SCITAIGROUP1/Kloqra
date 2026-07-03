@@ -2,15 +2,15 @@
 export function adminClientOrigin(): string {
   const explicit = process.env.PUBLIC_ADMIN_URL?.trim();
   if (explicit) {
-    return explicit.replace(/\/$/, "");
+    const parts = explicit
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      const adminLike = parts.find((origin) => origin.includes(":3002") || /admin/i.test(origin));
+      return (adminLike ?? parts[0]!).replace(/\/$/, "");
+    }
   }
 
-  const origins = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3002")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  const adminLike = origins.find((origin) => origin.includes(":3002") || /admin/i.test(origin));
-
-  return (adminLike ?? origins[0] ?? "http://localhost:3002").replace(/\/$/, "");
+  return "http://localhost:3002";
 }

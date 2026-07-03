@@ -150,14 +150,18 @@ export class ReportingController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createWidgetShareSchema)) body: unknown
   ) {
-    const adminBase =
-      process.env.PUBLIC_ADMIN_URL ??
-      process.env.ADMIN_PUBLIC_URL ??
-      (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
+    const rawAdmin = process.env.PUBLIC_ADMIN_URL ?? process.env.ADMIN_PUBLIC_URL;
+    let adminBase: string;
+    if (rawAdmin) {
+      const parts = rawAdmin
         .split(",")
         .map((o) => o.trim())
-        .find((o) => o.includes(":3002")) ??
-      "http://localhost:3002";
+        .filter(Boolean);
+      const adminLike = parts.find((o) => o.includes(":3002") || /admin/i.test(o));
+      adminBase = (adminLike ?? parts[0] ?? "http://localhost:3002").replace(/\/$/, "");
+    } else {
+      adminBase = "http://localhost:3002";
+    }
     return this.widgetShares.create(
       user.workspaceId,
       body as Parameters<WidgetShareService["create"]>[1],
