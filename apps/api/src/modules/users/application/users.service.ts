@@ -235,7 +235,7 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash }
+      data: { passwordHash, mustChangePassword: false }
     });
     await this.auth.revokeAllRefreshTokens(userId);
     await this.authRevocation.revokeUser(userId);

@@ -1,5 +1,11 @@
+import * as bcrypt from "bcrypt";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { UsersService } from "./users.service";
+
+vi.mock("bcrypt", () => ({
+  compare: vi.fn(),
+  hash: vi.fn()
+}));
 
 describe("UsersService", () => {
   let service: UsersService;
@@ -312,5 +318,31 @@ describe("UsersService", () => {
 
     expect(profile.jiraConnected).toBe(false);
     expect(profile.jiraEmail).toBeNull();
+  });
+
+  it("changePassword updates password hash, clears mustChangePassword, and revokes tokens", async () => {
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+    vi.mocked(bcrypt.hash).mockResolvedValue("$2b$10$newhashed" as never);
+
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
+      id: "user-1",
+      passwordHash: "$2b$10$hashed"
+    });
+    mockPrisma.user.update.mockResolvedValue({});
+
+    const result = await service.changePassword("user-1", {
+      currentPassword: "oldpassword",
+      newPassword: "newpassword"
+    });
+
+    expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({ where: { id: "user-1" } });
+    expect(bcrypt.compare).toHaveBeenCalledWith("oldpassword", "$2b$10$hashed");
+    expect(bcrypt.hash).toHaveBeenCalledWith("newpassword", 10);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { passwordHash: "$2b$10$newhashed", mustChangePassword: false }
+    });
+    expect(mockAuth.revokeAllRefreshTokens).toHaveBeenCalledWith("user-1");
+    expect(result).toEqual({ ok: true });
   });
 });
