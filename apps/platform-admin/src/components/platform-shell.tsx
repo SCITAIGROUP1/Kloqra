@@ -107,7 +107,9 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
             ? "Platform Support"
             : PLATFORM_PORTAL_LABEL
       }
-      logoLinkHref={isAccountMode ? "/profile" : "/tenants"}
+      logoLinkHref={
+        isAccountMode ? "/profile" : session.platformRole === "SUPPORT" ? "/helpdesk" : "/tenants"
+      }
       navSectionLabel={isAccountMode ? "Account" : "Platform"}
       navAriaLabel={isAccountMode ? "Account navigation" : "Platform navigation"}
       shellToolbar={
@@ -123,7 +125,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
         <PlatformContextPanel
           collapsed={collapsed}
           showBackLink={isAccountMode}
-          backHref="/tenants"
+          backHref={session.platformRole === "SUPPORT" ? "/helpdesk" : "/tenants"}
           platformRole={session.platformRole}
         />
       )}
