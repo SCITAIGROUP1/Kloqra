@@ -210,7 +210,7 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
         {/* Sidebar panel */}
         <div
           className={cn(
-            "lg:col-span-1 border border-border bg-card rounded-xl shadow-sm overflow-hidden lg:flex lg:flex-col lg:h-[75vh]",
+            "lg:col-span-1 border border-border bg-card rounded-xl shadow-sm overflow-hidden lg:flex lg:flex-col lg:h-[75vh] lg:translate-x-0",
             // Mobile Overlay logic: slides in from right when showSidebar is true
             "fixed inset-y-0 right-0 z-50 w-80 lg:w-auto lg:static transition-transform duration-300 transform lg:transform-none bg-background",
             showSidebar ? "translate-x-0" : "translate-x-full"
