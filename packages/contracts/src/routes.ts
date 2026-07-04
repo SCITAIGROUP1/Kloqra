@@ -212,7 +212,8 @@ export const ROUTES = {
     ANALYTICS_SUMMARY: "/tenants/current/analytics/summary",
     DATA_EXPORT: "/tenants/current/data-export",
     DATA_EXPORT_JOB: (id: string) => `/tenants/current/data-export/${id}`,
-    DATA_EXPORT_JOB_DOWNLOAD: (id: string) => `/tenants/current/data-export/${id}/download`
+    DATA_EXPORT_JOB_DOWNLOAD: (id: string) => `/tenants/current/data-export/${id}/download`,
+    DATA_IMPORT: "/tenants/current/data-import"
   },
   WEBHOOKS: {
     STRIPE: "/webhooks/stripe"

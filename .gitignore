@@ -26,3 +26,4 @@ __pycache__/
 .local-serve/
 apps/api/.billing-receipts/
 .tmp-bin/
+apps/api/.export-jobs/

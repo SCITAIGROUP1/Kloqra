@@ -89,13 +89,22 @@ export function PlatformNotificationDropdown({
       </AppBarIconButton>
 
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold">Notifications</p>
+        <div
+          role="menu"
+          aria-label="Notifications"
+          className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:w-[22rem] z-50 mt-1.5 overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+        >
+          <div className="flex items-start justify-between gap-3 border-b border-border/70 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Notifications</p>
+              <p className="text-xs text-muted-foreground">
+                {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+              </p>
+            </div>
             {unreadCount > 0 ? (
               <button
                 type="button"
-                className="text-xs font-medium text-primary hover:underline"
+                className="shrink-0 text-xs font-medium text-primary hover:underline"
                 onClick={() =>
                   void markAllPlatformNotificationsRead().then(() => {
                     void refreshUnread();
@@ -109,51 +118,56 @@ export function PlatformNotificationDropdown({
               </button>
             ) : null}
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <ul className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No notifications
-              </p>
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No notifications yet
+              </li>
             ) : (
               notifications.map((item) => {
                 const Icon = iconForPlatformNotificationType(item.type, item.title);
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={cn(
-                      "flex w-full items-start gap-3 border-b border-border/60 px-4 py-3 text-left hover:bg-muted/40",
-                      !item.readAt && "bg-primary/5",
-                      platformNotificationVariantClass(item.metadata)
-                    )}
-                    onClick={() => void handleItemClick(item)}
-                  >
-                    <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-foreground">{item.title}</p>
-                        {!item.readAt ? (
-                          <span
-                            className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
-                            aria-label="Unread"
-                          />
-                        ) : null}
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40",
+                        !item.readAt && "bg-primary/5",
+                        platformNotificationVariantClass(item.metadata)
+                      )}
+                      onClick={() => void handleItemClick(item)}
+                    >
+                      <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <Icon className="size-4 shrink-0 text-primary" aria-hidden />
                       </div>
-                      <p className="text-xs text-muted-foreground">{item.body}</p>
-                      <NotificationDetails details={item.metadata?.details} />
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {formatPlatformNotificationTimeAgo(item.createdAt)}
-                      </p>
-                    </div>
-                  </button>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-foreground">{item.title}</p>
+                          {!item.readAt ? (
+                            <span
+                              className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+                              aria-label="Unread"
+                            />
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                          {item.body}
+                        </p>
+                        <NotificationDetails details={item.metadata?.details} />
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {formatPlatformNotificationTimeAgo(item.createdAt)}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
                 );
               })
             )}
-          </div>
-          <div className="border-t border-border px-4 py-2">
+          </ul>
+          <div className="border-t border-border/70 px-4 py-3 text-center">
             <Link
               href={viewAllHref}
-              className="block py-2 text-center text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-primary hover:underline"
               onClick={() => setOpen(false)}
             >
               View all notifications

@@ -36,6 +36,7 @@ describe("TenantDataExportService", () => {
       mockPrisma,
       { generate: vi.fn() } as never,
       { send: vi.fn() } as never,
+      { notify: vi.fn().mockResolvedValue(undefined) } as never,
       mockQueue as never
     );
   });

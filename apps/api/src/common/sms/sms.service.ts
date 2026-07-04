@@ -46,7 +46,7 @@ export class SmsService {
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = (await response.json().catch(() => ({}))) as any;
           this.logger.error(
             `Brevo SMS send failed: ${response.status} - ${JSON.stringify(errorData)}`
           );

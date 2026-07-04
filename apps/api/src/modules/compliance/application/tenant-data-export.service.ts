@@ -20,6 +20,7 @@ import {
   writeExportJobFile
 } from "../../export/application/export-job-storage.util";
 import { ExportService } from "../../export/application/export.service";
+import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
 /* eslint-enable no-restricted-imports */
 
 const JOB_RETENTION_DAYS = 7;
@@ -47,6 +48,7 @@ export class TenantDataExportService {
     private prisma: PrismaService,
     private exportService: ExportService,
     private mailer: MailerService,
+    private notificationsDispatch: NotificationsDispatchService,
     @InjectQueue(QUEUES.TENANT_DATA_EXPORT) private readonly exportQueue: Queue
   ) {}
 
@@ -189,6 +191,8 @@ export class TenantDataExportService {
       archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
 
       const rangeEnd = new Date();
+      const exportPromises: Promise<{ buffer: Buffer; name: string }>[] = [];
+
       for (const workspace of job.tenant.workspaces) {
         let windowStart = new Date(job.tenant.createdAt);
         let part = 0;
@@ -206,21 +210,33 @@ export class TenantDataExportService {
             groupBy: [],
             sheetLayout: "standard"
           };
-          const result = await this.exportService.generate(workspace.id, body);
+
           const suffix = part > 0 ? `-part${part + 1}` : "";
-          archive.append(result.buffer, {
-            name: `workspaces/${workspace.slug}/time-entries${suffix}.json`
-          });
+          const entryName = `workspaces/${workspace.slug}/time-entries${suffix}.json`;
+
+          const p = this.exportService.generate(workspace.id, body).then((res) => ({
+            buffer: res.buffer,
+            name: entryName
+          }));
+          exportPromises.push(p);
+
           windowStart = effectiveEnd;
           part += 1;
         }
       }
 
-      await archive.finalize();
-      await new Promise<void>((resolve, reject) => {
+      const exportResults = await Promise.all(exportPromises);
+      for (const result of exportResults) {
+        archive.append(result.buffer, { name: result.name });
+      }
+
+      const endPromise = new Promise<void>((resolve, reject) => {
         collector.on("end", () => resolve());
         collector.on("error", reject);
       });
+
+      await archive.finalize();
+      await endPromise;
 
       const buffer = Buffer.concat(chunks);
       const filename = `${job.tenant.slug}-data-export.zip`;
@@ -240,6 +256,24 @@ export class TenantDataExportService {
           errorMessage: null
         }
       });
+
+      if (job.tenant.workspaces[0]) {
+        void this.notificationsDispatch
+          .notify({
+            userId: job.requestedByUserId,
+            workspaceId: job.tenant.workspaces[0].id,
+            templateId: "export.job_ready",
+            context: {
+              filename,
+              jobId
+            }
+          })
+          .catch((err: any) => {
+            this.logger.error(
+              `Failed to dispatch export notification: ${err?.message || String(err)}`
+            );
+          });
+      }
 
       const user = await this.prisma.user.findUnique({
         where: { id: job.requestedByUserId },
@@ -266,6 +300,15 @@ export class TenantDataExportService {
         data: { status: "failed", errorMessage: message.slice(0, 500) }
       });
     }
+  }
+
+  async getLatest(tenantId: string): Promise<TenantDataExportJobDto | null> {
+    const row = await this.prisma.tenantDataExportJob.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" }
+    });
+    if (!row) return null;
+    return this.toDto(row);
   }
 
   private toDto(row: TenantDataExportJobRow): TenantDataExportJobDto {
