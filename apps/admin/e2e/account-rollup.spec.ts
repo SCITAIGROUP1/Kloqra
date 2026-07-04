@@ -14,4 +14,5 @@ test("tenant owner sees organization rollup on account overview", async ({ page 
   await expect(page.getByRole("textbox", { name: /search workspaces/i })).toBeVisible();
   await expect(page.getByRole("combobox", { name: /filter workspaces/i })).toBeVisible();
   await expect(page.getByRole("combobox", { name: /sort workspaces/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /utilization date range/i })).toBeVisible();
 });

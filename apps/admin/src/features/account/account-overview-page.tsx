@@ -587,7 +587,7 @@ export function AccountOverviewPage() {
                 weekStartsOn={1}
                 ariaLabel="Utilization date range"
                 className="w-full min-w-0"
-                numberOfMonths={1}
+                numberOfMonths={2}
                 popoverAlign="end"
               />
             </div>
