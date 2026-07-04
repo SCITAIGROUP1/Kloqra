@@ -8,7 +8,7 @@ import {
   type ResolvedPlatformNotifications
 } from "@kloqra/contracts";
 import { Button } from "@kloqra/ui";
-import { AlertTriangle, Bell, Building2, Gauge, Shield } from "lucide-react";
+import { AlertTriangle, Bell, Building2, Gauge, Shield, LifeBuoy } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +45,13 @@ const ROWS: {
     title: "Security alerts",
     description: "Platform security and access events",
     icon: Shield
+  },
+  {
+    key: "ticketNotifications",
+    title: "Ticket notifications",
+    description:
+      "Get notified when you are assigned, @mentioned, or when status updates on a support ticket",
+    icon: LifeBuoy
   }
 ];
 
@@ -108,11 +115,11 @@ export function PlatformNotificationsSection({
     profile.platformRole === "SUPPORT"
       ? [
           {
-            key: "securityAlerts" as const,
-            title: "Ticket mentions & security alerts",
+            key: "ticketNotifications" as const,
+            title: "Ticket notifications",
             description:
-              "Get notified when you are @mentioned in a ticket note or when account events occur",
-            icon: Shield
+              "Get notified when you are assigned, @mentioned, or when status updates on a support ticket",
+            icon: LifeBuoy
           }
         ]
       : ROWS;

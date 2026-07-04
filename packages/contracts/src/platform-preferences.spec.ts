@@ -16,6 +16,9 @@ describe("platform preferences", () => {
     expect(platformNotificationPreferenceKeyMap[PlatformNotificationType.QUEUE_FAILURE]).toBe(
       "queueFailures"
     );
+    expect(platformNotificationPreferenceKeyMap[PlatformNotificationType.TICKET_MENTION]).toBe(
+      "ticketNotifications"
+    );
   });
 
   it("defaults platform notification channels to enabled", () => {

@@ -53,7 +53,11 @@ export const listPlatformNotificationsResponseSchema = createPaginatedListRespon
 
 export const platformNotificationPreferenceKeyMap: Record<
   PlatformNotificationType,
-  "tenantLifecycle" | "queueFailures" | "subscriptionDrift" | "securityAlerts"
+  | "tenantLifecycle"
+  | "queueFailures"
+  | "subscriptionDrift"
+  | "securityAlerts"
+  | "ticketNotifications"
 > = {
   TENANT_CREATED: "tenantLifecycle",
   TENANT_UPDATED: "tenantLifecycle",
@@ -65,9 +69,9 @@ export const platformNotificationPreferenceKeyMap: Record<
   SUBSCRIPTION_DRIFT: "subscriptionDrift",
   QUEUE_FAILURE: "queueFailures",
   SECURITY_ALERT: "securityAlerts",
-  TICKET_MENTION: "securityAlerts",
-  TICKET_ASSIGNED: "securityAlerts",
-  TICKET_STATUS_CHANGED: "securityAlerts"
+  TICKET_MENTION: "ticketNotifications",
+  TICKET_ASSIGNED: "ticketNotifications",
+  TICKET_STATUS_CHANGED: "ticketNotifications"
 };
 
 export type PlatformNotificationDto = z.infer<typeof platformNotificationSchema>;

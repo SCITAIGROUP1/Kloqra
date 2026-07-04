@@ -6,7 +6,8 @@ export const platformNotificationKeySchema = z.enum([
   "tenantLifecycle",
   "queueFailures",
   "subscriptionDrift",
-  "securityAlerts"
+  "securityAlerts",
+  "ticketNotifications"
 ]);
 
 export type PlatformNotificationKey = z.infer<typeof platformNotificationKeySchema>;
@@ -16,7 +17,8 @@ export const platformNotificationsSchema = z.object({
   tenantLifecycle: notificationPreferenceSchema,
   queueFailures: notificationPreferenceSchema,
   subscriptionDrift: notificationPreferenceSchema,
-  securityAlerts: notificationPreferenceSchema
+  securityAlerts: notificationPreferenceSchema,
+  ticketNotifications: notificationPreferenceSchema
 });
 
 export type PlatformNotifications = z.infer<typeof platformNotificationsSchema>;
@@ -34,7 +36,8 @@ const platformChannelDefaults: Record<PlatformNotificationKey, NotificationChann
   tenantLifecycle: { inApp: true, email: true },
   queueFailures: { inApp: true, email: true },
   subscriptionDrift: { inApp: true, email: false },
-  securityAlerts: { inApp: true, email: true }
+  securityAlerts: { inApp: true, email: true },
+  ticketNotifications: { inApp: true, email: true }
 };
 
 export type ResolvedPlatformNotifications = {
@@ -43,6 +46,7 @@ export type ResolvedPlatformNotifications = {
   queueFailures: NotificationChannels;
   subscriptionDrift: NotificationChannels;
   securityAlerts: NotificationChannels;
+  ticketNotifications: NotificationChannels;
 };
 
 export const DEFAULT_PLATFORM_NOTIFICATIONS: ResolvedPlatformNotifications = {
@@ -80,7 +84,8 @@ export function mergePlatformPreferences(
       tenantLifecycle: mergePlatformNotificationKey(cur, part, "tenantLifecycle"),
       queueFailures: mergePlatformNotificationKey(cur, part, "queueFailures"),
       subscriptionDrift: mergePlatformNotificationKey(cur, part, "subscriptionDrift"),
-      securityAlerts: mergePlatformNotificationKey(cur, part, "securityAlerts")
+      securityAlerts: mergePlatformNotificationKey(cur, part, "securityAlerts"),
+      ticketNotifications: mergePlatformNotificationKey(cur, part, "ticketNotifications")
     };
   }
   return merged;
@@ -98,7 +103,8 @@ export function resolveEffectivePlatformNotifications(
     tenantLifecycle: resolve("tenantLifecycle"),
     queueFailures: resolve("queueFailures"),
     subscriptionDrift: resolve("subscriptionDrift"),
-    securityAlerts: resolve("securityAlerts")
+    securityAlerts: resolve("securityAlerts"),
+    ticketNotifications: resolve("ticketNotifications")
   };
 }
 
