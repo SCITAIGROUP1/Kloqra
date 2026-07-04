@@ -175,9 +175,13 @@ export function NotificationsSection({
   const isDirty = JSON.stringify(state) !== snapshot;
   const rows = useMemo(() => {
     if (variant === "tenant-admin-org") {
-      return ADMIN_ROWS.filter(
+      const orgAdminRows = ADMIN_ROWS.filter(
         (row) => row.key === "memberChanges" || row.key === "exportSchedule"
       );
+      const personalOrgRows = MEMBER_ROWS.filter(
+        (row) => row.key === "workspaceAdded" || row.key === "roleChanges"
+      );
+      return [...personalOrgRows, ...orgAdminRows];
     }
     if (variant === "project-manager") {
       const pmAdminRows = ADMIN_ROWS.filter(
