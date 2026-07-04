@@ -2,6 +2,7 @@ import { ROUTES } from "@kloqra/contracts";
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   Header,
   Param,
@@ -49,6 +50,12 @@ export class ComplianceController {
   @Get(ROUTES.TENANTS.DATA_EXPORT_JOB(":jobId"))
   getExport(@CurrentUser() user: RequestUser, @Param("jobId") jobId: string) {
     return this.tenantDataExport.get(user.tenantId, jobId);
+  }
+
+  @TenantRoles("OWNER")
+  @Delete(ROUTES.TENANTS.DATA_EXPORT_JOB(":jobId"))
+  cancelExport(@CurrentUser() user: RequestUser, @Param("jobId") jobId: string) {
+    return this.tenantDataExport.cancel(user.tenantId, jobId);
   }
 
   @TenantRoles("OWNER")

@@ -32,7 +32,7 @@ import { getWorkspaceId } from "@/stores/session.store";
 
 export function AccountDataPrivacyPage() {
   const workspaceId = getWorkspaceId() ?? "";
-  const { job, loading, error, startExport, refreshJob } = useTenantDataExport();
+  const { job, loading, error, startExport, refreshJob, cancelExport } = useTenantDataExport();
 
   // Import State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -101,6 +101,14 @@ export function AccountDataPrivacyPage() {
     const created = await startExport();
     if (created) {
       toast.success("Organization export started. This may take a few minutes.");
+    }
+  }
+
+  async function handleCancelExport() {
+    if (!job) return;
+    const result = await cancelExport(job.id);
+    if (result) {
+      toast.success("Organization export cancelled.");
     }
   }
 
@@ -237,10 +245,20 @@ export function AccountDataPrivacyPage() {
               <div className="p-4 bg-muted/40 border border-border/50 rounded-2xl space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <span>Export Progress</span>
-                  <span className="flex items-center gap-1.5 text-indigo-500">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    {job.status === "running" ? "Processing" : "Queued"}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-indigo-500">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      {job.status === "running" ? "Processing" : "Queued"}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void handleCancelExport()}
+                      className="h-auto p-1 py-0.5 text-[10px] font-bold text-destructive hover:text-destructive/80 hover:bg-destructive/10 rounded-md transition-all active:scale-95 duration-200"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="relative space-y-3 pl-6 border-l border-indigo-500/20">

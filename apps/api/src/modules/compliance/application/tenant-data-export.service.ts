@@ -78,7 +78,7 @@ export class TenantDataExportService {
     });
 
     try {
-      await this.exportQueue.add("runTenantExport", { jobId: row.id });
+      await this.exportQueue.add("runTenantExport", { jobId: row.id }, { jobId: row.id });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue tenant export ${row.id}: ${message}`);
@@ -309,6 +309,42 @@ export class TenantDataExportService {
     });
     if (!row) return null;
     return this.toDto(row);
+  }
+
+  async cancel(tenantId: string, jobId: string): Promise<TenantDataExportJobDto> {
+    const row = await this.prisma.tenantDataExportJob.findFirst({
+      where: { id: jobId, tenantId }
+    });
+    if (!row) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Export job not found", HttpStatus.NOT_FOUND);
+    }
+    if (row.status !== "queued" && row.status !== "running") {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Only pending or active exports can be cancelled",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    try {
+      const bullJob = await this.exportQueue.getJob(jobId);
+      if (bullJob) {
+        await bullJob.remove();
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to remove job ${jobId} from queue: ${err}`);
+    }
+
+    const updated = await this.prisma.tenantDataExportJob.update({
+      where: { id: jobId },
+      data: {
+        status: "failed",
+        errorMessage: "Cancelled by user",
+        completedAt: new Date()
+      }
+    });
+
+    return this.toDto(updated);
   }
 
   private toDto(row: TenantDataExportJobRow): TenantDataExportJobDto {

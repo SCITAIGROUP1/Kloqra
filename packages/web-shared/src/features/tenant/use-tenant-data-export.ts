@@ -76,5 +76,27 @@ export function useTenantDataExport() {
     [ws]
   );
 
-  return { job, loading, error, startExport, refreshJob, setJob };
+  const cancelExport = useCallback(
+    async (jobId: string) => {
+      if (!ws) return null;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await api<TenantDataExportJobDto>(ROUTES.TENANTS.DATA_EXPORT_JOB(jobId), {
+          method: "DELETE",
+          workspaceId: ws
+        });
+        setJob(result);
+        return result;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not cancel export");
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ws]
+  );
+
+  return { job, loading, error, startExport, refreshJob, cancelExport, setJob };
 }
