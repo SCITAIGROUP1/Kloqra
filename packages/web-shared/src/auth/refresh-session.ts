@@ -21,30 +21,36 @@ function scheduleRefreshRetry(): void {
 }
 
 async function performRefresh(): Promise<string | null> {
-  const storedRefresh = getRefreshToken();
-  const res = await fetch(`${getApiBase()}${ROUTES.AUTH.REFRESH}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Auth-Scope": AUTH_SCOPE
-    },
-    body: JSON.stringify(storedRefresh ? { refreshToken: storedRefresh } : {})
-  });
-  if (!res.ok) {
+  try {
+    const storedRefresh = getRefreshToken();
+    const res = await fetch(`${getApiBase()}${ROUTES.AUTH.REFRESH}`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Auth-Scope": AUTH_SCOPE
+      },
+      body: JSON.stringify(storedRefresh ? { refreshToken: storedRefresh } : {})
+    });
+    if (!res.ok) {
+      scheduleRefreshRetry();
+      return null;
+    }
+    const body = (await res.json()) as AuthSessionDto & {
+      accessToken?: string;
+      refreshToken?: string;
+    };
+    if (!body.accessToken) {
+      scheduleRefreshRetry();
+      return null;
+    }
+    useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
+    return body.accessToken;
+  } catch (error) {
+    console.error("[Refresh Session] Failed to fetch token refresh:", error);
     scheduleRefreshRetry();
     return null;
   }
-  const body = (await res.json()) as AuthSessionDto & {
-    accessToken?: string;
-    refreshToken?: string;
-  };
-  if (!body.accessToken) {
-    scheduleRefreshRetry();
-    return null;
-  }
-  useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
-  return body.accessToken;
 }
 
 /** Silent refresh using httpOnly cookie; returns new access token or null. */
