@@ -1,25 +1,23 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import type { SidebarNavItem } from "@kloqra/ui";
-import { canAccessAccountMode, isPersonalAccountPath } from "@kloqra/web-shared";
 import type { AdminNavItem } from "@/config/admin-nav";
 import { projectLeadNavItems } from "@/config/project-manager-nav";
 import { resolveAccountNavItems } from "@/lib/resolve-account-nav";
 
 export type AdminShellMode = "account" | "workspace";
 
-export function isAccountModePath(
-  pathname: string,
-  session?: Pick<AuthSessionDto, "tenantRole"> | null
-): boolean {
+export function isAccountModePath(pathname: string): boolean {
   if (pathname === "/account" || pathname.startsWith("/account/")) return true;
-  return isPersonalAccountPath(pathname) && canAccessAccountMode(session);
+  // Personal paths (/settings, /profile, /notifications) are always personal —
+  // they must NOT trigger account mode even when the user is an owner/admin.
+  return false;
 }
 
 export function resolveAdminShellMode(
   pathname: string,
-  session?: Pick<AuthSessionDto, "tenantRole"> | null
+  _session?: Pick<AuthSessionDto, "tenantRole"> | null
 ): AdminShellMode {
-  return isAccountModePath(pathname, session) ? "account" : "workspace";
+  return isAccountModePath(pathname) ? "account" : "workspace";
 }
 
 function mapAccountNav(
