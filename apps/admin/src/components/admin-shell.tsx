@@ -132,16 +132,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const navSectionLabel = isAccountMode ? "Organization" : undefined;
   const navAriaLabel = isAccountMode ? "Organization navigation" : "Workspace navigation";
 
-  const isWorkspaceAdminOrTenantAdmin =
-    session?.workspaceRole === "ADMIN" ||
-    session?.tenantRole === "OWNER" ||
-    session?.tenantRole === "ADMIN";
-
-  const settingsHref = isAccountMode
-    ? "/account/organization"
-    : isWorkspaceAdminOrTenantAdmin
-      ? "/workspace"
-      : "/settings";
+  const settingsHref = isAccountMode ? "/account/settings" : "/settings";
 
   return (
     <>
