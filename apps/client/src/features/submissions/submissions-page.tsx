@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectDto, TimesheetPeriodDto, UserProfileDto } from "@kloqra/contracts";
+import type { ProjectDto, TimesheetPeriodDto, UserProfileDto, TaskDto } from "@kloqra/contracts";
 import { resolveEffectiveTimezone, ROUTES } from "@kloqra/contracts";
 import {
   AppBar,
@@ -27,7 +27,8 @@ import {
   countActionableSubmissions,
   countPendingReviewSubmissions,
   filterSubmissionsByPeriodRange,
-  filterSubmissionsByTab
+  filterSubmissionsByTab,
+  type MemberSubmissionsTabFilter
 } from "./use-my-submissions";
 import { todayInZone } from "@/features/timesheet/calendar-utils";
 import { api } from "@/lib/api";
@@ -38,7 +39,8 @@ const TAB_OPTIONS: { value: MemberSubmissionsTab; label: string }[] = [
   { value: "all", label: "All" },
   { value: "action", label: "Action needed" },
   { value: "pending", label: "Pending review" },
-  { value: "approved", label: "Approved" }
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" }
 ];
 
 function emptyStateCopy(
@@ -67,6 +69,11 @@ function emptyStateCopy(
         title: "No approved timesheets",
         detail: "Approved submissions for this period will appear here."
       };
+    case "rejected":
+      return {
+        title: "No rejected timesheets",
+        detail: "Timesheets rejected by admins will appear here."
+      };
     case "all":
     default:
       return {
@@ -85,7 +92,7 @@ export function SubmissionsPage() {
   );
   const tab = resolveMemberSubmissionsTab(deepLink);
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { projects, setProjects } = useProjectsStore();
+  const { projects, setProjects, setTasks } = useProjectsStore();
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
@@ -96,6 +103,11 @@ export function SubmissionsPage() {
   const [timezone, setTimezone] = useState(() =>
     resolveEffectiveTimezone({}, Intl.DateTimeFormat().resolvedOptions().timeZone)
   );
+
+  useEffect(() => {
+    if (!ws) return;
+    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
+  }, [ws, setTasks]);
 
   useEffect(() => {
     if (!deepLink.periodStart) return;
@@ -199,7 +211,7 @@ export function SubmissionsPage() {
   );
 
   const tabFilteredSubmissions = useMemo(
-    () => filterSubmissionsByTab(periodFilteredSubmissions, tab),
+    () => filterSubmissionsByTab(periodFilteredSubmissions, tab as MemberSubmissionsTabFilter),
     [periodFilteredSubmissions, tab]
   );
 
@@ -236,6 +248,7 @@ export function SubmissionsPage() {
   const actionCount = countActionableSubmissions(periodFilteredSubmissions);
   const pendingCount = countPendingReviewSubmissions(periodFilteredSubmissions);
   const approvedCount = periodFilteredSubmissions.filter((s) => s.status === "APPROVED").length;
+  const rejectedCount = periodFilteredSubmissions.filter((s) => s.status === "REJECTED").length;
 
   const tabOptions = TAB_OPTIONS.map((opt) => {
     if (opt.value === "action" && actionCount > 0) {
@@ -246,6 +259,9 @@ export function SubmissionsPage() {
     }
     if (opt.value === "approved" && approvedCount > 0) {
       return { ...opt, label: `Approved (${approvedCount})` };
+    }
+    if (opt.value === "rejected" && rejectedCount > 0) {
+      return { ...opt, label: `Rejected (${rejectedCount})` };
     }
     return opt;
   });

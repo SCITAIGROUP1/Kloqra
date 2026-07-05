@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { ROUTES, type MissingTimesheetDto } from "@kloqra/contracts";
 import {
   AppBar,
@@ -7,6 +9,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmNoteDialog,
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
@@ -16,16 +19,17 @@ import {
   Table,
   TableBody,
   TableHeader,
-  TableRow
+  TableRow,
+  cn
 } from "@kloqra/ui";
 import { parseAdminApprovalsSearch, hasActiveApprovalsFilter } from "@kloqra/web-shared";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AmendmentRequestCard } from "./amendment-request-card";
 import { ApprovalsFiltersBar } from "./approvals-filters-bar";
-import { PendingTimesheetCard } from "./pending-timesheet-card";
+import { PendingTimesheetCard, PendingActivity } from "./pending-timesheet-card";
 import { RemindMemberDialog } from "./remind-member-dialog";
 import { ReviewedTimesheetCard } from "./reviewed-timesheet-card";
 import { useApprovalsFilterOptions } from "./use-approvals-filter-options";
@@ -76,11 +80,75 @@ export function ApprovalsPage() {
   const [reminding, setReminding] = useState(false);
   const focusRef = useRef<HTMLDivElement>(null);
 
+  const [viewMode, setViewMode] = useState<"card" | "table">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("kloqra_admin_approvals_view_mode");
+      if (saved === "card" || saved === "table") return saved;
+    }
+    return "card";
+  });
+
+  const handleViewModeChange = (mode: "card" | "table") => {
+    setViewMode(mode);
+    localStorage.setItem("kloqra_admin_approvals_view_mode", mode);
+  };
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<"approve" | "reject" | null>(null);
+  const [bulkActioning, setBulkActioning] = useState(false);
+  const [confirmActionId, setConfirmActionId] = useState<{
+    id: string;
+    action: "approve" | "reject";
+    userName: string;
+    projectName: string;
+    range: string;
+  } | null>(null);
+
   const { pending, loading, actioningId, handleReview, fetchPending } = usePendingTimesheets(
     ws,
     filters,
     tab === "review"
   );
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [tab, ws]);
+
+  const handleBulkReview = async (action: "approve" | "reject", comment: string) => {
+    if (!ws || selectedIds.length === 0) return;
+    setBulkActioning(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedIds.map(async (id) => {
+          const endpoint =
+            action === "approve" ? ROUTES.TIMESHEETS.APPROVE(id) : ROUTES.TIMESHEETS.REJECT(id);
+          await api(endpoint, {
+            method: "PATCH",
+            workspaceId: ws,
+            body: JSON.stringify({ reviewNote: comment || undefined })
+          });
+        })
+      );
+
+      const succeededCount = results.filter((r) => r.status === "fulfilled").length;
+      const failedCount = results.length - succeededCount;
+      if (succeededCount > 0) {
+        toast.success(
+          `Successfully ${action === "approve" ? "approved" : "rejected"} ${succeededCount} timesheet(s).`
+        );
+      }
+      if (failedCount > 0) {
+        toast.error(`Failed to ${action} ${failedCount} timesheet(s).`);
+      }
+
+      setSelectedIds([]);
+      await fetchPending();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to run bulk review");
+    } finally {
+      setBulkActioning(false);
+    }
+  };
   const {
     missing,
     loading: missingLoading,
@@ -182,6 +250,8 @@ export function ApprovalsPage() {
         memberOptions={memberOptions}
         loading={filterOptionsLoading}
         showSort={tab === "review"}
+        viewMode={viewMode}
+        onViewModeChange={tab !== "missing" ? handleViewModeChange : undefined}
         resultCount={
           tab === "review"
             ? pending.length

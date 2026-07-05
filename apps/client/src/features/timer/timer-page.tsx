@@ -6,7 +6,8 @@ import type {
   TaskDto,
   ProjectDto,
   ListTimeLogsResponseDto,
-  AutoStoppedTimerDto
+  AutoStoppedTimerDto,
+  TimeLogDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -28,7 +29,8 @@ import {
   useUserProfile,
   useWorkspaceStaleRefetch,
   todayInZone,
-  localMidnightUtcInZone
+  localMidnightUtcInZone,
+  toDateKeyInZone
 } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -41,6 +43,7 @@ import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
+import { useOfflineStore } from "@/stores/offline-store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
@@ -160,9 +163,11 @@ export function TimerPage() {
   const [resuming, setResuming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [recentLogs, setRecentLogs] = useState<TimeLogDto[]>([]);
   const [jiraConnected, setJiraConnected] = useState(false);
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
+  const offlineLogs = useOfflineStore((s) => s.offlineLogs);
+  const offlineDeletions = useOfflineStore((s) => s.offlineDeletions);
 
   // Stale Warning Dialog state
   const [showStaleDialog, setShowStaleDialog] = useState(false);
@@ -186,7 +191,7 @@ export function TimerPage() {
       .catch(() => {});
   }, [ws]);
 
-  const fetchTodayLogs = useCallback(async () => {
+  const fetchRecentLogs = useCallback(async () => {
     if (!ws) return;
     try {
       const today = todayInZone(timezone);
@@ -195,14 +200,15 @@ export function TimerPage() {
       const td = today.getDate();
       const todayStart = localMidnightUtcInZone(ty, tm, td, timezone);
       const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+      const startOfRecent = new Date(todayStart.getTime() - 13 * 24 * 60 * 60 * 1000);
       const params = new URLSearchParams({
-        from: todayStart.toISOString(),
+        from: startOfRecent.toISOString(),
         to: todayEnd.toISOString()
       });
       const res = await api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
         workspaceId: ws
       });
-      setTodayLogs(res.items || []);
+      setRecentLogs(res.items || []);
     } catch {
       // ignore
     }
@@ -217,14 +223,14 @@ export function TimerPage() {
       if (res && "autostopped" in res && res.autostopped) {
         setActive(null);
         toast.warning(formatAutoStopToastMessage(), { duration: 8000 });
-        void fetchTodayLogs();
+        void fetchRecentLogs();
         return;
       }
       setActive(res as ActiveTimerDto | null);
     } catch {
       // ignore
     }
-  }, [ws, setActive, fetchTodayLogs]);
+  }, [ws, setActive, fetchRecentLogs]);
 
   useEffect(() => {
     if (!ws) return;
@@ -232,9 +238,9 @@ export function TimerPage() {
       fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
       fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
       fetchActiveTimer(),
-      fetchTodayLogs()
+      fetchRecentLogs()
     ]);
-  }, [ws, setProjects, setTasks, fetchActiveTimer, fetchTodayLogs]);
+  }, [ws, setProjects, setTasks, fetchActiveTimer, fetchRecentLogs]);
 
   const reloadCatalog = useCallback(() => {
     if (!ws) return;
@@ -311,6 +317,27 @@ export function TimerPage() {
     if (isImpersonating || !canStart) return;
     setStarting(true);
     setError(null);
+
+    const isOffline = useOfflineStore.getState().isOffline;
+    if (isOffline) {
+      const mockActive = {
+        taskId: taskChoice,
+        workspaceId: ws,
+        userId: session?.user.id ?? "",
+        elapsedSec: 0,
+        startedAt: new Date().toISOString(),
+        isPaused: false,
+        pausedAt: null,
+        accumulatedSec: 0,
+        isOfflineActive: true
+      };
+      setActive(mockActive as unknown as Parameters<typeof setActive>[0]);
+      setTaskChoice("");
+      toast.success("Timer started successfully (offline)!");
+      setStarting(false);
+      return;
+    }
+
     try {
       const res = await api<ActiveTimerDto>(ROUTES.TIMER.START, {
         method: "POST",
@@ -320,7 +347,7 @@ export function TimerPage() {
       setActive(res);
       setTaskChoice("");
       toast.success("Timer started successfully!");
-      void fetchTodayLogs();
+      void fetchRecentLogs();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not start timer";
       const errMsg = resolveTimerStartErrorMessage(message);
@@ -335,6 +362,29 @@ export function TimerPage() {
     if (isImpersonating) return;
     setStopping(true);
     setError(null);
+
+    const isOffline = useOfflineStore.getState().isOffline;
+    const isTempActive =
+      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
+    if (isOffline || isTempActive) {
+      const task = tasks.find((t) => t.id === active?.taskId);
+      const projectId = task?.projectId;
+      useOfflineStore.getState().addOfflineLog({
+        taskId: active!.taskId,
+        projectId,
+        startTime: active!.startedAt,
+        endTime: new Date().toISOString(),
+        description: stopDescription.trim() || undefined,
+        isBillable: activeTask?.billableDefault ?? true
+      });
+      const logged = formatElapsed(elapsedSec);
+      setActive(null);
+      setStopDescription("");
+      toast.success(`Timer stopped. ${logged} saved locally.`);
+      setStopping(false);
+      return;
+    }
+
     try {
       await api(ROUTES.TIMER.STOP, {
         method: "POST",
@@ -348,7 +398,7 @@ export function TimerPage() {
       setActive(null);
       setStopDescription("");
       toast.success(`Timer stopped. ${logged} logged.`);
-      void fetchTodayLogs();
+      void fetchRecentLogs();
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Something went wrong. Your time is safe — try again.";
@@ -366,6 +416,21 @@ export function TimerPage() {
     if (isImpersonating) return;
     setPausing(true);
     setError(null);
+
+    const isOffline = useOfflineStore.getState().isOffline;
+    const isTempActive =
+      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
+    if (isOffline || isTempActive) {
+      setActive({
+        ...active!,
+        isPaused: true,
+        pausedAt: new Date().toISOString()
+      } as unknown as Parameters<typeof setActive>[0]);
+      toast.success("Timer paused (offline).");
+      setPausing(false);
+      return;
+    }
+
     try {
       await api(ROUTES.TIMER.PAUSE, {
         method: "POST",
@@ -384,6 +449,24 @@ export function TimerPage() {
     if (isImpersonating) return;
     setResuming(true);
     setError(null);
+
+    const isOffline = useOfflineStore.getState().isOffline;
+    const isTempActive =
+      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
+    if (isOffline || isTempActive) {
+      const pausedMs = Date.now() - new Date(active!.pausedAt!).getTime();
+      const newStart = new Date(new Date(active!.startedAt).getTime() + pausedMs).toISOString();
+      setActive({
+        ...active!,
+        isPaused: false,
+        pausedAt: null,
+        startedAt: newStart
+      } as unknown as Parameters<typeof setActive>[0]);
+      toast.success("Timer resumed (offline).");
+      setResuming(false);
+      return;
+    }
+
     try {
       await api(ROUTES.TIMER.RESUME, {
         method: "POST",
@@ -412,6 +495,16 @@ export function TimerPage() {
   const handleDiscard = async () => {
     if (isImpersonating) return;
     setShowStaleDialog(false);
+
+    const isOffline = useOfflineStore.getState().isOffline;
+    const isTempActive =
+      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
+    if (isOffline || isTempActive) {
+      setActive(null);
+      toast.info("Timer discarded (offline). No time was logged.");
+      return;
+    }
+
     try {
       await api(ROUTES.TIMER.DISCARD, { method: "POST", workspaceId: ws });
       setActive(null);
@@ -468,13 +561,36 @@ export function TimerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracking, isPaused, canStart, starting, stopping, pausing, resuming]);
 
+  const displayedLogs = useMemo(() => {
+    const activeServerLogs = recentLogs.filter((log) => !offlineDeletions.includes(log.id));
+    const mappedOfflineLogs = offlineLogs.map((log) => ({
+      id: log.tempId,
+      userId: "",
+      taskId: log.taskId,
+      startTime: log.startTime,
+      endTime: log.endTime,
+      durationSec: Math.floor(
+        (new Date(log.endTime).getTime() - new Date(log.startTime).getTime()) / 1000
+      ),
+      description: log.description || null,
+      isBillable: log.isBillable ?? true,
+      source: "timer" as const,
+      isOffline: true,
+      syncStatus: log.syncStatus
+    }));
+    return [...mappedOfflineLogs, ...activeServerLogs];
+  }, [recentLogs, offlineLogs, offlineDeletions]);
+
   const todayLoggedSec = useMemo(() => {
-    return todayLogs.reduce((sum, log) => {
+    const today = todayInZone(timezone);
+    const dateKey = toDateKeyInZone(today, timezone);
+    return displayedLogs.reduce((sum, log) => {
       const start = new Date(log.startTime);
+      if (toDateKeyInZone(start, timezone) !== dateKey) return sum;
       const end = new Date(log.endTime);
       return sum + (end.getTime() - start.getTime()) / 1000;
     }, 0);
-  }, [todayLogs]);
+  }, [displayedLogs, timezone]);
 
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
 
@@ -492,7 +608,7 @@ export function TimerPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Main Timer Column */}
         <div className="lg:col-span-7">
-          <Card className="h-full flex flex-col">
+          <Card className="flex flex-col">
             <CardHeader className="pb-4">
               <CardTitle>{tracking ? "Tracking Time" : "Start Timer"}</CardTitle>
               {tracking && activeProject && activeTask && (
@@ -719,7 +835,7 @@ export function TimerPage() {
 
         {/* Sidebar Widgets Column */}
         <div className="lg:col-span-5 space-y-6">
-          <DailyGoalWidget totalSeconds={totalTodaySec} />
+          <DailyGoalWidget totalSeconds={totalTodaySec} logs={displayedLogs} timezone={timezone} />
 
           <QuickActions
             onSelect={(pId, tId) => {

@@ -9,9 +9,11 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  cn
 } from "@kloqra/ui";
 import { hasActiveApprovalsFilter } from "@kloqra/web-shared";
+import { LayoutGrid, List } from "lucide-react";
 import type { ApprovalsFilterOption } from "./use-approvals-filter-options";
 
 export type ApprovalsFiltersBarProps = {
@@ -23,6 +25,8 @@ export type ApprovalsFiltersBarProps = {
   loading?: boolean;
   resultCount?: number;
   showSort?: boolean;
+  viewMode?: "card" | "table";
+  onViewModeChange?: (mode: "card" | "table") => void;
 };
 
 function FilterFieldLabel({ children }: { children: React.ReactNode }) {
@@ -41,7 +45,9 @@ export function ApprovalsFiltersBar({
   memberOptions,
   loading = false,
   resultCount,
-  showSort = false
+  showSort = false,
+  viewMode,
+  onViewModeChange
 }: ApprovalsFiltersBarProps) {
   const active = hasActiveApprovalsFilter(filters);
 
@@ -124,11 +130,49 @@ export function ApprovalsFiltersBar({
             </div>
           ) : null}
         </div>
-        {active ? (
-          <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={onClear}>
-            Clear filters
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {onViewModeChange && viewMode && (
+            <div className="flex items-center rounded-lg border bg-background p-0.5 mr-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-7 w-7 p-0 rounded-md",
+                  viewMode === "card" && "bg-muted text-foreground"
+                )}
+                onClick={() => onViewModeChange("card")}
+                title="Card view"
+              >
+                <LayoutGrid className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-7 w-7 p-0 rounded-md",
+                  viewMode === "table" && "bg-muted text-foreground"
+                )}
+                onClick={() => onViewModeChange("table")}
+                title="Table view"
+              >
+                <List className="size-4" />
+              </Button>
+            </div>
+          )}
+          {active ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={onClear}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

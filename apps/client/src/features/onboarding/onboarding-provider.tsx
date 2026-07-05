@@ -1,7 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode
+} from "react";
 import { OnboardingOverlay } from "./onboarding-overlay";
 import { OnboardingTour } from "./onboarding-tour";
 
@@ -19,9 +27,22 @@ const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [wizardOpen, setWizardOpen] = useState<boolean | undefined>(undefined);
   const [tourOpen, setTourOpen] = useState(false);
   const [replay, setReplay] = useState(false);
+  const [pendingTour, setPendingTour] = useState(false);
+
+  // Safely trigger the tour after the router completes navigation to /timer
+  useEffect(() => {
+    if (pendingTour && pathname === "/timer") {
+      setPendingTour(false);
+      const timer = setTimeout(() => {
+        setTourOpen(true);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingTour, pathname]);
 
   const openTour = useCallback((options?: { replay?: boolean }) => {
     setReplay(Boolean(options?.replay));
@@ -41,12 +62,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     ({ startTour }: { startTour: boolean }) => {
       setWizardOpen(false); // explicit close — do not fall back to auto-open
       if (startTour) {
-        setTourOpen(true);
+        setPendingTour(true);
+        if (pathname !== "/timer") {
+          router.push("/timer");
+        }
       } else if (!replay) {
         router.push("/timer");
       }
     },
-    [replay, router]
+    [replay, router, pathname]
   );
 
   const handleTourComplete = useCallback(() => {

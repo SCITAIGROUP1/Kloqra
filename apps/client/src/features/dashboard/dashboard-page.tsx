@@ -46,7 +46,8 @@ import {
   localMidnightUtcInZone,
   todayInZone
 } from "@kloqra/web-shared";
-import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
+import { Play, Pause, Square, LayoutGrid, Move, Clock } from "lucide-react";
+import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
@@ -172,6 +173,9 @@ export function DashboardPage() {
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const { submissions } = useDashboardSubmissions(ws, Boolean(ws));
+  const draftCount = useMemo(() => {
+    return submissions.filter((s) => s.status === "DRAFT" || s.status === "REJECTED").length;
+  }, [submissions]);
   const { submissions: todaySubmissions } = useMySubmissions(
     ws,
     new Date(),
@@ -834,6 +838,30 @@ export function DashboardPage() {
           onDone={handleDoneArranging}
           onSaveAsDefault={handleDoneAndSaveAsDefault}
         />
+      )}
+
+      {draftCount > 0 && (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-200 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
+              <Clock className="size-5 animate-pulse" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Action needed on your timesheets</p>
+              <p className="text-xs opacity-90">
+                You have {draftCount} timesheet {draftCount === 1 ? "period" : "periods"} ready for
+                submission or requiring correction.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm shrink-0"
+            asChild
+          >
+            <Link href="/submissions?tab=action">Submit timesheets</Link>
+          </Button>
+        </div>
       )}
 
       {/* Filters Toolbar */}

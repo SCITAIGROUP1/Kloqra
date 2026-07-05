@@ -188,6 +188,8 @@ export interface PendingTimesheetCardProps {
   actioning: boolean;
   highlighted?: boolean;
   timezone?: string;
+  selected?: boolean;
+  onSelectChange?: (selected: boolean) => void;
 }
 
 export function PendingTimesheetCard({
@@ -196,7 +198,9 @@ export function PendingTimesheetCard({
   onReview,
   actioning,
   highlighted = false,
-  timezone
+  timezone,
+  selected = false,
+  onSelectChange
 }: PendingTimesheetCardProps) {
   const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | null>(null);
   const blockedByAmendment = Boolean(item.amendmentPending);
@@ -224,14 +228,25 @@ export function PendingTimesheetCard({
         )}
       >
         <CardHeader className="pb-3 border-b border-border/40">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-base font-bold text-primary">{item.userName}</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{item.userEmail}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {onSelectChange && (
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={(e) => onSelectChange(e.target.checked)}
+                  disabled={actioning || blockedByAmendment}
+                  className="size-4 rounded border-gray-300 accent-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              )}
+              <div>
+                <CardTitle className="text-base font-bold text-primary">{item.userName}</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.userEmail}</p>
+              </div>
             </div>
             <Badge
               variant="secondary"
-              className="font-mono text-xs px-2.5 py-0.5 bg-primary/10 text-primary"
+              className="font-mono text-xs px-2.5 py-0.5 bg-primary/10 text-primary shrink-0"
             >
               {item.totalHours} hrs
             </Badge>

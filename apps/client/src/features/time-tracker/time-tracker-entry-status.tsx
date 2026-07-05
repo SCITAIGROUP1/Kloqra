@@ -27,11 +27,52 @@ const APPROVAL_STYLES: Partial<
 
 export function TimeTrackerEntryStatus({
   approval,
-  isBillable
+  isBillable,
+  isOffline,
+  syncStatus
 }: {
   approval: EntryApprovalDisplay;
   isBillable: boolean;
+  isOffline?: boolean;
+  syncStatus?: string;
 }) {
+  if (isOffline) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {syncStatus === "syncing" ? (
+          <Badge
+            variant="outline"
+            className="animate-pulse border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-500 text-xs font-semibold"
+          >
+            Syncing...
+          </Badge>
+        ) : syncStatus === "failed" ? (
+          <Badge
+            variant="outline"
+            className="border-destructive/30 bg-destructive/10 text-destructive text-xs font-semibold"
+          >
+            Sync Failed
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="border-muted-foreground/30 bg-muted/40 text-muted-foreground text-xs font-semibold"
+          >
+            Local (Offline)
+          </Badge>
+        )}
+        {isBillable ? (
+          <Badge
+            variant="outline"
+            className="border-primary/20 bg-primary/5 px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide text-primary"
+          >
+            Billable
+          </Badge>
+        ) : null}
+      </div>
+    );
+  }
+
   const approvalStyle =
     approval.status && approval.showApproval ? APPROVAL_STYLES[approval.status] : undefined;
   const isLocked = approval.status === "SUBMITTED" || approval.status === "APPROVED";

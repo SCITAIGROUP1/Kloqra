@@ -1,6 +1,6 @@
 import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 
-export type MemberSubmissionsTab = "action" | "pending" | "approved" | "all";
+export type MemberSubmissionsTab = "action" | "pending" | "approved" | "rejected" | "all";
 
 export type MemberSubmissionsDeepLink = {
   projectId?: string;
@@ -25,7 +25,7 @@ export function resolveMemberSubmissionsTab(
   deepLink: MemberSubmissionsDeepLink
 ): MemberSubmissionsTab {
   if (deepLink.tab) return deepLink.tab;
-  if (deepLink.highlight === "rejected") return "action";
+  if (deepLink.highlight === "rejected") return "rejected";
   if (deepLink.highlight === "amendment-approved") return "approved";
   return "all";
 }
@@ -67,7 +67,13 @@ export function parseMemberSubmissionsSearch(search: string): MemberSubmissionsD
         ? highlight
         : undefined,
     tab:
-      tab === "action" || tab === "pending" || tab === "approved" || tab === "all" ? tab : undefined
+      tab === "action" ||
+      tab === "pending" ||
+      tab === "approved" ||
+      tab === "rejected" ||
+      tab === "all"
+        ? tab
+        : undefined
   };
 }
 

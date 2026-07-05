@@ -120,3 +120,99 @@
   border-left-width: 2px;
   border-left-style: solid;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   KLOQRA GAMIFICATION & MOTION STYLINGS
+   ────────────────────────────────────────────────────────────────────────── */
+
+@keyframes flame-flicker {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg);
+    filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.3));
+  }
+  50% {
+    transform: scale(1.08) rotate(1deg);
+    filter: drop-shadow(0 0 6px rgba(234, 88, 12, 0.6));
+  }
+}
+
+.animate-flame-flicker {
+  animation: flame-flicker 1.8s infinite ease-in-out;
+}
+
+@keyframes float-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-float-subtle {
+  animation: float-subtle 3s infinite ease-in-out;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.15) 60%,
+    transparent
+  );
+  animation: shimmer 3s infinite;
+}
+
+/* Pulsing outer glow for completed milestone cards */
+.milestone-glow-amber {
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.15);
+  animation: badge-glow-amber 2.5s infinite ease-in-out;
+}
+@keyframes badge-glow-amber {
+  0%, 100% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.1); }
+  50% { box-shadow: 0 0 14px rgba(245, 158, 11, 0.25); }
+}
+
+.milestone-glow-indigo {
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.15);
+  animation: badge-glow-indigo 2.5s infinite ease-in-out;
+}
+@keyframes badge-glow-indigo {
+  0%, 100% { box-shadow: 0 0 6px rgba(99, 102, 241, 0.1); }
+  50% { box-shadow: 0 0 14px rgba(99, 102, 241, 0.25); }
+}
+
+.milestone-glow-orange {
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.15);
+  animation: badge-glow-orange 2.5s infinite ease-in-out;
+}
+@keyframes badge-glow-orange {
+  0%, 100% { box-shadow: 0 0 6px rgba(249, 115, 22, 0.1); }
+  50% { box-shadow: 0 0 14px rgba(249, 115, 22, 0.25); }
+}
+
+.milestone-glow-emerald {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+  animation: badge-glow-emerald 2.5s infinite ease-in-out;
+}
+@keyframes badge-glow-emerald {
+  0%, 100% { box-shadow: 0 0 6px rgba(16, 185, 129, 0.1); }
+  50% { box-shadow: 0 0 14px rgba(16, 185, 129, 0.25); }
+}
+

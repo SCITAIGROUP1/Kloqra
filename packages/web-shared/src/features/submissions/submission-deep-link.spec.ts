@@ -64,7 +64,7 @@ describe("submission deep links", () => {
   });
 
   it("resolves tab from highlight when tab is omitted", () => {
-    expect(resolveMemberSubmissionsTab({ highlight: "rejected" })).toBe("action");
+    expect(resolveMemberSubmissionsTab({ highlight: "rejected" })).toBe("rejected");
     expect(resolveMemberSubmissionsTab({ highlight: "amendment-approved" })).toBe("approved");
     expect(resolveMemberSubmissionsTab({ tab: "pending" })).toBe("pending");
     expect(resolveMemberSubmissionsTab({})).toBe("all");

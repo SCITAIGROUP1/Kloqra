@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
-import { ProjectColorDot, TableCell, TableRow } from "@kloqra/ui";
+import { cn, ProjectColorDot, TableCell, TableRow } from "@kloqra/ui";
 import { toDateKeyInZone } from "../timesheet/calendar-utils";
 import { formatEntryShortDate } from "../timesheet/display-format";
 import { resolveEntryApprovalStatus } from "./entry-approval-status";
@@ -39,9 +39,17 @@ export function TimeTrackerEntryRow({
   const approval = resolveEntryApprovalStatus(log, project, submissionByKey);
   const entryDate = new Date(log.startTime);
   const dateLabel = formatEntryShortDate(entryDate, timezone);
+  const isOffline = (log as TimeLogDto & { isOffline?: boolean }).isOffline;
+  const syncStatus = (log as TimeLogDto & { syncStatus?: string }).syncStatus;
 
   return (
-    <TableRow className="group border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
+    <TableRow
+      className={cn(
+        "group border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors",
+        isOffline &&
+          "border-dashed border-amber-500/30 bg-amber-500/[0.02] dark:bg-amber-500/[0.01]"
+      )}
+    >
       <TableCell className="whitespace-nowrap py-3.5 text-sm text-muted-foreground">
         {dateLabel}
       </TableCell>
@@ -67,7 +75,12 @@ export function TimeTrackerEntryRow({
         {formatHoursCompact(log.durationSec)}
       </TableCell>
       <TableCell className="py-3.5">
-        <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
+        <TimeTrackerEntryStatus
+          approval={approval}
+          isBillable={log.isBillable}
+          isOffline={isOffline}
+          syncStatus={syncStatus}
+        />
       </TableCell>
       {readOnly ? (
         <TableCell className="py-3.5" />

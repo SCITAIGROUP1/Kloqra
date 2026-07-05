@@ -47,7 +47,10 @@ async function performRefresh(): Promise<string | null> {
     useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
     return body.accessToken;
   } catch (error) {
-    console.error("[Refresh Session] Failed to fetch token refresh:", error);
+    console.warn(
+      "[Refresh Session] Failed to fetch token refresh (API server may be offline):",
+      error instanceof Error ? error.message : error
+    );
     scheduleRefreshRetry();
     return null;
   }

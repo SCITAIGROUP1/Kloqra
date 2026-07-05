@@ -3,12 +3,14 @@ import { SentryInitializer } from "@kloqra/web-shared/client";
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import { PwaInitializer } from "@/components/pwa-initializer";
 import { inter } from "@/lib/font";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
-  description: BRAND_TAGLINE
+  description: BRAND_TAGLINE,
+  manifest: "/manifest.json"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           <SentryInitializer />
+          <PwaInitializer />
           {children}
           <Toaster
             richColors

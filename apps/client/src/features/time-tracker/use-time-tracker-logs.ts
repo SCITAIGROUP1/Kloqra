@@ -7,6 +7,7 @@ import {
   type TimeTrackerServerFilters
 } from "./time-tracker-logs-query";
 import { api } from "@/lib/api";
+import { useOfflineStore } from "@/stores/offline-store";
 
 export type TimeTrackerLogsState = {
   logs: TimeLogDto[];
@@ -83,14 +84,53 @@ export function useTimeTrackerLogs(
     loadLogsRef.current = loadLogs;
   }, [loadLogs]);
 
+  const offlineLogs = useOfflineStore((s) => s.offlineLogs);
+  const offlineDeletions = useOfflineStore((s) => s.offlineDeletions);
+
   useEffect(() => {
     requestIdRef.current += 1;
     setLogs([]);
     void loadLogsRef.current();
   }, [workspaceId, filterKey]);
 
+  const displayedLogs = useMemo(() => {
+    const activeServerLogs = logs.filter((log) => !offlineDeletions.includes(log.id));
+
+    const matchedOfflineLogs = offlineLogs
+      .filter((log) => {
+        const logStart = new Date(log.startTime);
+        if (logStart < filters.from || logStart > filters.to) return false;
+        if (filters.projectId && log.projectId !== filters.projectId) return false;
+        if (filters.taskId && log.taskId !== filters.taskId) return false;
+        if (filters.billableOnly && !log.isBillable) return false;
+        if (filters.search) {
+          const term = filters.search.toLowerCase();
+          const desc = (log.description ?? "").toLowerCase();
+          if (!desc.includes(term)) return false;
+        }
+        return true;
+      })
+      .map((log) => ({
+        id: log.tempId,
+        userId: "",
+        taskId: log.taskId,
+        startTime: log.startTime,
+        endTime: log.endTime,
+        durationSec: Math.floor(
+          (new Date(log.endTime).getTime() - new Date(log.startTime).getTime()) / 1000
+        ),
+        description: log.description || null,
+        isBillable: log.isBillable ?? true,
+        source: "timer" as const,
+        isOffline: true,
+        syncStatus: log.syncStatus
+      }));
+
+    return [...matchedOfflineLogs, ...activeServerLogs];
+  }, [logs, offlineLogs, offlineDeletions, filters]);
+
   return {
-    logs,
+    logs: displayedLogs,
     loading,
     error,
     refresh: loadLogs

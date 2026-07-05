@@ -45,6 +45,7 @@ import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
+import { useOfflineStore } from "@/stores/offline-store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -387,6 +388,46 @@ export function TimeTrackerPage() {
         description: draft.description || undefined,
         isBillable: draft.isBillable
       };
+
+      const isOffline = useOfflineStore.getState().isOffline;
+      const task = tasks.find((t) => t.id === taskId);
+      const projectId = task?.projectId;
+
+      if (isOffline) {
+        if (editingLog) {
+          const isOfflineLog = editingLog.id.startsWith("temp-");
+          if (isOfflineLog) {
+            useOfflineStore.getState().updateOfflineLog(editingLog.id, {
+              taskId,
+              projectId,
+              startTime,
+              endTime,
+              description: draft.description || undefined,
+              isBillable: draft.isBillable
+            });
+            closeDialog();
+            toast.success("Offline time entry updated!");
+            return;
+          } else {
+            toast.error("Editing existing server entries requires an online connection.");
+            setSaving(false);
+            return;
+          }
+        } else {
+          useOfflineStore.getState().addOfflineLog({
+            taskId,
+            projectId,
+            startTime,
+            endTime,
+            description: draft.description || undefined,
+            isBillable: draft.isBillable
+          });
+          closeDialog();
+          toast.success("Time entry created offline!");
+          return;
+        }
+      }
+
       if (editingLog) {
         await api(`/timelogs/${editingLog.id}`, {
           method: "PATCH",
@@ -430,6 +471,24 @@ export function TimeTrackerPage() {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
     }
+
+    const isOfflineLog = target.id.startsWith("temp-");
+    const isOffline = useOfflineStore.getState().isOffline;
+
+    if (isOfflineLog) {
+      useOfflineStore.getState().removeOfflineLog(target.id);
+      if (editingLog?.id === target.id) closeDialog();
+      toast.success("Offline time entry deleted!");
+      return;
+    }
+
+    if (isOffline) {
+      useOfflineStore.getState().deleteServerLogOffline(target.id);
+      if (editingLog?.id === target.id) closeDialog();
+      toast.success("Time entry queued for deletion!");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {

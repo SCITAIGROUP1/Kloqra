@@ -1,6 +1,12 @@
 "use client";
 
-import type { ProjectDto, TimesheetPeriodDto } from "@kloqra/contracts";
+import type {
+  ProjectDto,
+  TimesheetPeriodDto,
+  TimeLogDto,
+  ListTimeLogsResponseDto
+} from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import {
   Button,
   DataTableCell,
@@ -13,32 +19,306 @@ import {
   TableHeader,
   TableRow,
   TimesheetApprovalStatusBadge,
+  ConfirmDialog,
   cn
 } from "@kloqra/ui";
 import { buildMemberTimesheetHrefFromSubmission } from "@kloqra/web-shared";
+import { ChevronDown, ChevronUp, Edit2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+import { TimeEntryDialog, draftFromLog, type TimeEntryDraft } from "../timesheet/time-entry-dialog";
+import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft";
+import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
+import { api } from "@/lib/api";
+import { useProjectsStore } from "@/stores/projects.store";
 
 export type SubmissionsTableProps = {
   submissions: TimesheetPeriodDto[];
   projects?: ProjectDto[];
   onSubmitted: () => void;
   highlightedProjectId?: string;
+  workspaceId: string;
+  timezone: string;
 };
+
+function formatLogDuration(durationSec: number): string {
+  const hours = Math.floor(durationSec / 3600);
+  const minutes = Math.floor((durationSec % 3600) / 60);
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}
+
+function formatLogTimeRange(startTime: string, endTime: string, timezone?: string): string {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const tzOpts = timezone ? { timeZone: timezone } : {};
+  const sameDay =
+    start.toLocaleDateString(undefined, tzOpts) === end.toLocaleDateString(undefined, tzOpts);
+  if (sameDay) {
+    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric", ...tzOpts })} · ${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...tzOpts })} – ${end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...tzOpts })}`;
+  }
+  return `${start.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...tzOpts })} – ${end.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...tzOpts })}`;
+}
+
+function SubmissionRowLogs({
+  submission,
+  workspaceId,
+  timezone,
+  onLogUpdated,
+  isLocked
+}: {
+  submission: TimesheetPeriodDto;
+  workspaceId: string;
+  timezone: string;
+  onLogUpdated: () => void;
+  isLocked: boolean;
+}) {
+  const [logs, setLogs] = useState<TimeLogDto[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
+  const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
+
+  const tasks = useProjectsStore((s) => s.tasks);
+  const projects = useProjectsStore((s) => s.projects);
+  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
+
+  const fetchLogs = useCallback(async () => {
+    if (!workspaceId) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        userId: submission.userId,
+        projectId: submission.projectId,
+        from: submission.periodStart,
+        to: submission.periodEnd
+      });
+      const res = await api<ListTimeLogsResponseDto>(
+        `${ROUTES.TIMELOGS.LIST}?${params.toString()}`,
+        { workspaceId }
+      );
+      setLogs(res.items ?? []);
+    } catch {
+      toast.error("Failed to load logs for this period");
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId, submission]);
+
+  useEffect(() => {
+    void fetchLogs();
+  }, [fetchLogs]);
+
+  const taskLabel = useCallback(
+    (id: string) => tasks.find((t) => t.id === id)?.taskName ?? "Task",
+    [tasks]
+  );
+
+  const openEdit = (log: TimeLogDto) => {
+    setEditingLog(log);
+    setDraft(draftFromLog(log, tasks, timezone));
+    setError(null);
+  };
+
+  const closeDialog = () => {
+    setEditingLog(null);
+    setDraft(null);
+    setError(null);
+  };
+
+  async function saveEntry() {
+    if (!draft || !canSaveTaskDraft(draft)) {
+      setError("Select a project and a task.");
+      return;
+    }
+    const { startTime, endTime } = draftToIsoRange(draft, timezone);
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
+      setError("End time must be after start time.");
+      return;
+    }
+    const overlapMsg = await validateTimeEntryOverlap(
+      workspaceId,
+      start,
+      end,
+      timezone,
+      editingLog?.id
+    );
+    if (overlapMsg) {
+      setError(overlapMsg);
+      toast.error(overlapMsg);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const taskId = draft.taskSelection;
+      const body = {
+        taskId,
+        startTime,
+        endTime,
+        description: draft.description || undefined,
+        isBillable: draft.isBillable
+      };
+      if (editingLog) {
+        await api(`/timelogs/${editingLog.id}`, {
+          method: "PATCH",
+          workspaceId,
+          body: JSON.stringify(body)
+        });
+        toast.success("Time entry updated!");
+      }
+      closeDialog();
+      void fetchLogs();
+      onLogUpdated();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not save entry";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    const target = confirmDeleteLog;
+    setConfirmDeleteLog(null);
+    if (!target) return;
+    setSaving(true);
+    try {
+      await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId });
+      toast.success("Time entry deleted!");
+      void fetchLogs();
+      onLogUpdated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete entry");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-muted/10 p-4 border-t border-b border-border/40">
+      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+        Logged entries in this period:
+      </h4>
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Loading time entries...</p>
+      ) : logs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No entries found for this project in this period.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {logs.map((log) => {
+            const task = tasks.find((t) => t.id === log.taskId);
+            return (
+              <div
+                key={log.id}
+                className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-background/80 transition-colors"
+              >
+                <div className="space-y-1 text-left">
+                  <p className="text-xs font-semibold text-foreground">
+                    {task?.taskName ?? "Task"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatLogTimeRange(log.startTime, log.endTime, timezone)} ·{" "}
+                    {formatLogDuration(log.durationSec)} ·{" "}
+                    <span className="capitalize">
+                      {log.isBillable ? "billable" : "non-billable"}
+                    </span>
+                  </p>
+                  {log.description && (
+                    <p className="text-[11px] text-muted-foreground italic line-clamp-1">
+                      &quot;{log.description}&quot;
+                    </p>
+                  )}
+                </div>
+                {!isLocked && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs px-2"
+                      onClick={() => openEdit(log)}
+                    >
+                      <Edit2 className="size-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs border-destructive/20 hover:bg-destructive/10 hover:text-destructive px-2"
+                      onClick={() => setConfirmDeleteLog(log)}
+                    >
+                      <Trash2 className="size-3 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <TimeEntryDialog
+        open={editingLog !== null}
+        title="Edit time entry"
+        draft={draft}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={taskLabel}
+        workspaceNames={workspaceNamesById}
+        editingLog={editingLog}
+        saving={saving}
+        error={error}
+        workspaceId={workspaceId}
+        onClose={closeDialog}
+        onDraftChange={setDraft}
+        onSave={saveEntry}
+        timezone={timezone}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteLog !== null}
+        title="Delete this entry?"
+        description="This can't be undone."
+        confirmLabel="Delete"
+        cancelLabel="Keep it"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteLog(null)}
+      />
+    </div>
+  );
+}
 
 function SubmissionTableRow({
   statusInfo,
   projectColor,
   onSubmitted,
-  highlighted
+  highlighted,
+  workspaceId,
+  timezone
 }: {
   statusInfo: TimesheetPeriodDto;
   projectColor?: string;
   onSubmitted: () => void;
   highlighted?: boolean;
+  workspaceId: string;
+  timezone: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   const actions = useSubmissionStatusActions(
     statusInfo,
     new Date(statusInfo.periodStart),
@@ -58,6 +338,21 @@ function SubmissionTableRow({
           highlighted && "bg-primary/5 ring-1 ring-inset ring-primary/30 animate-highlight-pulse"
         )}
       >
+        <DataTableCell className="w-8">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? (
+              <ChevronUp className="size-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="size-4 text-muted-foreground" />
+            )}
+          </Button>
+        </DataTableCell>
         <DataTableCell className="whitespace-nowrap font-medium">
           {actions.periodLabel}
         </DataTableCell>
@@ -129,6 +424,20 @@ function SubmissionTableRow({
         </DataTableCell>
       </TableRow>
 
+      {expanded && (
+        <TableRow className="bg-muted/5 hover:bg-muted/5">
+          <DataTableCell colSpan={6} className="p-0 border-t border-b border-border/40">
+            <SubmissionRowLogs
+              submission={statusInfo}
+              workspaceId={workspaceId}
+              timezone={timezone}
+              onLogUpdated={onSubmitted}
+              isLocked={!actions.canSubmit}
+            />
+          </DataTableCell>
+        </TableRow>
+      )}
+
       <SubmissionStatusDialogs
         previewOpen={actions.previewOpen}
         onPreviewOpenChange={actions.setPreviewOpen}
@@ -151,7 +460,9 @@ export function SubmissionsTable({
   submissions,
   projects = [],
   onSubmitted,
-  highlightedProjectId
+  highlightedProjectId,
+  workspaceId,
+  timezone
 }: SubmissionsTableProps) {
   const projectColorById = useMemo(
     () => new Map(projects.map((project) => [project.id, project.color])),
@@ -163,6 +474,7 @@ export function SubmissionsTable({
       <Table className="text-sm">
         <TableHeader>
           <DataTableHeaderRow>
+            <DataTableHead className="w-8"></DataTableHead>
             <DataTableHead>Period</DataTableHead>
             <DataTableHead>Project</DataTableHead>
             <DataTableHead>Status</DataTableHead>
@@ -180,6 +492,8 @@ export function SubmissionsTable({
                 projectColor={projectColorById.get(sub.projectId)}
                 onSubmitted={onSubmitted}
                 highlighted={highlighted}
+                workspaceId={workspaceId}
+                timezone={timezone}
               />
             );
           })}

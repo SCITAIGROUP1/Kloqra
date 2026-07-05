@@ -22,7 +22,7 @@ export function countAmendmentPendingSubmissions(submissions: TimesheetPeriodDto
   return submissions.filter((s) => s.amendmentPending).length;
 }
 
-export type MemberSubmissionsTabFilter = "action" | "pending" | "approved" | "all";
+export type MemberSubmissionsTabFilter = "action" | "pending" | "approved" | "rejected" | "all";
 
 export function filterSubmissionsByTab(
   submissions: TimesheetPeriodDto[],
@@ -35,6 +35,8 @@ export function filterSubmissionsByTab(
       return submissions.filter((s) => s.status === "SUBMITTED");
     case "approved":
       return submissions.filter((s) => s.status === "APPROVED");
+    case "rejected":
+      return submissions.filter((s) => s.status === "REJECTED");
     case "all":
     default:
       return submissions;
