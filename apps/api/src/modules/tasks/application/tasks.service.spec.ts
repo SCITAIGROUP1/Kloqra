@@ -77,7 +77,7 @@ describe("TasksService", () => {
       const result = await service.list("w1", "u1", "MEMBER", {
         page: 1,
         limit: 20,
-        projectId: "p2"
+        projectId: ["p2"]
       });
       expect(result).toEqual({ items: [], page: 1, limit: 20, total: 0, totalPages: 0 });
       expect(prisma.task.findMany).not.toHaveBeenCalled();
@@ -159,7 +159,7 @@ describe("TasksService", () => {
       const result = await service.list("w1", "u1", "MEMBER", {
         page: 1,
         limit: 20,
-        projectId: "p1"
+        projectId: ["p1"]
       });
       expect(result.items[0]).toEqual({
         id: "t1",
@@ -194,6 +194,7 @@ describe("TasksService", () => {
           categoryId: "c1",
           taskName: "X",
           billableDefault: true,
+          isCommon: false,
           assigneeUserIds: ["u1"]
         })
       ).rejects.toThrow(/project not found/i);
@@ -210,6 +211,7 @@ describe("TasksService", () => {
           categoryId: "c-foreign",
           taskName: "X",
           billableDefault: true,
+          isCommon: false,
           assigneeUserIds: ["u1"]
         })
       ).rejects.toThrow(/category not found/i);
@@ -234,7 +236,7 @@ describe("TasksService", () => {
         categoryId: "c1",
         taskName: "Frontend",
         billableDefault: true,
-        isCommon: true
+        isCommon: false
       });
       prisma.task.findUniqueOrThrow.mockResolvedValue({
         id: "t-new",
@@ -242,7 +244,7 @@ describe("TasksService", () => {
         categoryId: "c1",
         taskName: "Frontend",
         billableDefault: true,
-        isCommon: true,
+        isCommon: false,
         category: { name: "Software Development" },
         assignees: [{ userId: "u1", user: { name: "Sam" } }]
       });
@@ -251,6 +253,7 @@ describe("TasksService", () => {
         categoryId: "c1",
         taskName: "Frontend",
         billableDefault: true,
+        isCommon: false,
         assigneeUserIds: ["u1"]
       });
       expect(prisma.taskAssignee.createMany).toHaveBeenCalled();
