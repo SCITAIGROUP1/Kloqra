@@ -18,7 +18,8 @@ type TaskWithRelations = {
   taskName: string;
   billableDefault: boolean;
   isCommon: boolean;
-  category?: { name: string } | null;
+  isActive: boolean;
+  category?: { name: string; isActive?: boolean } | null;
   assignees?: { userId: string; user: { name: string } }[];
 };
 
@@ -38,7 +39,8 @@ export class TasksService {
       ...(t.category?.name ? { categoryName: t.category.name } : {}),
       taskName: t.taskName,
       billableDefault: t.billableDefault,
-      isCommon: t.isCommon
+      isCommon: t.isCommon,
+      isActive: t.isActive
     };
   }
 
@@ -51,6 +53,7 @@ export class TasksService {
       taskName: t.taskName,
       billableDefault: t.billableDefault,
       isCommon: t.isCommon,
+      isActive: t.isActive,
       assignees: (t.assignees ?? []).map((a) => ({
         userId: a.userId,
         userName: a.user.name
@@ -60,7 +63,7 @@ export class TasksService {
 
   private taskInclude() {
     return {
-      category: { select: { name: true } },
+      category: { select: { name: true, isActive: true } },
       assignees: {
         include: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" as const } }
@@ -97,6 +100,14 @@ export class TasksService {
     const where = {
       projectId: { in: projectIds },
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
+      ...(query.loggableOnly
+        ? {
+            isActive: true,
+            category: { isActive: true },
+            project: { isActive: true }
+          }
+        : {}),
       ...(role === "MEMBER"
         ? {
             OR: [
@@ -137,7 +148,7 @@ export class TasksService {
   async create(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: CreateTaskDto) {
     await this.access.assertCanManageProject(workspaceId, userId, role, dto.projectId);
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
-    await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
+    await this.assertCategoryActiveInWorkspace(workspaceId, dto.categoryId);
     if (!dto.isCommon) {
       await this.assertAssigneesOnProject(dto.projectId, dto.assigneeUserIds);
     }
@@ -210,10 +221,15 @@ export class TasksService {
         ).map((row) => row.userId)
       : [];
     if (dto.categoryId && dto.categoryId !== task.categoryId) {
-      await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
+      await this.assertCategoryActiveInWorkspace(workspaceId, dto.categoryId);
     }
     if (!willBeCommon && dto.assigneeUserIds) {
       await this.assertAssigneesOnProject(task.projectId, dto.assigneeUserIds);
+    }
+
+    const targetCategoryId = dto.categoryId ?? task.categoryId;
+    if (dto.isActive === true) {
+      await this.assertCanActivateTask(workspaceId, task.projectId, targetCategoryId);
     }
 
     const t = await this.prisma.$transaction(async (tx) => {
@@ -235,7 +251,8 @@ export class TasksService {
           ...(dto.taskName !== undefined ? { taskName: dto.taskName } : {}),
           ...(dto.billableDefault !== undefined ? { billableDefault: dto.billableDefault } : {}),
           ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
-          ...(dto.isCommon !== undefined ? { isCommon: dto.isCommon } : {})
+          ...(dto.isCommon !== undefined ? { isCommon: dto.isCommon } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {})
         },
         include: this.taskInclude()
       });
@@ -400,12 +417,48 @@ export class TasksService {
   private async assertCategoryInWorkspace(workspaceId: string, categoryId: string) {
     const category = await this.prisma.category.findFirst({
       where: { id: categoryId, workspaceId },
-      select: { id: true }
+      select: { id: true, isActive: true }
     });
     if (!category) {
       throw new DomainException(
         ErrorCodes.VALIDATION_ERROR,
         "Category not found in this workspace",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    return category;
+  }
+
+  private async assertCategoryActiveInWorkspace(workspaceId: string, categoryId: string) {
+    const category = await this.assertCategoryInWorkspace(workspaceId, categoryId);
+    if (!category.isActive) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot use an inactive category",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  private async assertCanActivateTask(workspaceId: string, projectId: string, categoryId: string) {
+    const [category, project] = await Promise.all([
+      this.assertCategoryInWorkspace(workspaceId, categoryId),
+      this.prisma.project.findFirst({
+        where: { id: projectId, workspaceId },
+        select: { isActive: true }
+      })
+    ]);
+    if (!category.isActive) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot activate a task while its category is inactive",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    if (!project?.isActive) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot activate a task while its project is inactive",
         HttpStatus.BAD_REQUEST
       );
     }

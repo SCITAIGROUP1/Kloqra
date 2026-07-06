@@ -520,6 +520,7 @@ describe("contracts", () => {
       taskName: "Implement feature",
       billableDefault: true,
       isCommon: true,
+      isActive: true,
       assignees: [{ userId: UUID, userName: "Sam" }]
     });
     expect(r.success).toBe(true);

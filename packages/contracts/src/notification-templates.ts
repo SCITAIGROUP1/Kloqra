@@ -451,7 +451,7 @@ function renderTemplate(
         emailSubject: subjectPrefix(`Added to ${c.projectName}`),
         preheader: `You can now track time on ${c.projectName}.`,
         metadata: {
-          href: `/projects/${c.projectId}/overview`,
+          href: `/projects/${c.projectId}/team`,
           projectId: c.projectId,
           variant: "info",
           ctaLabel: "View project",

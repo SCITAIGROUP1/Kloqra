@@ -19,17 +19,78 @@ import {
   TableHeader,
   TablePagination,
   TableRow,
-  TableLoadingState
+  TableLoadingState,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  ConfirmDialog,
+  appBarListFilterTriggerClass
 } from "@kloqra/ui";
 import { apiDownloadGet, saveDownloadResponse, usePaginatedList } from "@kloqra/web-shared";
-import { Download, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from "lucide-react";
-import { useState } from "react";
+import {
+  Download,
+  FileSpreadsheet,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  Lock,
+  Unlock
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
+type PendingCategoryConfirm = {
+  action: "activate" | "deactivate" | "delete";
+  category: CategoryDto;
+};
+
+function getCategoryConfirmCopy(
+  action: "activate" | "deactivate" | "delete",
+  category: CategoryDto
+) {
+  if (action === "delete") {
+    return {
+      title: "Delete category?",
+      description: `Are you sure you want to delete "${category.name}"? Tasks in this category will be moved to "Uncategorized".`,
+      confirmLabel: "Delete category",
+      destructive: true
+    };
+  }
+  if (action === "deactivate") {
+    return {
+      title: "Deactivate category?",
+      description: `Deactivating "${category.name}" will freeze all tasks and time entries within it. Users won't be able to log new time against these tasks.`,
+      confirmLabel: "Deactivate",
+      destructive: true
+    };
+  }
+  return {
+    title: "Activate category?",
+    description: `Activating "${category.name}" will allow users to log time against tasks in this category again.`,
+    confirmLabel: "Activate",
+    destructive: false
+  };
+}
+
 export function AdminCategoriesPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
+
+  const listFilters = useMemo(
+    () =>
+      statusFilter === "active"
+        ? { isActive: "true" }
+        : statusFilter === "inactive"
+          ? { isActive: "false" }
+          : undefined,
+    [statusFilter]
+  );
+
   const {
     items: categories,
     page,
@@ -44,7 +105,8 @@ export function AdminCategoriesPage() {
     reload
   } = usePaginatedList<CategoryDto>({
     workspaceId: ws,
-    basePath: ROUTES.CATEGORIES.LIST
+    basePath: ROUTES.CATEGORIES.LIST,
+    filters: listFilters
   });
 
   const [name, setName] = useState("");
@@ -58,6 +120,11 @@ export function AdminCategoriesPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<PendingCategoryConfirm | null>(null);
+
+  const confirmCopy = confirmTarget
+    ? getCategoryConfirmCopy(confirmTarget.action, confirmTarget.category)
+    : null;
 
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +188,48 @@ export function AdminCategoriesPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function setCategoryActive(category: CategoryDto, isActive: boolean) {
+    setBusyId(category.id);
+    setError(null);
+    try {
+      await api(ROUTES.CATEGORIES.BY_ID(category.id), {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify({ isActive })
+      });
+      toast.success(isActive ? "Category activated." : "Category deactivated.");
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not update category status.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function requestCategoryStatusChange(category: CategoryDto) {
+    setConfirmTarget({
+      action: category.isActive ? "deactivate" : "activate",
+      category
+    });
+  }
+
+  function requestCategoryDelete(category: CategoryDto) {
+    setConfirmTarget({ action: "delete", category });
+  }
+
+  async function handleConfirmCategoryAction() {
+    if (!confirmTarget) return;
+    const { action, category } = confirmTarget;
+    setConfirmTarget(null);
+    if (action === "delete") {
+      await removeCategory(category);
+      return;
+    }
+    await setCategoryActive(category, action === "activate");
   }
 
   async function removeCategory(category: CategoryDto) {
@@ -196,6 +305,24 @@ export function AdminCategoriesPage() {
             onSearchChange={setSearch}
             searchPlaceholder="Search categories…"
             searchAriaLabel="Search categories"
+            filters={
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v as "ALL" | "active" | "inactive")}
+              >
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by status"
+                >
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            }
           />
         }
       />
@@ -242,7 +369,7 @@ export function AdminCategoriesPage() {
 
       <DataTableCard>
         {loading ? (
-          <TableLoadingState rows={6} columns={4} />
+          <TableLoadingState rows={6} columns={5} />
         ) : (
           <>
             <Table>
@@ -250,6 +377,7 @@ export function AdminCategoriesPage() {
                 <DataTableHeaderRow>
                   <DataTableHead>Name</DataTableHead>
                   <DataTableHead>Description</DataTableHead>
+                  <DataTableHead>Status</DataTableHead>
                   <DataTableHead>Tasks</DataTableHead>
                   <DataTableHead className="text-right">Actions</DataTableHead>
                 </DataTableHeaderRow>
@@ -282,10 +410,15 @@ export function AdminCategoriesPage() {
                         )}
                       </DataTableCell>
                       <DataTableCell>
+                        <Badge variant={category.isActive ? "default" : "secondary"}>
+                          {category.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </DataTableCell>
+                      <DataTableCell>
                         <Badge variant="secondary">{category.taskCount ?? 0}</Badge>
                       </DataTableCell>
                       <DataTableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           {isEditing ? (
                             <>
                               <Button
@@ -309,22 +442,46 @@ export function AdminCategoriesPage() {
                             <>
                               <Button
                                 type="button"
-                                size="sm"
+                                size="icon"
                                 variant="ghost"
+                                className="size-8"
                                 onClick={() => startEdit(category)}
                                 aria-label={`Edit ${category.name}`}
                               >
-                                <Pencil className="size-4" />
+                                <Pencil className="size-4" aria-hidden />
                               </Button>
                               <Button
                                 type="button"
-                                size="sm"
+                                size="icon"
                                 variant="ghost"
+                                className="size-8"
                                 disabled={busyId === category.id}
-                                onClick={() => void removeCategory(category)}
+                                title={
+                                  category.isActive ? "Deactivate category" : "Activate category"
+                                }
+                                onClick={() => requestCategoryStatusChange(category)}
+                                aria-label={
+                                  category.isActive
+                                    ? `Deactivate ${category.name}`
+                                    : `Activate ${category.name}`
+                                }
+                              >
+                                {category.isActive ? (
+                                  <Lock className="size-4" aria-hidden />
+                                ) : (
+                                  <Unlock className="size-4" aria-hidden />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-8 text-destructive hover:text-destructive"
+                                disabled={busyId === category.id}
+                                onClick={() => requestCategoryDelete(category)}
                                 aria-label={`Delete ${category.name}`}
                               >
-                                <Trash2 className="size-4" />
+                                <Trash2 className="size-4" aria-hidden />
                               </Button>
                             </>
                           )}
@@ -421,6 +578,16 @@ export function AdminCategoriesPage() {
           </form>
         </div>
       </AppModal>
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title={confirmCopy?.title ?? ""}
+        description={confirmCopy?.description}
+        confirmLabel={confirmCopy?.confirmLabel}
+        destructive={confirmCopy?.destructive}
+        onConfirm={() => void handleConfirmCategoryAction()}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 }

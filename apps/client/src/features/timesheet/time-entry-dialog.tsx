@@ -4,6 +4,7 @@ import type {
   TimeLogDto,
   TaskDto,
   ProjectDto,
+  CategoryDto,
   ListTimelogAuditEventsResponseDto,
   JiraIssueDto
 } from "@kloqra/contracts";
@@ -21,7 +22,7 @@ import {
 } from "@kloqra/ui";
 import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import { ChevronDown, Clock } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDuration } from "./calendar-utils";
 import { RepeatEntryPanel } from "./repeat-entry-panel";
 import {
@@ -32,7 +33,9 @@ import {
   taskSaveHint
 } from "./time-entry-draft";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
+import { useLiveEntryCatalog } from "@/hooks/use-live-entry-catalog";
 import { api } from "@/lib/api";
+import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { formatProjectLabel } from "@/lib/project-labels";
 
 export type { TimeEntryDraft } from "./time-entry-draft";
@@ -46,12 +49,15 @@ export {
   taskSaveHint
 } from "./time-entry-draft";
 
+const EMPTY_CATEGORIES: CategoryDto[] = [];
+
 type TimeEntryDialogProps = {
   open: boolean;
   title: string;
   draft: TimeEntryDraft | null;
   projects: ProjectDto[];
   tasks: TaskDto[];
+  categories?: CategoryDto[];
   taskLabel: (taskId: string) => string;
   workspaceNames?: Record<string, string>;
   editingLog?: TimeLogDto | null;
@@ -73,6 +79,7 @@ export function TimeEntryDialog({
   draft,
   projects,
   tasks,
+  categories = EMPTY_CATEGORIES,
   workspaceNames,
   editingLog,
   saving,
@@ -90,6 +97,17 @@ export function TimeEntryDialog({
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
+  const [selectorCategories, setSelectorCategories] = useState(categories);
+  const clearedInvalidSelectionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setSelectorCategories(categories);
+  }, [categories]);
+
+  useLiveEntryCatalog(workspaceId ?? "", setSelectorCategories, {
+    enabled: open && Boolean(workspaceId),
+    pollIntervalMs: 30_000
+  });
 
   const fetchAuditEvents = useCallback(async () => {
     if (!editingLog || !workspaceId) return [];
@@ -113,9 +131,39 @@ export function TimeEntryDialog({
     }
   }, [open, editingLog]);
 
+  const selectableProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const selectableTasks = useMemo(
+    () => filterLoggingTasks(tasks, projects, selectorCategories),
+    [tasks, projects, selectorCategories]
+  );
+
+  useEffect(() => {
+    if (!open || !draft || readOnly) {
+      clearedInvalidSelectionRef.current = null;
+      return;
+    }
+    if (draft.projectId && !selectableProjects.some((p) => p.id === draft.projectId)) {
+      const key = `p:${draft.projectId}`;
+      if (clearedInvalidSelectionRef.current !== key) {
+        clearedInvalidSelectionRef.current = key;
+        onDraftChange({ ...draft, projectId: "", taskSelection: "" });
+      }
+      return;
+    }
+    if (draft.taskSelection && !selectableTasks.some((t) => t.id === draft.taskSelection)) {
+      const key = `t:${draft.taskSelection}`;
+      if (clearedInvalidSelectionRef.current !== key) {
+        clearedInvalidSelectionRef.current = key;
+        onDraftChange({ ...draft, taskSelection: "" });
+      }
+      return;
+    }
+    clearedInvalidSelectionRef.current = null;
+  }, [open, draft, readOnly, selectableProjects, selectableTasks, onDraftChange]);
+
   const projectTasks = useMemo(
-    () => (draft ? tasks.filter((t) => t.projectId === draft.projectId) : []),
-    [tasks, draft]
+    () => (draft ? selectableTasks.filter((t) => t.projectId === draft.projectId) : []),
+    [selectableTasks, draft]
   );
 
   const projectTasksByCategory = useMemo(() => {
@@ -288,7 +336,7 @@ export function TimeEntryDialog({
                   isBillable: true
                 })
               }
-              options={projects.map((p) => ({
+              options={selectableProjects.map((p) => ({
                 value: p.id,
                 label: formatProjectLabel(p, workspaceNames)
               }))}
@@ -299,7 +347,9 @@ export function TimeEntryDialog({
               renderOption={(option) => (
                 <span className="flex items-center gap-2">
                   <ProjectColorDot
-                    color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                    color={
+                      selectableProjects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                    }
                   />
                   {option.label}
                 </span>
@@ -308,7 +358,9 @@ export function TimeEntryDialog({
                 option ? (
                   <span className="flex items-center gap-2">
                     <ProjectColorDot
-                      color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                      color={
+                        selectableProjects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                      }
                     />
                     {option.label}
                   </span>
@@ -334,7 +386,7 @@ export function TimeEntryDialog({
               onValueChange={(taskSelection) =>
                 patch({
                   taskSelection,
-                  isBillable: suggestBillableFromTask(tasks, taskSelection)
+                  isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
                 })
               }
               groups={projectTasksByCategory.map(([categoryName, list]) => ({

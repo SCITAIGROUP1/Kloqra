@@ -54,7 +54,7 @@ describe("DatePicker", () => {
     await user.click(screen.getByRole("button", { name: "Select date" }));
 
     const today = screen.getByRole("button", { name: "2026-06-20" });
-    expect(today).toHaveClass("border-primary");
+    expect(today).toHaveClass("ring-primary/35");
     expect(today).not.toHaveClass("bg-primary");
     expect(today).toHaveAttribute("aria-current", "date");
   });

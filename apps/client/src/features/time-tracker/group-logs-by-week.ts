@@ -4,6 +4,7 @@ import {
   formatDuration,
   fromDateKey,
   startOfWeekWithPreference,
+  todayInZone,
   toDateKey,
   toDateKeyInZone
 } from "../timesheet/calendar-utils";
@@ -97,7 +98,14 @@ export function formatDayTabDateLabel(day: Date, timezone: string): string {
   }).format(day);
 }
 
-export function defaultActiveDayKey(days: DayLogGroup[]): string {
+export function defaultActiveDayKey(days: DayLogGroup[], timezone: string): string {
+  if (days.length === 0) return "";
+
+  const todayKey = toDateKeyInZone(todayInZone(timezone), timezone);
+  if (days.some((day) => day.dayKey === todayKey)) {
+    return todayKey;
+  }
+
   const withEntries = days.filter((day) => day.logs.length > 0);
   if (withEntries.length > 0) {
     return withEntries[withEntries.length - 1]!.dayKey;
@@ -140,6 +148,50 @@ export function groupLogsByWeek(
       )
     }))
     .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+}
+
+export function buildWeekGroupsForRange(
+  rangeFrom: string,
+  rangeTo: string,
+  logs: TimeLogDto[],
+  timezone: string,
+  weekStartPref: "monday" | "sunday" = "monday"
+): WeekLogGroup[] {
+  if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) {
+    return [];
+  }
+
+  const logGroups = groupLogsByWeek(logs, timezone, weekStartPref);
+  const logsByWeek = new Map(logGroups.map((group) => [group.weekKey, group]));
+  const weeks: WeekLogGroup[] = [];
+  let weekStart = startOfWeekWithPreference(fromDateKey(rangeFrom), weekStartPref);
+
+  for (let guard = 0; guard < 520; guard += 1) {
+    const weekKey = toDateKey(weekStart);
+    const weekEndKey = toDateKey(addDays(weekStart, 6));
+
+    if (weekEndKey < rangeFrom) {
+      weekStart = addDays(weekStart, 7);
+      continue;
+    }
+    if (weekKey > rangeTo) {
+      break;
+    }
+
+    const existing = logsByWeek.get(weekKey);
+    weeks.push(
+      existing ?? {
+        weekStart,
+        weekKey,
+        logs: [],
+        totalSec: 0,
+        billableSec: 0
+      }
+    );
+    weekStart = addDays(weekStart, 7);
+  }
+
+  return weeks.sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
 }
 
 export function formatWeekTotals(totalSec: number, billableSec: number): string {

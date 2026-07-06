@@ -26,6 +26,7 @@ export type TimeTrackerWeekListProps = {
   submissionByKey: Map<string, TimesheetPeriodDto>;
   entryColor: (taskId: string) => string;
   isEntryLocked: (log: TimeLogDto) => boolean;
+  isEntryInactive?: (log: TimeLogDto) => boolean;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
@@ -114,6 +115,7 @@ type WeekSectionProps = {
   submissionByKey: Map<string, TimesheetPeriodDto>;
   entryColor: (taskId: string) => string;
   isEntryLocked: (log: TimeLogDto) => boolean;
+  isEntryInactive?: (log: TimeLogDto) => boolean;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   timezone: string;
@@ -132,6 +134,7 @@ function TimeTrackerWeekSection({
   submissionByKey,
   entryColor,
   isEntryLocked,
+  isEntryInactive = () => false,
   onEdit,
   onDelete,
   timezone,
@@ -146,13 +149,17 @@ function TimeTrackerWeekSection({
     [group.weekStart, group.logs, timezone, weekStartPref, rangeFrom, rangeTo]
   );
 
-  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups));
+  const [activeDayKey, setActiveDayKey] = useState(() => defaultActiveDayKey(dayGroups, timezone));
+
+  useEffect(() => {
+    setActiveDayKey(defaultActiveDayKey(dayGroups, timezone));
+  }, [group.weekKey, timezone, dayGroups]);
 
   useEffect(() => {
     if (!dayGroups.some((day) => day.dayKey === activeDayKey)) {
-      setActiveDayKey(defaultActiveDayKey(dayGroups));
+      setActiveDayKey(defaultActiveDayKey(dayGroups, timezone));
     }
-  }, [group.weekKey, dayGroups, activeDayKey]);
+  }, [dayGroups, activeDayKey, timezone]);
 
   const activeDay = dayGroups.find((day) => day.dayKey === activeDayKey);
   const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
@@ -183,6 +190,7 @@ function TimeTrackerWeekSection({
               (activeDay?.logs ?? []).map((log) => {
                 const task = taskById.get(log.taskId);
                 const project = task ? projectById.get(task.projectId) : undefined;
+                const inactive = isEntryInactive(log);
                 return (
                   <TimeTrackerEntryListItem
                     key={log.id}
@@ -193,6 +201,7 @@ function TimeTrackerWeekSection({
                     entryColor={entryColor(log.taskId)}
                     submissionByKey={submissionByKey}
                     locked={isEntryLocked(log)}
+                    inactive={inactive}
                     onEdit={onEdit}
                     onDelete={onDelete}
                     readOnly={readOnly}
@@ -220,6 +229,7 @@ export function TimeTrackerWeekList({
   submissionByKey,
   entryColor,
   isEntryLocked,
+  isEntryInactive = () => false,
   onEdit,
   onDelete,
   timezone,
@@ -276,6 +286,7 @@ export function TimeTrackerWeekList({
           submissionByKey={submissionByKey}
           entryColor={entryColor}
           isEntryLocked={isEntryLocked}
+          isEntryInactive={isEntryInactive}
           onEdit={onEdit}
           onDelete={onDelete}
           timezone={timezone}

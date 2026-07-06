@@ -5,14 +5,12 @@ import type {
   BatchTimeLogsResponseDto,
   CategoryDto,
   ListTimesheetSubmissionsResponseDto,
-  ProjectDto,
-  TaskDto,
   TimeLogDto,
   TimesheetPeriodDto,
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
-import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
+import { api as sharedApi } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { todayInZone } from "../timesheet/calendar-utils";
@@ -25,8 +23,12 @@ import {
   type TimeEntryDraft
 } from "../timesheet/time-entry-draft";
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
-import { isTimeEntryLocked, LOCKED_ENTRY_MESSAGE } from "./entry-approval-status";
-import { groupLogsByWeek } from "./group-logs-by-week";
+import {
+  isTimeEntryLocked,
+  isTimeEntryInactive,
+  LOCKED_ENTRY_MESSAGE
+} from "./entry-approval-status";
+import { buildWeekGroupsForRange } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
 import {
@@ -43,6 +45,7 @@ import { formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
+import { loadEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useOfflineStore } from "@/stores/offline-store";
@@ -177,8 +180,8 @@ export function TimeTrackerPage() {
   }, [filterResetKey]);
 
   const allWeekGroups = useMemo(
-    () => groupLogsByWeek(logs, timezone, weekStartPref),
-    [logs, timezone, weekStartPref]
+    () => buildWeekGroupsForRange(rangeFrom, rangeTo, logs, timezone, weekStartPref),
+    [rangeFrom, rangeTo, logs, timezone, weekStartPref]
   );
 
   const totalWeekCount = allWeekGroups.length;
@@ -246,9 +249,11 @@ export function TimeTrackerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
+    void loadEntryCatalog(ws).then(({ tasks, projects, categories }) => {
+      setTasks(tasks);
+      setProjects(projects);
+      setCategories(categories);
+    });
   }, [ws, setTasks, setProjects]);
 
   const projectForTask = useCallback(
@@ -260,9 +265,35 @@ export function TimeTrackerPage() {
     [tasks, projects]
   );
 
-  const isEntryLocked = useCallback(
+  const taskForLog = useCallback((taskId: string) => tasks.find((t) => t.id === taskId), [tasks]);
+
+  const categoryForTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return undefined;
+      return categories.find((c) => c.id === task.categoryId);
+    },
+    [tasks, categories]
+  );
+
+  const isEntryInactive = useCallback(
+    (log: TimeLogDto) =>
+      isTimeEntryInactive(
+        projectForTask(log.taskId),
+        taskForLog(log.taskId),
+        categoryForTask(log.taskId)
+      ),
+    [projectForTask, taskForLog, categoryForTask]
+  );
+
+  const isSubmissionLocked = useCallback(
     (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
     [projectForTask, submissionByKey]
+  );
+
+  const isEntryReadOnly = useCallback(
+    (log: TimeLogDto) => isEntryInactive(log) || isSubmissionLocked(log),
+    [isEntryInactive, isSubmissionLocked]
   );
 
   const taskLabel = useCallback(
@@ -321,7 +352,7 @@ export function TimeTrackerPage() {
 
   async function saveEntry() {
     if (isImpersonating) return;
-    if (editingLog && isEntryLocked(editingLog)) return;
+    if (editingLog && isEntryReadOnly(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
       return;
@@ -455,7 +486,7 @@ export function TimeTrackerPage() {
 
   function deleteEntry(log: TimeLogDto) {
     if (isImpersonating) return;
-    if (isEntryLocked(log)) {
+    if (isEntryReadOnly(log)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
     }
@@ -467,7 +498,7 @@ export function TimeTrackerPage() {
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
-    if (isEntryLocked(target)) {
+    if (isEntryReadOnly(target)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
     }
@@ -549,7 +580,8 @@ export function TimeTrackerPage() {
         workspaceNamesById={workspaceNamesById}
         submissionByKey={submissionByKey}
         entryColor={entryColor}
-        isEntryLocked={isEntryLocked}
+        isEntryLocked={isSubmissionLocked}
+        isEntryInactive={isEntryInactive}
         onEdit={openEditEntry}
         onDelete={deleteEntry}
         timezone={timezone}
@@ -573,6 +605,7 @@ export function TimeTrackerPage() {
         draft={draft}
         projects={projects}
         tasks={tasks}
+        categories={categories}
         taskLabel={taskLabel}
         workspaceNames={workspaceNamesById}
         workspaceId={ws}
@@ -580,12 +613,12 @@ export function TimeTrackerPage() {
         saving={saving}
         error={error}
         editingLog={editingLog}
-        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
+        readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
         onDraftChange={setDraft}
         onClose={closeDialog}
         onSave={() => void saveEntry()}
         onDelete={
-          !isImpersonating && editingLog && !isEntryLocked(editingLog)
+          !isImpersonating && editingLog && !isEntryReadOnly(editingLog)
             ? () => deleteEntry(editingLog)
             : undefined
         }

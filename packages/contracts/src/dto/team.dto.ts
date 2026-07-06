@@ -56,7 +56,9 @@ export const teamInvitePreviewSchema = z.object({
   expired: z.boolean()
 });
 
-export const listProjectTeamQuerySchema = listPaginationQuerySchema;
+export const listProjectTeamQuerySchema = listPaginationQuerySchema.extend({
+  role: teamMemberRoleSchema.optional()
+});
 
 export const projectTeamResponseSchema = z.object({
   id: uuidSchema,

@@ -32,6 +32,7 @@ function project(partial: Partial<ProjectDto> & Pick<ProjectDto, "id" | "name">)
 
 function task(partial: Partial<TaskDto> & Pick<TaskDto, "id" | "projectId">): TaskDto {
   return {
+    isActive: true,
     categoryId: "cat-1",
     taskName: "Task",
     categoryName: "Dev",

@@ -15,7 +15,7 @@ type CalendarEntryContentProps = {
   description?: string | null;
   durationSec: number;
   compact: boolean;
-  variant?: "default" | "timer" | "live" | "locked";
+  variant?: "default" | "timer" | "live" | "locked" | "inactive";
   liveElapsedSec?: number;
 };
 
@@ -34,6 +34,7 @@ export function CalendarEntryContent({
   const isShort = durationSec < 15 * 60 && variant !== "live";
   const showDescription = Boolean(description?.trim()) && !compact && !isShort;
   const isLocked = variant === "locked";
+  const isInactive = variant === "inactive";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-0.5 overflow-hidden text-left">
@@ -47,14 +48,20 @@ export function CalendarEntryContent({
           {task.categoryName}
         </span>
         <div className="flex shrink-0 items-center gap-1">
-          {isLocked ? (
-            <span title="Locked — submitted or approved">
+          {isLocked || isInactive ? (
+            <span
+              title={
+                isInactive
+                  ? "Read-only — project, category, or task is inactive"
+                  : "Locked — submitted or approved"
+              }
+            >
               <Lock
                 className={cn(
                   "shrink-0 text-muted-foreground",
                   compact || isShort ? "size-2.5" : "size-3"
                 )}
-                aria-label="Locked"
+                aria-label={isInactive ? "Inactive" : "Locked"}
               />
             </span>
           ) : null}

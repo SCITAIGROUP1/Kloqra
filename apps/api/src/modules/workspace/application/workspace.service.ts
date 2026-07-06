@@ -274,8 +274,8 @@ export class WorkspaceService {
 
       const workspace = await tx.workspace.findUnique({ where: { id: workspaceId } });
 
-      // Deactivate TeamMember rows for the removed member in this workspace
-      await tx.teamMember.updateMany({
+      // Cascade delete TeamMember rows for the removed member in this workspace
+      await tx.teamMember.deleteMany({
         where: {
           userId: member.userId,
           team: {
@@ -283,9 +283,6 @@ export class WorkspaceService {
               workspaceId
             }
           }
-        },
-        data: {
-          isActive: false
         }
       });
 

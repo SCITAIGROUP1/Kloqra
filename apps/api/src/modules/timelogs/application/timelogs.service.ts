@@ -437,7 +437,14 @@ export class TimelogsService {
   ) {
     const log = await this.prisma.timeLog.findFirst({
       where: { id, task: { project: { workspaceId } } },
-      include: { task: true }
+      include: {
+        task: {
+          include: {
+            category: { select: { isActive: true } },
+            project: { select: { isActive: true } }
+          }
+        }
+      }
     });
     if (!log)
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
@@ -451,6 +458,8 @@ export class TimelogsService {
         HttpStatus.FORBIDDEN
       );
     }
+
+    this.assertTimeLogEditable(log.task);
 
     await this.timesheetLock.assertPeriodEditable(log.userId, log.task.projectId, log.startTime);
 
@@ -554,13 +563,22 @@ export class TimelogsService {
   async remove(workspaceId: string, userId: string, role: string, id: string) {
     const log = await this.prisma.timeLog.findFirst({
       where: { id, task: { project: { workspaceId } } },
-      include: { task: true }
+      include: {
+        task: {
+          include: {
+            category: { select: { isActive: true } },
+            project: { select: { isActive: true } }
+          }
+        }
+      }
     });
     if (!log)
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
     if (role !== "ADMIN" && log.userId !== userId) {
       throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
     }
+
+    this.assertTimeLogEditable(log.task);
 
     await this.timesheetLock.assertPeriodEditable(log.userId, log.task.projectId, log.startTime);
 
@@ -579,6 +597,22 @@ export class TimelogsService {
 
     await this.reportCache.invalidateWorkspace(workspaceId);
     return { ok: true };
+  }
+
+  private assertTimeLogEditable(task: {
+    isActive: boolean;
+    category: { isActive: boolean };
+    project: { isActive: boolean };
+  }) {
+    if (task.project.isActive && task.category.isActive && task.isActive) {
+      return;
+    }
+    const message = !task.project.isActive
+      ? "Time entries for inactive projects cannot be changed"
+      : !task.category.isActive
+        ? "Time entries for inactive categories cannot be changed"
+        : "Time entries for inactive tasks cannot be changed";
+    throw new DomainException(ErrorCodes.TIMELOG_NOT_EDITABLE, message, HttpStatus.FORBIDDEN);
   }
 
   private async assertTaskInWorkspace(workspaceId: string, taskId: string) {

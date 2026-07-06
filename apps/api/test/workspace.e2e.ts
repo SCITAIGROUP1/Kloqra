@@ -100,7 +100,7 @@ describe("Workspace E2E", () => {
     expect(res.body.message).toBe("A workspace with this name already exists.");
   });
 
-  it("deactivates TeamMember rows when workspace member is removed", async () => {
+  it("removes TeamMember rows when workspace member is removed", async () => {
     const prisma = app.get(PrismaService);
     const workspaceId = adminSession.workspaceId;
 
@@ -148,12 +148,11 @@ describe("Workspace E2E", () => {
     const deletedWsMember = await prisma.workspaceMember.findUnique({ where: { id: wsMember.id } });
     expect(deletedWsMember).toBeNull();
 
-    // Assert TeamMember is deactivated (isActive = false)
-    const updatedTeamMember = await prisma.teamMember.findUnique({ where: { id: teamMember.id } });
-    expect(updatedTeamMember?.isActive).toBe(false);
+    // Assert TeamMember is removed from the project team
+    const deletedTeamMember = await prisma.teamMember.findUnique({ where: { id: teamMember.id } });
+    expect(deletedTeamMember).toBeNull();
 
     // Cleanup
-    await prisma.teamMember.delete({ where: { id: teamMember.id } });
     await prisma.user.delete({ where: { id: user.id } });
   });
 

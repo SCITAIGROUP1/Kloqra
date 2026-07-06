@@ -41,6 +41,7 @@ describe("period-entry-activity.utils", () => {
         taskName: "Design",
         billableDefault: true,
         isCommon: false,
+        isActive: true,
         assignees: [{ userId: "user-1", userName: "Sam Rivera" }]
       },
       {
@@ -50,6 +51,7 @@ describe("period-entry-activity.utils", () => {
         taskName: "Support",
         billableDefault: true,
         isCommon: false,
+        isActive: true,
         assignees: [{ userId: "user-1", userName: "Sam Rivera" }]
       }
     ];

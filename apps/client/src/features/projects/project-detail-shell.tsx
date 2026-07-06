@@ -17,6 +17,10 @@ const SECTION_COPY: Record<MemberProjectDetailSectionId, { title: string; descri
     title: "Overview",
     description: "Your time on this project and personal display settings."
   },
+  team: {
+    title: "Team",
+    description: "People assigned to this project."
+  },
   tasks: {
     title: "Tasks",
     description: "Tasks you are assigned to on this project. Use these when logging time."

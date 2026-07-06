@@ -23,6 +23,7 @@ const task: TaskDto = {
   taskName: "Code review",
   billableDefault: true,
   isCommon: true,
+  isActive: true,
   assignees: []
 };
 

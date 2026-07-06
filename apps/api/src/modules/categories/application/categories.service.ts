@@ -20,6 +20,7 @@ type CategoryRow = {
   workspaceId: string;
   name: string;
   description: string | null;
+  isActive: boolean;
 };
 
 @Injectable()
@@ -34,6 +35,7 @@ export class CategoriesService {
       id: c.id,
       name: c.name,
       description: c.description,
+      isActive: c.isActive,
       ...(typeof taskCount === "number" ? { taskCount } : {})
     };
   }
@@ -44,6 +46,7 @@ export class CategoriesService {
       workspaceId: c.workspaceId,
       name: c.name,
       description: c.description,
+      isActive: c.isActive,
       ...(typeof taskCount === "number" ? { taskCount } : {})
     };
   }
@@ -51,6 +54,7 @@ export class CategoriesService {
   async list(workspaceId: string, query: ListCategoriesQuery) {
     const where = {
       workspaceId,
+      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
       ...(query.search
         ? {
             OR: [
@@ -100,7 +104,8 @@ export class CategoriesService {
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {})
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {})
       },
       include: { _count: { select: { tasks: true } } }
     });

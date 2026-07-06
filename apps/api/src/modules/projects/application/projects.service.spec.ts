@@ -337,4 +337,91 @@ describe("ProjectsService", () => {
       })
     );
   });
+
+  describe("getMemberTeamRoster", () => {
+    const projectId = "proj-abc";
+    const teamId = "team-abc";
+    const baseQuery = { page: 1, limit: 25 };
+
+    const memberRow = {
+      id: "tm-1",
+      teamId,
+      userId: "u-1",
+      role: "MEMBER",
+      isActive: true,
+      user: { name: "Sam Rivera", email: "sam@kloqra.dev" }
+    };
+
+    beforeEach(() => {
+      mockAccess.assertCanAccessProject.mockResolvedValue(undefined);
+      mockPrisma.team.findUnique.mockResolvedValue({ id: teamId, projectId });
+      mockPrisma.teamMember.count = vi.fn().mockResolvedValue(1);
+      mockPrisma.teamMember.findMany = vi.fn().mockResolvedValue([memberRow]);
+    });
+
+    it("calls assertCanAccessProject with the correct args", async () => {
+      await service.getMemberTeamRoster(workspaceId, userId, "MEMBER", projectId, baseQuery);
+      expect(mockAccess.assertCanAccessProject).toHaveBeenCalledWith(
+        workspaceId,
+        userId,
+        "MEMBER",
+        projectId
+      );
+    });
+
+    it("returns items in standard paginated shape", async () => {
+      const result = await service.getMemberTeamRoster(
+        workspaceId,
+        userId,
+        "MEMBER",
+        projectId,
+        baseQuery
+      );
+      expect(result).toMatchObject({
+        items: [
+          expect.objectContaining({
+            id: "tm-1",
+            userId: "u-1",
+            userName: "Sam Rivera",
+            userEmail: "sam@kloqra.dev",
+            role: "MEMBER",
+            isActive: true
+          })
+        ],
+        page: 1,
+        limit: 25,
+        total: 1,
+        totalPages: 1
+      });
+    });
+
+    it("passes search filter to teamMember.findMany where clause", async () => {
+      await service.getMemberTeamRoster(workspaceId, userId, "MEMBER", projectId, {
+        ...baseQuery,
+        search: "sam"
+      });
+      const whereArg = mockPrisma.teamMember.findMany.mock.calls[0][0].where;
+      expect(whereArg).toHaveProperty("user");
+    });
+
+    it("passes role filter to teamMember.findMany where clause", async () => {
+      await service.getMemberTeamRoster(workspaceId, userId, "MEMBER", projectId, {
+        ...baseQuery,
+        role: "PROJECT_MANAGER"
+      });
+      const whereArg = mockPrisma.teamMember.findMany.mock.calls[0][0].where;
+      expect(whereArg).toMatchObject({ role: "PROJECT_MANAGER" });
+    });
+
+    it("throws when assertCanAccessProject rejects", async () => {
+      const { ErrorCodes } = await import("@kloqra/contracts");
+      const { DomainException: DE } = await import("../../../common/errors/domain.exception");
+      mockAccess.assertCanAccessProject.mockRejectedValue(
+        new DE(ErrorCodes.FORBIDDEN, "Forbidden", 403)
+      );
+      await expect(
+        service.getMemberTeamRoster(workspaceId, userId, "MEMBER", projectId, baseQuery)
+      ).rejects.toThrow();
+    });
+  });
 });

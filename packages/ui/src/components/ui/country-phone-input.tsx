@@ -133,7 +133,18 @@ export function CountryPhoneInput({
   disabled = false,
   className
 }: CountryPhoneInputProps) {
-  const { country, nationalNumber } = React.useMemo(() => parsePhoneNumber(value), [value]);
+  const { nationalNumber } = React.useMemo(() => parsePhoneNumber(value), [value]);
+
+  const [selectedCountry, setSelectedCountry] = React.useState<Country>(() => {
+    return parsePhoneNumber(value).country;
+  });
+
+  // Keep selected country in sync if external value changes to a non-empty string
+  React.useEffect(() => {
+    if (value) {
+      setSelectedCountry(parsePhoneNumber(value).country);
+    }
+  }, [value]);
 
   const selectOptions = React.useMemo(
     () =>
@@ -146,19 +157,22 @@ export function CountryPhoneInput({
   );
 
   function handleCountryChange(code: string) {
-    const nextCountry = COUNTRIES.find((c) => c.code === code) ?? country;
-    const cleanNational = nationalNumber.replace(/\D/g, "");
-    if (cleanNational) {
-      onChange(`${nextCountry.dialCode}${cleanNational}`);
-    } else {
-      onChange("");
+    const nextCountry = COUNTRIES.find((c) => c.code === code);
+    if (nextCountry) {
+      setSelectedCountry(nextCountry);
+      const cleanNational = nationalNumber.replace(/\D/g, "");
+      if (cleanNational) {
+        onChange(`${nextCountry.dialCode}${cleanNational}`);
+      } else {
+        onChange("");
+      }
     }
   }
 
   function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
     const cleanNational = e.target.value.replace(/\D/g, "");
     if (cleanNational) {
-      onChange(`${country.dialCode}${cleanNational}`);
+      onChange(`${selectedCountry.dialCode}${cleanNational}`);
     } else {
       onChange("");
     }
@@ -191,7 +205,7 @@ export function CountryPhoneInput({
   return (
     <div className={cn("flex items-center gap-2 max-w-md", className)}>
       <SearchableSelect
-        value={country.code}
+        value={selectedCountry.code}
         onValueChange={handleCountryChange}
         options={selectOptions}
         disabled={disabled}

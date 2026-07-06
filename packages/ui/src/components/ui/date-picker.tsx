@@ -2,6 +2,7 @@
 
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
+import { CALENDAR_TODAY_CLASS } from "../../lib/calendar-styles.js";
 import {
   addMonths,
   buildMonthGrid,
@@ -80,9 +81,7 @@ function MonthPanel({ year, month, weekStartsOn, value, onDayClick, maxDate }: M
                 "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
                 isSelected &&
                   "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
-                isToday &&
-                  !isSelected &&
-                  "border border-primary text-primary font-semibold hover:bg-accent hover:text-accent-foreground",
+                isToday && !isSelected && CALENDAR_TODAY_CLASS,
                 isDisabled && "opacity-30 cursor-not-allowed pointer-events-none"
               )}
               aria-label={key}

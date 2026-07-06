@@ -582,6 +582,52 @@ export class ProjectsService {
     };
   }
 
+  /** Read-only roster for regular members — accessible by any user assigned to this project. */
+  async getMemberTeamRoster(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    projectId: string,
+    query: ListProjectTeamQuery
+  ) {
+    await this.access.assertCanAccessProject(workspaceId, userId, role, projectId);
+    const team = await this.ensureTeam(projectId);
+
+    const memberWhere = {
+      teamId: team.id,
+      ...(query.role ? { role: query.role } : {}),
+      ...(query.search
+        ? {
+            user: {
+              OR: [
+                { name: { contains: query.search, mode: "insensitive" as const } },
+                { email: { contains: query.search, mode: "insensitive" as const } }
+              ]
+            }
+          }
+        : {})
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.teamMember.count({ where: memberWhere }),
+      this.prisma.teamMember.findMany({
+        where: memberWhere,
+        include: { user: true },
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+        ...paginationSkipTake(query.page, query.limit)
+      })
+    ]);
+
+    const { page, limit, totalPages } = buildPaginationMeta(total, query.page, query.limit);
+    return {
+      items: rows.map((m) => this.mapTeamMemberRow(m)),
+      page,
+      limit,
+      total,
+      totalPages
+    };
+  }
+
   async addTeamMember(
     workspaceId: string,
     userId: string,
@@ -674,6 +720,19 @@ export class ProjectsService {
         "Project managers cannot demote other project managers",
         HttpStatus.FORBIDDEN
       );
+    }
+
+    if (dto.isActive === true) {
+      const workspaceMember = await this.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: member.userId } }
+      });
+      if (!workspaceMember || !workspaceMember.isActive) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "User must be an active workspace member before they can be activated on a project",
+          HttpStatus.FORBIDDEN
+        );
+      }
     }
 
     const updated = await this.prisma.teamMember.update({

@@ -53,7 +53,8 @@ describe("WorkspaceService", () => {
         update: vi.fn()
       },
       teamMember: {
-        updateMany: vi.fn()
+        updateMany: vi.fn(),
+        deleteMany: vi.fn()
       },
       tenantMember: {
         findUnique: vi.fn().mockResolvedValue({

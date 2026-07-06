@@ -8,8 +8,7 @@ import type {
   ListTimeLogsResponseDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
-  TaskDto,
-  ProjectDto,
+  CategoryDto,
   TimesheetPeriodDto,
   UserProfileDto,
   BatchTimeLogsResponseDto
@@ -27,7 +26,6 @@ import {
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
-  fetchListItems,
   parseMemberTimesheetSearch,
   WORKSPACE_DATA_STALE_EVENT,
   type WorkspaceDataStaleDetail
@@ -77,6 +75,7 @@ import {
   useMySubmissions
 } from "@/features/submissions/use-my-submissions";
 import {
+  isTimeEntryInactive,
   isTimeEntryLocked,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
@@ -84,6 +83,7 @@ import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
+import { loadEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -145,6 +145,7 @@ export function TimesheetPage() {
   const { logs, setLogs } = useTimesheetStore();
   const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
 
   const [view, setView] = useState<ViewMode>(() => deepLink.view ?? "week");
   const [mobileBannerDismissed, setMobileBannerDismissed] = useState(true);
@@ -292,11 +293,37 @@ export function TimesheetPage() {
     [tasks, projects]
   );
 
+  const taskForLog = useCallback((taskId: string) => tasks.find((t) => t.id === taskId), [tasks]);
+
+  const categoryForTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return undefined;
+      return categories.find((c) => c.id === task.categoryId);
+    },
+    [tasks, categories]
+  );
+
   const isTimerEntry = useCallback((log: TimeLogDto) => log.source === "timer", []);
 
-  const isEntryLocked = useCallback(
+  const isEntryInactive = useCallback(
+    (log: TimeLogDto) =>
+      isTimeEntryInactive(
+        projectForTask(log.taskId),
+        taskForLog(log.taskId),
+        categoryForTask(log.taskId)
+      ),
+    [projectForTask, taskForLog, categoryForTask]
+  );
+
+  const isSubmissionLocked = useCallback(
     (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
     [projectForTask, submissionByKey]
+  );
+
+  const isEntryReadOnly = useCallback(
+    (log: TimeLogDto) => isEntryInactive(log) || isSubmissionLocked(log),
+    [isEntryInactive, isSubmissionLocked]
   );
 
   const calendarDays = useMemo(() => {
@@ -446,8 +473,11 @@ export function TimesheetPage() {
 
   useEffect(() => {
     if (!ws) return;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    void loadEntryCatalog(ws).then(({ tasks, projects, categories }) => {
+      setTasks(tasks);
+      setProjects(projects);
+      setCategories(categories);
+    });
   }, [ws, setTasks, setProjects]);
 
   function goToday() {
@@ -532,7 +562,7 @@ export function TimesheetPage() {
 
   async function saveEntry() {
     if (isImpersonating) return;
-    if (editingLog && isEntryLocked(editingLog)) return;
+    if (editingLog && isEntryReadOnly(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
       return;
@@ -628,7 +658,7 @@ export function TimesheetPage() {
     if (isImpersonating) return;
     const target = log ?? editingLog;
     if (!target) return;
-    if (isEntryLocked(target)) {
+    if (isEntryReadOnly(target)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
     }
@@ -640,7 +670,7 @@ export function TimesheetPage() {
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
-    if (isEntryLocked(target)) {
+    if (isEntryReadOnly(target)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
     }
@@ -661,7 +691,7 @@ export function TimesheetPage() {
   }
 
   async function duplicateEntry(log: TimeLogDto, start: Date, end: Date) {
-    if (isImpersonating || isEntryLocked(log)) return;
+    if (isImpersonating || isEntryReadOnly(log)) return;
     if (end <= start) return;
     const conflict = findOccupancyConflict(occupancy, start, end);
     if (conflict) {
@@ -694,7 +724,7 @@ export function TimesheetPage() {
   }
 
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
-    if (isImpersonating || isEntryLocked(log) || isTimerEntry(log)) return;
+    if (isImpersonating || isEntryReadOnly(log) || isTimerEntry(log)) return;
     if (end <= start) return;
 
     const conflict = findOccupancyConflict(occupancy, start, end, log.id);
@@ -923,7 +953,8 @@ export function TimesheetPage() {
             entryColor={entryColor}
             activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
             liveElapsedSec={liveElapsedSec}
-            isEntryLocked={isEntryLocked}
+            isEntryLocked={isSubmissionLocked}
+            isEntryInactive={isEntryInactive}
             isTimerEntry={isTimerEntry}
             overlapConflictMessage={overlapConflictMessage}
             onSlotClick={openCreateSlot}
@@ -945,18 +976,19 @@ export function TimesheetPage() {
         draft={draft}
         projects={projects}
         tasks={tasks}
+        categories={categories}
         taskLabel={taskLabel}
         workspaceNames={workspaceNamesById}
         editingLog={editingLog}
         saving={saving}
         error={error}
-        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
+        readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
         workspaceId={ws}
         onClose={closeDialog}
         onDraftChange={setDraft}
         onSave={saveEntry}
         onDelete={
-          !isImpersonating && editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined
+          !isImpersonating && editingLog && !isEntryReadOnly(editingLog) ? deleteEntry : undefined
         }
         timezone={timezone}
         jiraSuggestions={jiraIssues}

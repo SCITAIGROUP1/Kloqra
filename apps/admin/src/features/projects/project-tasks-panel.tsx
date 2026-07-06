@@ -11,21 +11,28 @@ import {
   AssigneeAvatarStack,
   TaskAssigneePicker,
   cn,
-  CenteredLoader
+  CenteredLoader,
+  ConfirmDialog
 } from "@kloqra/ui";
 import { SettingsCard, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
-import { ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
+import { ListTodo, Pencil, Plus, Trash2, Lock, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { getDeleteTaskConfirmationMessage } from "./delete-task-confirmation";
+import { getTaskConfirmCopy } from "./task-confirmation";
 import { api } from "@/lib/api";
+
+type PendingTaskConfirm = {
+  action: "activate" | "deactivate" | "delete";
+  task: TaskDto;
+};
 
 type Props = {
   workspaceId: string;
   projectId: string;
+  projectIsActive: boolean;
 };
 
-export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
+export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: Props) {
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +55,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [editIsCommon, setEditIsCommon] = useState(true);
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<PendingTaskConfirm | null>(null);
 
   const categoryById = useMemo(() => {
     const m = new Map<string, CategoryDto>();
@@ -55,17 +63,23 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     return m;
   }, [categories]);
 
-  useEffect(() => {
-    if (!workspaceId || !projectId) return;
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, projectId]);
+  const confirmCopy = confirmTarget
+    ? getTaskConfirmCopy(confirmTarget.action, {
+        taskName: confirmTarget.task.taskName,
+        categoryName:
+          confirmTarget.task.categoryName ?? categoryById.get(confirmTarget.task.categoryId)?.name,
+        categoryIsActive: categoryById.get(confirmTarget.task.categoryId)?.isActive ?? false,
+        projectIsActive
+      })
+    : null;
+
+  const activeCategories = useMemo(() => categories.filter((c) => c.isActive), [categories]);
 
   useEffect(() => {
-    if (!newCategoryId && categories.length > 0) {
-      setNewCategoryId(categories[0]!.id);
+    if (!newCategoryId && activeCategories.length > 0) {
+      setNewCategoryId(activeCategories[0]!.id);
     }
-  }, [categories, newCategoryId]);
+  }, [activeCategories, newCategoryId]);
 
   const activeTeamOptions = useMemo(
     () =>
@@ -74,6 +88,17 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
         .map((m) => ({ userId: m.userId, userName: m.userName, email: m.email })),
     [teamMembers]
   );
+
+  const canSetTaskActive = (categoryId: string) => {
+    const category = categoryById.get(categoryId);
+    return projectIsActive && (category?.isActive ?? false);
+  };
+
+  useEffect(() => {
+    if (!workspaceId || !projectId) return;
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, projectId]);
 
   const unassignedCount = useMemo(
     () => tasks.filter((t) => !t.isCommon && t.assignees.length === 0).length,
@@ -195,10 +220,57 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     }
   }
 
-  async function removeTask(task: TaskDto) {
-    if (!window.confirm(getDeleteTaskConfirmationMessage(task.taskName))) {
+  async function setTaskActive(task: TaskDto, isActive: boolean) {
+    if (isActive && !canSetTaskActive(task.categoryId)) {
+      toast.error("Activate the project and category before enabling this task.");
       return;
     }
+    setBusyId(task.id);
+    setError(null);
+    try {
+      await api(ROUTES.TASKS.BY_ID(task.id), {
+        method: "PATCH",
+        workspaceId,
+        body: JSON.stringify({ isActive })
+      });
+      toast.success(isActive ? "Task activated." : "Task deactivated.");
+      await refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not update task status.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function requestTaskStatusChange(task: TaskDto) {
+    if (!task.isActive && !canSetTaskActive(task.categoryId)) {
+      toast.error("Activate the project and category before enabling this task.");
+      return;
+    }
+    setConfirmTarget({
+      action: task.isActive ? "deactivate" : "activate",
+      task
+    });
+  }
+
+  function requestTaskDelete(task: TaskDto) {
+    setConfirmTarget({ action: "delete", task });
+  }
+
+  async function handleConfirmTaskAction() {
+    if (!confirmTarget) return;
+    const { action, task } = confirmTarget;
+    setConfirmTarget(null);
+    if (action === "delete") {
+      await removeTask(task);
+      return;
+    }
+    await setTaskActive(task, action === "activate");
+  }
+
+  async function removeTask(task: TaskDto) {
     setBusyId(task.id);
     setError(null);
     try {
@@ -398,7 +470,10 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                   id={`edit-category-${task.id}`}
                                   value={editCategoryId}
                                   onValueChange={setEditCategoryId}
-                                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                                  options={activeCategories.map((c) => ({
+                                    value: c.id,
+                                    label: c.name
+                                  }))}
                                   placeholder="Category"
                                   searchPlaceholder="Search categories…"
                                   aria-label="Category"
@@ -516,6 +591,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                             <Badge variant={task.billableDefault ? "default" : "secondary"}>
                               {task.billableDefault ? "Billable" : "Non-billable"}
                             </Badge>
+                            {!task.isActive ? <Badge variant="secondary">Inactive</Badge> : null}
                             <div className="flex shrink-0 items-center gap-1">
                               <Button
                                 type="button"
@@ -531,8 +607,37 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 type="button"
                                 size="icon"
                                 variant="ghost"
+                                className="size-8"
+                                disabled={
+                                  busyId === task.id ||
+                                  (!task.isActive && !canSetTaskActive(task.categoryId))
+                                }
+                                title={
+                                  task.isActive
+                                    ? "Deactivate task"
+                                    : canSetTaskActive(task.categoryId)
+                                      ? "Activate task"
+                                      : "Activate the project and category first"
+                                }
+                                onClick={() => requestTaskStatusChange(task)}
+                                aria-label={
+                                  task.isActive
+                                    ? `Deactivate ${task.taskName}`
+                                    : `Activate ${task.taskName}`
+                                }
+                              >
+                                {task.isActive ? (
+                                  <Lock className="size-4" aria-hidden />
+                                ) : (
+                                  <Unlock className="size-4" aria-hidden />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
                                 className="size-8 text-destructive hover:text-destructive"
-                                onClick={() => void removeTask(task)}
+                                onClick={() => requestTaskDelete(task)}
                                 disabled={busyId === task.id}
                                 aria-label={`Delete ${task.taskName}`}
                               >
@@ -550,6 +655,16 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           </div>
         )}
       </SettingsCard>
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title={confirmCopy?.title ?? ""}
+        description={confirmCopy?.description}
+        confirmLabel={confirmCopy?.confirmLabel}
+        destructive={confirmCopy?.destructive}
+        onConfirm={() => void handleConfirmTaskAction()}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 }

@@ -20,6 +20,7 @@ function log(
 
 function task(partial: Partial<TaskDto> & Pick<TaskDto, "id" | "projectId">): TaskDto {
   return {
+    isActive: true,
     categoryId: partial.categoryId ?? "cat-1",
     taskName: partial.taskName ?? "Task",
     categoryName: partial.categoryName ?? "Development",

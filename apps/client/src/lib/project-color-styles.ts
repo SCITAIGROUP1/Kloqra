@@ -19,6 +19,14 @@ export function entryColorsFromProject(color: string) {
   };
 }
 
+export function inactiveEntryColors() {
+  return {
+    backgroundColor: "hsl(var(--muted))",
+    borderColor: "hsl(var(--border))",
+    color: "hsl(var(--muted-foreground))"
+  };
+}
+
 function resolveProjectColor(project: ProjectDto | undefined): string {
   if (!project) return DEFAULT_PROJECT_COLOR;
   return project.myColor ?? project.color ?? DEFAULT_PROJECT_COLOR;

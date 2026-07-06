@@ -5,6 +5,15 @@ import { PrismaService } from "../prisma/prisma.service";
 
 export type WorkspaceRole = "ADMIN" | "MEMBER";
 
+type TaskLoggabilityRow = {
+  id: string;
+  projectId: string;
+  isCommon: boolean;
+  isActive: boolean;
+  category: { isActive: boolean };
+  project: { isActive: boolean };
+};
+
 @Injectable()
 export class ProjectAccessService {
   constructor(private prisma: PrismaService) {}
@@ -90,7 +99,7 @@ export class ProjectAccessService {
       where: {
         userId,
         isActive: true,
-        team: { project: { workspaceId, isActive: true } }
+        team: { project: { workspaceId } }
       },
       select: { team: { select: { projectId: true } } }
     });
@@ -121,7 +130,7 @@ export class ProjectAccessService {
       where: {
         userId,
         isActive: true,
-        team: { projectId, project: { workspaceId, isActive: true } }
+        team: { projectId, project: { workspaceId } }
       }
     });
     if (!membership) {
@@ -133,16 +142,47 @@ export class ProjectAccessService {
     }
   }
 
-  async assertCanLogTask(workspaceId: string, userId: string, role: WorkspaceRole, taskId: string) {
+  private inactiveMessage(task: TaskLoggabilityRow): string {
+    if (!task.project.isActive) return "This project is inactive";
+    if (!task.category.isActive) return "This category is inactive";
+    if (!task.isActive) return "This task is inactive";
+    return "This task is not available for time logging";
+  }
+
+  async loadTaskLoggability(workspaceId: string, taskId: string): Promise<TaskLoggabilityRow> {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, project: { workspaceId } },
-      select: { id: true, projectId: true, isCommon: true }
+      select: {
+        id: true,
+        projectId: true,
+        isCommon: true,
+        isActive: true,
+        category: { select: { isActive: true } },
+        project: { select: { isActive: true } }
+      }
     });
     if (!task) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
     }
+    return task;
+  }
+
+  assertTaskLoggable(task: TaskLoggabilityRow) {
+    if (task.project.isActive && task.category.isActive && task.isActive) {
+      return;
+    }
+    throw new DomainException(
+      ErrorCodes.ENTITY_INACTIVE,
+      this.inactiveMessage(task),
+      HttpStatus.FORBIDDEN
+    );
+  }
+
+  async assertCanLogTask(workspaceId: string, userId: string, role: WorkspaceRole, taskId: string) {
+    const task = await this.loadTaskLoggability(workspaceId, taskId);
 
     await this.assertCanAccessProject(workspaceId, userId, role, task.projectId);
+    this.assertTaskLoggable(task);
 
     if (role === "ADMIN") return;
     if (task.isCommon) return;

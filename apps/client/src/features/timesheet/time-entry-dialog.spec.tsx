@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimeEntryDialog } from "./time-entry-dialog";
 import type { TimeEntryDraft } from "./time-entry-draft";
 
+vi.mock("@/hooks/use-live-entry-catalog", () => ({
+  useLiveEntryCatalog: vi.fn()
+}));
+
 const draft: TimeEntryDraft = {
   date: "2026-06-09",
   projectId: "proj-1",

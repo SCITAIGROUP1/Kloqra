@@ -95,6 +95,15 @@ export class ProjectsController {
     return this.projects.getTeam(user.workspaceId, user.userId, user.role, id, query);
   }
 
+  @Get(ROUTES.PROJECTS.TEAM_ROSTER(":id"))
+  getMemberTeamRoster(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(listProjectTeamQuerySchema)) query: ListProjectTeamQuery
+  ) {
+    return this.projects.getMemberTeamRoster(user.workspaceId, user.userId, user.role, id, query);
+  }
+
   @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS(":id"))
   addTeamMember(

@@ -15,6 +15,7 @@ export const taskSchema = z.object({
   taskName: z.string().min(1).max(200),
   billableDefault: z.boolean(),
   isCommon: z.boolean(),
+  isActive: z.boolean(),
   assignees: z.array(taskAssigneeSchema)
 });
 
@@ -34,12 +35,15 @@ export const updateTaskSchema = z.object({
   taskName: z.string().min(1).max(200).optional(),
   billableDefault: z.boolean().optional(),
   isCommon: z.boolean().optional(),
+  isActive: z.boolean().optional(),
   assigneeUserIds: z.array(uuidSchema).optional()
 });
 
 export const listTasksQuerySchema = listPaginationQuerySchema.extend({
   projectId: queryUuidArraySchema,
-  categoryId: uuidSchema.optional()
+  categoryId: uuidSchema.optional(),
+  isActive: z.coerce.boolean().optional(),
+  loggableOnly: z.coerce.boolean().optional()
 });
 
 export const listTasksResponseSchema = createPaginatedListResponseSchema(taskListItemSchema);

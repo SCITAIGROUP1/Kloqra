@@ -62,6 +62,8 @@ export const ROUTES = {
     TEAM_MEMBER: (projectId: string, memberId: string) =>
       `/projects/${projectId}/team/members/${memberId}`,
     TEAM_INVITES: (id: string) => `/projects/${id}/team/invites`,
+    /** Read-only roster endpoint accessible by any team member (no admin/PM guard). */
+    TEAM_ROSTER: (id: string) => `/projects/${id}/team/roster`,
     /** @deprecated Use TEAM */
     MEMBERS: (id: string) => `/projects/${id}/team`,
     /** @deprecated Use TEAM_INVITES */
