@@ -66,6 +66,9 @@ test.describe("Client dashboard", () => {
   });
 
   test("project distribution widget shows legend table with project details", async ({ page }) => {
+    // Select "This month" to guarantee presence of seeded historical logs
+    await page.getByRole("button", { name: "This month" }).click();
+
     await expect(page.getByRole("heading", { name: "Project Distribution" })).toBeVisible();
 
     const legend = page
