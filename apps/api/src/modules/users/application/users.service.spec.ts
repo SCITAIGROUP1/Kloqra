@@ -149,10 +149,12 @@ describe("UsersService", () => {
 
   it("merges preferences on update", async () => {
     mockPrisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
-    mockPrisma.user.update.mockImplementation(({ data }) => ({
-      ...baseUser,
-      preferences: data.preferences
-    }));
+    mockPrisma.user.update.mockImplementation(
+      ({ data }: { data: { preferences?: Record<string, unknown> } }) => ({
+        ...baseUser,
+        preferences: data.preferences
+      })
+    );
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
       name: "Acme Corporation",
@@ -180,10 +182,12 @@ describe("UsersService", () => {
       ...baseUser,
       preferences: { dailyTargetHours: 6, theme: "dark", timezone: "America/New_York" }
     });
-    mockPrisma.user.update.mockImplementation(({ data }) => ({
-      ...baseUser,
-      preferences: data.preferences
-    }));
+    mockPrisma.user.update.mockImplementation(
+      ({ data }: { data: { preferences?: Record<string, unknown> } }) => ({
+        ...baseUser,
+        preferences: data.preferences
+      })
+    );
     mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
       id: "ws-1",
       name: "Acme Corporation",
