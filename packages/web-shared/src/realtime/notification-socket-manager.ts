@@ -43,7 +43,19 @@ function attachSocketListeners(nextSocket: Socket): void {
   nextSocket.on("disconnect", () => {
     setConnectionState(activeConsumers > 0 ? "disconnected" : "idle");
   });
-  nextSocket.on("connect_error", () => setConnectionState("disconnected"));
+  nextSocket.on("connect_error", (error: Error) => {
+    setConnectionState("disconnected");
+    const message = error.message.toLowerCase();
+    if (
+      message.includes("unauthorized") ||
+      message.includes("jwt") ||
+      message.includes("forbidden") ||
+      message.includes("authentication")
+    ) {
+      nextSocket.io.opts.reconnection = false;
+      disconnectSocketOnly();
+    }
+  });
   nextSocket.on(NOTIFICATION_CREATED_EVENT, (raw: unknown) => {
     const parsed = notificationCreatedEventSchema.safeParse(raw);
     if (!parsed.success) return;
@@ -79,12 +91,18 @@ function connectWithToken(token: string): void {
 
 function ensureSessionSubscription(): void {
   if (sessionUnsub) return;
-  sessionUnsub = subscribeSessionUpdates((_session, accessToken) => {
-    if (activeConsumers === 0) return;
-    if (accessToken) {
-      connectWithToken(accessToken);
+  sessionUnsub = subscribeSessionUpdates(
+    (_session, accessToken) => {
+      if (activeConsumers === 0) return;
+      if (accessToken) {
+        connectWithToken(accessToken);
+      }
+    },
+    () => {
+      disconnectSocketOnly();
+      setConnectionState(activeConsumers > 0 ? "disconnected" : "idle");
     }
-  });
+  );
 }
 
 /** Opens (or reuses) the shared notification socket for this browser tab. */

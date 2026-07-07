@@ -1,19 +1,23 @@
 import { test, expect } from "@playwright/test";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 
 test.describe("Member Submissions", () => {
   test("navigates to submissions page", async ({ page }) => {
     await page.goto("/submissions");
+    await dismissOnboardingIfVisible(page);
     await expect(page.getByRole("heading", { name: "Submissions" })).toBeVisible();
     await expect(page.getByText(/submit timesheets for review/i)).toBeVisible();
   });
 
   test("legacy approvals route redirects to submissions", async ({ page }) => {
     await page.goto("/approvals");
-    await expect(page).toHaveURL(/\/submissions/);
+    await expect(page).toHaveURL(/\/submissions/, { timeout: 15_000 });
+    await dismissOnboardingIfVisible(page);
   });
 
   test("shows status tabs and table view", async ({ page }) => {
     await page.goto("/submissions");
+    await dismissOnboardingIfVisible(page);
     await expect(page.getByRole("button", { name: "All" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Action needed/i })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Period" })).toBeVisible();

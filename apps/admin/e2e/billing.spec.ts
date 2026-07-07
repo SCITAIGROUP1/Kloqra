@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { waitForAdminShell } from "./helpers/shell";
 
 test.describe("Admin billing", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/billing");
+    await waitForAdminShell(page);
     await expect(page.getByRole("heading", { name: "Hourly rates", exact: true })).toBeVisible();
   });
 

@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 
 test.describe("Settings page", () => {
   test("shows appearance section by default", async ({ page }) => {
     await page.goto("/settings");
+    await dismissOnboardingIfVisible(page);
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(page.getByText("Customize how Kloqra looks for you")).toBeVisible();
     await expect(page.getByText("Light", { exact: true })).toBeVisible();
@@ -10,6 +12,7 @@ test.describe("Settings page", () => {
 
   test("navigates to time settings", async ({ page }) => {
     await page.goto("/settings?section=time");
+    await dismissOnboardingIfVisible(page);
     await expect(
       page.getByText("Configure your timezone and time display preferences")
     ).toBeVisible();
@@ -18,6 +21,7 @@ test.describe("Settings page", () => {
 
   test("updates time settings and shows success toast", async ({ page }) => {
     await page.goto("/settings?section=time");
+    await dismissOnboardingIfVisible(page);
     const saveButton = page.getByRole("button", { name: "Save Changes" });
     const button24 = page.getByRole("button", { name: "24-hour" });
     const is24Active = !(await button24.evaluate((el) =>

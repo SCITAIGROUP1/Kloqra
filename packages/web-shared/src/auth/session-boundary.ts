@@ -1,4 +1,5 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
+import { readUserIdFromToken, readWorkspaceIdFromToken } from "./jwt-payload";
 import { applySharedBoundaryReset } from "./session-boundary-reset";
 import {
   compareSessionIdentity,
@@ -60,6 +61,33 @@ function bumpSessionGeneration(): void {
 
 function applySharedBoundary(level: SessionBoundaryLevel, prev: SessionIdentity | null): void {
   applySharedBoundaryReset(level, prev);
+}
+
+/**
+ * On cold page load the Zustand session is empty while localStorage already holds
+ * the active access token. Treat the token as the previous identity so bootstrap
+ * does not remount the entire shell when the API returns the same user/workspace.
+ */
+export function resolveColdHydrationBoundaryLevel(
+  next: AuthSessionDto,
+  accessToken: string
+): SessionBoundaryLevel | undefined {
+  const tokenUserId = readUserIdFromToken(accessToken);
+  const nextIdentity = getSessionIdentity(next);
+  if (!tokenUserId || !nextIdentity || tokenUserId !== nextIdentity.userId) {
+    return undefined;
+  }
+
+  const virtualPrev: SessionIdentity = {
+    userId: tokenUserId,
+    tenantId: nextIdentity.tenantId,
+    workspaceId: readWorkspaceIdFromToken(accessToken),
+    requiresWorkspaceSetup: nextIdentity.requiresWorkspaceSetup,
+    impersonatorId: nextIdentity.impersonatorId,
+    authScope: nextIdentity.authScope
+  };
+
+  return compareSessionIdentity(virtualPrev, nextIdentity);
 }
 
 export function applySessionBoundary(ctx: SessionBoundaryContext): SessionBoundaryLevel {

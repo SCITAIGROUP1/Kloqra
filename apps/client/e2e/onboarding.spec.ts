@@ -1,15 +1,21 @@
 import { test, expect, type Page } from "@playwright/test";
-import { clearOnboardingStorage, markOnboardingDoneInStorage } from "./helpers/onboarding";
+import {
+  clearOnboardingStorage,
+  dismissOnboardingIfVisible,
+  markOnboardingDoneInStorage,
+  waitForClientShell
+} from "./helpers/onboarding";
 
 async function gotoDashboard(page: Page, options?: { expectWizard?: boolean }) {
   await page.goto("/dashboard");
-  await page.waitForLoadState("domcontentloaded");
+  await waitForClientShell(page);
 
   if (options?.expectWizard) {
     await expect(welcomeHeading(page)).toBeVisible({ timeout: 15_000 });
     return;
   }
 
+  await dismissOnboardingIfVisible(page);
   await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible({
     timeout: 15_000
   });

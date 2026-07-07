@@ -7,7 +7,12 @@ import {
 } from "../auth/auth-channel";
 import { invalidateAuthRefresh } from "../auth/auth-refresh-guard";
 import { readWorkspaceIdFromToken } from "../auth/jwt-payload";
-import { applySessionBoundary, type SessionBoundaryReason } from "../auth/session-boundary";
+import {
+  applySessionBoundary,
+  resolveColdHydrationBoundaryLevel,
+  type SessionBoundaryReason
+} from "../auth/session-boundary";
+import type { SessionBoundaryLevel } from "../auth/session-identity";
 import { cancelProactiveRefresh, scheduleProactiveRefresh } from "../auth/token-scheduler";
 
 /** Per-app scope (e.g. `client` / `admin`) so tokens are not mixed on the same origin. */
@@ -74,7 +79,7 @@ interface SessionState {
     session: AuthSessionDto,
     accessToken: string,
     refreshToken?: string,
-    options?: { boundaryReason?: SessionBoundaryReason }
+    options?: { boundaryReason?: SessionBoundaryReason; level?: SessionBoundaryLevel }
   ) => void;
   clear: (options?: { boundaryReason?: SessionBoundaryReason }) => void;
 }
@@ -84,10 +89,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   accessToken: null,
   setSession: (session, accessToken, refreshToken, options) => {
     const prev = get().session;
+    const reason = options?.boundaryReason ?? "session_update";
+    let level = options?.level;
+    if (level === undefined && !prev && reason === "session_update") {
+      level = resolveColdHydrationBoundaryLevel(session, accessToken);
+    }
     applySessionBoundary({
       prev,
       next: session,
-      reason: options?.boundaryReason ?? "session_update"
+      reason,
+      level
     });
     persistSessionTokens(session, accessToken, refreshToken);
     if (typeof window !== "undefined") {
@@ -106,6 +117,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       level: "full"
     });
     clearPersistedTokens();
+    if (typeof window !== "undefined") {
+      void import("../realtime/notification-socket-manager").then((m) =>
+        m.forceDisconnectNotificationSocket()
+      );
+    }
     if (typeof window !== "undefined" && !applyingPeerSessionClear) {
       broadcastSessionCleared();
     }

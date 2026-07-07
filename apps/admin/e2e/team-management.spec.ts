@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "./helpers/auth";
+import { waitForAdminShell } from "./helpers/shell";
 
 test.describe("Team Management", () => {
   test.beforeEach(async ({ page }) => {
@@ -8,6 +9,7 @@ test.describe("Team Management", () => {
 
   test("shows team management page with stats and member table", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     await expect(page.getByRole("heading", { name: "Team Management" })).toBeVisible();
     await expect(page.getByText("Total Members")).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Member" })).toBeVisible();
@@ -16,6 +18,7 @@ test.describe("Team Management", () => {
 
   test("opens add team member modal with email and name fields", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     await page.getByRole("button", { name: "Add Team Member" }).click();
     await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
@@ -26,6 +29,7 @@ test.describe("Team Management", () => {
 
   test("shows inline required field errors in add team member modal", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     await page.getByRole("button", { name: "Add Team Member" }).click();
     await page.getByRole("button", { name: "Add member" }).click();
 
@@ -36,6 +40,7 @@ test.describe("Team Management", () => {
 
   test("shows no-match message when search finds no members", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     await page.getByRole("textbox", { name: "Search team members" }).fill("zzzz-no-member-xyz-999");
     await expect(page.getByText("No team members found matching your search.")).toBeVisible();
     await expect(page.getByText("No matching members")).toHaveCount(0);
@@ -44,6 +49,7 @@ test.describe("Team Management", () => {
 
   test("shows rows-per-page selector with 10, 25, and 50 options", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     const rowsPerPage = page.getByRole("combobox", { name: "Rows per page" });
     await expect(rowsPerPage).toBeVisible();
     await expect(rowsPerPage).toHaveText("25");
@@ -57,6 +63,7 @@ test.describe("Team Management", () => {
 
   test("shows status filter with all, active, and inactive options", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     const statusFilter = page.getByRole("combobox", { name: "Filter by status" });
     await expect(statusFilter).toBeVisible();
     await expect(statusFilter).toHaveText("All statuses");
@@ -70,6 +77,7 @@ test.describe("Team Management", () => {
 
   test("actions menu includes change status for another member", async ({ page }) => {
     await page.goto("/team-management");
+    await waitForAdminShell(page);
     const actionButton = page.getByRole("button", { name: /Actions for / }).first();
     await actionButton.click();
     await expect(page.getByText("Change status")).toBeVisible();

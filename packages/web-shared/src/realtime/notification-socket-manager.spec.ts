@@ -28,7 +28,13 @@ vi.mock("../stores/session.store", () => ({
 }));
 
 vi.mock("../auth/auth-channel", () => ({
-  subscribeSessionUpdates: () => () => undefined
+  subscribeSessionUpdates: (
+    onUpdate: (session: unknown, token: string) => void,
+    onClear?: () => void
+  ) => {
+    (globalThis as { __socketOnClear?: () => void }).__socketOnClear = onClear;
+    return () => undefined;
+  }
 }));
 
 describe("notification socket manager", () => {
@@ -48,5 +54,14 @@ describe("notification socket manager", () => {
     const unsub = subscribeNotificationConnection((state) => states.push(state));
     expect(states).toEqual(["idle"]);
     unsub();
+  });
+
+  it("disconnects when auth channel reports session cleared", async () => {
+    const { connectNotificationSocket } = await import("./notification-socket-manager");
+    connectNotificationSocket();
+    const onClear = (globalThis as { __socketOnClear?: () => void }).__socketOnClear;
+    onClear?.();
+    expect(getNotificationSocketConnectionState()).toBe("disconnected");
+    expect(mockDisconnect).toHaveBeenCalled();
   });
 });

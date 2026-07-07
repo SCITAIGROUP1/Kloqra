@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { forceTenantAuthSignOut } from "../auth/force-auth-sign-out";
 import { readUserIdFromToken } from "../auth/jwt-payload";
 import { syncSessionFromStoredToken } from "../auth/session-token-reconcile";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
@@ -21,8 +22,10 @@ export function useBfCacheSessionReconcile(): void {
 
       void syncSessionFromStoredToken().then((ok) => {
         if (!ok) {
-          useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
-          window.location.reload();
+          forceTenantAuthSignOut({
+            reason: "auth_failure",
+            redirectQuery: "reason=session-ended"
+          });
         }
       });
     };

@@ -29,6 +29,12 @@ vi.mock("./jwt-payload", () => ({
   readUserIdFromToken: () => null
 }));
 
+const mockForceSignOut = vi.fn();
+
+vi.mock("./force-auth-sign-out", () => ({
+  forceTenantAuthSignOut: (...args: unknown[]) => mockForceSignOut(...args)
+}));
+
 describe("bootstrapTokenSchedulerFromStorage", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -37,6 +43,7 @@ describe("bootstrapTokenSchedulerFromStorage", () => {
     mockSetSession.mockReset();
     mockSchedule.mockReset();
     mockGetState.mockReset();
+    mockForceSignOut.mockReset();
     mockGetRefreshToken.mockReturnValue("stored-refresh-token");
     mockGetState.mockReturnValue({
       accessToken: mockGetAccessToken(),
@@ -151,6 +158,29 @@ describe("bootstrapTokenSchedulerFromStorage", () => {
     resolveFetch(undefined);
     const token = await pending;
     expect(token).toBeNull();
+    expect(mockSetSession).not.toHaveBeenCalled();
+  });
+
+  it("signs out when refresh returns unauthorized", async () => {
+    mockGetAccessToken.mockReturnValue("valid-token");
+    mockGetState.mockReturnValue({
+      accessToken: "valid-token",
+      session: { user: { id: "user-a" }, tenantId: "tenant-a" },
+      setSession: mockSetSession
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ details: { reason: "session_revoked" } })
+      })
+    );
+
+    const { tryRefreshSession } = await import("./refresh-session");
+    const token = await tryRefreshSession();
+    expect(token).toBeNull();
+    expect(mockForceSignOut).toHaveBeenCalled();
     expect(mockSetSession).not.toHaveBeenCalled();
   });
 });

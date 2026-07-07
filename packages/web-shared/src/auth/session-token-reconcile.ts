@@ -1,6 +1,7 @@
 import { ROUTES, type AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { applySessionFromPeer, getAccessToken, useSessionStore } from "../stores/session.store";
+import { forceTenantAuthSignOut } from "./force-auth-sign-out";
 import { readUserIdFromToken } from "./jwt-payload";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -25,7 +26,10 @@ async function performSync(): Promise<boolean> {
       credentials: "include"
     });
     if (!res.ok) {
-      useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
+      forceTenantAuthSignOut({
+        reason: "auth_failure",
+        redirectQuery: "reason=session-ended"
+      });
       return false;
     }
     const body = (await res.json()) as AuthSessionDto;
@@ -58,9 +62,10 @@ export function initCrossTabSessionReconcile(): () => void {
       void syncSessionFromStoredToken();
       return;
     }
-    if (useSessionStore.getState().session) {
-      useSessionStore.getState().clear({ boundaryReason: "peer_sync" });
-    }
+    forceTenantAuthSignOut({
+      reason: "peer_sync",
+      redirectQuery: "reason=session-ended"
+    });
   };
 
   window.addEventListener("storage", onStorage);

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { SEED } from "./constants/seed";
 import { loginAsAdmin, loginAsOrganizationAdmin } from "./helpers/auth";
+import { waitForAdminShell } from "./helpers/shell";
 
 async function expandSidebarIfCollapsed(page: Page) {
   const expand = page.getByRole("button", { name: "Expand sidebar" });
@@ -96,6 +97,7 @@ test.describe("Admin nav scope by role", () => {
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
 
     await page.goto("/account");
+    await waitForAdminShell(page);
     await expect(page).toHaveURL(/account\/workspaces/, { timeout: 15_000 });
   });
 });

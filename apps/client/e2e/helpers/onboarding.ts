@@ -10,8 +10,8 @@ async function patchOnboardingPreferences(
     async ({ apiBase, prefs }) => {
       const token = localStorage.getItem("cm-client-access-token");
       const workspaceId = localStorage.getItem("cm-client-workspace-id");
-      if (!token) return;
-      await fetch(`${apiBase}/users/me/preferences`, {
+      if (!token) return false;
+      const res = await fetch(`${apiBase}/users/me/preferences`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -21,6 +21,7 @@ async function patchOnboardingPreferences(
         },
         body: JSON.stringify(prefs)
       });
+      return res.ok;
     },
     { apiBase: API_BASE, prefs: preferences }
   );
@@ -74,35 +75,32 @@ export async function clearOnboardingStorage(page: Page) {
   });
 }
 
-function currentPath(page: Page) {
-  const url = new URL(page.url());
-  return `${url.pathname}${url.search}`;
-}
-
 function onboardingDialog(page: Page) {
   return page.getByRole("dialog").filter({ hasText: "Getting Started" });
 }
 
+/** Wait until client shell finished bootstrapping (not login/loading). */
+export async function waitForClientShell(page: Page) {
+  await page.waitForLoadState("domcontentloaded");
+  await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
+  await expect(page.getByText("Loading workspace…")).toBeHidden({ timeout: 30_000 });
+}
+
 export async function dismissOnboardingIfVisible(page: Page) {
-  await ensureOnboardingDone(page);
+  await waitForClientShell(page);
+  await markOnboardingDoneInStorage(page);
 
   const dialog = onboardingDialog(page);
-  if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await dialog.getByRole("button", { name: "Skip onboarding" }).click();
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
-    return;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!(await dialog.isVisible({ timeout: 2_000 }).catch(() => false))) {
+      return;
+    }
+    await dialog.getByRole("button", { name: "Skip onboarding" }).click({ timeout: 10_000 });
+    if (await dialog.isHidden({ timeout: 10_000 }).catch(() => false)) {
+      return;
+    }
+    await markOnboardingDoneInStorage(page);
   }
 
-  const returnPath = currentPath(page);
-  await page.reload();
-  await page.waitForLoadState("domcontentloaded");
-
-  if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await dialog.getByRole("button", { name: "Skip onboarding" }).click();
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
-  }
-
-  if (currentPath(page) !== returnPath) {
-    await page.goto(returnPath);
-  }
+  await expect(dialog).toBeHidden({ timeout: 10_000 });
 }

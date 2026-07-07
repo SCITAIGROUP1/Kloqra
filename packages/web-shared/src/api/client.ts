@@ -1,10 +1,7 @@
-import { tryRefreshPlatformSession } from "../auth/bootstrap-platform-session";
+import { FATAL_AUTH_REASONS } from "../auth/auth-fatal-reasons";
 import { isAccessTokenExpired, readUserIdFromToken } from "../auth/jwt-payload";
-import { tryRefreshSession } from "../auth/refresh-session";
 import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
-import { usePlatformNotificationsStore } from "../stores/platform-notifications-store";
 import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platform-session.store";
-import { usePlatformUserProfileStore } from "../stores/platform-user-profile.store";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
 import { getInflightGetRequests } from "./inflight-requests";
@@ -78,14 +75,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-const FATAL_AUTH_REASONS = new Set([
-  "token_invalid",
-  "token_malformed",
-  "token_wrong_type",
-  "missing_claims",
-  "scope_mismatch",
-  "session_revoked"
-]);
+const FATAL_AUTH_REASONS_SET = FATAL_AUTH_REASONS;
 
 function humanizeFieldKey(key: string): string {
   const lastSegment = key.split(".").at(-1) ?? key;
@@ -148,27 +138,22 @@ function handleSessionFailure(message: string): void {
   if (typeof window === "undefined") return;
   if (AUTH_SCOPE === "platform") return;
   if (isWorkspaceMismatchError(message)) {
-    useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
-    const loginPath = "/login";
-    if (!window.location.pathname.startsWith(loginPath)) {
-      window.location.assign(`${loginPath}?reason=workspace`);
-    }
+    void import("../auth/force-auth-sign-out").then(({ forceAuthSignOutForScope }) => {
+      forceAuthSignOutForScope({
+        reason: "auth_failure",
+        redirectQuery: "reason=workspace"
+      });
+    });
   }
 }
 
 function handleFatalAuthFailure(): void {
-  if (typeof window === "undefined") return;
-  if (AUTH_SCOPE === "platform") {
-    usePlatformNotificationsStore.getState().clear();
-    usePlatformUserProfileStore.getState().clear();
-    usePlatformSessionStore.getState().clear({ boundaryReason: "auth_failure" });
-  } else {
-    useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
-  }
-  const loginPath = "/login";
-  if (!window.location.pathname.startsWith(loginPath)) {
-    window.location.assign(loginPath);
-  }
+  void import("../auth/force-auth-sign-out").then(({ forceAuthSignOutForScope }) => {
+    forceAuthSignOutForScope({
+      reason: "auth_failure",
+      redirectQuery: "reason=session-ended"
+    });
+  });
 }
 
 function readAuthToken(): string | null {
@@ -178,15 +163,17 @@ function readAuthToken(): string | null {
 
 async function refreshAuthToken(): Promise<string | null> {
   if (AUTH_SCOPE === "platform") {
+    const { tryRefreshPlatformSession } = await import("../auth/refresh-platform-session");
     return tryRefreshPlatformSession();
   }
+  const { tryRefreshSession } = await import("../auth/refresh-session");
   return tryRefreshSession();
 }
 
 function shouldAttemptRefresh(status: number, body: ApiErrorBody): boolean {
   if (status !== 401) return false;
   const reason = body.details?.reason;
-  if (reason && FATAL_AUTH_REASONS.has(reason)) return false;
+  if (reason && FATAL_AUTH_REASONS_SET.has(reason)) return false;
   return true;
 }
 
@@ -238,6 +225,10 @@ async function executeApiRequest<T>(
   let token = readAuthToken();
   if (token && isAccessTokenExpired(token)) {
     token = await refreshAuthToken();
+    if (!token) {
+      handleFatalAuthFailure();
+      throw new ApiRequestError("Session expired", 401, undefined, { reason: "token_expired" });
+    }
   }
   if (token && !isAccessTokenExpired(token)) {
     headers.Authorization = `Bearer ${token}`;
@@ -261,9 +252,16 @@ async function executeApiRequest<T>(
       if (refreshed) {
         return api<T>(path, { ...options, _retry: true });
       }
+      if (res.status === 401) {
+        handleFatalAuthFailure();
+      }
     }
 
-    if (res.status === 401 && body.details?.reason && FATAL_AUTH_REASONS.has(body.details.reason)) {
+    if (
+      res.status === 401 &&
+      body.details?.reason &&
+      FATAL_AUTH_REASONS_SET.has(body.details.reason)
+    ) {
       handleFatalAuthFailure();
     }
 

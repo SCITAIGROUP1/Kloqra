@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { waitForAdminShell } from "./helpers/shell";
 
 const PENDING_TENANT = {
   id: "00000000-0000-4000-8000-000000000099",
@@ -8,6 +9,49 @@ const PENDING_TENANT = {
   settings: {},
   createdAt: new Date().toISOString()
 };
+
+const PROVISIONED_OWNER_SESSION = {
+  user: { id: "00000000-0000-4000-8000-000000000001", name: "Provisioned Owner" },
+  tenantId: PENDING_TENANT.id,
+  tenantRole: "OWNER",
+  requiresWorkspaceSetup: true
+};
+
+async function mockProvisionedOwnerSession(page: Page) {
+  await page.route("**/auth/refresh", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...PROVISIONED_OWNER_SESSION,
+        accessToken: "provisioned-owner-access-token"
+      })
+    });
+  });
+  await page.route("**/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(PROVISIONED_OWNER_SESSION)
+    });
+  });
+  await page.addInitScript(() => {
+    const payload = btoa(
+      JSON.stringify({
+        sub: "00000000-0000-4000-8000-000000000001",
+        exp: Math.floor(Date.now() / 1000) + 3600
+      })
+    )
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+    localStorage.setItem("cm-admin-access-token", `e30.${payload}.sig`);
+  });
+}
 
 test("provisioned owner sees organization setup form", async ({ page }) => {
   await page.route("**/tenants/current", async (route) => {
@@ -53,20 +97,17 @@ test("organization page shows recoverable error when profile cannot be loaded", 
 });
 
 test("account overview prompts owner without workspace to create one", async ({ page }) => {
+  await mockProvisionedOwnerSession(page);
   await page.route("**/auth/me", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        user: { id: "00000000-0000-4000-8000-000000000001", name: "Provisioned Owner" },
-        tenantId: PENDING_TENANT.id,
-        tenantRole: "OWNER",
-        requiresWorkspaceSetup: true
-      })
+      body: JSON.stringify(PROVISIONED_OWNER_SESSION)
     });
   });
 
   await page.goto("/account");
+  await waitForAdminShell(page);
   await expect(page.getByRole("heading", { name: "Create your first workspace" })).toBeVisible({
     timeout: 30_000
   });
@@ -74,16 +115,12 @@ test("account overview prompts owner without workspace to create one", async ({ 
 });
 
 test("owner without workspace can open account settings and profile", async ({ page }) => {
+  await mockProvisionedOwnerSession(page);
   await page.route("**/auth/me", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        user: { id: "00000000-0000-4000-8000-000000000001", name: "Provisioned Owner" },
-        tenantId: PENDING_TENANT.id,
-        tenantRole: "OWNER",
-        requiresWorkspaceSetup: true
-      })
+      body: JSON.stringify(PROVISIONED_OWNER_SESSION)
     });
   });
 
@@ -128,6 +165,7 @@ test("owner without workspace can open account settings and profile", async ({ p
   });
 
   await page.goto("/account/settings?section=appearance");
+  await waitForAdminShell(page);
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Could not load settings")).toHaveCount(0);
 
@@ -137,16 +175,12 @@ test("owner without workspace can open account settings and profile", async ({ p
 });
 
 test("owner without workspace is redirected to required workspace setup", async ({ page }) => {
+  await mockProvisionedOwnerSession(page);
   await page.route("**/auth/me", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        user: { id: "00000000-0000-4000-8000-000000000001", name: "Provisioned Owner" },
-        tenantId: PENDING_TENANT.id,
-        tenantRole: "OWNER",
-        requiresWorkspaceSetup: true
-      })
+      body: JSON.stringify(PROVISIONED_OWNER_SESSION)
     });
   });
 
@@ -163,6 +197,7 @@ test("owner without workspace is redirected to required workspace setup", async 
   });
 
   await page.goto("/account/billing");
+  await waitForAdminShell(page);
   await expect(page).toHaveURL(/\/account\/workspaces\?setup=required/, { timeout: 15_000 });
   await expect(page.getByRole("dialog", { name: /create your first workspace/i })).toBeVisible();
 });

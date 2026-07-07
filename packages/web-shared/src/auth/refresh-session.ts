@@ -2,20 +2,21 @@ import { ROUTES } from "@kloqra/contracts";
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { getAccessToken, getRefreshToken, useSessionStore } from "../stores/session.store";
+import { type AuthErrorBody, isFatalAuthResponse } from "./auth-fatal-reasons";
 import {
   getAuthRefreshGeneration,
   isAuthRefreshStale,
-  onAuthRefreshInvalidated
+  onAuthRefreshInvalidated,
+  resetAuthRefreshRetryCount,
+  scheduleAuthRefreshRetry
 } from "./auth-refresh-guard";
+import { forceTenantAuthSignOut } from "./force-auth-sign-out";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
 import { configureProactiveRefresh, scheduleProactiveRefresh } from "./token-scheduler";
 
-export { invalidateAuthRefresh } from "./auth-refresh-guard";
+export { invalidateAuthRefresh, cancelAuthRefreshRetries } from "./auth-refresh-guard";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
-
-/** Retry delay when a background refresh fails but the user still appears signed in. */
-const REFRESH_RETRY_MS = 30_000;
 
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -46,12 +47,23 @@ function shouldApplyRefreshSession(body: AuthSessionDto): boolean {
   return true;
 }
 
-function scheduleRefreshRetry(): void {
-  if (typeof window === "undefined") return;
-  if (!getAccessToken()) return;
-  window.setTimeout(() => {
-    void tryRefreshSession();
-  }, REFRESH_RETRY_MS);
+function endTenantSessionAfterAuthFailure(): void {
+  forceTenantAuthSignOut({
+    reason: "auth_failure",
+    redirectQuery: "reason=session-ended"
+  });
+}
+
+function scheduleTransientRefreshRetry(): void {
+  scheduleAuthRefreshRetry(() => void tryRefreshSession(), endTenantSessionAfterAuthFailure);
+}
+
+async function parseResponseBody(res: Response): Promise<AuthErrorBody | undefined> {
+  try {
+    return (await res.json()) as AuthErrorBody;
+  } catch {
+    return undefined;
+  }
 }
 
 async function performRefresh(): Promise<string | null> {
@@ -68,29 +80,41 @@ async function performRefresh(): Promise<string | null> {
       body: JSON.stringify(storedRefresh ? { refreshToken: storedRefresh } : {})
     });
     if (isAuthRefreshStale(generation)) return null;
+
     if (!res.ok) {
-      scheduleRefreshRetry();
+      const body = await parseResponseBody(res);
+      if (isFatalAuthResponse(res.status, body)) {
+        endTenantSessionAfterAuthFailure();
+        return null;
+      }
+      scheduleTransientRefreshRetry();
       return null;
     }
+
     const body = (await res.json()) as AuthSessionDto & {
       accessToken?: string;
       refreshToken?: string;
     };
     if (isAuthRefreshStale(generation)) return null;
     if (!body.accessToken) {
-      scheduleRefreshRetry();
+      endTenantSessionAfterAuthFailure();
       return null;
     }
+
     if (!shouldApplyRefreshSession(body)) {
       if (body.user?.id) {
         useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken, {
           boundaryReason: "peer_sync"
         });
+        resetAuthRefreshRetryCount();
         return body.accessToken;
       }
+      endTenantSessionAfterAuthFailure();
       return null;
     }
+
     useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
+    resetAuthRefreshRetryCount();
     return body.accessToken;
   } catch (error) {
     if (isAuthRefreshStale(generation)) return null;
@@ -98,7 +122,7 @@ async function performRefresh(): Promise<string | null> {
       "[Refresh Session] Failed to fetch token refresh (API server may be offline):",
       error instanceof Error ? error.message : error
     );
-    scheduleRefreshRetry();
+    scheduleTransientRefreshRetry();
     return null;
   }
 }

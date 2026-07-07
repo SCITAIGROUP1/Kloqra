@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { SEED } from "./constants/seed";
+import { waitForAdminShell } from "./helpers/shell";
 
 test.describe("Admin categories", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/categories");
+    await waitForAdminShell(page);
     await expect(page.getByRole("heading", { name: "Categories", exact: true })).toBeVisible();
   });
 
