@@ -3,6 +3,7 @@
 import { ROUTES, type UserProfileDto } from "@kloqra/contracts";
 import { create } from "zustand";
 import { api } from "../api/client";
+import { profileApiOptions } from "../features/account/profile-cache-key";
 
 type ProfileEntry = {
   profile: UserProfileDto | null;
@@ -37,7 +38,7 @@ export const useUserProfileStore = create<UserProfileStoreState>((set, get) => (
       }
     }));
     try {
-      const profile = await api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId });
+      const profile = await api<UserProfileDto>(ROUTES.USERS.ME, profileApiOptions(workspaceId));
       set((state) => ({
         byWorkspace: {
           ...state.byWorkspace,

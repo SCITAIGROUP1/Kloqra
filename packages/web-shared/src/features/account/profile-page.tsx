@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import { AppBar, Card, CardContent, SegmentedControl, Skeleton } from "@kloqra/ui";
+import { AppBar, Button, EmptyState, SegmentedControl, Skeleton } from "@kloqra/ui";
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "../../api/client";
@@ -14,11 +14,24 @@ import { useUserProfile } from "./use-user-profile";
 
 type ProfileTab = "personal" | "work" | "integrations";
 
-export function ProfilePage() {
+export function ProfilePage({
+  settingsHref = "/settings?section=security"
+}: {
+  settingsHref?: string;
+}) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const hasWorkspace = Boolean(ws);
   const [tab, setTab] = useState<ProfileTab>("personal");
-  const { profile, loading, error, updateProfile, setProfile, workspaceRole, workspaceName } =
-    useUserProfile();
+  const {
+    profile,
+    loading,
+    error,
+    reload,
+    updateProfile,
+    setProfile,
+    workspaceRole,
+    workspaceName
+  } = useUserProfile();
 
   if (loading) {
     return (
@@ -32,11 +45,17 @@ export function ProfilePage() {
   if (error || !profile) {
     return (
       <div className="mx-auto w-full max-w-4xl">
-        <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
-          <CardContent className="py-8 text-sm text-destructive">
-            {error ?? "Could not load profile"}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Unable to load profile"
+          description={
+            error ?? "We couldn't retrieve your profile. Check your connection and try again."
+          }
+          action={
+            <Button variant="outline" onClick={() => void reload()}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -47,10 +66,7 @@ export function ProfilePage() {
         title="Profile"
         description="Manage your account and personal information."
         actions={
-          <Link
-            href="/settings?section=security"
-            className="text-sm font-medium text-primary hover:underline"
-          >
+          <Link href={settingsHref} className="text-sm font-medium text-primary hover:underline">
             Security settings
           </Link>
         }
@@ -70,7 +86,7 @@ export function ProfilePage() {
             options={[
               { value: "personal", label: "Personal Info" },
               { value: "work", label: "Work Details" },
-              { value: "integrations", label: "Integrations" }
+              ...(hasWorkspace ? [{ value: "integrations" as const, label: "Integrations" }] : [])
             ]}
             size="md"
             fullWidth
@@ -91,7 +107,7 @@ export function ProfilePage() {
               await updateProfile(data);
             }}
           />
-        ) : (
+        ) : hasWorkspace ? (
           <IntegrationsSection
             profile={profile}
             onSave={async (data) => {
@@ -107,7 +123,7 @@ export function ProfilePage() {
               }
             }}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

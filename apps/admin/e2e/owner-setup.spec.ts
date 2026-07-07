@@ -73,6 +73,69 @@ test("account overview prompts owner without workspace to create one", async ({ 
   await expect(page.getByRole("button", { name: "Create workspace" })).toBeVisible();
 });
 
+test("owner without workspace can open account settings and profile", async ({ page }) => {
+  await page.route("**/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: { id: "00000000-0000-4000-8000-000000000001", name: "Provisioned Owner" },
+        tenantId: PENDING_TENANT.id,
+        tenantRole: "OWNER",
+        requiresWorkspaceSetup: true
+      })
+    });
+  });
+
+  await page.route("**/users/me", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        email: "owner@example.com",
+        name: "Provisioned Owner",
+        firstName: "Provisioned",
+        lastName: "Owner",
+        phone: null,
+        location: null,
+        jobTitle: null,
+        department: null,
+        workStartDate: null,
+        preferences: { enabled: true },
+        effectiveDailyTargetHours: 8,
+        effectiveTimerStaleWarningHours: 8,
+        effectiveTimezone: "UTC",
+        effectiveDateFormat: "MDY",
+        effectiveTimeFormat: "12h",
+        effectiveTheme: "system",
+        twoFactorEnabled: false,
+        workContext: {
+          organizationName: PENDING_TENANT.name,
+          workspaceName: "No workspace yet",
+          workspaceRole: "ADMIN"
+        },
+        activityStats: {
+          totalHours: 0,
+          projectCount: 0,
+          memberSince: new Date().toISOString()
+        }
+      })
+    });
+  });
+
+  await page.goto("/account/settings?section=appearance");
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Could not load settings")).toHaveCount(0);
+
+  await page.goto("/account/profile");
+  await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Could not load profile")).toHaveCount(0);
+});
+
 test("owner without workspace is redirected to required workspace setup", async ({ page }) => {
   await page.route("**/auth/me", async (route) => {
     await route.fulfill({

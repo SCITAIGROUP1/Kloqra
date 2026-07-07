@@ -5,5 +5,5 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <ProfilePage />;
+  return <ProfilePage settingsHref="/account/settings?section=security" />;
 }

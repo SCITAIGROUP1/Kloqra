@@ -12,6 +12,7 @@ import {
   resolveEffectiveTimeFormat,
   resolveEffectiveTimerStaleWarningHours,
   resolveEffectiveTimezone,
+  DEFAULT_STALE_WARNING_HOURS,
   type ChangePasswordDto,
   type DashboardApp,
   type DashboardLayoutResponseDto,
@@ -29,6 +30,7 @@ import { AuthRevocationService } from "../../../common/auth/auth-revocation.serv
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { SmsService } from "../../../common/sms/sms.service";
+import { requireTenantOwnerOrAdmin } from "../../../common/tenant/tenant-context";
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { composeDisplayName, splitDisplayName } from "./user-name.util";
@@ -104,6 +106,91 @@ export class UsersService {
     });
     const activityStats = await this.getActivityStats(userId, workspaceId, user.createdAt);
     return this.toProfileDto(user, workspace, activityStats, role);
+  }
+
+  async getTenantOperatorProfile(userId: string, tenantId: string): Promise<UserProfileDto> {
+    await requireTenantOwnerOrAdmin(this.prisma, userId, tenantId);
+    const user = (await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: userProfileSelect as Prisma.UserSelect
+    })) as unknown as UserProfileRecord;
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { name: true, slug: true }
+    });
+    return this.toTenantOperatorProfileDto(user, tenant);
+  }
+
+  async updateTenantOperatorProfile(
+    userId: string,
+    tenantId: string,
+    dto: UpdateUserProfileDto
+  ): Promise<UserProfileDto> {
+    await requireTenantOwnerOrAdmin(this.prisma, userId, tenantId);
+    const existing = (await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: userProfileSelect as Prisma.UserSelect
+    })) as unknown as UserProfileRecord;
+
+    const currentNames = this.resolveNames(existing);
+    const firstName = dto.firstName ?? currentNames.firstName;
+    const lastName = dto.lastName ?? currentNames.lastName;
+    const name = dto.name ?? composeDisplayName(firstName, lastName);
+
+    const user = (await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        firstName,
+        lastName,
+        ...(dto.phone !== undefined
+          ? {
+              phone: dto.phone,
+              phoneVerifiedAt: dto.phone === existing.phone ? existing.phoneVerifiedAt : null
+            }
+          : {}),
+        ...(dto.location !== undefined ? { location: dto.location } : {}),
+        ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),
+        ...(dto.jobTitle !== undefined ? { jobTitle: dto.jobTitle } : {}),
+        ...(dto.department !== undefined ? { department: dto.department } : {}),
+        ...(dto.workStartDate !== undefined
+          ? { workStartDate: dto.workStartDate ? new Date(dto.workStartDate) : null }
+          : {})
+      },
+      select: userProfileSelect as Prisma.UserSelect
+    })) as unknown as UserProfileRecord;
+
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { name: true, slug: true }
+    });
+    return this.toTenantOperatorProfileDto(user, tenant);
+  }
+
+  async updateTenantOperatorPreferences(
+    userId: string,
+    tenantId: string,
+    dto: UpdateUserPreferencesDto
+  ): Promise<UserProfileDto> {
+    await requireTenantOwnerOrAdmin(this.prisma, userId, tenantId);
+    const existing = (await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { preferences: true } as Prisma.UserSelect
+    })) as unknown as { preferences: Prisma.JsonValue };
+    const currentPreferences = parseUserPreferences(existing.preferences);
+    const merged = mergeUserPreferences(currentPreferences, dto);
+
+    const user = (await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferences: merged as Prisma.InputJsonValue } as Prisma.UserUpdateInput,
+      select: userProfileSelect as Prisma.UserSelect
+    })) as unknown as UserProfileRecord;
+
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { name: true, slug: true }
+    });
+    return this.toTenantOperatorProfileDto(user, tenant);
   }
 
   async updateProfile(
@@ -343,6 +430,51 @@ export class UsersService {
         user.jiraEmail && workspaceSettings.jiraSiteUrl && workspaceSettings.jiraServiceToken
       ),
       workspaceJiraSiteUrl: workspaceSettings.jiraSiteUrl ?? null
+    };
+  }
+
+  private toTenantOperatorProfileDto(
+    user: UserProfileRecord,
+    tenant: { name: string; slug: string }
+  ): UserProfileDto {
+    const parsedPreferences = parseUserPreferences(user.preferences);
+    const { dashboardLayouts: _layouts, ...preferences } = parsedPreferences;
+    const names = this.resolveNames(user);
+
+    return {
+      email: user.email,
+      name: user.name,
+      firstName: names.firstName,
+      lastName: names.lastName,
+      phone: user.phone,
+      location: user.location,
+      jobTitle: user.jobTitle,
+      department: user.department,
+      workStartDate: user.workStartDate ? user.workStartDate.toISOString().slice(0, 10) : null,
+      defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null,
+      preferences,
+      effectiveDailyTargetHours: resolveEffectiveDailyTargetHours(parsedPreferences),
+      effectiveTimerStaleWarningHours: DEFAULT_STALE_WARNING_HOURS,
+      effectiveTimezone: resolveEffectiveTimezone(parsedPreferences),
+      effectiveDateFormat: resolveEffectiveDateFormat(parsedPreferences),
+      effectiveTimeFormat: resolveEffectiveTimeFormat(parsedPreferences),
+      effectiveTheme: resolveEffectiveTheme(parsedPreferences),
+      twoFactorEnabled: Boolean(user.totpEnabledAt),
+      phoneVerifiedAt: user.phoneVerifiedAt ? user.phoneVerifiedAt.toISOString() : null,
+      pendingPhone: user.pendingPhone,
+      workContext: {
+        organizationName: tenant.name,
+        workspaceName: "No workspace yet",
+        workspaceRole: "ADMIN"
+      },
+      activityStats: {
+        totalHours: 0,
+        projectCount: 0,
+        memberSince: user.createdAt.toISOString()
+      },
+      jiraEmail: user.jiraEmail,
+      jiraConnected: false,
+      workspaceJiraSiteUrl: null
     };
   }
 

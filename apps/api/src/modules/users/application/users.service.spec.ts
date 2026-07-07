@@ -41,6 +41,12 @@ describe("UsersService", () => {
       workspace: {
         findUniqueOrThrow: vi.fn()
       },
+      tenant: {
+        findUniqueOrThrow: vi.fn()
+      },
+      tenantMember: {
+        findUnique: vi.fn()
+      },
       timeLog: {
         aggregate: vi.fn().mockResolvedValue({ _sum: { durationSec: 3600 } })
       },
@@ -89,6 +95,29 @@ describe("UsersService", () => {
       workspaceName: "Acme Corporation",
       workspaceRole: "ADMIN"
     });
+  });
+
+  it("returns tenant operator profile without workspace context", async () => {
+    mockPrisma.tenantMember.findUnique.mockResolvedValue({
+      tenantId: "tenant-1",
+      role: "OWNER",
+      isActive: true
+    });
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
+    mockPrisma.tenant.findUniqueOrThrow.mockResolvedValue({
+      name: "Kloqra Test",
+      slug: "kloqra-test"
+    });
+
+    const profile = await service.getTenantOperatorProfile("user-1", "tenant-1");
+
+    expect(profile.workContext).toEqual({
+      organizationName: "Kloqra Test",
+      workspaceName: "No workspace yet",
+      workspaceRole: "ADMIN"
+    });
+    expect(profile.activityStats.totalHours).toBe(0);
+    expect(profile.jiraConnected).toBe(false);
   });
 
   it("falls back to workspace daily target when user preference unset", async () => {

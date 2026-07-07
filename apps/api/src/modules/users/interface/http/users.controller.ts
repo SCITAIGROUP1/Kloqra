@@ -30,6 +30,11 @@ import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { refreshCookieName, getAuthScope } from "../../../../common/auth/auth-scope";
 import {
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
+import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
+import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
@@ -50,21 +55,33 @@ export class UsersController {
   ) {}
 
   @Get(ROUTES.USERS.ME)
-  getMe(@WorkspaceUser() user: WorkspaceRequestUser) {
-    return this.users.getProfile(user.userId, user.workspaceId, user.role);
+  @TenantScoped()
+  getMe(@CurrentUser() user: RequestUser) {
+    if (user.workspaceId && user.role) {
+      return this.users.getProfile(user.userId, user.workspaceId, user.role);
+    }
+    return this.users.getTenantOperatorProfile(user.userId, user.tenantId);
   }
 
   @Patch(ROUTES.USERS.ME)
+  @TenantScoped()
   updateMe(
-    @WorkspaceUser() user: WorkspaceRequestUser,
+    @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(updateUserProfileSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
-    return this.users.updateProfile(
+    if (user.workspaceId && user.role) {
+      return this.users.updateProfile(
+        user.userId,
+        user.workspaceId,
+        body as Parameters<UsersService["updateProfile"]>[2],
+        user.role
+      );
+    }
+    return this.users.updateTenantOperatorProfile(
       user.userId,
-      user.workspaceId,
-      body as Parameters<UsersService["updateProfile"]>[2],
-      user.role
+      user.tenantId,
+      body as Parameters<UsersService["updateTenantOperatorProfile"]>[2]
     );
   }
 
@@ -90,23 +107,32 @@ export class UsersController {
   }
 
   @Patch(ROUTES.USERS.PREFERENCES)
+  @TenantScoped()
   updatePreferences(
-    @WorkspaceUser() user: WorkspaceRequestUser,
+    @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(updateUserPreferencesSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
-    return this.users.updatePreferences(
+    if (user.workspaceId && user.role) {
+      return this.users.updatePreferences(
+        user.userId,
+        user.workspaceId,
+        body as Parameters<UsersService["updatePreferences"]>[2],
+        user.role
+      );
+    }
+    return this.users.updateTenantOperatorPreferences(
       user.userId,
-      user.workspaceId,
-      body as Parameters<UsersService["updatePreferences"]>[2],
-      user.role
+      user.tenantId,
+      body as Parameters<UsersService["updateTenantOperatorPreferences"]>[2]
     );
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.USERS.PASSWORD)
+  @TenantScoped()
   changePassword(
-    @WorkspaceUser() user: WorkspaceRequestUser,
+    @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(changePasswordSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
@@ -117,20 +143,23 @@ export class UsersController {
   }
 
   @Get(ROUTES.USERS.SESSIONS)
-  listSessions(@WorkspaceUser() user: WorkspaceRequestUser, @Req() req: Request) {
+  @TenantScoped()
+  listSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
     const scope = getAuthScope(req);
     const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
     return this.sessions.listSessions(user.userId, refresh);
   }
 
   @Delete(ROUTES.USERS.SESSION(":id"))
-  revokeSession(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") sessionId: string) {
+  @TenantScoped()
+  revokeSession(@CurrentUser() user: RequestUser, @Param("id") sessionId: string) {
     this.assertNotImpersonating(user);
     return this.sessions.revokeSession(user.userId, sessionId);
   }
 
   @Post(ROUTES.USERS.REVOKE_OTHER_SESSIONS)
-  revokeOtherSessions(@WorkspaceUser() user: WorkspaceRequestUser, @Req() req: Request) {
+  @TenantScoped()
+  revokeOtherSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
     this.assertNotImpersonating(user);
     const scope = getAuthScope(req);
     const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
@@ -138,16 +167,20 @@ export class UsersController {
   }
 
   @Post(ROUTES.USERS.TWO_FA_ENABLE)
-  enable2fa(@WorkspaceUser() user: WorkspaceRequestUser) {
+  @TenantScoped()
+  enable2fa(@CurrentUser() user: RequestUser) {
     this.assertNotImpersonating(user);
-    return this.users
-      .getProfile(user.userId, user.workspaceId, user.role)
-      .then((profile) => this.twoFa.enable(user.userId, profile.email));
+    const profilePromise =
+      user.workspaceId && user.role
+        ? this.users.getProfile(user.userId, user.workspaceId, user.role)
+        : this.users.getTenantOperatorProfile(user.userId, user.tenantId);
+    return profilePromise.then((profile) => this.twoFa.enable(user.userId, profile.email));
   }
 
   @Post(ROUTES.USERS.TWO_FA_VERIFY)
+  @TenantScoped()
   verify2fa(
-    @WorkspaceUser() user: WorkspaceRequestUser,
+    @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(twoFactorVerifySchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
@@ -179,8 +212,9 @@ export class UsersController {
   }
 
   @Post(ROUTES.USERS.TWO_FA_DISABLE)
+  @TenantScoped()
   disable2fa(
-    @WorkspaceUser() user: WorkspaceRequestUser,
+    @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(twoFactorDisableSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
@@ -205,7 +239,7 @@ export class UsersController {
     return this.users.verifyPhoneOtp(user.userId, user.workspaceId, body.code, user.role);
   }
 
-  private assertNotImpersonating(user: WorkspaceRequestUser) {
+  private assertNotImpersonating(user: RequestUser) {
     if (user.impersonatorId) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,

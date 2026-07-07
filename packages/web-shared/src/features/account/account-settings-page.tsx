@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CrossfadePresence, LoadingCrossfade, Skeleton } from "@kloqra/ui";
+import { CrossfadePresence, EmptyState, LoadingCrossfade, Skeleton, Button } from "@kloqra/ui";
 import { Bell, Clock, Monitor, Shield, UserCog } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -83,6 +83,7 @@ export function AccountSettingsPage({
     profile,
     loading,
     error,
+    reload,
     updatePreferences,
     changePassword,
     listSessions,
@@ -111,11 +112,18 @@ export function AccountSettingsPage({
   if (error || (!loading && !profile)) {
     return (
       <div className="mx-auto w-full max-w-5xl">
-        <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
-          <CardContent className="py-8 text-sm text-destructive">
-            {error ?? "Could not load settings"}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Unable to load settings"
+          description={
+            error ??
+            "We couldn't retrieve your account settings. Check your connection and try again."
+          }
+          action={
+            <Button variant="outline" onClick={() => void reload()}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     );
   }

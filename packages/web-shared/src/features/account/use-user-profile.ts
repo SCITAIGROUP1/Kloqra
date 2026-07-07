@@ -11,140 +11,147 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { logoutSession } from "../../auth/logout";
-import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { useSessionStore } from "../../stores/session.store";
 import { useUserProfileStore } from "../../stores/user-profile.store";
+import { profileApiOptions, useProfileCacheKey } from "./profile-cache-key";
 
 export function useUserProfile() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const cacheKey = useProfileCacheKey();
   const setSession = useSessionStore((s) => s.setSession);
   const session = useSessionStore((s) => s.session);
   const accessToken = useSessionStore((s) => s.accessToken);
 
-  const profile = useUserProfileStore((s) => (ws ? (s.byWorkspace[ws]?.profile ?? null) : null));
-  const loading = useUserProfileStore((s) => (ws ? (s.byWorkspace[ws]?.loading ?? false) : false));
+  const profile = useUserProfileStore((s) =>
+    cacheKey ? (s.byWorkspace[cacheKey]?.profile ?? null) : null
+  );
+  const loading = useUserProfileStore((s) =>
+    cacheKey ? (s.byWorkspace[cacheKey]?.loading ?? false) : false
+  );
   const subscribe = useUserProfileStore((s) => s.subscribe);
   const refresh = useUserProfileStore((s) => s.refresh);
   const setProfile = useUserProfileStore((s) => s.setProfile);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ws) return;
-    return subscribe(ws);
-  }, [ws, subscribe]);
+    if (!cacheKey) return;
+    return subscribe(cacheKey);
+  }, [cacheKey, subscribe]);
 
   const reload = useCallback(async () => {
-    if (!ws) return;
+    if (!cacheKey) return;
     setError(null);
     try {
-      await refresh(ws);
+      await refresh(cacheKey);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load profile");
+      setError(e instanceof Error ? e.message : "We couldn't load your profile. Please try again.");
     }
-  }, [ws, refresh]);
+  }, [cacheKey, refresh]);
+
+  const apiOpts = profileApiOptions(cacheKey);
 
   const updateProfile = useCallback(
     async (dto: UpdateUserProfileDto) => {
-      if (!ws) throw new Error("No workspace");
+      if (!cacheKey) throw new Error("No active account context");
       const updated = await api<UserProfileDto>(ROUTES.USERS.ME, {
         method: "PATCH",
-        workspaceId: ws,
+        ...apiOpts,
         body: JSON.stringify(dto)
       });
-      setProfile(ws, updated);
+      setProfile(cacheKey, updated);
       if (session && accessToken && updated.name) {
         setSession({ ...session, user: { ...session.user, name: updated.name } }, accessToken);
       }
       return updated;
     },
-    [ws, session, accessToken, setSession, setProfile]
+    [cacheKey, apiOpts, session, accessToken, setSession, setProfile]
   );
 
   const updateName = useCallback(async (name: string) => updateProfile({ name }), [updateProfile]);
 
   const updatePreferences = useCallback(
     async (preferences: Record<string, unknown>) => {
-      if (!ws) throw new Error("No workspace");
+      if (!cacheKey) throw new Error("No active account context");
       const updated = await api<UserProfileDto>(ROUTES.USERS.PREFERENCES, {
         method: "PATCH",
-        workspaceId: ws,
+        ...apiOpts,
         body: JSON.stringify(preferences)
       });
-      setProfile(ws, updated);
+      setProfile(cacheKey, updated);
       return updated;
     },
-    [ws, setProfile]
+    [cacheKey, apiOpts, setProfile]
   );
 
   const changePassword = useCallback(
     async (currentPassword: string, newPassword: string) => {
-      if (!ws) throw new Error("No workspace");
+      if (!cacheKey) throw new Error("No active account context");
       await api(ROUTES.USERS.PASSWORD, {
         method: "POST",
-        workspaceId: ws,
+        ...apiOpts,
         body: JSON.stringify({ currentPassword, newPassword })
       });
-      await logoutSession(ws);
+      await logoutSession(session?.workspaceId);
     },
-    [ws]
+    [cacheKey, apiOpts, session?.workspaceId]
   );
 
   const listSessions = useCallback(async () => {
-    if (!ws) throw new Error("No workspace");
-    return api<UserSessionDto[]>(ROUTES.USERS.SESSIONS, { workspaceId: ws });
-  }, [ws]);
+    if (!cacheKey) throw new Error("No active account context");
+    return api<UserSessionDto[]>(ROUTES.USERS.SESSIONS, apiOpts);
+  }, [cacheKey, apiOpts]);
 
   const revokeSession = useCallback(
     async (sessionId: string) => {
-      if (!ws) throw new Error("No workspace");
+      if (!cacheKey) throw new Error("No active account context");
       await api(ROUTES.USERS.SESSION(sessionId), {
         method: "DELETE",
-        workspaceId: ws
+        ...apiOpts
       });
     },
-    [ws]
+    [cacheKey, apiOpts]
   );
 
   const revokeOtherSessions = useCallback(async () => {
-    if (!ws) throw new Error("No workspace");
+    if (!cacheKey) throw new Error("No active account context");
     return api<{ revoked: number }>(ROUTES.USERS.REVOKE_OTHER_SESSIONS, {
       method: "POST",
-      workspaceId: ws,
+      ...apiOpts,
       body: JSON.stringify({})
     });
-  }, [ws]);
+  }, [cacheKey, apiOpts]);
 
   const enable2fa = useCallback(async () => {
-    if (!ws) throw new Error("No workspace");
+    if (!cacheKey) throw new Error("No active account context");
     return api<{ secret: string; otpauthUrl: string }>(ROUTES.USERS.TWO_FA_ENABLE, {
       method: "POST",
-      workspaceId: ws
+      ...apiOpts
     });
-  }, [ws]);
+  }, [cacheKey, apiOpts]);
 
   const verify2fa = useCallback(
     async (dto: TwoFactorVerifyDto) => {
-      if (!ws) throw new Error("No workspace");
+      if (!cacheKey) throw new Error("No active account context");
       await api(ROUTES.USERS.TWO_FA_VERIFY, {
         method: "POST",
-        workspaceId: ws,
+        ...apiOpts,
         body: JSON.stringify(dto)
       });
       await reload();
     },
-    [ws, reload]
+    [cacheKey, apiOpts, reload]
   );
 
   const disable2fa = useCallback(
     async (dto: TwoFactorDisableDto) => {
-      if (!ws) throw new Error("No workspace");
+      if (!cacheKey) throw new Error("No active account context");
       await api(ROUTES.USERS.TWO_FA_DISABLE, {
         method: "POST",
-        workspaceId: ws,
+        ...apiOpts,
         body: JSON.stringify(dto)
       });
       await reload();
     },
-    [ws, reload]
+    [cacheKey, apiOpts, reload]
   );
 
   return {
@@ -155,7 +162,10 @@ export function useUserProfile() {
     updateProfile,
     updateName,
     updatePreferences,
-    setProfile: (next: UserProfileDto) => setProfile(ws, next),
+    setProfile: (next: UserProfileDto) => {
+      if (!cacheKey) return;
+      setProfile(cacheKey, next);
+    },
     changePassword,
     listSessions,
     revokeSession,
