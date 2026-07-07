@@ -130,8 +130,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     const workspaceDataChannel = isPlatform ? null : workspaceDataUserChannel(userId);
     const eventName = isPlatform ? PLATFORM_NOTIFICATION_CREATED_EVENT : NOTIFICATION_CREATED_EVENT;
 
-    sub.on("message", (channelName: string, raw: unknown) => {
-      if (typeof raw !== "string") return;
+    sub.on("message", (...args: unknown[]) => {
+      const channelName = args[0];
+      const raw = args[1];
+      if (typeof channelName !== "string" || typeof raw !== "string") return;
       try {
         if (channelName === channel) {
           const payload = JSON.parse(raw) as NotificationCreatedEvent;
@@ -148,7 +150,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     });
 
     const channels = workspaceDataChannel ? [channel, workspaceDataChannel] : [channel];
-    await sub.subscribe(...channels);
+    for (const redisChannel of channels) {
+      await sub.subscribe(redisChannel);
+    }
     this.userPools.set(key, {
       sub,
       listenerCount: 1,
@@ -169,7 +173,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
     this.userPools.delete(key);
     try {
-      await pool.sub.unsubscribe(...pool.channels);
+      for (const redisChannel of pool.channels) {
+        await pool.sub.unsubscribe(redisChannel);
+      }
       await pool.sub.quit();
     } catch {
       // ignore

@@ -67,6 +67,27 @@ describe("NotificationsGateway", () => {
     expect(jwtTokens.verifyAccessToken).toHaveBeenCalledWith("valid-token", "client");
     expect(client.join).toHaveBeenCalledWith("user:user-1");
     expect(redisSub.subscribe).toHaveBeenCalled();
+    expect(redisSub.subscribe).toHaveBeenCalledTimes(2);
+    expect(redisSub.subscribe).toHaveBeenCalledWith("notifications:user:user-1");
+    expect(redisSub.subscribe).toHaveBeenCalledWith("workspace-data:user:user-1");
+  });
+
+  it("unsubscribes each redis channel when the last socket disconnects", async () => {
+    const client = {
+      handshake: { auth: { token: "valid-token", scope: "client" } },
+      join: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn(),
+      data: {} as { userId?: string; isPlatform?: boolean }
+    };
+
+    await gateway.handleConnection(client as never);
+    client.data = { userId: "user-1", isPlatform: false };
+    await gateway.handleDisconnect(client as never);
+
+    expect(redisSub.unsubscribe).toHaveBeenCalledTimes(2);
+    expect(redisSub.unsubscribe).toHaveBeenCalledWith("notifications:user:user-1");
+    expect(redisSub.unsubscribe).toHaveBeenCalledWith("workspace-data:user:user-1");
+    expect(redisSub.quit).toHaveBeenCalled();
   });
 
   it("forwards redis messages to socket room", async () => {
