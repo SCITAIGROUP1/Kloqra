@@ -52,6 +52,27 @@ test("organization page shows recoverable error when profile cannot be loaded", 
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
+test("account overview prompts owner without workspace to create one", async ({ page }) => {
+  await page.route("**/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: { id: "00000000-0000-4000-8000-000000000001", name: "Provisioned Owner" },
+        tenantId: PENDING_TENANT.id,
+        tenantRole: "OWNER",
+        requiresWorkspaceSetup: true
+      })
+    });
+  });
+
+  await page.goto("/account");
+  await expect(page.getByRole("heading", { name: "Create your first workspace" })).toBeVisible({
+    timeout: 30_000
+  });
+  await expect(page.getByRole("button", { name: "Create workspace" })).toBeVisible();
+});
+
 test("owner without workspace is redirected to required workspace setup", async ({ page }) => {
   await page.route("**/auth/me", async (route) => {
     await route.fulfill({

@@ -3,16 +3,17 @@
 
 import {
   AppBar,
+  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CenteredLoader,
   DateRangePicker,
+  EmptyState,
   SegmentedControl,
   Skeleton,
-  WidgetShell,
-  Button
+  WidgetShell
 } from "@kloqra/ui";
 import {
   localMidnightUtcInZone,
@@ -24,7 +25,8 @@ import {
   DashboardArrangeBanner,
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
-  generateResponsiveLayouts
+  generateResponsiveLayouts,
+  isPendingWorkspaceSetup
 } from "@kloqra/web-shared";
 import {
   Building2,
@@ -39,6 +41,7 @@ import {
   Move
 } from "lucide-react";
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import {
   ResponsiveContainer,
@@ -63,6 +66,7 @@ import { formatDurationClock } from "@/components/report-charts";
 import { useAccountWidgetLayout } from "./use-account-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
+import { useSessionStore } from "@/stores/session.store";
 
 type AccountRollupPreset = "7d" | "30d" | "90d" | "custom";
 
@@ -115,7 +119,32 @@ function formatMoney(amount: number, currency: string) {
   }
 }
 
+function isWorkspaceSetupError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  const lower = message.toLowerCase();
+  return lower.includes("workspace not found") || lower.includes("workspace required");
+}
+
+function AccountWorkspaceSetupPrompt({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="space-y-6">
+      <AppBar title="Account overview" description="Organization summary and plan status." />
+      <EmptyState
+        title="Create your first workspace"
+        description="Your organization is ready. Create a workspace to view metrics, assign admins, and start tracking time."
+        action={
+          <Button type="button" onClick={onCreate}>
+            Create workspace
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
 export function AccountOverviewPage() {
+  const router = useRouter();
+  const session = useSessionStore((s) => s.session);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const initialRange = useMemo(() => applyAccountRollupPreset("30d", timezone), [timezone]);
 
@@ -123,7 +152,14 @@ export function AccountOverviewPage() {
   const [startDate, setStartDate] = useState(initialRange.from);
   const [endDate, setEndDate] = useState(initialRange.to);
 
-  const { overview, loading: overviewLoading, error: overviewError } = useTenantOverview();
+  const {
+    overview,
+    loading: overviewLoading,
+    error: overviewError,
+    reload: reloadOverview
+  } = useTenantOverview();
+
+  const goToWorkspaceSetup = () => router.push("/account/workspaces?setup=required");
 
   const { from, to } = useMemo(
     () => dateKeysToIsoRange(startDate, endDate, timezone),
@@ -248,10 +284,28 @@ export function AccountOverviewPage() {
   };
 
   if (overviewLoading) return <CenteredLoader label="Loading account overview…" />;
+  if (isPendingWorkspaceSetup(session)) {
+    return <AccountWorkspaceSetupPrompt onCreate={goToWorkspaceSetup} />;
+  }
+  if (isWorkspaceSetupError(overviewError) || overview?.workspaceCount === 0) {
+    return <AccountWorkspaceSetupPrompt onCreate={goToWorkspaceSetup} />;
+  }
   if (overviewError || !overview) {
     return (
-      <div className="p-6 text-sm text-destructive">
-        {overviewError ?? "Account overview unavailable"}
+      <div className="space-y-6">
+        <AppBar title="Account overview" description="Organization summary and plan status." />
+        <EmptyState
+          title="Unable to load account overview"
+          description={
+            overviewError ??
+            "We couldn't retrieve your organization summary. Check your connection and try again."
+          }
+          action={
+            <Button variant="outline" onClick={() => void reloadOverview()}>
+              Try again
+            </Button>
+          }
+        />
       </div>
     );
   }

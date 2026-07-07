@@ -28,7 +28,7 @@ export function resolveApiWorkspaceId(explicit?: string | null): string | null {
     }
     return fromToken;
   }
-  return explicit ?? getWorkspaceId();
+  return explicit?.trim() || null;
 }
 
 export function isWorkspaceMismatchError(message: string): boolean {

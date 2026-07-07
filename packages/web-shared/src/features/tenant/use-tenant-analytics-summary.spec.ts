@@ -11,9 +11,12 @@ vi.mock("../../api/client", () => ({
 }));
 
 vi.mock("../../stores/session.store", () => ({
-  getWorkspaceId: () => "ws-1",
   useSessionStore: (selector: (s: { session: { workspaceId: string } }) => unknown) =>
     selector({ session: { workspaceId: "ws-1" } })
+}));
+
+vi.mock("../../auth/workspace-context", () => ({
+  resolveApiWorkspaceId: (explicit?: string | null) => explicit ?? null
 }));
 
 describe("useTenantAnalyticsSummary", () => {

@@ -60,8 +60,11 @@ export function canAccessAccountPath(
 }
 
 export function defaultAccountLandingPath(
-  session: Pick<AuthSessionDto, "tenantRole"> | null | undefined
+  session: Partial<Pick<AuthSessionDto, "tenantRole" | "requiresWorkspaceSetup">> | null | undefined
 ): string {
+  if (session?.requiresWorkspaceSetup) {
+    return "/account/workspaces?setup=required";
+  }
   if (session?.tenantRole === "ADMIN") return "/account/workspaces";
   return "/account";
 }

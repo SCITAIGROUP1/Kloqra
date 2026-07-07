@@ -3,32 +3,32 @@
 import { ROUTES, type TenantOverviewDto } from "@kloqra/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { tenantApiOptions, useTenantApiWorkspaceId } from "./tenant-api-workspace";
 
 export function useTenantOverview() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const workspaceId = useTenantApiWorkspaceId();
   const [overview, setOverview] = useState<TenantOverviewDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!ws) {
-      setOverview(null);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const data = await api<TenantOverviewDto>(ROUTES.TENANTS.OVERVIEW, { workspaceId: ws });
+      const data = await api<TenantOverviewDto>(
+        ROUTES.TENANTS.OVERVIEW,
+        tenantApiOptions(workspaceId)
+      );
       setOverview(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load account overview");
+      setError(
+        e instanceof Error ? e.message : "We couldn't load your account overview. Please try again."
+      );
       setOverview(null);
     } finally {
       setLoading(false);
     }
-  }, [ws]);
+  }, [workspaceId]);
 
   useEffect(() => {
     void reload();

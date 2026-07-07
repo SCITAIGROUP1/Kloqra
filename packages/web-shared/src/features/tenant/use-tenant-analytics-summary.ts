@@ -3,16 +3,16 @@
 import { ROUTES, type TenantAnalyticsSummaryDto } from "@kloqra/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { tenantApiOptions, useTenantApiWorkspaceId } from "./tenant-api-workspace";
 
 export function useTenantAnalyticsSummary(from: string, to: string) {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const workspaceId = useTenantApiWorkspaceId();
   const [summary, setSummary] = useState<TenantAnalyticsSummaryDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!ws || !from || !to) {
+    if (!from || !to) {
       setSummary(null);
       setLoading(false);
       return;
@@ -23,16 +23,20 @@ export function useTenantAnalyticsSummary(from: string, to: string) {
       const params = new URLSearchParams({ from, to });
       const data = await api<TenantAnalyticsSummaryDto>(
         `${ROUTES.TENANTS.ANALYTICS_SUMMARY}?${params}`,
-        { workspaceId: ws }
+        tenantApiOptions(workspaceId)
       );
       setSummary(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load organization analytics");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "We couldn't load organization analytics. Please try again."
+      );
       setSummary(null);
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to]);
+  }, [workspaceId, from, to]);
 
   useEffect(() => {
     void reload();

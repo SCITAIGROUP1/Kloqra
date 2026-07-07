@@ -30,5 +30,8 @@ describe("organization-access", () => {
   it("lands organization admin on workspaces", () => {
     expect(defaultAccountLandingPath({ tenantRole: "ADMIN" })).toBe("/account/workspaces");
     expect(defaultAccountLandingPath({ tenantRole: "OWNER" })).toBe("/account");
+    expect(defaultAccountLandingPath({ tenantRole: "OWNER", requiresWorkspaceSetup: true })).toBe(
+      "/account/workspaces?setup=required"
+    );
   });
 });

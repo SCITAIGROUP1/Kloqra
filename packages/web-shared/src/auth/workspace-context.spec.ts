@@ -28,11 +28,12 @@ describe("resolveApiWorkspaceId", () => {
     expect(syncWorkspaceIdToStorage).toHaveBeenCalledWith("ws-from-jwt");
   });
 
-  it("falls back to explicit then storage when JWT has no workspace", () => {
+  it("falls back to explicit id when JWT has no workspace", () => {
     vi.mocked(readWorkspaceIdFromToken).mockReturnValue(null);
-    vi.mocked(getWorkspaceId).mockReturnValue("ws-storage");
 
     expect(resolveApiWorkspaceId("ws-explicit")).toBe("ws-explicit");
-    expect(resolveApiWorkspaceId()).toBe("ws-storage");
+    expect(resolveApiWorkspaceId()).toBeNull();
+    expect(resolveApiWorkspaceId(null)).toBeNull();
+    expect(getWorkspaceId).not.toHaveBeenCalled();
   });
 });
