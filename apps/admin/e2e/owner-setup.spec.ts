@@ -30,6 +30,28 @@ test("provisioned owner sees organization setup form", async ({ page }) => {
   await expect(page.getByLabel("Organization ID")).toBeVisible();
 });
 
+test("organization page shows recoverable error when profile cannot be loaded", async ({
+  page
+}) => {
+  await page.route("**/tenants/current", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "Service unavailable" })
+    });
+  });
+
+  await page.goto("/account/organization");
+  await expect(page.getByText("Unable to load organization profile")).toBeVisible({
+    timeout: 30_000
+  });
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+});
+
 test("owner without workspace is redirected to required workspace setup", async ({ page }) => {
   await page.route("**/auth/me", async (route) => {
     await route.fulfill({

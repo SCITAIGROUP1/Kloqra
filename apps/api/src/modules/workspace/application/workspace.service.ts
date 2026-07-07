@@ -652,7 +652,7 @@ export class WorkspaceService {
     await this.planLimit.assertWorkspaceCreateAllowed(tenantId);
     await this.assertNameAvailable(dto.name, tenantId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
         data: {
           tenantId,
@@ -671,6 +671,37 @@ export class WorkspaceService {
       });
 
       return this.toWorkspaceWithRole(workspace, "ADMIN");
+    });
+
+    void this.notifyWorkspaceCreated(tenantId, userId, created).catch(() => undefined);
+
+    return created;
+  }
+
+  private async notifyWorkspaceCreated(
+    tenantId: string,
+    actingUserId: string,
+    workspace: WorkspaceWithRoleDto
+  ): Promise<void> {
+    const [creator, tenant] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: actingUserId },
+        select: { name: true }
+      }),
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { name: true }
+      })
+    ]);
+
+    await this.notificationsDispatch.notifyTenantOperators(tenantId, workspace.id, {
+      templateId: "workspace.created",
+      context: {
+        workspaceName: workspace.name,
+        creatorName: creator?.name,
+        organizationName: tenant?.name
+      },
+      excludeUserId: actingUserId
     });
   }
 

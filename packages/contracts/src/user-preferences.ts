@@ -45,7 +45,8 @@ export const adminNotificationKeySchema = z.enum([
   "memberChanges",
   "exportSchedule",
   "budgetAlert",
-  "missingTimesheets"
+  "missingTimesheets",
+  "workspaceCreated"
 ]);
 
 export const notificationPreferenceKeySchema = z.union([
@@ -71,7 +72,8 @@ export const userNotificationsSchema = z.object({
   memberChanges: notificationPreferenceSchema,
   exportSchedule: notificationPreferenceSchema,
   budgetAlert: notificationPreferenceSchema,
-  missingTimesheets: notificationPreferenceSchema
+  missingTimesheets: notificationPreferenceSchema,
+  workspaceCreated: notificationPreferenceSchema
 });
 
 export type ResolvedUserNotifications = {
@@ -89,6 +91,7 @@ export type ResolvedUserNotifications = {
   exportSchedule: NotificationChannels;
   budgetAlert: NotificationChannels;
   missingTimesheets: NotificationChannels;
+  workspaceCreated: NotificationChannels;
 };
 
 const memberChannelDefaults: Record<MemberNotificationKey, NotificationChannels> = {
@@ -107,7 +110,8 @@ const adminChannelDefaults: Record<AdminNotificationKey, NotificationChannels> =
   memberChanges: { inApp: true, email: false },
   exportSchedule: { inApp: true, email: true },
   budgetAlert: { inApp: true, email: false },
-  missingTimesheets: { inApp: true, email: true }
+  missingTimesheets: { inApp: true, email: true },
+  workspaceCreated: { inApp: true, email: true }
 };
 
 export const DEFAULT_USER_NOTIFICATIONS: ResolvedUserNotifications = {
@@ -217,7 +221,8 @@ export function mergeUserPreferences(
       memberChanges: mergeNotificationKey(cur, part, "memberChanges"),
       exportSchedule: mergeNotificationKey(cur, part, "exportSchedule"),
       budgetAlert: mergeNotificationKey(cur, part, "budgetAlert"),
-      missingTimesheets: mergeNotificationKey(cur, part, "missingTimesheets")
+      missingTimesheets: mergeNotificationKey(cur, part, "missingTimesheets"),
+      workspaceCreated: mergeNotificationKey(cur, part, "workspaceCreated")
     };
   }
   return merged;
@@ -290,7 +295,8 @@ export function resolveEffectiveNotifications(
     memberChanges: resolve("memberChanges"),
     exportSchedule: resolve("exportSchedule"),
     budgetAlert: resolve("budgetAlert"),
-    missingTimesheets: resolve("missingTimesheets")
+    missingTimesheets: resolve("missingTimesheets"),
+    workspaceCreated: resolve("workspaceCreated")
   };
 }
 

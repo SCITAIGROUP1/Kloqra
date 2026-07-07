@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Bell,
   Briefcase,
+  Building2,
   CheckSquare,
   ClipboardCheck,
   Clock,
@@ -114,6 +115,12 @@ const ADMIN_ROWS: {
     icon: Users
   },
   {
+    key: "workspaceCreated",
+    title: "Workspace Creation",
+    description: "When a new workspace is created in your organization",
+    icon: Building2
+  },
+  {
     key: "missingTimesheets",
     title: "Missing Timesheets",
     description: "Weekly summary of unsubmitted timesheets",
@@ -176,7 +183,10 @@ export function NotificationsSection({
   const rows = useMemo(() => {
     if (variant === "tenant-admin-org") {
       const orgAdminRows = ADMIN_ROWS.filter(
-        (row) => row.key === "memberChanges" || row.key === "exportSchedule"
+        (row) =>
+          row.key === "memberChanges" ||
+          row.key === "workspaceCreated" ||
+          row.key === "exportSchedule"
       );
       const personalOrgRows = MEMBER_ROWS.filter(
         (row) => row.key === "workspaceAdded" || row.key === "roleChanges"

@@ -88,6 +88,16 @@ describe("notification templates", () => {
     });
     expect(removed.body).toContain("Alex Admin removed you");
 
+    const created = buildNotificationTemplate("workspace.created", {
+      workspaceName: "Design Agency",
+      creatorName: "Kloqra Owner",
+      organizationName: "Kloqra Test"
+    });
+    expect(created.type).toBe("WORKSPACE_CREATED");
+    expect(created.preferenceKey).toBe("workspaceCreated");
+    expect(created.metadata.href).toBe("/account/workspaces");
+    expect(created.body).toContain("Design Agency");
+
     const digest = buildNotificationTemplate("timesheet.missing.digest", {
       workspaceName: "Acme Corp",
       missingCount: 3,

@@ -6,6 +6,7 @@ describe("NotificationsDispatchService", () => {
   let mockPrisma: {
     user: { findUnique: ReturnType<typeof vi.fn> };
     workspaceMember: { findMany: ReturnType<typeof vi.fn> };
+    tenantMember: { findMany: ReturnType<typeof vi.fn> };
   };
   let mockNotifications: { createInApp: ReturnType<typeof vi.fn> };
   let mockMailer: { send: ReturnType<typeof vi.fn> };
@@ -13,7 +14,8 @@ describe("NotificationsDispatchService", () => {
   beforeEach(() => {
     mockPrisma = {
       user: { findUnique: vi.fn() },
-      workspaceMember: { findMany: vi.fn() }
+      workspaceMember: { findMany: vi.fn() },
+      tenantMember: { findMany: vi.fn() }
     };
     mockNotifications = { createInApp: vi.fn().mockResolvedValue(undefined) };
     mockMailer = { send: vi.fn().mockResolvedValue(undefined) };
@@ -50,5 +52,46 @@ describe("NotificationsDispatchService", () => {
       include: { user: { select: { id: true, email: true, preferences: true } } }
     });
     expect(mockNotifications.createInApp).toHaveBeenCalledTimes(2);
+  });
+
+  it("notifyTenantOperators delivers workspace created alerts to organization operators", async () => {
+    mockPrisma.tenantMember.findMany.mockResolvedValue([
+      {
+        userId: "owner-1",
+        user: { id: "owner-1", email: "owner@kloqra.dev", preferences: {} }
+      },
+      {
+        userId: "admin-1",
+        user: { id: "admin-1", email: "admin@kloqra.dev", preferences: {} }
+      }
+    ]);
+
+    await service.notifyTenantOperators("tenant-1", "ws-new", {
+      templateId: "workspace.created",
+      context: {
+        workspaceName: "Design Agency",
+        creatorName: "Kloqra Owner",
+        organizationName: "Kloqra Test"
+      },
+      excludeUserId: "creator-1"
+    });
+
+    expect(mockPrisma.tenantMember.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        isActive: true,
+        role: { in: ["OWNER", "ADMIN"] },
+        userId: { not: "creator-1" }
+      },
+      include: { user: { select: { id: true, email: true, preferences: true } } }
+    });
+    expect(mockNotifications.createInApp).toHaveBeenCalledTimes(2);
+    expect(mockMailer.send).toHaveBeenCalledTimes(2);
+    expect(mockNotifications.createInApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "WORKSPACE_CREATED",
+        title: "Workspace created"
+      })
+    );
   });
 });

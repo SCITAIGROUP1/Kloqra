@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   CenteredLoader,
+  EmptyState,
   Input,
   Label
 } from "@kloqra/ui";
@@ -47,7 +48,7 @@ export function AccountOrganizationPage() {
     e.preventDefault();
     setFormError("");
     if (!name.trim() || !slug.trim()) {
-      setFormError("Organization name and organization ID are required.");
+      setFormError("Enter an organization name and organization ID to continue.");
       return;
     }
     try {
@@ -56,15 +57,36 @@ export function AccountOrganizationPage() {
       if (updated.status === "active") {
         router.push(requiresWorkspaceSetup ? "/account/workspaces?setup=required" : "/account");
       }
-    } catch {
-      setFormError("Could not save organization profile.");
+    } catch (e) {
+      setFormError(
+        e instanceof Error && e.message
+          ? e.message
+          : "We couldn't activate your organization. Review your entries and try again."
+      );
     }
   }
 
-  if (loading) return <CenteredLoader label="Loading organization…" />;
+  if (loading) return <CenteredLoader label="Loading organization profile…" />;
   if (error || !tenant) {
     return (
-      <div className="p-6 text-sm text-destructive">{error ?? "Organization unavailable"}</div>
+      <div className="space-y-6">
+        <AppBar
+          title="Organization"
+          description="Manage your organization profile and activation settings."
+        />
+        <EmptyState
+          title="Unable to load organization profile"
+          description={
+            error ??
+            "We couldn't retrieve your organization details. Check your connection and try again."
+          }
+          action={
+            <Button variant="outline" onClick={() => void reload()}>
+              Try again
+            </Button>
+          }
+        />
+      </div>
     );
   }
 

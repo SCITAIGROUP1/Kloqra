@@ -68,6 +68,35 @@ export class NotificationsDispatchService {
     }
   }
 
+  async notifyTenantOperators<T extends NotificationTemplateId>(
+    tenantId: string,
+    workspaceId: string,
+    input: {
+      templateId: T;
+      context: NotificationTemplateContextMap[T];
+      excludeUserId?: string;
+    }
+  ): Promise<void> {
+    const rendered = buildNotificationTemplate(input.templateId, input.context);
+    const operators = await this.prisma.tenantMember.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        role: { in: ["OWNER", "ADMIN"] },
+        ...(input.excludeUserId ? { userId: { not: input.excludeUserId } } : {})
+      },
+      include: { user: { select: { id: true, email: true, preferences: true } } }
+    });
+
+    for (const operator of operators) {
+      const channels = resolveNotificationChannels(
+        parseUserPreferences(operator.user.preferences),
+        rendered.preferenceKey
+      );
+      await this.deliver(operator.userId, workspaceId, rendered, operator.user.email, channels);
+    }
+  }
+
   private async deliver(
     userId: string,
     workspaceId: string,

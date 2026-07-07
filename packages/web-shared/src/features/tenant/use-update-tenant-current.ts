@@ -3,35 +3,35 @@
 import { ROUTES, type TenantDto, type UpdateTenantCurrentDto } from "@kloqra/contracts";
 import { useCallback, useState } from "react";
 import { api } from "../../api/client";
-import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { tenantApiOptions, useTenantApiWorkspaceId } from "./tenant-api-workspace";
 
 export function useUpdateTenantCurrent() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const workspaceId = useTenantApiWorkspaceId();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const updateTenantCurrent = useCallback(
     async (body: UpdateTenantCurrentDto): Promise<TenantDto> => {
-      if (!ws) {
-        throw new Error("No active workspace");
-      }
       setSaving(true);
       setError(null);
       try {
         return await api<TenantDto>(ROUTES.TENANTS.CURRENT, {
           method: "PATCH",
           body: JSON.stringify(body),
-          workspaceId: ws
+          ...tenantApiOptions(workspaceId)
         });
       } catch (e) {
-        const message = e instanceof Error ? e.message : "Could not update organization";
+        const message =
+          e instanceof Error
+            ? e.message
+            : "We couldn't save your organization profile. Please try again.";
         setError(message);
         throw e;
       } finally {
         setSaving(false);
       }
     },
-    [ws]
+    [workspaceId]
   );
 
   return { updateTenantCurrent, saving, error };

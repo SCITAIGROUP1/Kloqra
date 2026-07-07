@@ -69,6 +69,20 @@ test.describe("Admin nav scope by role", () => {
     await expect(page.getByLabel(/display name|first name/i).first()).toBeVisible();
   });
 
+  test("tenant owner sees workspace creation notification preference in organization settings", async ({
+    page
+  }) => {
+    await loginAsAdmin(page);
+    await page.goto("/account/settings?section=notifications");
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({
+      timeout: 30_000
+    });
+    await expect(page.getByText("Workspace Creation")).toBeVisible();
+    await expect(
+      page.getByText("When a new workspace is created in your organization")
+    ).toBeVisible();
+  });
+
   test("organization admin sees limited account nav", async ({ page }) => {
     await loginAsOrganizationAdmin(page);
     await page.goto("/account/workspaces");

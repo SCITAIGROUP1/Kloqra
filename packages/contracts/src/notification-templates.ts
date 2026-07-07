@@ -35,6 +35,7 @@ export const notificationTemplateIdSchema = z.enum([
   "member.roleUpdated",
   "workspace.added",
   "workspace.removed",
+  "workspace.created",
   "export.ready",
   "export.failed",
   "export.job_ready",
@@ -152,6 +153,12 @@ export const workspaceRemovedContextSchema = z.object({
   actorName: optionalName
 });
 
+export const workspaceCreatedContextSchema = z.object({
+  workspaceName: z.string().min(1).max(120),
+  creatorName: optionalName,
+  organizationName: z.string().min(1).max(120).optional()
+});
+
 const workspaceRoleSchema = z.enum(["ADMIN", "MEMBER"]);
 
 export const memberRoleChangedContextSchema = z.object({
@@ -220,6 +227,7 @@ const TEMPLATE_CONTEXT_SCHEMAS = {
   "member.roleUpdated": memberRoleUpdatedContextSchema,
   "workspace.added": workspaceAddedContextSchema,
   "workspace.removed": workspaceRemovedContextSchema,
+  "workspace.created": workspaceCreatedContextSchema,
   "export.ready": exportScheduleContextSchema,
   "export.failed": exportScheduleContextSchema,
   "export.job_ready": exportJobReadyContextSchema,
@@ -319,6 +327,10 @@ const TEMPLATE_META: Record<
   "workspace.removed": {
     type: NotificationType.WORKSPACE_REMOVED,
     preferenceKey: "workspaceAdded"
+  },
+  "workspace.created": {
+    type: NotificationType.WORKSPACE_CREATED,
+    preferenceKey: "workspaceCreated"
   },
   "export.ready": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
   "export.failed": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
@@ -907,6 +919,29 @@ function renderTemplate(
           variant: "warning",
           ctaLabel: "Open settings",
           details: [{ label: "Workspace", value: c.workspaceName }]
+        }
+      };
+    }
+    case "workspace.created": {
+      const c = context as NotificationTemplateContextMap["workspace.created"];
+      return {
+        type,
+        preferenceKey,
+        title: "Workspace created",
+        body: c.creatorName
+          ? `${c.creatorName} created workspace "${c.workspaceName}".`
+          : `Workspace "${c.workspaceName}" was created in your organization.`,
+        emailSubject: subjectPrefix(`New workspace — ${c.workspaceName}`),
+        preheader: "A new workspace is available in your organization.",
+        metadata: {
+          href: "/account/workspaces",
+          variant: "success",
+          ctaLabel: "View workspaces",
+          details: [
+            { label: "Workspace", value: c.workspaceName },
+            ...(c.organizationName ? [{ label: "Organization", value: c.organizationName }] : []),
+            ...(c.creatorName ? [{ label: "Created by", value: c.creatorName }] : [])
+          ]
         }
       };
     }

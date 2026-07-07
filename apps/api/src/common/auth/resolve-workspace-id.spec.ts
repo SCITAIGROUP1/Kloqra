@@ -1,6 +1,6 @@
 import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { resolveWorkspaceId } from "./resolve-workspace-id";
+import { requireWorkspaceId, resolveWorkspaceId } from "./resolve-workspace-id";
 
 describe("resolveWorkspaceId", () => {
   it("uses token workspace when header omitted", () => {
@@ -15,7 +15,13 @@ describe("resolveWorkspaceId", () => {
     expect(() => resolveWorkspaceId("ws-a", "ws-b")).toThrow(ForbiddenException);
   });
 
+  it("returns undefined when both missing", () => {
+    expect(resolveWorkspaceId(undefined, undefined)).toBeUndefined();
+  });
+});
+
+describe("requireWorkspaceId", () => {
   it("throws when both missing", () => {
-    expect(() => resolveWorkspaceId(undefined, undefined)).toThrow(UnauthorizedException);
+    expect(() => requireWorkspaceId(undefined, undefined)).toThrow(UnauthorizedException);
   });
 });

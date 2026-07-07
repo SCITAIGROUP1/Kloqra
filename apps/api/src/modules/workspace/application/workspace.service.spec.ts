@@ -18,6 +18,7 @@ describe("WorkspaceService", () => {
   let mockNotificationsDispatch: {
     notify: ReturnType<typeof vi.fn>;
     notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
+    notifyTenantOperators: ReturnType<typeof vi.fn>;
   };
   let mockQueue: any;
   let mockPlanLimit: any;
@@ -28,7 +29,8 @@ describe("WorkspaceService", () => {
   beforeEach(() => {
     mockNotificationsDispatch = {
       notify: vi.fn().mockResolvedValue(undefined),
-      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined),
+      notifyTenantOperators: vi.fn().mockResolvedValue(undefined)
     };
     mockPrisma = {
       $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
@@ -62,6 +64,9 @@ describe("WorkspaceService", () => {
           role: "OWNER",
           isActive: true
         })
+      },
+      tenant: {
+        findUnique: vi.fn().mockResolvedValue({ name: "Kloqra Test" })
       }
     };
     mockMailer = {
@@ -391,6 +396,7 @@ describe("WorkspaceService", () => {
       userId: "u1",
       role: "ADMIN"
     });
+    mockPrisma.user.findUnique.mockResolvedValue({ name: "Kloqra Owner" });
 
     const result = await service.create("u1", { name: "Design Agency" });
 
@@ -398,6 +404,21 @@ describe("WorkspaceService", () => {
     expect(result.role).toBe("ADMIN");
     expect(mockPrisma.workspace.create).toHaveBeenCalled();
     expect(mockPlanLimit.assertWorkspaceCreateAllowed).toHaveBeenCalledWith("t-1");
+    await vi.waitFor(() => {
+      expect(mockNotificationsDispatch.notifyTenantOperators).toHaveBeenCalledWith(
+        "t-1",
+        "ws-new",
+        expect.objectContaining({
+          templateId: "workspace.created",
+          excludeUserId: "u1",
+          context: expect.objectContaining({
+            workspaceName: "Design Agency",
+            creatorName: "Kloqra Owner",
+            organizationName: "Kloqra Test"
+          })
+        })
+      );
+    });
   });
 
   it("create propagates workspace plan limit errors", async () => {
