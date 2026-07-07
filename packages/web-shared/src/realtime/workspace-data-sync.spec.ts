@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest";
 import { scopesForNotificationType } from "./workspace-data-sync.js";
 
 describe("scopesForNotificationType", () => {
-  it("maps timesheet approval to submissions and timesheet scopes", () => {
+  it("maps timesheet approval to submissions, timesheet, and timelog scopes", () => {
     expect(scopesForNotificationType(NotificationType.TIMESHEET_APPROVED)).toEqual([
       "submissions",
-      "timesheet"
+      "timesheet",
+      "timelogs"
     ]);
   });
 
@@ -34,10 +35,11 @@ describe("scopesForNotificationType", () => {
     expect(scopesForNotificationType(NotificationType.EXPORT_SCHEDULE)).toEqual([]);
   });
 
-  it("maps approval settings changes to submissions, timesheet, and projects", () => {
+  it("maps approval settings changes to submissions, timesheet, timelogs, and projects", () => {
     expect(scopesForNotificationType(NotificationType.TIMESHEET_STATUS)).toEqual([
       "submissions",
       "timesheet",
+      "timelogs",
       "projects"
     ]);
   });
