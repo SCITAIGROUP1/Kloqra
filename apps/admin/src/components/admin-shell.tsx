@@ -11,6 +11,7 @@ import {
   canManageOrganization,
   defaultAccountLandingPath,
   logoutSession,
+  SessionGenerationBoundary,
   ShellHeaderActions,
   useNotificationSocket,
   useNotificationUnreadCount,
@@ -202,7 +203,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         ) : null}
-        {children}
+        <SessionGenerationBoundary>{children}</SessionGenerationBoundary>
       </ResponsiveLayoutShell>
     </>
   );

@@ -1,6 +1,7 @@
 import { registerSessionBoundaryHandler } from "@kloqra/web-shared";
 import { clearAssistantStorage } from "@/features/assistant/assistant-storage";
 import { useWidgetLayout } from "@/features/dashboard/use-widget-layout";
+import { clearOnboardingStorage } from "@/features/onboarding/onboarding-storage";
 import {
   useMemberReportingStore,
   useMySubmissionsStore,
@@ -24,6 +25,7 @@ registerSessionBoundaryHandler(({ level, prev }) => {
     useWidgetLayout.getState().clear();
     useUiStore.getState().clear();
     clearAssistantStorage();
+    clearOnboardingStorage();
     return;
   }
 

@@ -7,6 +7,7 @@ import {
   bootstrapSession,
   BrandMark,
   logoutSession,
+  SessionGenerationBoundary,
   ShellHeaderActions,
   useNotificationSocket,
   useNotificationUnreadCount,
@@ -246,7 +247,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
         />
       )}
     >
-      {children}
+      <SessionGenerationBoundary>{children}</SessionGenerationBoundary>
       <AssistantWidget />
     </ResponsiveLayoutShell>
   );

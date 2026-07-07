@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { clearOnboardingStorage } from "./helpers/onboarding";
 
 async function gotoDashboard(page: Page, options?: { expectWizard?: boolean }) {
   await page.goto("/dashboard");
@@ -27,21 +28,20 @@ function wizardStepTitle(page: Page, pattern: RegExp | string) {
 }
 
 async function clickWizardNext(page: Page) {
-  await wizardDialog(page).getByRole("button", { name: "Next", exact: true }).click();
+  const next = wizardDialog(page).getByRole("button", { name: "Next", exact: true });
+  await expect(next).toBeVisible();
+  await next.click();
 }
 
 test.describe("Onboarding first visit", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.removeItem("kloqra_onboarding_done");
-      localStorage.removeItem("kloqra_onboarding_tour_done");
-    });
+    await clearOnboardingStorage(page);
     await gotoDashboard(page, { expectWizard: true });
   });
 
   test("shows welcome wizard on first visit", async ({ page }) => {
     await expect(welcomeHeading(page)).toBeVisible();
-    await expect(page.getByText("Step 1 of 5")).toBeVisible();
+    await expect(wizardDialog(page).getByText("Step 1 of 5")).toBeVisible();
   });
 
   test("advances through wizard steps with Next", async ({ page }) => {
@@ -76,12 +76,10 @@ test.describe("Onboarding first visit", () => {
 
 test.describe("Onboarding persistence", () => {
   test("skips onboarding and does not show wizard again after reload", async ({ page }) => {
+    await clearOnboardingStorage(page);
     await gotoDashboard(page);
     if (!(await welcomeHeading(page).isVisible())) {
-      await page.evaluate(() => {
-        localStorage.removeItem("kloqra_onboarding_done");
-        localStorage.removeItem("kloqra_onboarding_tour_done");
-      });
+      await clearOnboardingStorage(page);
       await page.reload();
       await expect(welcomeHeading(page)).toBeVisible({ timeout: 15_000 });
     }

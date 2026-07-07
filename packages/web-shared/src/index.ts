@@ -47,6 +47,7 @@ export {
   type SessionIdentity
 } from "./auth/session-identity";
 export { useSessionGeneration } from "./hooks/use-session-generation";
+export { SessionGenerationBoundary } from "./components/session-generation-boundary";
 export {
   readScopedJSON,
   readScopedWithLegacyMigration,

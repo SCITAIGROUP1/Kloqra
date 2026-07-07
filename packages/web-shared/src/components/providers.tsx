@@ -7,7 +7,6 @@ import { bootstrapTokenSchedulerFromStorage } from "../auth/refresh-session";
 import { themeStorageKey } from "../hooks/theme-storage";
 import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { useSessionStore } from "../stores/session.store";
-import { SessionGenerationBoundary } from "./session-generation-boundary";
 import { ThemePreferenceSync } from "./theme-preference-sync";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -28,7 +27,7 @@ function SessionAwareThemeProvider({ children }: { children: ReactNode }) {
       storageKey={storageKey}
     >
       <ThemePreferenceSync />
-      <SessionGenerationBoundary>{children}</SessionGenerationBoundary>
+      {children}
     </ThemeProvider>
   );
 }
