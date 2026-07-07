@@ -29,6 +29,7 @@ import {
   SEED_TENANT_SUBSCRIPTION,
   SEED_USERS,
   SEED_WORKSPACES,
+  isMinimalSeed,
   type SeedCategoryName,
   type SeedProjectSpec,
   type SeedTaskSpec,
@@ -171,6 +172,11 @@ type ProjectCtx = {
 async function main() {
   await resetDatabase();
 
+  if (isMinimalSeed()) {
+    await seedMinimal();
+    return;
+  }
+
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const users = await seedUsers(passwordHash);
   await seedPlans();
@@ -217,6 +223,14 @@ async function main() {
 
   printCredentials();
   await printSummary(workspaces, users);
+}
+
+async function seedMinimal() {
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
+  await seedPlans();
+  await seedCatalogSettings();
+  await seedPlatformSuperadmin(passwordHash, { includeSupport: false });
+  printMinimalCredentials();
 }
 
 async function resetDatabase() {
@@ -633,7 +647,11 @@ async function seedTenantSubscription(tenantId: string) {
   console.log(`  subscription: ${plan.slug} (${SEED_TENANT_SUBSCRIPTION.status})`);
 }
 
-async function seedPlatformSuperadmin(superadminHash: string) {
+async function seedPlatformSuperadmin(
+  superadminHash: string,
+  options: { includeSupport?: boolean } = {}
+) {
+  const includeSupport = options.includeSupport ?? true;
   await prisma.platformUser.upsert({
     where: { email: SEED_PLATFORM_SUPERADMIN.email },
     update: {
@@ -649,6 +667,8 @@ async function seedPlatformSuperadmin(superadminHash: string) {
     }
   });
   console.log(`  platform superadmin: ${SEED_PLATFORM_SUPERADMIN.email}`);
+
+  if (!includeSupport) return;
 
   await prisma.platformUser.upsert({
     where: { email: SEED_PLATFORM_SUPPORT.email },
@@ -1417,6 +1437,15 @@ async function seedTimesheetPeriods(
   }
 
   return created;
+}
+
+function printMinimalCredentials() {
+  console.log("\n══════════════════════════════════════════════════════════");
+  console.log("  KLOQRA MINIMAL SEED — plans + platform superadmin only");
+  console.log(`  Platform admin: ${SEED_PLATFORM_SUPERADMIN.email}`);
+  console.log(`  Password: ${SEED_PLATFORM_SUPERADMIN.password}`);
+  console.log("  No demo tenants, workspaces, or member accounts were created.");
+  console.log("══════════════════════════════════════════════════════════\n");
 }
 
 function printCredentials() {

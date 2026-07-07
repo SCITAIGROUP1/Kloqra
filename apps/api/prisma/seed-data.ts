@@ -204,6 +204,12 @@ export type SeedProjectSpec = {
 
 export const SEED_PASSWORD = "password123";
 
+/** When true, seed only SaaS plans + platform superadmin (no demo tenants/users). */
+export function isMinimalSeed(): boolean {
+  const mode = process.env.SEED_MODE?.trim().toLowerCase();
+  return mode === "minimal" || mode === "fresh";
+}
+
 /** Canonical demo accounts — one persona per hierarchy level (see SEED_DEMO_HIERARCHY). */
 export const SEED_DEMO_PERSONAS = {
   platformAdmin: process.env.PLATFORM_SUPERADMIN_EMAIL ?? "platform@kloqra.dev",

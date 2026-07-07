@@ -8,10 +8,20 @@ import {
   SEED_TENANT,
   SEED_TENANT_SUBSCRIPTION,
   SEED_USERS,
-  SEED_WORKSPACES
+  SEED_WORKSPACES,
+  isMinimalSeed
 } from "./seed-data";
 
 describe("seed-data", () => {
+  it("detects minimal seed mode from SEED_MODE", () => {
+    const prev = process.env.SEED_MODE;
+    process.env.SEED_MODE = "minimal";
+    expect(isMinimalSeed()).toBe(true);
+    process.env.SEED_MODE = "demo";
+    expect(isMinimalSeed()).toBe(false);
+    process.env.SEED_MODE = prev;
+  });
+
   it("uses kloqra.dev for all demo accounts", () => {
     for (const user of SEED_USERS) {
       expect(user.email.endsWith(`@${SEED_EMAIL_DOMAIN}`)).toBe(true);

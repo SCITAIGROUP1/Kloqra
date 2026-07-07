@@ -35,8 +35,8 @@ type LoginResponse =
 export function AdminLoginForm() {
   const router = useRouter();
   const orgBranding = useOrgLoginBranding();
-  const [email, setEmail] = useState("admin@kloqra.dev");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [error, setError] = useState("");

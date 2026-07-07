@@ -1,6 +1,6 @@
 import { AuthShell } from "@kloqra/web-shared";
 import { Suspense } from "react";
-import { AdminLoginForm } from "./login-form";
+import { AdminLoginForm } from "@/app/login/login-form";
 
 function LoginFallback() {
   return (
