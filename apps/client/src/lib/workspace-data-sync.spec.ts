@@ -78,6 +78,8 @@ describe("useClientWorkspaceDataSync", () => {
     );
 
     expect(mocks.invalidate).toHaveBeenCalledWith(workspaceId);
+    expect(mocks.invalidateWeekSummary).toHaveBeenCalledWith(workspaceId);
+    expect(mocks.invalidateTimelogQueries).not.toHaveBeenCalled();
   });
 
   it("refetches projects and tasks when projects scope is stale", async () => {

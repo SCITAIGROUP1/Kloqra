@@ -488,7 +488,7 @@ export function TimesheetPage() {
 
   useWorkspaceStaleRefetch(
     ws,
-    ["timelogs", "timesheet"],
+    ["timelogs"],
     () => {
       void refreshTimelogSurface();
     },

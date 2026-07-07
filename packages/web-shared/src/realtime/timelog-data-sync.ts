@@ -6,25 +6,17 @@ import { getQueryClient } from "../query/query-client";
 import { timelogQueryKeys } from "../query/timelog-query-keys";
 import { invalidateWorkspaceData } from "./workspace-data-sync";
 
+/** Remote/socket/API: refetch timelog lists and timesheet-adjacent stores. */
 export const TIMELOG_INVALIDATE_SCOPES: WorkspaceDataInvalidateScope[] = ["timelogs", "timesheet"];
+
+/** Local save: refresh submissions/week-summary only — never refetch timelog lists we just patched. */
+export const TIMELOG_DERIVED_INVALIDATE_SCOPES: WorkspaceDataInvalidateScope[] = [
+  "submissions",
+  "timesheet"
+];
 
 function clearTimelogInflightRequests(): void {
   clearInflightGetRequestsForPath("/timelogs");
-}
-
-function reapplyCachePatch(workspaceId: string, cachePatch: TimelogCachePatch): void {
-  applyTimelogCachePatch(workspaceId, cachePatch);
-}
-
-/**
- * Socket + workspace stale handlers fire additional timelog invalidations after a save.
- * Re-apply the mutation result so a briefly-stale list refetch cannot win over the POST body.
- */
-function scheduleCachePatchReapply(workspaceId: string, cachePatch: TimelogCachePatch): void {
-  if (typeof window === "undefined") return;
-  queueMicrotask(() => reapplyCachePatch(workspaceId, cachePatch));
-  window.setTimeout(() => reapplyCachePatch(workspaceId, cachePatch), 0);
-  window.setTimeout(() => reapplyCachePatch(workspaceId, cachePatch), 100);
 }
 
 /** Broadcast timelog stale to every mounted view (timesheet, tracker, dashboard, timer). */
@@ -44,24 +36,13 @@ export async function commitTimelogMutation(
   await getQueryClient().cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
 
   if (cachePatch) {
-    reapplyCachePatch(workspaceId, cachePatch);
+    applyTimelogCachePatch(workspaceId, cachePatch);
+    invalidateWorkspaceData(workspaceId, TIMELOG_DERIVED_INVALIDATE_SCOPES);
+    return;
   }
 
-  // When we have the POST/PATCH response, trust the cache patch first. An eager refetch here
-  // races socket-driven invalidations and can overwrite the new entry with a stale list.
-  if (localRefresh && !cachePatch) {
+  if (localRefresh) {
     await localRefresh();
   }
-
-  await invalidateTimelogQueries(workspaceId);
-
-  if (cachePatch) {
-    reapplyCachePatch(workspaceId, cachePatch);
-  }
-
-  invalidateWorkspaceData(workspaceId, TIMELOG_INVALIDATE_SCOPES);
-
-  if (cachePatch) {
-    scheduleCachePatchReapply(workspaceId, cachePatch);
-  }
+  await invalidateTimelogData(workspaceId);
 }

@@ -5,7 +5,12 @@ import { clearInflightGetRequestsForPath } from "../api/inflight-requests";
 import { invalidateTimelogQueries } from "../query/invalidate-timelog-queries";
 import { applyTimelogCachePatch } from "../query/patch-timelog-list-caches";
 import { getQueryClient, resetQueryClient } from "../query/query-client";
-import { commitTimelogMutation, invalidateTimelogData } from "./timelog-data-sync";
+import {
+  commitTimelogMutation,
+  invalidateTimelogData,
+  TIMELOG_DERIVED_INVALIDATE_SCOPES,
+  TIMELOG_INVALIDATE_SCOPES
+} from "./timelog-data-sync";
 import { invalidateWorkspaceData } from "./workspace-data-sync";
 
 vi.mock("../api/inflight-requests", () => ({
@@ -41,7 +46,6 @@ describe("timelog-data-sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetQueryClient();
-    vi.useRealTimers();
   });
 
   it("invalidates inflight requests, query cache, and workspace scopes", async () => {
@@ -49,7 +53,7 @@ describe("timelog-data-sync", () => {
 
     expect(clearInflightGetRequestsForPath).toHaveBeenCalledWith("/timelogs");
     expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
-    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_INVALIDATE_SCOPES);
   });
 
   it("runs local refresh before broadcasting stale when no cache patch", async () => {
@@ -62,35 +66,22 @@ describe("timelog-data-sync", () => {
     expect(cancelSpy).toHaveBeenCalled();
     expect(localRefresh).toHaveBeenCalled();
     expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
-    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_INVALIDATE_SCOPES);
   });
 
-  it("skips eager local refresh and re-applies cache patch after invalidation", async () => {
+  it("patches cache and only invalidates derived stores when mutation returns a log", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const patch = { type: "upsert" as const, log: sampleLog };
 
     await commitTimelogMutation(workspaceId, localRefresh, patch);
 
+    expect(applyTimelogCachePatch).toHaveBeenCalledOnce();
+    expect(applyTimelogCachePatch).toHaveBeenCalledWith(workspaceId, patch);
     expect(localRefresh).not.toHaveBeenCalled();
-    expect(applyTimelogCachePatch).toHaveBeenCalledTimes(3);
-    expect(applyTimelogCachePatch).toHaveBeenNthCalledWith(1, workspaceId, patch);
-    expect(applyTimelogCachePatch).toHaveBeenNthCalledWith(2, workspaceId, patch);
-    expect(applyTimelogCachePatch).toHaveBeenNthCalledWith(3, workspaceId, patch);
-    expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
-    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
-  });
-
-  it("schedules deferred cache patch reapply after workspace broadcast", async () => {
-    vi.useFakeTimers();
-    const patch = { type: "upsert" as const, log: sampleLog };
-
-    const commit = commitTimelogMutation(workspaceId, undefined, patch);
-    await commit;
-
-    expect(applyTimelogCachePatch).toHaveBeenCalledTimes(3);
-
-    await vi.runAllTimersAsync();
-    expect(applyTimelogCachePatch.mock.calls.length).toBeGreaterThanOrEqual(5);
-    expect(applyTimelogCachePatch).toHaveBeenLastCalledWith(workspaceId, patch);
+    expect(invalidateTimelogQueries).not.toHaveBeenCalled();
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(
+      workspaceId,
+      TIMELOG_DERIVED_INVALIDATE_SCOPES
+    );
   });
 });

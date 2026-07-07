@@ -175,6 +175,7 @@ export {
   type WorkspaceDataStaleDetail
 } from "./realtime/workspace-data-sync";
 export {
+  TIMELOG_DERIVED_INVALIDATE_SCOPES,
   TIMELOG_INVALIDATE_SCOPES,
   commitTimelogMutation,
   invalidateTimelogData

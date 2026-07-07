@@ -175,7 +175,7 @@ export function QuickActions({
 
   useWorkspaceStaleRefetch(
     ws,
-    ["timelogs", "timesheet"],
+    ["timelogs"],
     () => {
       void fetchRecents();
       void fetchYesterday();
