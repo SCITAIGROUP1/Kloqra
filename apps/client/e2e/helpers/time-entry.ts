@@ -13,6 +13,30 @@ async function selectComboboxOption(page: Page, label: string, option: RegExp | 
   await page.getByRole("option", { name: option }).click();
 }
 
+/** Click an open timesheet slot (locale-aware: "10 AM", "10:00 AM", etc.). */
+export async function openTimesheetSlot(page: Page, hour: number, minute = 0) {
+  const hour12 = hour % 12 || 12;
+  const meridiem = hour < 12 ? "AM" : "PM";
+  const minutePart = minute === 0 ? "(\\s*:00)?" : `\\s*:${String(minute).padStart(2, "0")}`;
+  const patterns = [
+    new RegExp(`^${hour}${minutePart}\\s*(AM|PM)?$`, "i"),
+    new RegExp(`^${hour12}${minutePart}\\s*${meridiem}$`, "i")
+  ];
+
+  for (const pattern of patterns) {
+    const slot = page.getByRole("button", { name: pattern }).first();
+    if ((await slot.count()) > 0) {
+      await slot.click();
+      await expect(page.getByRole("heading", { name: "Log time" })).toBeVisible({
+        timeout: 10_000
+      });
+      return;
+    }
+  }
+
+  throw new Error(`No open timesheet slot found for ${hour}:${String(minute).padStart(2, "0")}`);
+}
+
 export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOptions) {
   await selectComboboxOption(page, "Project", options.projectName);
   await selectComboboxOption(page, "Task", options.taskName);
