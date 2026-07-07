@@ -50,8 +50,8 @@ describe("entry-catalog", () => {
   it("refreshEntryCatalog updates the projects store", async () => {
     const data = await refreshEntryCatalog("ws-1");
 
-    expect(mockSetTasks).toHaveBeenCalledWith([{ id: "t1" }]);
-    expect(mockSetProjects).toHaveBeenCalledWith([{ id: "p1" }]);
+    expect(mockSetTasks).toHaveBeenCalledWith("ws-1", [{ id: "t1" }]);
+    expect(mockSetProjects).toHaveBeenCalledWith("ws-1", [{ id: "p1" }]);
     expect(data.categories).toEqual([{ id: "c1" }]);
   });
 });

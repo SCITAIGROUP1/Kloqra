@@ -26,6 +26,7 @@ import {
   api as sharedApi,
   buildMemberSubmissionsHref,
   commitTimelogMutation,
+  invalidateTimelogData,
   parseMemberTimesheetSearch,
   scopedStorageKey,
   useTimelogListQuery,
@@ -239,6 +240,7 @@ export function TimesheetPage() {
       });
       if (res && "autostopped" in res && res.autostopped) {
         setActive(null);
+        void invalidateTimelogData(ws);
         return;
       }
       setActive(res as ActiveTimerDto | null);
@@ -373,12 +375,11 @@ export function TimesheetPage() {
     data: logsData,
     refetch: refetchLogs,
     isLoading: logsQueryLoading,
-    isFetching: logsFetching,
     error: logsQueryError
   } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
 
   const logs = logsData?.items ?? [];
-  const calendarLoading = logsQueryLoading || logsFetching || occupancyLoading;
+  const calendarLoading = logsQueryLoading || occupancyLoading;
 
   const refreshSubmissions = useCallback(async () => {
     if (!ws) return;
@@ -680,7 +681,10 @@ export function TimesheetPage() {
           workspaceId: ws,
           body: JSON.stringify(body)
         });
-        await commitTimelogMutation(ws, refreshTimelogSurface);
+        await commitTimelogMutation(ws, refreshTimelogSurface, {
+          type: "upsertMany",
+          logs: res.items
+        });
         closeDialog();
         if (res.skippedCount > 0) {
           toast.success(
@@ -698,19 +702,20 @@ export function TimesheetPage() {
           isBillable: draft.isBillable
         };
         if (editingLog) {
-          await api(`/timelogs/${editingLog.id}`, {
+          const updated = await api<TimeLogDto>(`/timelogs/${editingLog.id}`, {
             method: "PATCH",
             workspaceId: ws,
             body: JSON.stringify(body)
           });
+          await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: updated });
         } else {
-          await api(ROUTES.TIMELOGS.CREATE, {
+          const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
             method: "POST",
             workspaceId: ws,
             body: JSON.stringify(body)
           });
+          await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: created });
         }
-        await commitTimelogMutation(ws, refreshTimelogSurface);
         closeDialog();
         toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
       }
@@ -747,7 +752,10 @@ export function TimesheetPage() {
     setError(null);
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
-      await commitTimelogMutation(ws, refreshTimelogSurface);
+      await commitTimelogMutation(ws, refreshTimelogSurface, {
+        type: "remove",
+        logId: target.id
+      });
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
     } catch (e) {
@@ -782,7 +790,7 @@ export function TimesheetPage() {
           isBillable: log.isBillable
         })
       });
-      await commitTimelogMutation(ws, refreshTimelogSurface);
+      await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: created });
       openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
     } catch (e) {
@@ -806,7 +814,7 @@ export function TimesheetPage() {
 
     setError(null);
     try {
-      await api(`/timelogs/${log.id}`, {
+      const updated = await api<TimeLogDto>(`/timelogs/${log.id}`, {
         method: "PATCH",
         workspaceId: ws,
         body: JSON.stringify({
@@ -814,7 +822,7 @@ export function TimesheetPage() {
           endTime: end.toISOString()
         })
       });
-      await commitTimelogMutation(ws, refreshTimelogSurface);
+      await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: updated });
       toast.success("Time entry updated!");
     } catch (e) {
       const msg = e instanceof Error ? e.message : errorLabel;

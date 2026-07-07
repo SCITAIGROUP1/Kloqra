@@ -177,15 +177,15 @@ function SubmissionRowLogs({
         isBillable: draft.isBillable
       };
       if (editingLog) {
-        await api(`/timelogs/${editingLog.id}`, {
+        const updated = await api<TimeLogDto>(`/timelogs/${editingLog.id}`, {
           method: "PATCH",
           workspaceId,
           body: JSON.stringify(body)
         });
         toast.success("Time entry updated!");
+        closeDialog();
+        await commitTimelogMutation(workspaceId, refreshLogs, { type: "upsert", log: updated });
       }
-      closeDialog();
-      await commitTimelogMutation(workspaceId, refreshLogs);
       onLogUpdated();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not save entry";
@@ -204,7 +204,10 @@ function SubmissionRowLogs({
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId });
       toast.success("Time entry deleted!");
-      await commitTimelogMutation(workspaceId, refreshLogs);
+      await commitTimelogMutation(workspaceId, refreshLogs, {
+        type: "remove",
+        logId: target.id
+      });
       onLogUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not delete entry");

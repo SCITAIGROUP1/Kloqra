@@ -168,12 +168,11 @@ export function DashboardPage() {
   const {
     data: logsData,
     refetch: refetchLogs,
-    isLoading: logsQueryLoading,
-    isFetching: logsFetching
+    isLoading: logsQueryLoading
   } = useTimelogListQuery(ws, logsPath, Boolean(ws));
 
   const logs = logsData?.items ?? [];
-  const logsLoading = logsQueryLoading || logsFetching;
+  const logsLoading = logsQueryLoading;
 
   const [loading, setLoading] = useState(true);
   const lastTimezoneRef = useRef(timezone);
@@ -499,7 +498,7 @@ export function DashboardPage() {
     if (isImpersonating) return;
     setStopping(true);
     try {
-      await api(ROUTES.TIMER.STOP, {
+      const created = await api<TimeLogDto>(ROUTES.TIMER.STOP, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
@@ -510,7 +509,7 @@ export function DashboardPage() {
       setActive(null);
       setStopDescription("");
       toast.success("Timer stopped! Time entry saved.");
-      await commitTimelogMutation(ws, refreshLogs);
+      await commitTimelogMutation(ws, refreshLogs, { type: "upsert", log: created });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not stop timer";
       toast.error(message);
@@ -568,7 +567,7 @@ export function DashboardPage() {
     try {
       await api(`/timelogs/${logId}`, { method: "DELETE", workspaceId: ws });
       toast.success("Time entry deleted!");
-      await commitTimelogMutation(ws, refreshLogs);
+      await commitTimelogMutation(ws, refreshLogs, { type: "remove", logId });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not delete time log");
     }

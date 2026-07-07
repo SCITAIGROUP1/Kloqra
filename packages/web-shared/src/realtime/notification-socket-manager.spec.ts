@@ -66,26 +66,27 @@ describe("notification socket manager", () => {
   });
 
   it("forwards workspace.data.stale to subscribers", async () => {
-    const handlers: Record<string, (raw: unknown) => void> = {};
-    mockOn.mockImplementation((event: string, cb: (raw: unknown) => void) => {
-      handlers[event] = cb;
-    });
-
+    const { WORKSPACE_DATA_STALE_SOCKET_EVENT } = await import("@kloqra/contracts");
     const { connectNotificationSocket, subscribeWorkspaceDataStale } =
       await import("./notification-socket-manager");
     const received: unknown[] = [];
     subscribeWorkspaceDataStale((payload) => received.push(payload));
     connectNotificationSocket();
 
-    handlers["workspace.data.stale"]?.({
-      workspaceId: "00000000-0000-4000-8000-000000000001",
+    const staleCall = mockOn.mock.calls.find(
+      ([event]) => event === WORKSPACE_DATA_STALE_SOCKET_EVENT
+    );
+    expect(staleCall).toBeDefined();
+    const handler = staleCall![1] as (raw: unknown) => void;
+    handler({
+      workspaceId: "22222222-2222-4222-8222-222222222222",
       scopes: ["timelogs", "timesheet"],
-      actorUserId: "00000000-0000-4000-8000-000000000002"
+      actorUserId: "11111111-1111-4111-8111-111111111111"
     });
 
     expect(received).toHaveLength(1);
     expect(received[0]).toMatchObject({
-      workspaceId: "00000000-0000-4000-8000-000000000001",
+      workspaceId: "22222222-2222-4222-8222-222222222222",
       scopes: ["timelogs", "timesheet"]
     });
   });

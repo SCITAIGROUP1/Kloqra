@@ -4,6 +4,7 @@ import { ROUTES, type ProjectDto, type TaskDto } from "@kloqra/contracts";
 import {
   fetchListItems,
   invalidateListItemsCache,
+  invalidateTimelogQueries,
   WORKSPACE_DATA_STALE_EVENT,
   type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
@@ -47,6 +48,7 @@ export function useClientWorkspaceDataSync(workspaceId: string) {
         useMySubmissionsStore.getState().invalidate(workspaceId);
       }
       if (detail.scopes.includes("timelogs") || detail.scopes.includes("timesheet")) {
+        void invalidateTimelogQueries(workspaceId);
         useMemberReportingStore.getState().invalidateWeekSummary(workspaceId);
         useActiveTimerSessionStore.getState().invalidateActive(workspaceId);
       }

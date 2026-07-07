@@ -8,6 +8,7 @@ import type {
   MyWeekSummaryDto,
   TimesheetPeriodDto
 } from "@kloqra/contracts";
+import { invalidateTimelogData } from "@kloqra/web-shared";
 import { create } from "zustand";
 import {
   memberStoreKey,
@@ -182,6 +183,9 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
           ? null
           : normalizeActiveTimer(res as ActiveTimerDto | null);
       useTimerStore.getState().setActive(active);
+      if (res && "autostopped" in res && res.autostopped) {
+        void invalidateTimelogData(workspaceId);
+      }
     } catch {
       useTimerStore.getState().setActive(null);
     } finally {

@@ -1,7 +1,13 @@
 "use client";
 
 import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type { ActiveTimerDto, TaskDto, ProjectDto, AutoStoppedTimerDto } from "@kloqra/contracts";
+import type {
+  ActiveTimerDto,
+  AutoStoppedTimerDto,
+  ProjectDto,
+  TaskDto,
+  TimeLogDto
+} from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -396,7 +402,7 @@ export function TimerPage() {
     }
 
     try {
-      await api(ROUTES.TIMER.STOP, {
+      const created = await api<TimeLogDto>(ROUTES.TIMER.STOP, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
@@ -408,7 +414,7 @@ export function TimerPage() {
       setActive(null);
       setStopDescription("");
       toast.success(`Timer stopped. ${logged} logged.`);
-      await commitTimelogMutation(ws, refreshRecentLogs);
+      await commitTimelogMutation(ws, refreshRecentLogs, { type: "upsert", log: created });
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Something went wrong. Your time is safe — try again.";

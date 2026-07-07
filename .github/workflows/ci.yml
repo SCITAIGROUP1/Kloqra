@@ -232,7 +232,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-chromium-
       - name: Install Playwright Chromium
-        run: pnpm --filter @kloqra/${{ matrix.app }} exec playwright install chromium --with-deps
+        run: |
+          # GitHub-hosted Ubuntu 24.04 images can ship broken Microsoft APT mirrors
+          # (NOSPLIT / InRelease not signed), which makes `install --with-deps` fail.
+          for f in /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/azure-cli.list; do
+            [ -f "$f" ] && sudo rm -f "$f"
+          done
+          pnpm --filter @kloqra/${{ matrix.app }} exec playwright install chromium --with-deps
       - name: Run E2E tests (Playwright)
         run: |
           pnpm --filter @kloqra/${{ matrix.app }} test:e2e

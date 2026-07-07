@@ -20,7 +20,7 @@ export function useTimeTrackerLogs(
 ): TimeTrackerLogsState {
   const basePath = useMemo(() => buildTimeTrackerLogsQuery({ ...filters, limit: 250 }), [filters]);
 
-  const { data, isLoading, isFetching, error, refetch } = useTimelogListAllQuery(
+  const { data, isLoading, error, refetch } = useTimelogListAllQuery(
     workspaceId,
     basePath,
     Boolean(workspaceId)
@@ -68,7 +68,7 @@ export function useTimeTrackerLogs(
 
   return {
     logs: displayedLogs,
-    loading: isLoading || isFetching,
+    loading: isLoading,
     error: error ? (error instanceof Error ? error.message : "Could not load time entries") : null,
     refresh: async () => {
       await refetch();
