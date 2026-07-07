@@ -109,7 +109,9 @@ export function SubmissionsPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
+    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then((items) =>
+      setTasks(ws, items)
+    );
   }, [ws, setTasks]);
 
   useEffect(() => {
@@ -151,7 +153,9 @@ export function SubmissionsPage() {
   useEffect(() => {
     if (!ws) return;
     if (projects.length > 0) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
+      setProjects(ws, items)
+    );
   }, [ws, projects.length, setProjects]);
 
   const setTab = useCallback(

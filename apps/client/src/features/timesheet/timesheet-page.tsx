@@ -5,7 +5,6 @@ import type {
   ActiveTimerDto,
   AutoStoppedTimerDto,
   ListTimeLogOccupancyResponseDto,
-  ListTimeLogsResponseDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
   CategoryDto,
@@ -26,10 +25,11 @@ import {
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
+  commitTimelogMutation,
   parseMemberTimesheetSearch,
   scopedStorageKey,
-  WORKSPACE_DATA_STALE_EVENT,
-  type WorkspaceDataStaleDetail
+  useTimelogListQuery,
+  useWorkspaceStaleRefetch
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -90,7 +90,6 @@ import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
-import { useTimesheetStore } from "@/stores/timesheet.store";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -160,7 +159,6 @@ export function TimesheetPage() {
 
   const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const { logs, setLogs } = useTimesheetStore();
   const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -189,7 +187,7 @@ export function TimesheetPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
-  const [calendarLoading, setCalendarLoading] = useState(true);
+  const [occupancyLoading, setOccupancyLoading] = useState(false);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
   const { active: activeTimer, elapsedSec: liveElapsedSec, setActive, tick } = useTimerStore();
@@ -287,47 +285,6 @@ export function TimesheetPage() {
     () => new Map()
   );
 
-  const refreshSubmissions = useCallback(async () => {
-    if (!ws) return;
-    const dates = new Set<string>([anchor.toISOString()]);
-    for (const log of logs) {
-      dates.add(log.startTime);
-    }
-    try {
-      const merged = new Map<string, TimesheetPeriodDto>();
-      for (const date of dates) {
-        const params = new URLSearchParams({ date });
-        const res = await api<ListTimesheetSubmissionsResponseDto>(
-          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params}`,
-          { workspaceId: ws }
-        );
-        for (const item of res.items) {
-          merged.set(`${item.projectId}:${item.periodStart}`, item);
-        }
-      }
-      setSubmissionByKey(merged);
-    } catch {
-      setSubmissionByKey(new Map());
-    }
-  }, [ws, anchor, logs]);
-
-  useEffect(() => {
-    void refreshSubmissions();
-  }, [refreshSubmissions]);
-
-  useEffect(() => {
-    if (!ws) return;
-    const onStale = (event: Event) => {
-      const detail = (event as CustomEvent<WorkspaceDataStaleDetail>).detail;
-      if (!detail || detail.workspaceId !== ws) return;
-      if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
-        void refreshSubmissions();
-      }
-    };
-    window.addEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
-    return () => window.removeEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
-  }, [ws, refreshSubmissions]);
-
   const projectForTask = useCallback(
     (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId);
@@ -406,6 +363,51 @@ export function TimesheetPage() {
     return null;
   }, [view, anchor, weekStart, monthStart, timezone]);
 
+  const logsPath = useMemo(
+    () =>
+      visibleRange ? buildLogsQuery(visibleRange.from, visibleRange.to) : ROUTES.TIMELOGS.LIST,
+    [visibleRange]
+  );
+
+  const {
+    data: logsData,
+    refetch: refetchLogs,
+    isLoading: logsQueryLoading,
+    isFetching: logsFetching,
+    error: logsQueryError
+  } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
+
+  const logs = logsData?.items ?? [];
+  const calendarLoading = logsQueryLoading || logsFetching || occupancyLoading;
+
+  const refreshSubmissions = useCallback(async () => {
+    if (!ws) return;
+    const dates = new Set<string>([anchor.toISOString()]);
+    for (const log of logs) {
+      dates.add(log.startTime);
+    }
+    try {
+      const merged = new Map<string, TimesheetPeriodDto>();
+      for (const date of dates) {
+        const params = new URLSearchParams({ date });
+        const res = await api<ListTimesheetSubmissionsResponseDto>(
+          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params}`,
+          { workspaceId: ws }
+        );
+        for (const item of res.items) {
+          merged.set(`${item.projectId}:${item.periodStart}`, item);
+        }
+      }
+      setSubmissionByKey(merged);
+    } catch {
+      setSubmissionByKey(new Map());
+    }
+  }, [ws, anchor, logs]);
+
+  useEffect(() => {
+    void refreshSubmissions();
+  }, [refreshSubmissions]);
+
   const rangeLabel = useMemo(() => {
     if (!displayFormat) {
       const tzOpts = timezone ? { timeZone: timezone } : undefined;
@@ -447,22 +449,22 @@ export function TimesheetPage() {
   );
 
   const refreshLogs = useCallback(async () => {
-    try {
-      const path = visibleRange
-        ? buildLogsQuery(visibleRange.from, visibleRange.to)
-        : ROUTES.TIMELOGS.LIST;
-      const res = await api<ListTimeLogsResponseDto>(path, { workspaceId: ws });
-      setLogs(res.items);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load time entries.");
-    }
-  }, [ws, setLogs, visibleRange]);
+    await refetchLogs();
+  }, [refetchLogs]);
+
+  useEffect(() => {
+    if (!logsQueryError) return;
+    toast.error(
+      logsQueryError instanceof Error ? logsQueryError.message : "Could not load time entries."
+    );
+  }, [logsQueryError]);
 
   const refreshOccupancy = useCallback(async () => {
     if (!visibleRange) {
       setOccupancy([]);
       return;
     }
+    setOccupancyLoading(true);
     try {
       const res = await api<ListTimeLogOccupancyResponseDto>(
         buildOccupancyQuery(visibleRange.from, visibleRange.to),
@@ -474,8 +476,32 @@ export function TimesheetPage() {
       if (e instanceof Error && e.message.includes("404")) {
         toast.error("Occupied slots unavailable — restart the API (pnpm serve).");
       }
+    } finally {
+      setOccupancyLoading(false);
     }
   }, [ws, visibleRange]);
+
+  const refreshTimelogSurface = useCallback(async () => {
+    await Promise.all([refreshLogs(), refreshOccupancy()]);
+  }, [refreshLogs, refreshOccupancy]);
+
+  useWorkspaceStaleRefetch(
+    ws,
+    ["timelogs", "timesheet"],
+    () => {
+      void refreshTimelogSurface();
+    },
+    Boolean(ws)
+  );
+
+  useWorkspaceStaleRefetch(
+    ws,
+    ["submissions", "timesheet"],
+    () => {
+      void refreshSubmissions();
+    },
+    Boolean(ws)
+  );
 
   const overlapConflictMessage = useCallback(
     (conflict: { workspaceName: string; label: string; startTime: string; endTime: string }) => {
@@ -491,9 +517,8 @@ export function TimesheetPage() {
 
   useEffect(() => {
     if (!ws) return;
-    setCalendarLoading(true);
-    void Promise.all([refreshLogs(), refreshOccupancy()]).finally(() => setCalendarLoading(false));
-  }, [ws, refreshLogs, refreshOccupancy]);
+    void refreshOccupancy();
+  }, [ws, refreshOccupancy]);
 
   useEffect(() => {
     if (!deepLink.date) return;
@@ -518,8 +543,8 @@ export function TimesheetPage() {
   useEffect(() => {
     if (!ws) return;
     void loadEntryCatalog(ws).then(({ tasks, projects, categories }) => {
-      setTasks(tasks);
-      setProjects(projects);
+      setTasks(ws, tasks);
+      setProjects(ws, projects);
       setCategories(categories);
     });
   }, [ws, setTasks, setProjects]);
@@ -655,7 +680,7 @@ export function TimesheetPage() {
           workspaceId: ws,
           body: JSON.stringify(body)
         });
-        await Promise.all([refreshLogs(), refreshOccupancy()]);
+        await commitTimelogMutation(ws, refreshTimelogSurface);
         closeDialog();
         if (res.skippedCount > 0) {
           toast.success(
@@ -685,7 +710,7 @@ export function TimesheetPage() {
             body: JSON.stringify(body)
           });
         }
-        await Promise.all([refreshLogs(), refreshOccupancy()]);
+        await commitTimelogMutation(ws, refreshTimelogSurface);
         closeDialog();
         toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
       }
@@ -722,7 +747,7 @@ export function TimesheetPage() {
     setError(null);
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
-      await Promise.all([refreshLogs(), refreshOccupancy()]);
+      await commitTimelogMutation(ws, refreshTimelogSurface);
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
     } catch (e) {
@@ -757,7 +782,7 @@ export function TimesheetPage() {
           isBillable: log.isBillable
         })
       });
-      await Promise.all([refreshLogs(), refreshOccupancy()]);
+      await commitTimelogMutation(ws, refreshTimelogSurface);
       openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
     } catch (e) {
@@ -789,7 +814,7 @@ export function TimesheetPage() {
           endTime: end.toISOString()
         })
       });
-      await Promise.all([refreshLogs(), refreshOccupancy()]);
+      await commitTimelogMutation(ws, refreshTimelogSurface);
       toast.success("Time entry updated!");
     } catch (e) {
       const msg = e instanceof Error ? e.message : errorLabel;

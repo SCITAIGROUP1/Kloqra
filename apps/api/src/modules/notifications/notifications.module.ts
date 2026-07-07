@@ -5,6 +5,7 @@ import { AuthModule } from "../auth/auth.module";
 import { NotificationsDispatchService } from "./application/notifications-dispatch.service.js";
 import { NotificationsRealtimeService } from "./application/notifications-realtime.service.js";
 import { NotificationsService } from "./application/notifications.service.js";
+import { WorkspaceDataRealtimeService } from "./application/workspace-data-realtime.service.js";
 import { NotificationsController } from "./interface/http/notifications.controller.js";
 import { NotificationsGateway } from "./interface/ws/notifications.gateway.js";
 
@@ -16,8 +17,9 @@ import { NotificationsGateway } from "./interface/ws/notifications.gateway.js";
     NotificationsDispatchService,
     NotificationMailer,
     NotificationsRealtimeService,
+    WorkspaceDataRealtimeService,
     NotificationsGateway
   ],
-  exports: [NotificationsService, NotificationsDispatchService]
+  exports: [NotificationsService, NotificationsDispatchService, WorkspaceDataRealtimeService]
 })
 export class NotificationsModule {}

@@ -3,8 +3,11 @@
 import {
   NOTIFICATION_CREATED_EVENT,
   NOTIFICATIONS_SOCKET_NAMESPACE,
+  WORKSPACE_DATA_STALE_SOCKET_EVENT,
   notificationCreatedEventSchema,
-  type NotificationCreatedEvent
+  workspaceDataStaleEventSchema,
+  type NotificationCreatedEvent,
+  type WorkspaceDataStaleEvent
 } from "@kloqra/contracts";
 import { io, type Socket } from "socket.io-client";
 import { getApiBase } from "../api/base";
@@ -18,6 +21,7 @@ export type NotificationSocketConnectionState =
   | "disconnected";
 
 type PushHandler = (payload: NotificationCreatedEvent) => void;
+type WorkspaceDataStaleHandler = (payload: WorkspaceDataStaleEvent) => void;
 type ConnectionHandler = (state: NotificationSocketConnectionState) => void;
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -27,6 +31,7 @@ let connectionState: NotificationSocketConnectionState = "idle";
 let activeConsumers = 0;
 let currentToken: string | null = null;
 const pushHandlers = new Set<PushHandler>();
+const workspaceDataStaleHandlers = new Set<WorkspaceDataStaleHandler>();
 const connectionHandlers = new Set<ConnectionHandler>();
 let sessionUnsub: (() => void) | null = null;
 
@@ -60,6 +65,13 @@ function attachSocketListeners(nextSocket: Socket): void {
     const parsed = notificationCreatedEventSchema.safeParse(raw);
     if (!parsed.success) return;
     for (const handler of pushHandlers) {
+      handler(parsed.data);
+    }
+  });
+  nextSocket.on(WORKSPACE_DATA_STALE_SOCKET_EVENT, (raw: unknown) => {
+    const parsed = workspaceDataStaleEventSchema.safeParse(raw);
+    if (!parsed.success) return;
+    for (const handler of workspaceDataStaleHandlers) {
       handler(parsed.data);
     }
   });
@@ -141,6 +153,11 @@ export function forceDisconnectNotificationSocket(): void {
 export function subscribeNotificationPush(handler: PushHandler): () => void {
   pushHandlers.add(handler);
   return () => pushHandlers.delete(handler);
+}
+
+export function subscribeWorkspaceDataStale(handler: WorkspaceDataStaleHandler): () => void {
+  workspaceDataStaleHandlers.add(handler);
+  return () => workspaceDataStaleHandlers.delete(handler);
 }
 
 export function subscribeNotificationConnection(handler: ConnectionHandler): () => void {

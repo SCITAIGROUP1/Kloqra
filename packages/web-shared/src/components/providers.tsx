@@ -7,6 +7,7 @@ import { useBfCacheSessionReconcile } from "../auth/bfcache-session-reconcile";
 import { bootstrapTokenSchedulerFromStorage } from "../auth/refresh-session";
 import { initCrossTabSessionReconcile } from "../auth/session-token-reconcile";
 import { themeStorageKey } from "../hooks/theme-storage";
+import { AppQueryProvider } from "../query/app-query-provider";
 import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { useSessionStore } from "../stores/session.store";
 import { ThemePreferenceSync } from "./theme-preference-sync";
@@ -42,5 +43,9 @@ export function Providers({ children }: { children: ReactNode }) {
     return initCrossTabSessionReconcile();
   }, []);
 
-  return <SessionAwareThemeProvider>{children}</SessionAwareThemeProvider>;
+  return (
+    <AppQueryProvider>
+      <SessionAwareThemeProvider>{children}</SessionAwareThemeProvider>
+    </AppQueryProvider>
+  );
 }

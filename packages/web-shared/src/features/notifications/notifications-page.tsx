@@ -146,7 +146,7 @@ function NotificationRow({
 
 export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const { count, refresh: refreshUnread } = useNotificationUnreadCount(workspaceId);
+  const { count, refresh: refreshUnread, aligned } = useNotificationUnreadCount(workspaceId);
   const { items, page, setPage, total, totalPages, limit, setLimit, loading, reload } =
     usePaginatedNotifications(workspaceId, { unreadOnly: filter === "unread" });
 
@@ -186,7 +186,7 @@ export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
         {count > 0 ? <Badge variant="secondary">{count} unread</Badge> : null}
       </div>
 
-      {loading ? (
+      {!aligned || loading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />

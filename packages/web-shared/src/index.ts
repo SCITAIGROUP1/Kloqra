@@ -59,7 +59,7 @@ export {
   type ScopedStorageIdentity
 } from "./storage/scoped-storage";
 export { tryRefreshSession } from "./auth/refresh-session";
-export { isAccessTokenExpired } from "./auth/jwt-payload";
+export { isAccessTokenExpired, readUserIdFromToken } from "./auth/jwt-payload";
 export {
   getEffectiveWorkspaceId,
   isWorkspaceMismatchError,
@@ -156,6 +156,7 @@ export {
   getNotificationSocketConnectionState,
   subscribeNotificationConnection,
   subscribeNotificationPush,
+  subscribeWorkspaceDataStale,
   type NotificationSocketConnectionState
 } from "./realtime/notification-socket-manager";
 export { activateNotification } from "./features/notifications/notification-actions";
@@ -167,6 +168,17 @@ export {
   scopesForNotificationType,
   type WorkspaceDataStaleDetail
 } from "./realtime/workspace-data-sync";
+export {
+  TIMELOG_INVALIDATE_SCOPES,
+  commitTimelogMutation,
+  invalidateTimelogData
+} from "./realtime/timelog-data-sync";
+export { AppQueryProvider } from "./query/app-query-provider";
+export { resetQueryClient } from "./query/query-client";
+export { invalidateTimelogQueries } from "./query/invalidate-timelog-queries";
+export { timelogQueryKeys } from "./query/timelog-query-keys";
+export { useTimelogListQuery, useTimelogListAllQuery } from "./query/use-timelog-list-query";
+export { useTimelogQuerySync } from "./query/use-timelog-query-sync";
 export { useClientTablePagination } from "./hooks/use-client-table-pagination";
 export { fetchUserProfile } from "./stores/user-profile.store";
 export {

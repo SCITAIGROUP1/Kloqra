@@ -1,14 +1,33 @@
 "use client";
 
 import { ROUTES, type NotificationDto } from "@kloqra/contracts";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { api } from "../api/client";
+import { readUserIdFromToken } from "../auth/jwt-payload";
+import { notificationRecentKey, notificationUnreadKey } from "../stores/notification-cache-key";
 import { NOTIFICATIONS_UPDATED_EVENT, useNotificationsStore } from "../stores/notifications-store";
+import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { usePaginatedList } from "./use-paginated-list";
 
 export { NOTIFICATIONS_UPDATED_EVENT };
 
 const EMPTY_NOTIFICATIONS: NotificationDto[] = [];
+
+function useAlignedNotificationScope(workspaceId: string, enabled = true) {
+  const sessionUserId = useSessionStore((s) => s.session?.user?.id);
+  const tokenUserId = readUserIdFromToken(getAccessToken());
+  const aligned = Boolean(
+    enabled && workspaceId && sessionUserId && tokenUserId && sessionUserId === tokenUserId
+  );
+
+  return useMemo(
+    () => ({
+      userId: aligned ? sessionUserId! : "",
+      enabled: aligned
+    }),
+    [aligned, sessionUserId]
+  );
+}
 
 /** Notify all unread-count subscribers to refresh (e.g. after mark read). */
 export function dispatchNotificationsUpdated() {
@@ -18,27 +37,33 @@ export function dispatchNotificationsUpdated() {
 }
 
 export function useNotificationUnreadCount(workspaceId: string, enabled = true) {
+  const { userId, enabled: aligned } = useAlignedNotificationScope(workspaceId, enabled);
+  const cacheKey = aligned ? notificationUnreadKey(userId, workspaceId) : "";
   const count = useNotificationsStore((s) =>
-    enabled && workspaceId ? (s.unreadByWorkspace[workspaceId]?.count ?? 0) : 0
+    cacheKey ? (s.unreadByWorkspace[cacheKey]?.count ?? 0) : 0
   );
   const loading = useNotificationsStore((s) =>
-    enabled && workspaceId ? (s.unreadByWorkspace[workspaceId]?.loading ?? false) : false
+    cacheKey ? (s.unreadByWorkspace[cacheKey]?.loading ?? false) : false
   );
   const subscribeUnread = useNotificationsStore((s) => s.subscribeUnread);
   const refreshUnread = useNotificationsStore((s) => s.refreshUnread);
 
   useEffect(() => {
-    if (!enabled || !workspaceId) return;
-    return subscribeUnread(workspaceId);
-  }, [enabled, workspaceId, subscribeUnread]);
+    if (!aligned) return;
+    return subscribeUnread(userId, workspaceId);
+  }, [aligned, userId, workspaceId, subscribeUnread]);
 
-  const refresh = useCallback(() => refreshUnread(workspaceId), [workspaceId, refreshUnread]);
+  const refresh = useCallback(
+    () => refreshUnread(userId, workspaceId),
+    [userId, workspaceId, refreshUnread]
+  );
 
-  return { count, loading, refresh };
+  return { count, loading, refresh, aligned };
 }
 
 export function useRecentNotifications(workspaceId: string, limit = 8, enabled = true) {
-  const key = enabled && workspaceId ? `${workspaceId}:${limit}` : "";
+  const { userId, enabled: aligned } = useAlignedNotificationScope(workspaceId, enabled);
+  const key = aligned ? notificationRecentKey(userId, workspaceId, limit) : "";
   const items = useNotificationsStore((s) =>
     key ? (s.recentByWorkspace[key]?.items ?? EMPTY_NOTIFICATIONS) : EMPTY_NOTIFICATIONS
   );
@@ -50,34 +75,36 @@ export function useRecentNotifications(workspaceId: string, limit = 8, enabled =
   const setRecentItems = useNotificationsStore((s) => s.setRecentItems);
 
   useEffect(() => {
-    if (!enabled || !workspaceId) return;
-    return subscribeRecent(workspaceId, limit);
-  }, [enabled, workspaceId, limit, subscribeRecent]);
+    if (!aligned) return;
+    return subscribeRecent(userId, workspaceId, limit);
+  }, [aligned, userId, workspaceId, limit, subscribeRecent]);
 
   const refresh = useCallback(
-    () => refreshRecent(workspaceId, limit),
-    [workspaceId, limit, refreshRecent]
+    () => refreshRecent(userId, workspaceId, limit),
+    [userId, workspaceId, limit, refreshRecent]
   );
 
   const setItems = useCallback(
     (updater: NotificationDto[] | ((prev: NotificationDto[]) => NotificationDto[])) => {
-      if (!workspaceId) return;
-      setRecentItems(workspaceId, limit, updater);
+      if (!aligned) return;
+      setRecentItems(userId, workspaceId, limit, updater);
     },
-    [workspaceId, limit, setRecentItems]
+    [aligned, userId, workspaceId, limit, setRecentItems]
   );
 
-  return { items, loading, refresh, setItems };
+  return { items, loading, refresh, setItems, aligned };
 }
 
 export function usePaginatedNotifications(
   workspaceId: string,
   options?: { unreadOnly?: boolean; enabled?: boolean }
 ) {
+  const { enabled: aligned } = useAlignedNotificationScope(workspaceId, options?.enabled ?? true);
+
   return usePaginatedList<NotificationDto>({
     workspaceId,
     basePath: ROUTES.NOTIFICATIONS.LIST,
-    enabled: options?.enabled ?? true,
+    enabled: aligned,
     filters: options?.unreadOnly ? { unreadOnly: "true" } : undefined
   });
 }

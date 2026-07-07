@@ -18,7 +18,9 @@ export function MyWeekSummary() {
     if (!ws) return;
     void api<MyWeekSummaryDto>(ROUTES.REPORTING.ME, { workspaceId: ws }).then(setSummary);
     if (projects.length === 0) {
-      void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+      void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
+        setProjects(ws, items)
+      );
     }
   }, [ws, setProjects, projects.length]);
 

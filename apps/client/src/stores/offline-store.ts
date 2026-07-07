@@ -1,4 +1,5 @@
 import { ROUTES } from "@kloqra/contracts";
+import { invalidateTimelogData } from "@kloqra/web-shared";
 import { toast } from "sonner";
 import { create } from "zustand";
 import {
@@ -191,6 +192,10 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
       toast.warning(`Synced ${successCount} items, ${failCount} items failed to sync.`, {
         id: "offline-sync"
       });
+    }
+
+    if (successCount > 0) {
+      invalidateTimelogData(workspaceId);
     }
   }
 }));

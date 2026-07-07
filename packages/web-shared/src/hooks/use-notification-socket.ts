@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { readUserIdFromToken } from "../auth/jwt-payload";
 import {
   connectNotificationSocket,
   disconnectNotificationSocket,
   subscribeNotificationConnection,
-  subscribeNotificationPush
+  subscribeNotificationPush,
+  subscribeWorkspaceDataStale
 } from "../realtime/notification-socket-manager";
 import {
   invalidateWorkspaceData,
   scopesForNotificationType
 } from "../realtime/workspace-data-sync";
 import { useNotificationsStore } from "../stores/notifications-store";
+import { getAccessToken } from "../stores/session.store";
 
 export function useNotificationSocket(workspaceId: string, enabled = true) {
   const applyPush = useNotificationsStore((s) => s.applyNotificationPush);
@@ -30,15 +33,23 @@ export function useNotificationSocket(workspaceId: string, enabled = true) {
       }
     });
 
+    const unsubStale = subscribeWorkspaceDataStale((payload) => {
+      invalidateWorkspaceData(payload.workspaceId, payload.scopes);
+    });
+
     const unsubConn = subscribeNotificationConnection((state) => {
       const connected = state === "connected";
       setSocketConnected(connected);
       if (connected && workspaceId) {
-        void refreshUnread(workspaceId);
+        const userId = readUserIdFromToken(getAccessToken());
+        if (userId) {
+          void refreshUnread(userId, workspaceId);
+        }
         if (hadConnectedRef.current) {
           invalidateWorkspaceData(workspaceId, [
             "submissions",
             "timesheet",
+            "timelogs",
             "projects",
             "tasks",
             "pending_approvals"
@@ -52,6 +63,7 @@ export function useNotificationSocket(workspaceId: string, enabled = true) {
 
     return () => {
       unsubPush();
+      unsubStale();
       unsubConn();
       disconnectNotificationSocket();
       hadConnectedRef.current = false;

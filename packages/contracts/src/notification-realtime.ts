@@ -17,9 +17,21 @@ export type NotificationCreatedEvent = z.infer<typeof notificationCreatedEventSc
 export const workspaceDataInvalidateScopeSchema = z.enum([
   "submissions",
   "timesheet",
+  "timelogs",
   "projects",
   "tasks",
   "pending_approvals"
 ]);
 
 export type WorkspaceDataInvalidateScope = z.infer<typeof workspaceDataInvalidateScopeSchema>;
+
+/** Socket.IO event: workspace caches should refetch (timelogs, submissions, etc.). */
+export const WORKSPACE_DATA_STALE_SOCKET_EVENT = "workspace.data.stale";
+
+export const workspaceDataStaleEventSchema = z.object({
+  workspaceId: z.string().uuid(),
+  scopes: z.array(workspaceDataInvalidateScopeSchema).min(1),
+  actorUserId: z.string().uuid().optional()
+});
+
+export type WorkspaceDataStaleEvent = z.infer<typeof workspaceDataStaleEventSchema>;

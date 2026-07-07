@@ -41,6 +41,8 @@ import {
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
   fetchListItems,
+  commitTimelogMutation,
+  useTimelogListQuery,
   useUserProfile,
   useWorkspaceStaleRefetch,
   localMidnightUtcInZone,
@@ -81,6 +83,7 @@ import {
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
+import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { useActiveTimerSessionStore } from "@/stores/member-data.store";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -135,9 +138,44 @@ export function DashboardPage() {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [scopeTasks, setScopeTasks] = useState<TaskDto[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
 
-  // Keep date ranges in sync with the loaded/updated timezone preference
+  const logsPath = useMemo(() => {
+    const [fy, fm, fd] = startDate.split("-").map(Number);
+    const [ty, tm, td] = endDate.split("-").map(Number);
+    const from = localMidnightUtcInZone(fy, fm, fd, timezone);
+    const to = new Date(
+      localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
+    );
+    const today = todayInZone(timezone);
+    const todayFrom = localMidnightUtcInZone(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      today.getDate(),
+      timezone
+    );
+    const todayTo = new Date(todayFrom.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const effectiveFrom = new Date(Math.min(from.getTime(), todayFrom.getTime()));
+    const effectiveTo = new Date(Math.max(to.getTime(), todayTo.getTime()));
+    const params = new URLSearchParams({
+      from: effectiveFrom.toISOString(),
+      to: effectiveTo.toISOString()
+    });
+    if (isAdmin && filterUserId) params.set("userId", filterUserId);
+    if (filterTaskId) params.set("taskId", filterTaskId);
+    return `${ROUTES.TIMELOGS.LIST}?${params}`;
+  }, [startDate, endDate, timezone, isAdmin, filterUserId, filterTaskId]);
+
+  const {
+    data: logsData,
+    refetch: refetchLogs,
+    isLoading: logsQueryLoading,
+    isFetching: logsFetching
+  } = useTimelogListQuery(ws, logsPath, Boolean(ws));
+
+  const logs = logsData?.items ?? [];
+  const logsLoading = logsQueryLoading || logsFetching;
+
+  const [loading, setLoading] = useState(true);
   const lastTimezoneRef = useRef(timezone);
   useEffect(() => {
     if (timezone !== lastTimezoneRef.current) {
@@ -170,8 +208,7 @@ export function DashboardPage() {
     );
   }
 
-  const [logs, setLogs] = useState<TimeLogDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Keep date ranges in sync with the loaded/updated timezone preference
   const { submissions } = useDashboardSubmissions(ws, Boolean(ws));
   const draftCount = useMemo(() => {
     return submissions.filter((s) => s.status === "DRAFT" || s.status === "REJECTED").length;
@@ -316,52 +353,17 @@ export function DashboardPage() {
     };
   }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
-  const fetchLogs = useCallback(async () => {
-    if (!ws) return;
-    try {
-      const [fy, fm, fd] = startDate.split("-").map(Number);
-      const [ty, tm, td] = endDate.split("-").map(Number);
-      const from = localMidnightUtcInZone(fy, fm, fd, timezone);
-      const to = new Date(
-        localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
-      );
-      const today = todayInZone(timezone);
-      const todayFrom = localMidnightUtcInZone(
-        today.getFullYear(),
-        today.getMonth() + 1,
-        today.getDate(),
-        timezone
-      );
-      const todayTo = new Date(todayFrom.getTime() + 24 * 60 * 60 * 1000 - 1);
-      const effectiveFrom = new Date(Math.min(from.getTime(), todayFrom.getTime()));
-      const effectiveTo = new Date(Math.max(to.getTime(), todayTo.getTime()));
-      const params = new URLSearchParams({
-        from: effectiveFrom.toISOString(),
-        to: effectiveTo.toISOString()
-      });
-      if (isAdmin && filterUserId) params.set("userId", filterUserId);
-      if (filterTaskId) params.set("taskId", filterTaskId);
-      const res = await api<{ items: TimeLogDto[] }>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
-        workspaceId: ws
-      });
-      setLogs(res.items || []);
-    } catch {
-      // ignore
-    }
-  }, [ws, startDate, endDate, isAdmin, filterUserId, filterTaskId, timezone]);
-
-  const fetchActiveTimer = useCallback(async () => {
-    if (!ws) return;
-    await useActiveTimerSessionStore.getState().refreshActive(ws);
-  }, [ws]);
-
   const loadAll = useCallback(async () => {
     if (!ws) return;
     setLoading(true);
     try {
       await Promise.all([
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
+        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
+          setProjects(ws, items)
+        ),
+        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then((items) =>
+          setTasks(ws, items)
+        ),
         fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
           setCategories
         ),
@@ -369,15 +371,23 @@ export function DashboardPage() {
           ? api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(
               setWorkspaceMembers
             )
-          : Promise.resolve(),
-        fetchLogs()
+          : Promise.resolve()
       ]);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [ws, isAdmin, setProjects, setTasks, fetchLogs]);
+  }, [ws, isAdmin, setProjects, setTasks]);
+
+  const fetchActiveTimer = useCallback(async () => {
+    if (!ws) return;
+    await useActiveTimerSessionStore.getState().refreshActive(ws);
+  }, [ws]);
+
+  const refreshLogs = useCallback(async () => {
+    await refetchLogs();
+  }, [refetchLogs]);
 
   useEffect(() => {
     void loadAll();
@@ -398,7 +408,7 @@ export function DashboardPage() {
   const refreshTaskCatalog = useCallback(() => {
     if (!ws) return;
     void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-      setTasks
+      (items) => setTasks(ws, items)
     );
     if (!filterProjectId) return;
     const filters: Record<string, string> = { projectId: filterProjectId };
@@ -409,6 +419,13 @@ export function DashboardPage() {
   }, [ws, filterProjectId, filterCategoryId, setTasks]);
 
   useWorkspaceStaleRefetch(ws, ["tasks", "projects"], refreshTaskCatalog, Boolean(ws));
+  useTimelogStaleRefetch(
+    ws,
+    () => {
+      void refreshLogs();
+    },
+    Boolean(ws)
+  );
 
   useEffect(() => {
     if (!filterUserId) return;
@@ -447,18 +464,6 @@ export function DashboardPage() {
     [workspaceMembers]
   );
 
-  // Refetch logs when date range or scope filters change (skip the initial loadAll fetch).
-  const hasLoadedOnceRef = useRef(false);
-  useEffect(() => {
-    if (loading) return;
-    if (!hasLoadedOnceRef.current) {
-      hasLoadedOnceRef.current = true;
-      return;
-    }
-    setLogsLoading(true);
-    fetchLogs().finally(() => setLogsLoading(false));
-  }, [startDate, endDate, filterUserId, filterTaskId, fetchLogs, loading]);
-
   // Keep timer ticking
   useEffect(() => {
     const id = setInterval(tick, 1000);
@@ -481,7 +486,7 @@ export function DashboardPage() {
       setActive(res);
       setTaskChoice("");
       toast.success("Timer started!");
-      void fetchLogs();
+      void refreshLogs();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not start timer";
       toast.error(message);
@@ -505,7 +510,7 @@ export function DashboardPage() {
       setActive(null);
       setStopDescription("");
       toast.success("Timer stopped! Time entry saved.");
-      void fetchLogs();
+      await commitTimelogMutation(ws, refreshLogs);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not stop timer";
       toast.error(message);
@@ -563,7 +568,7 @@ export function DashboardPage() {
     try {
       await api(`/timelogs/${logId}`, { method: "DELETE", workspaceId: ws });
       toast.success("Time entry deleted!");
-      void fetchLogs();
+      await commitTimelogMutation(ws, refreshLogs);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not delete time log");
     }
@@ -579,7 +584,7 @@ export function DashboardPage() {
       });
       setActive(res);
       toast.success("Timer started!");
-      void fetchLogs();
+      void refreshLogs();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not restart timer");
     }

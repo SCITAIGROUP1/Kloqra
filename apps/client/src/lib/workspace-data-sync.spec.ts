@@ -7,6 +7,8 @@ const workspaceId = "22222222-2222-4222-8222-222222222222";
 
 const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
+  invalidateWeekSummary: vi.fn(),
+  invalidateActive: vi.fn(),
   setProjects: vi.fn(),
   setTasks: vi.fn(),
   invalidateListItemsCache: vi.fn(),
@@ -16,6 +18,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/stores/member-data.store", () => ({
   useMySubmissionsStore: {
     getState: () => ({ invalidate: mocks.invalidate })
+  },
+  useMemberReportingStore: {
+    getState: () => ({ invalidateWeekSummary: mocks.invalidateWeekSummary })
+  },
+  useActiveTimerSessionStore: {
+    getState: () => ({ invalidateActive: mocks.invalidateActive })
   }
 }));
 
@@ -40,6 +48,20 @@ import { useClientWorkspaceDataSync } from "./workspace-data-sync";
 describe("useClientWorkspaceDataSync", () => {
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("invalidates timelog-backed member stores when timelogs scope is stale", async () => {
+    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
+
+    renderHook(() => useClientWorkspaceDataSync(workspaceId));
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+        detail: { workspaceId, scopes: ["timelogs"] }
+      })
+    );
+
+    expect(mocks.invalidateWeekSummary).toHaveBeenCalledWith(workspaceId);
+    expect(mocks.invalidateActive).toHaveBeenCalledWith(workspaceId);
   });
 
   it("invalidates submissions when timesheet scope is stale", async () => {

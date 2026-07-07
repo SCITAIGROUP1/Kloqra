@@ -2,7 +2,9 @@ import {
   NOTIFICATION_CREATED_EVENT,
   NOTIFICATIONS_SOCKET_NAMESPACE,
   PLATFORM_NOTIFICATION_CREATED_EVENT,
-  type NotificationCreatedEvent
+  WORKSPACE_DATA_STALE_SOCKET_EVENT,
+  type NotificationCreatedEvent,
+  type WorkspaceDataStaleEvent
 } from "@kloqra/contracts";
 import { Logger, UnauthorizedException } from "@nestjs/common";
 import {
@@ -18,6 +20,7 @@ import { JwtTokenService } from "../../../../common/auth/jwt-token.service";
 import { platformNotificationUserChannel } from "../../../../common/notifications/platform-realtime.constants";
 import { RedisService } from "../../../../common/redis/redis.service";
 import { notificationUserChannel } from "../../application/notifications-realtime.constants.js";
+import { workspaceDataUserChannel } from "../../application/workspace-data-realtime.constants.js";
 
 type RedisSubscriber = {
   on(event: string, handler: (...args: unknown[]) => void): void;
@@ -31,8 +34,10 @@ type AuthenticatedSocket = Socket & { data: { userId: string; isPlatform: boolea
 type UserPool = {
   sub: RedisSubscriber;
   listenerCount: number;
-  channel: string;
-  eventName: string;
+  channels: string[];
+  notificationChannel: string;
+  workspaceDataChannel: string;
+  notificationEventName: string;
 };
 
 @WebSocketGateway({
@@ -122,21 +127,36 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     const channel = isPlatform
       ? platformNotificationUserChannel(userId)
       : notificationUserChannel(userId);
+    const workspaceDataChannel = isPlatform ? null : workspaceDataUserChannel(userId);
     const eventName = isPlatform ? PLATFORM_NOTIFICATION_CREATED_EVENT : NOTIFICATION_CREATED_EVENT;
 
-    sub.on("message", (...args: unknown[]) => {
-      const raw = args[1];
+    sub.on("message", (channelName: string, raw: unknown) => {
       if (typeof raw !== "string") return;
       try {
-        const payload = JSON.parse(raw) as NotificationCreatedEvent;
-        this.server.to(this.userRoom(userId)).emit(eventName, payload);
+        if (channelName === channel) {
+          const payload = JSON.parse(raw) as NotificationCreatedEvent;
+          this.server.to(this.userRoom(userId)).emit(eventName, payload);
+          return;
+        }
+        if (workspaceDataChannel && channelName === workspaceDataChannel) {
+          const payload = JSON.parse(raw) as WorkspaceDataStaleEvent;
+          this.server.to(this.userRoom(userId)).emit(WORKSPACE_DATA_STALE_SOCKET_EVENT, payload);
+        }
       } catch {
         // ignore malformed payloads
       }
     });
 
-    await sub.subscribe(channel);
-    this.userPools.set(key, { sub, listenerCount: 1, channel, eventName });
+    const channels = workspaceDataChannel ? [channel, workspaceDataChannel] : [channel];
+    await sub.subscribe(...channels);
+    this.userPools.set(key, {
+      sub,
+      listenerCount: 1,
+      channels,
+      notificationChannel: channel,
+      workspaceDataChannel: workspaceDataChannel ?? "",
+      notificationEventName: eventName
+    });
   }
 
   private async releaseUserSubscription(userId: string, isPlatform: boolean): Promise<void> {
@@ -149,7 +169,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
     this.userPools.delete(key);
     try {
-      await pool.sub.unsubscribe(pool.channel);
+      await pool.sub.unsubscribe(...pool.channels);
       await pool.sub.quit();
     } catch {
       // ignore

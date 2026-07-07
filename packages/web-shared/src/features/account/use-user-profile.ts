@@ -22,12 +22,18 @@ export function useUserProfile() {
   const session = useSessionStore((s) => s.session);
   const accessToken = useSessionStore((s) => s.accessToken);
 
-  const profile = useUserProfileStore((s) =>
-    cacheKey ? (s.byWorkspace[cacheKey]?.profile ?? null) : null
-  );
-  const loading = useUserProfileStore((s) =>
-    cacheKey ? (s.byWorkspace[cacheKey]?.loading ?? false) : false
-  );
+  const sessionUserId = session?.user?.id;
+  const cacheEntry = useUserProfileStore((s) => (cacheKey ? s.byWorkspace[cacheKey] : undefined));
+  const profile =
+    cacheEntry?.profile && sessionUserId && cacheEntry.userId === sessionUserId
+      ? cacheEntry.profile
+      : null;
+  const loading =
+    cacheKey && sessionUserId && cacheEntry && cacheEntry.userId !== sessionUserId
+      ? true
+      : cacheKey
+        ? (cacheEntry?.loading ?? false)
+        : false;
   const subscribe = useUserProfileStore((s) => s.subscribe);
   const refresh = useUserProfileStore((s) => s.refresh);
   const setProfile = useUserProfileStore((s) => s.setProfile);

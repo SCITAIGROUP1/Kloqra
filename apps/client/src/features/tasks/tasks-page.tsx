@@ -34,7 +34,9 @@ export function TasksPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
+      setProjects(ws, items)
+    );
   }, [ws, setProjects]);
 
   const taskFilters = useMemo(

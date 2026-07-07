@@ -9,6 +9,10 @@ function mockSubscriptions() {
   return { assertSubscriptionAllowsWrites: vi.fn().mockResolvedValue(undefined) };
 }
 
+function mockWorkspaceDataRealtime() {
+  return { publishStaleToUsers: vi.fn().mockResolvedValue(undefined) };
+}
+
 describe("TimelogsService listOccupancy", () => {
   let service: TimelogsService;
   let mockPrisma: {
@@ -33,7 +37,8 @@ describe("TimelogsService listOccupancy", () => {
       {} as never,
       mockTimesheetLock as never,
       {} as never,
-      mockSubscriptions() as never
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
     );
   });
 
@@ -132,7 +137,8 @@ describe("TimelogsService list", () => {
       {} as never,
       {} as never,
       {} as never,
-      mockSubscriptions() as never
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
     );
   });
 
@@ -245,7 +251,8 @@ describe("TimelogsService assertNoOverlap", () => {
       {} as never,
       {} as never,
       {} as never,
-      mockSubscriptions() as never
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
     );
   });
 
@@ -336,7 +343,8 @@ describe("TimelogsService resolveBillable", () => {
       {} as never,
       {} as never,
       {} as never,
-      mockSubscriptions() as never
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
     );
   });
 
@@ -397,7 +405,8 @@ describe("TimelogsService createBatch", () => {
       mockAudit as any,
       mockTimesheetLock as any,
       mockAccess as any,
-      mockSubscriptions() as any
+      mockSubscriptions() as any,
+      mockWorkspaceDataRealtime() as any
     );
   });
 

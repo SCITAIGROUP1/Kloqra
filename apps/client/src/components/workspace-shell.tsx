@@ -229,8 +229,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
           defaultRedirect="/dashboard"
           collapsed={collapsed}
           onAfterSwitch={() => {
-            useProjectsStore.getState().setProjects([]);
-            useProjectsStore.getState().setTasks([]);
+            useProjectsStore.getState().clear();
           }}
         />
       )}

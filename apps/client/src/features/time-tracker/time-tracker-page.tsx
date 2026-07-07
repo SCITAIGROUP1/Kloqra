@@ -10,7 +10,7 @@ import type {
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
-import { api as sharedApi } from "@kloqra/web-shared";
+import { api as sharedApi, commitTimelogMutation } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { todayInZone } from "../timesheet/calendar-utils";
@@ -44,6 +44,7 @@ import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
+import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { loadEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -247,11 +248,23 @@ export function TimeTrackerPage() {
     void refreshSubmissions();
   }, [refreshSubmissions]);
 
+  const refreshTimelogSurface = useCallback(async () => {
+    await Promise.all([refreshLogs(), refreshSubmissions()]);
+  }, [refreshLogs, refreshSubmissions]);
+
+  useTimelogStaleRefetch(
+    ws,
+    () => {
+      void refreshTimelogSurface();
+    },
+    Boolean(ws)
+  );
+
   useEffect(() => {
     if (!ws) return;
     void loadEntryCatalog(ws).then(({ tasks, projects, categories }) => {
-      setTasks(tasks);
-      setProjects(projects);
+      setTasks(ws, tasks);
+      setProjects(ws, projects);
       setCategories(categories);
     });
   }, [ws, setTasks, setProjects]);
@@ -401,7 +414,7 @@ export function TimeTrackerPage() {
           workspaceId: ws,
           body: JSON.stringify(body)
         });
-        await Promise.all([refreshLogs(), refreshSubmissions()]);
+        await commitTimelogMutation(ws, refreshTimelogSurface);
         closeDialog();
         if (res.skippedCount > 0) {
           toast.success(
@@ -472,7 +485,7 @@ export function TimeTrackerPage() {
           body: JSON.stringify(body)
         });
       }
-      await Promise.all([refreshLogs(), refreshSubmissions()]);
+      await commitTimelogMutation(ws, refreshTimelogSurface);
       closeDialog();
       toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
     } catch (e) {
@@ -524,7 +537,7 @@ export function TimeTrackerPage() {
     setError(null);
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
-      await Promise.all([refreshLogs(), refreshSubmissions()]);
+      await commitTimelogMutation(ws, refreshTimelogSurface);
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
     } catch (e) {

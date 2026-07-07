@@ -310,6 +310,9 @@ importers:
       '@kloqra/web-shared':
         specifier: workspace:*
         version: link:../../packages/web-shared
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.7)
@@ -716,6 +719,9 @@ importers:
       '@kloqra/ui':
         specifier: workspace:*
         version: link:../ui
+      '@tanstack/react-query':
+        specifier: ^5.101.2
+        version: 5.101.2(react@19.2.7)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.7)
@@ -2955,6 +2961,14 @@ packages:
 
   '@tailwindcss/postcss@4.3.0':
     resolution: {integrity: sha512-Jm05Tjx+9yCLGv5qw1c+84Psds8MnyrEQYCB+FFk2lgGiUjlRqdxke4mVTuYrj2xnVZqKim2Apr5ySuQRYAw/w==}
+
+  '@tanstack/query-core@5.101.2':
+    resolution: {integrity: sha512-hH5MLoJhF7KaIGd7q3xTXGXvslI+GYlM1Z/35aSHHWaCJWB7XvTSHYuV3eM7tw+aE0mT/xMro4M4Q9rCGHT0lw==}
+
+  '@tanstack/react-query@5.101.2':
+    resolution: {integrity: sha512-seDkr6kzGzX1okaaTtZPtgA688CDPlXUz1C6xSg0ESqn04Vuc8tlrYms1s3de+znBqhPVxFRfpAfUf+6XvfPWg==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -9800,6 +9814,13 @@ snapshots:
       postcss: 8.5.15
       tailwindcss: 4.3.0
 
+  '@tanstack/query-core@5.101.2': {}
+
+  '@tanstack/react-query@5.101.2(react@19.2.7)':
+    dependencies:
+      '@tanstack/query-core': 5.101.2
+      react: 19.2.7
+
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -10377,7 +10398,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
+      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
 
   '@vitest/utils@2.1.8':
     dependencies:

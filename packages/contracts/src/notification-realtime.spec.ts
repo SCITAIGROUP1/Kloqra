@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   notificationCreatedEventSchema,
   NOTIFICATIONS_SOCKET_NAMESPACE,
-  workspaceDataInvalidateScopeSchema
+  WORKSPACE_DATA_STALE_SOCKET_EVENT,
+  workspaceDataInvalidateScopeSchema,
+  workspaceDataStaleEventSchema
 } from "./notification-realtime";
 
 const UUID = "11111111-1111-4111-8111-111111111111";
@@ -15,6 +17,19 @@ describe("notification-realtime", () => {
 
   it("includes tasks in workspace invalidate scopes", () => {
     expect(workspaceDataInvalidateScopeSchema.safeParse("tasks").success).toBe(true);
+  });
+
+  it("includes timelogs in workspace invalidate scopes", () => {
+    expect(workspaceDataInvalidateScopeSchema.safeParse("timelogs").success).toBe(true);
+  });
+
+  it("validates workspace.data.stale socket payloads", () => {
+    const result = workspaceDataStaleEventSchema.safeParse({
+      workspaceId: UUID_WS,
+      scopes: ["timelogs", "timesheet"]
+    });
+    expect(result.success).toBe(true);
+    expect(WORKSPACE_DATA_STALE_SOCKET_EVENT).toBe("workspace.data.stale");
   });
 
   it("validates notification.created payloads", () => {

@@ -19,12 +19,15 @@ import {
   parseWorkspaceSettingsFromRaw,
   resolveApprovalPeriod
 } from "../../../common/time/approval-period.util";
+import { WorkspaceDataRealtimeService } from "../../notifications/application/workspace-data-realtime.service.js";
 import { SubscriptionsService } from "../../subscriptions/application/subscriptions.service";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimesheetLockService } from "./timesheet-lock.service";
 
 const DEFAULT_LIST_LIMIT = 500;
 const DEFAULT_LIST_LOOKBACK_DAYS = 90;
+
+const TIMELOG_STALE_SCOPES = ["timelogs", "timesheet"] as const;
 
 @Injectable()
 export class TimelogsService {
@@ -34,7 +37,8 @@ export class TimelogsService {
     private audit: TimelogAuditService,
     private timesheetLock: TimesheetLockService,
     private access: ProjectAccessService,
-    private subscriptions: SubscriptionsService
+    private subscriptions: SubscriptionsService,
+    private workspaceDataRealtime: WorkspaceDataRealtimeService
   ) {}
 
   resolveBillable(
@@ -425,6 +429,7 @@ export class TimelogsService {
     });
 
     await this.reportCache.invalidateWorkspace(workspaceId);
+    await this.publishTimelogsStale(workspaceId, userId, actorId ?? userId);
     return this.toDto(log);
   }
 
@@ -525,6 +530,7 @@ export class TimelogsService {
     });
 
     await this.reportCache.invalidateWorkspace(workspaceId);
+    await this.publishTimelogsStale(workspaceId, log.userId, userId);
     return this.toDto(updated);
   }
 
@@ -596,7 +602,23 @@ export class TimelogsService {
     });
 
     await this.reportCache.invalidateWorkspace(workspaceId);
+    await this.publishTimelogsStale(workspaceId, log.userId, userId);
     return { ok: true };
+  }
+
+  async publishTimelogsStale(
+    workspaceId: string,
+    entryUserId: string,
+    actorUserId?: string
+  ): Promise<void> {
+    await this.workspaceDataRealtime.publishStaleToUsers(
+      [entryUserId, actorUserId ?? entryUserId],
+      {
+        workspaceId,
+        scopes: [...TIMELOG_STALE_SCOPES],
+        actorUserId: actorUserId ?? entryUserId
+      }
+    );
   }
 
   private assertTimeLogEditable(task: {
@@ -830,6 +852,7 @@ export class TimelogsService {
 
     if (createdItems.length > 0) {
       await this.reportCache.invalidateWorkspace(workspaceId);
+      await this.publishTimelogsStale(workspaceId, userId, actorId ?? userId);
     }
 
     return {

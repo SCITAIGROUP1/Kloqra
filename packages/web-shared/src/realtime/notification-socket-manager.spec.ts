@@ -64,4 +64,29 @@ describe("notification socket manager", () => {
     expect(getNotificationSocketConnectionState()).toBe("disconnected");
     expect(mockDisconnect).toHaveBeenCalled();
   });
+
+  it("forwards workspace.data.stale to subscribers", async () => {
+    const handlers: Record<string, (raw: unknown) => void> = {};
+    mockOn.mockImplementation((event: string, cb: (raw: unknown) => void) => {
+      handlers[event] = cb;
+    });
+
+    const { connectNotificationSocket, subscribeWorkspaceDataStale } =
+      await import("./notification-socket-manager");
+    const received: unknown[] = [];
+    subscribeWorkspaceDataStale((payload) => received.push(payload));
+    connectNotificationSocket();
+
+    handlers["workspace.data.stale"]?.({
+      workspaceId: "00000000-0000-4000-8000-000000000001",
+      scopes: ["timelogs", "timesheet"],
+      actorUserId: "00000000-0000-4000-8000-000000000002"
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({
+      workspaceId: "00000000-0000-4000-8000-000000000001",
+      scopes: ["timelogs", "timesheet"]
+    });
+  });
 });

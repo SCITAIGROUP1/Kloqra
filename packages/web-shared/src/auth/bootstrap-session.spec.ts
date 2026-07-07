@@ -8,12 +8,31 @@ const mockGetAccessToken = vi.fn();
 const mockApplyDefault = vi.fn();
 const mockApi = vi.fn();
 
+let mockSession: unknown;
+let mockAccessToken: string | undefined;
+
 vi.mock("../stores/session.store", () => ({
   getAccessToken: () => mockGetAccessToken(),
   useSessionStore: {
     getState: () => ({
-      clear: mockClear,
-      setSession: mockSetSession
+      get session() {
+        return mockSession;
+      },
+      clear: (...args: unknown[]) => {
+        mockSession = undefined;
+        mockAccessToken = undefined;
+        mockClear(...args);
+      },
+      setSession: (
+        session: unknown,
+        accessToken: string,
+        _refreshToken: unknown,
+        _options?: unknown
+      ) => {
+        mockSession = session;
+        mockAccessToken = accessToken;
+        mockSetSession(session, accessToken, _refreshToken, _options);
+      }
     })
   }
 }));
@@ -37,9 +56,12 @@ vi.mock("../api/client", () => ({
 describe("bootstrapSession impersonation handoff", () => {
   beforeEach(() => {
     vi.resetModules();
+    mockSession = undefined;
+    mockAccessToken = undefined;
     mockClear.mockReset();
     mockSetSession.mockReset();
     mockGetAccessToken.mockReset();
+    mockGetAccessToken.mockImplementation(() => mockAccessToken);
     mockApplyDefault.mockReset();
     mockApi.mockReset();
     vi.stubGlobal(

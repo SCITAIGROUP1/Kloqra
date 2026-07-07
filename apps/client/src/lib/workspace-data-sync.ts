@@ -8,7 +8,11 @@ import {
   type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
 import { useEffect } from "react";
-import { useMySubmissionsStore } from "@/stores/member-data.store";
+import {
+  useActiveTimerSessionStore,
+  useMemberReportingStore,
+  useMySubmissionsStore
+} from "@/stores/member-data.store";
 import { useProjectsStore } from "@/stores/projects.store";
 
 function refetchProjects(workspaceId: string) {
@@ -17,7 +21,7 @@ function refetchProjects(workspaceId: string) {
     workspaceId,
     bypassCache: true
   }).then((items) => {
-    useProjectsStore.getState().setProjects(items);
+    useProjectsStore.getState().setProjects(workspaceId, items);
   });
 }
 
@@ -27,7 +31,7 @@ function refetchTasks(workspaceId: string) {
     workspaceId,
     bypassCache: true
   }).then((items) => {
-    useProjectsStore.getState().setTasks(items);
+    useProjectsStore.getState().setTasks(workspaceId, items);
   });
 }
 
@@ -41,6 +45,10 @@ export function useClientWorkspaceDataSync(workspaceId: string) {
 
       if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
         useMySubmissionsStore.getState().invalidate(workspaceId);
+      }
+      if (detail.scopes.includes("timelogs") || detail.scopes.includes("timesheet")) {
+        useMemberReportingStore.getState().invalidateWeekSummary(workspaceId);
+        useActiveTimerSessionStore.getState().invalidateActive(workspaceId);
       }
       if (detail.scopes.includes("projects")) {
         refetchProjects(workspaceId);

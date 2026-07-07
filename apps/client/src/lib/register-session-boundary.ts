@@ -10,7 +10,6 @@ import {
 import { useOfflineStore } from "@/stores/offline-store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useTimerStore } from "@/stores/timer.store";
-import { useTimesheetStore } from "@/stores/timesheet.store";
 import { useUiStore } from "@/stores/ui.store";
 
 registerSessionBoundaryHandler(({ level, prev }) => {
@@ -18,7 +17,6 @@ registerSessionBoundaryHandler(({ level, prev }) => {
     useOfflineStore.getState().clearQueue();
     useProjectsStore.getState().clear();
     useTimerStore.getState().clear();
-    useTimesheetStore.getState().clear();
     useMemberReportingStore.getState().clear();
     useMySubmissionsStore.getState().clear();
     useActiveTimerSessionStore.getState().clear();
@@ -33,7 +31,6 @@ registerSessionBoundaryHandler(({ level, prev }) => {
     const workspaceId = prev.workspaceId;
     useProjectsStore.getState().clear();
     useTimerStore.getState().clear();
-    useTimesheetStore.getState().clear();
     useMemberReportingStore.getState().removeWorkspace(workspaceId);
     useMySubmissionsStore.getState().invalidate(workspaceId);
     useActiveTimerSessionStore.getState().removeWorkspace(workspaceId);

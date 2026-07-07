@@ -1,11 +1,6 @@
 "use client";
 
-import type {
-  ProjectDto,
-  TimesheetPeriodDto,
-  TimeLogDto,
-  ListTimeLogsResponseDto
-} from "@kloqra/contracts";
+import type { ProjectDto, TimesheetPeriodDto, TimeLogDto } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
 import {
   Button,
@@ -22,7 +17,11 @@ import {
   ConfirmDialog,
   cn
 } from "@kloqra/ui";
-import { buildMemberTimesheetHrefFromSubmission } from "@kloqra/web-shared";
+import {
+  buildMemberTimesheetHrefFromSubmission,
+  commitTimelogMutation,
+  useTimelogListQuery
+} from "@kloqra/web-shared";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -33,6 +32,7 @@ import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
+import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 
@@ -78,8 +78,29 @@ function SubmissionRowLogs({
   onLogUpdated: () => void;
   isLocked: boolean;
 }) {
-  const [logs, setLogs] = useState<TimeLogDto[]>([]);
-  const [loading, setLoading] = useState(false);
+  const logsPath = useMemo(() => {
+    const params = new URLSearchParams({
+      userId: submission.userId,
+      projectId: submission.projectId,
+      from: submission.periodStart,
+      to: submission.periodEnd
+    });
+    return `${ROUTES.TIMELOGS.LIST}?${params.toString()}`;
+  }, [submission]);
+
+  const {
+    data: logsData,
+    refetch: refetchLogs,
+    isLoading: loading,
+    error: logsQueryError
+  } = useTimelogListQuery(workspaceId, logsPath, Boolean(workspaceId));
+
+  const logs = logsData?.items ?? [];
+
+  useEffect(() => {
+    if (!logsQueryError) return;
+    toast.error("Failed to load logs for this period");
+  }, [logsQueryError]);
 
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
@@ -91,31 +112,17 @@ function SubmissionRowLogs({
   const projects = useProjectsStore((s) => s.projects);
   const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
 
-  const fetchLogs = useCallback(async () => {
-    if (!workspaceId) return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        userId: submission.userId,
-        projectId: submission.projectId,
-        from: submission.periodStart,
-        to: submission.periodEnd
-      });
-      const res = await api<ListTimeLogsResponseDto>(
-        `${ROUTES.TIMELOGS.LIST}?${params.toString()}`,
-        { workspaceId }
-      );
-      setLogs(res.items ?? []);
-    } catch {
-      toast.error("Failed to load logs for this period");
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId, submission]);
+  const refreshLogs = useCallback(async () => {
+    await refetchLogs();
+  }, [refetchLogs]);
 
-  useEffect(() => {
-    void fetchLogs();
-  }, [fetchLogs]);
+  useTimelogStaleRefetch(
+    workspaceId,
+    () => {
+      void refreshLogs();
+    },
+    Boolean(workspaceId)
+  );
 
   const taskLabel = useCallback(
     (id: string) => tasks.find((t) => t.id === id)?.taskName ?? "Task",
@@ -178,7 +185,7 @@ function SubmissionRowLogs({
         toast.success("Time entry updated!");
       }
       closeDialog();
-      void fetchLogs();
+      await commitTimelogMutation(workspaceId, refreshLogs);
       onLogUpdated();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not save entry";
@@ -197,7 +204,7 @@ function SubmissionRowLogs({
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId });
       toast.success("Time entry deleted!");
-      void fetchLogs();
+      await commitTimelogMutation(workspaceId, refreshLogs);
       onLogUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not delete entry");

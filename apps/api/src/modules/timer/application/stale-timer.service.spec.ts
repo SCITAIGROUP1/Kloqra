@@ -24,6 +24,8 @@ describe("StaleTimerService", () => {
   let redisMock: ReturnType<typeof createRedisMock>;
   let mockPrisma: any;
   let mockAudit: any;
+  let mockWorkspaceDataRealtime: { publishStale: ReturnType<typeof vi.fn> };
+  let mockNotificationsDispatch: { notify: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -58,6 +60,12 @@ describe("StaleTimerService", () => {
       snapshotFromLog: vi.fn().mockReturnValue({ taskId }),
       recordEvent: vi.fn().mockResolvedValue(undefined)
     };
+    mockWorkspaceDataRealtime = {
+      publishStale: vi.fn().mockResolvedValue(undefined)
+    };
+    mockNotificationsDispatch = {
+      notify: vi.fn().mockResolvedValue(undefined)
+    };
   });
 
   it("auto-stops timers exceeding HARD_AUTO_STOP_HOURS", async () => {
@@ -75,11 +83,22 @@ describe("StaleTimerService", () => {
     });
 
     redisMock = createRedisMock([redisKey], { [redisKey]: state });
-    service = new StaleTimerService(mockPrisma, redisMock.redis as never, mockAudit);
+    service = new StaleTimerService(
+      mockPrisma,
+      redisMock.redis as never,
+      mockAudit,
+      mockNotificationsDispatch as never,
+      mockWorkspaceDataRealtime as never
+    );
 
     await service.scanAndAutoStop();
 
     expect(mockPrisma.$transaction).toHaveBeenCalled();
+    expect(mockWorkspaceDataRealtime.publishStale).toHaveBeenCalledWith(userId, {
+      workspaceId,
+      scopes: ["timelogs", "timesheet"],
+      actorUserId: userId
+    });
     expect(redisMock.client.del).toHaveBeenCalledWith(redisKey);
     expect(redisMock.client.setex).toHaveBeenCalledWith(
       `timer_autostopped:${workspaceId}:${userId}`,
@@ -101,7 +120,13 @@ describe("StaleTimerService", () => {
     });
 
     redisMock = createRedisMock([redisKey], { [redisKey]: state });
-    service = new StaleTimerService(mockPrisma, redisMock.redis as never, mockAudit);
+    service = new StaleTimerService(
+      mockPrisma,
+      redisMock.redis as never,
+      mockAudit,
+      mockNotificationsDispatch as never,
+      mockWorkspaceDataRealtime as never
+    );
 
     await service.scanAndAutoStop();
 

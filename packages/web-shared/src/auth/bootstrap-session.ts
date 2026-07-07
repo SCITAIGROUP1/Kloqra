@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
-import { isAccessTokenExpired } from "./jwt-payload";
+import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
 import { tryRefreshSession } from "./refresh-session";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -64,6 +64,35 @@ export type BootstrapOptions = {
   allowTenantOperator?: boolean;
 };
 
+/** Skip stale bootstrap results when another login replaced tokens mid-flight. */
+export function shouldApplyBootstrapSession(
+  bootstrapToken: string,
+  nextSession: AuthSessionDto
+): boolean {
+  const storedToken = getAccessToken();
+  const currentSession = useSessionStore.getState().session;
+  const nextUserId = nextSession.user?.id;
+  if (!nextUserId) return false;
+
+  if (storedToken && storedToken !== bootstrapToken) {
+    return false;
+  }
+
+  if (currentSession && currentSession.user.id !== nextUserId) {
+    const storedUserId = readUserIdFromToken(storedToken);
+    if (storedUserId === currentSession.user.id) {
+      return false;
+    }
+  }
+
+  const bootstrapUserId = readUserIdFromToken(bootstrapToken);
+  if (bootstrapUserId && bootstrapUserId !== nextUserId) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Restore session from refresh cookie and/or access token, then load workspaces.
  */
@@ -106,6 +135,14 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
         return { ok: false };
       }
     } else if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
+      return { ok: false };
+    }
+
+    if (!shouldApplyBootstrapSession(token, session)) {
+      const currentSession = useSessionStore.getState().session;
+      if (currentSession) {
+        return { ok: true, session: currentSession, workspaces: [] };
+      }
       return { ok: false };
     }
 

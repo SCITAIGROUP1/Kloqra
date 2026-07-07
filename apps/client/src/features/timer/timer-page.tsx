@@ -1,14 +1,7 @@
 "use client";
 
 import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  ActiveTimerDto,
-  TaskDto,
-  ProjectDto,
-  ListTimeLogsResponseDto,
-  AutoStoppedTimerDto,
-  TimeLogDto
-} from "@kloqra/contracts";
+import type { ActiveTimerDto, TaskDto, ProjectDto, AutoStoppedTimerDto } from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -26,8 +19,10 @@ import {
 import {
   fetchListItems,
   useRefetchOnWindowFocus,
+  useTimelogListQuery,
   useUserProfile,
   useWorkspaceStaleRefetch,
+  commitTimelogMutation,
   todayInZone,
   localMidnightUtcInZone,
   toDateKeyInZone
@@ -41,6 +36,7 @@ import { resolveTimerStartErrorMessage } from "./timer-start-error";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
+import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useOfflineStore } from "@/stores/offline-store";
@@ -163,7 +159,30 @@ export function TimerPage() {
   const [resuming, setResuming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [recentLogs, setRecentLogs] = useState<TimeLogDto[]>([]);
+  const recentLogsQueryPath = useMemo(() => {
+    if (!ws) return ROUTES.TIMELOGS.LIST;
+    const today = todayInZone(timezone);
+    const ty = today.getFullYear();
+    const tm = today.getMonth() + 1;
+    const td = today.getDate();
+    const todayStart = localMidnightUtcInZone(ty, tm, td, timezone);
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const startOfRecent = new Date(todayStart.getTime() - 13 * 24 * 60 * 60 * 1000);
+    const params = new URLSearchParams({
+      from: startOfRecent.toISOString(),
+      to: todayEnd.toISOString()
+    });
+    return `${ROUTES.TIMELOGS.LIST}?${params}`;
+  }, [ws, timezone]);
+
+  const { data: recentLogsData, refetch: refetchRecentLogs } = useTimelogListQuery(
+    ws,
+    recentLogsQueryPath,
+    Boolean(ws)
+  );
+
+  const recentLogs = recentLogsData?.items ?? [];
+
   const [jiraConnected, setJiraConnected] = useState(false);
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
   const offlineLogs = useOfflineStore((s) => s.offlineLogs);
@@ -191,28 +210,9 @@ export function TimerPage() {
       .catch(() => {});
   }, [ws]);
 
-  const fetchRecentLogs = useCallback(async () => {
-    if (!ws) return;
-    try {
-      const today = todayInZone(timezone);
-      const ty = today.getFullYear();
-      const tm = today.getMonth() + 1;
-      const td = today.getDate();
-      const todayStart = localMidnightUtcInZone(ty, tm, td, timezone);
-      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-      const startOfRecent = new Date(todayStart.getTime() - 13 * 24 * 60 * 60 * 1000);
-      const params = new URLSearchParams({
-        from: startOfRecent.toISOString(),
-        to: todayEnd.toISOString()
-      });
-      const res = await api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
-        workspaceId: ws
-      });
-      setRecentLogs(res.items || []);
-    } catch {
-      // ignore
-    }
-  }, [ws, timezone]);
+  const refreshRecentLogs = useCallback(async () => {
+    await refetchRecentLogs();
+  }, [refetchRecentLogs]);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -223,39 +223,49 @@ export function TimerPage() {
       if (res && "autostopped" in res && res.autostopped) {
         setActive(null);
         toast.warning(formatAutoStopToastMessage(), { duration: 8000 });
-        void fetchRecentLogs();
+        await commitTimelogMutation(ws, refreshRecentLogs);
         return;
       }
       setActive(res as ActiveTimerDto | null);
     } catch {
       // ignore
     }
-  }, [ws, setActive, fetchRecentLogs]);
+  }, [ws, setActive, refreshRecentLogs]);
 
   useEffect(() => {
     if (!ws) return;
     void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
-      fetchActiveTimer(),
-      fetchRecentLogs()
+      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
+        setProjects(ws, items)
+      ),
+      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then((items) =>
+        setTasks(ws, items)
+      ),
+      fetchActiveTimer()
     ]);
-  }, [ws, setProjects, setTasks, fetchActiveTimer, fetchRecentLogs]);
+  }, [ws, setProjects, setTasks, fetchActiveTimer]);
 
   const reloadCatalog = useCallback(() => {
     if (!ws) return;
     void Promise.all([
       fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        setProjects
+        (items) => setProjects(ws, items)
       ),
       fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        setTasks
+        (items) => setTasks(ws, items)
       )
     ]);
   }, [ws, setProjects, setTasks]);
 
   useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
   useWorkspaceStaleRefetch(ws, ["tasks", "projects"], reloadCatalog, Boolean(ws));
+  useTimelogStaleRefetch(
+    ws,
+    () => {
+      void refreshRecentLogs();
+    },
+    Boolean(ws)
+  );
 
   // Handle active status ticks
   useEffect(() => {
@@ -347,7 +357,7 @@ export function TimerPage() {
       setActive(res);
       setTaskChoice("");
       toast.success("Timer started successfully!");
-      void fetchRecentLogs();
+      void refreshRecentLogs();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not start timer";
       const errMsg = resolveTimerStartErrorMessage(message);
@@ -398,7 +408,7 @@ export function TimerPage() {
       setActive(null);
       setStopDescription("");
       toast.success(`Timer stopped. ${logged} logged.`);
-      void fetchRecentLogs();
+      await commitTimelogMutation(ws, refreshRecentLogs);
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Something went wrong. Your time is safe — try again.";

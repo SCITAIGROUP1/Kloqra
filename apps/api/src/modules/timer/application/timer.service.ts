@@ -216,6 +216,8 @@ export class TimerService {
       .getClient()
       .publish(`presence:${workspaceId}`, JSON.stringify({ type: "stop", userId }));
 
+    await this.timelogs.publishTimelogsStale(workspaceId, userId);
+
     return {
       id: log.id,
       userId: log.userId,

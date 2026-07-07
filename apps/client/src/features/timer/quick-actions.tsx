@@ -3,7 +3,12 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@kloqra/ui";
-import { readScopedJSON, scopedStorageKey, writeScopedJSON } from "@kloqra/web-shared";
+import {
+  readScopedJSON,
+  scopedStorageKey,
+  useWorkspaceStaleRefetch,
+  writeScopedJSON
+} from "@kloqra/web-shared";
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
@@ -149,16 +154,34 @@ export function QuickActions({
     void fetchRecents();
   }, [fetchRecents]);
 
-  // Fetch yesterday summary
-  useEffect(() => {
+  const fetchYesterday = useCallback(async () => {
     if (!ws) return;
-    api<{ totalSec: number; billableSec: number; topTask: string | null; logCount: number }>(
-      ROUTES.TIMELOGS.YESTERDAY_SUMMARY,
-      { workspaceId: ws }
-    )
-      .then(setYesterday)
-      .catch(() => {});
+    try {
+      const summary = await api<{
+        totalSec: number;
+        billableSec: number;
+        topTask: string | null;
+        logCount: number;
+      }>(ROUTES.TIMELOGS.YESTERDAY_SUMMARY, { workspaceId: ws });
+      setYesterday(summary);
+    } catch {
+      // ignore
+    }
   }, [ws]);
+
+  useEffect(() => {
+    void fetchYesterday();
+  }, [fetchYesterday]);
+
+  useWorkspaceStaleRefetch(
+    ws,
+    ["timelogs", "timesheet"],
+    () => {
+      void fetchRecents();
+      void fetchYesterday();
+    },
+    Boolean(ws)
+  );
 
   const toggleFavorite = () => {
     if (!currentProjectId || !currentTaskId) return;

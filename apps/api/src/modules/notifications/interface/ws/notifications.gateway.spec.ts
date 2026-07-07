@@ -1,4 +1,4 @@
-import { NOTIFICATION_CREATED_EVENT } from "@kloqra/contracts";
+import { NOTIFICATION_CREATED_EVENT, WORKSPACE_DATA_STALE_SOCKET_EVENT } from "@kloqra/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsGateway } from "./notifications.gateway";
 
@@ -100,6 +100,28 @@ describe("NotificationsGateway", () => {
 
     expect(server.to).toHaveBeenCalledWith("user:user-1");
     expect(emit).toHaveBeenCalledWith(NOTIFICATION_CREATED_EVENT, payload);
+  });
+
+  it("forwards workspace data stale redis messages to socket room", async () => {
+    const emit = vi.fn();
+    server.to.mockReturnValue({ emit });
+
+    const client = {
+      handshake: { auth: { token: "valid-token", scope: "client" } },
+      join: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn(),
+      data: {} as { userId?: string }
+    };
+    await gateway.handleConnection(client as never);
+
+    const messageHandler = redisSub.on.mock.calls.find(([event]) => event === "message")?.[1];
+    const payload = {
+      workspaceId: "00000000-0000-4000-8000-000000000002",
+      scopes: ["timelogs", "timesheet"]
+    };
+    messageHandler!("workspace-data:user:user-1", JSON.stringify(payload));
+
+    expect(emit).toHaveBeenCalledWith(WORKSPACE_DATA_STALE_SOCKET_EVENT, payload);
   });
 
   it("disconnects when token is expired", async () => {

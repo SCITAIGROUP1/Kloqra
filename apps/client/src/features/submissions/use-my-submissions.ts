@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo } from "react";
 import {
   buildSubmissionsPath,
   EMPTY_SUBMISSIONS,
+  submissionStoreKey,
   useMySubmissionsStore
 } from "@/stores/member-data.store";
+import { useSessionStore } from "@/stores/session.store";
 
 export type SubmissionsScope = "logged" | "assigned";
 
@@ -70,6 +72,11 @@ function buildScopedPath(anchorDate: Date, scope: SubmissionsScope) {
   return buildSubmissionsPath(params);
 }
 
+function useSubmissionListKey(workspaceId: string, queryKey: string): string {
+  const userId = useSessionStore((s) => s.session?.user?.id);
+  return userId ? submissionStoreKey(userId, workspaceId, queryKey) : "";
+}
+
 export function useMySubmissions(
   workspaceId: string,
   anchorDate: Date,
@@ -78,16 +85,16 @@ export function useMySubmissions(
 ) {
   const queryKey = buildScopedQueryKey(anchorDate, scope);
   const path = buildScopedPath(anchorDate, scope);
-  const listKey = `${workspaceId}:${queryKey}`;
+  const listKey = useSubmissionListKey(workspaceId, queryKey);
   const submissions = useMySubmissionsStore((s) => s.byKey[listKey]?.items ?? EMPTY_SUBMISSIONS);
   const loading = useMySubmissionsStore((s) => s.byKey[listKey]?.loading ?? false);
   const subscribe = useMySubmissionsStore((s) => s.subscribe);
   const fetchSubmissions = useMySubmissionsStore((s) => s.fetchSubmissions);
 
   useEffect(() => {
-    if (!enabled || !workspaceId) return;
+    if (!enabled || !workspaceId || !listKey) return;
     return subscribe(workspaceId, queryKey, path);
-  }, [enabled, workspaceId, queryKey, path, subscribe]);
+  }, [enabled, workspaceId, queryKey, path, subscribe, listKey]);
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
@@ -122,7 +129,7 @@ export function useMySubmissionsBadgeCount(
 ) {
   const queryKey = buildScopedQueryKey(anchorDate, scope);
   const path = buildScopedPath(anchorDate, scope);
-  const listKey = `${workspaceId}:${queryKey}`;
+  const listKey = useSubmissionListKey(workspaceId, queryKey);
   const subscribe = useMySubmissionsStore((s) => s.subscribe);
   const count = useMySubmissionsStore((s) => {
     const items = s.byKey[listKey]?.items ?? EMPTY_SUBMISSIONS;
@@ -130,9 +137,9 @@ export function useMySubmissionsBadgeCount(
   });
 
   useEffect(() => {
-    if (!enabled || !workspaceId) return;
+    if (!enabled || !workspaceId || !listKey) return;
     return subscribe(workspaceId, queryKey, path);
-  }, [enabled, workspaceId, queryKey, path, subscribe]);
+  }, [enabled, workspaceId, queryKey, path, subscribe, listKey]);
 
   return count;
 }
@@ -140,16 +147,16 @@ export function useMySubmissionsBadgeCount(
 export function useDashboardSubmissions(workspaceId: string, enabled = true) {
   const queryKey = "all";
   const path = buildSubmissionsPath();
-  const listKey = `${workspaceId}:${queryKey}`;
+  const listKey = useSubmissionListKey(workspaceId, queryKey);
   const submissions = useMySubmissionsStore((s) => s.byKey[listKey]?.items ?? EMPTY_SUBMISSIONS);
   const loading = useMySubmissionsStore((s) => s.byKey[listKey]?.loading ?? false);
   const subscribe = useMySubmissionsStore((s) => s.subscribe);
   const fetchSubmissions = useMySubmissionsStore((s) => s.fetchSubmissions);
 
   useEffect(() => {
-    if (!enabled || !workspaceId) return;
+    if (!enabled || !workspaceId || !listKey) return;
     return subscribe(workspaceId, queryKey, path);
-  }, [enabled, workspaceId, queryKey, path, subscribe]);
+  }, [enabled, workspaceId, queryKey, path, subscribe, listKey]);
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;

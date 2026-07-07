@@ -3,6 +3,13 @@
 import { ROUTES, type NotificationCreatedEvent, type NotificationDto } from "@kloqra/contracts";
 import { create } from "zustand";
 import { api } from "../api/client";
+import { readUserIdFromToken } from "../auth/jwt-payload";
+import {
+  notificationKeysForWorkspace,
+  notificationRecentKey,
+  notificationUnreadKey
+} from "./notification-cache-key";
+import { getAccessToken } from "./session.store";
 
 export const NOTIFICATIONS_UPDATED_EVENT = "kloqra:notifications-updated";
 
@@ -20,27 +27,39 @@ type NotificationsStoreState = {
   unreadPollWorkspaceId: string | null;
   socketConnected: boolean;
 
-  refreshUnread: (workspaceId: string) => Promise<void>;
-  refreshRecent: (workspaceId: string, limit: number) => Promise<void>;
+  refreshUnread: (userId: string, workspaceId: string) => Promise<void>;
+  refreshRecent: (userId: string, workspaceId: string, limit: number) => Promise<void>;
   setRecentItems: (
+    userId: string,
     workspaceId: string,
     limit: number,
     updater: NotificationDto[] | ((prev: NotificationDto[]) => NotificationDto[])
   ) => void;
-  subscribeUnread: (workspaceId: string) => () => void;
-  subscribeRecent: (workspaceId: string, limit: number) => () => void;
+  subscribeUnread: (userId: string, workspaceId: string) => () => void;
+  subscribeRecent: (userId: string, workspaceId: string, limit: number) => () => void;
   applyNotificationPush: (payload: NotificationCreatedEvent) => void;
   setSocketConnected: (connected: boolean) => void;
   removeWorkspace: (workspaceId: string) => void;
   clear: () => void;
 };
 
+function parseUnreadRefKey(key: string): { userId: string; workspaceId: string } | null {
+  const separator = key.lastIndexOf(":");
+  if (separator <= 0) return null;
+  return {
+    userId: key.slice(0, separator),
+    workspaceId: key.slice(separator + 1)
+  };
+}
+
 function syncUnreadPoll(
   get: () => NotificationsStoreState,
   set: (partial: Partial<NotificationsStoreState>) => void
 ): void {
   const { unreadPollTimer, unreadPollWorkspaceId, socketConnected, unreadRefCounts } = get();
-  const workspaceId = unreadPollWorkspaceId ?? Object.keys(unreadRefCounts)[0];
+  const firstRefKey = Object.keys(unreadRefCounts)[0];
+  const parsed = firstRefKey ? parseUnreadRefKey(firstRefKey) : null;
+  const workspaceId = unreadPollWorkspaceId ?? parsed?.workspaceId ?? null;
   const hasSubscribers = Object.keys(unreadRefCounts).length > 0;
 
   if (unreadPollTimer) {
@@ -49,14 +68,24 @@ function syncUnreadPoll(
   }
 
   // Live socket carries pushes — poll only while disconnected (safety net).
-  if (!hasSubscribers || !workspaceId || socketConnected) return;
+  if (!hasSubscribers || !workspaceId || !parsed || socketConnected) return;
 
-  const timer = setInterval(() => void get().refreshUnread(workspaceId), UNREAD_POLL_MS);
+  const timer = setInterval(() => {
+    const activeKey = Object.keys(get().unreadRefCounts)[0];
+    const active = activeKey ? parseUnreadRefKey(activeKey) : null;
+    if (active) {
+      void get().refreshUnread(active.userId, active.workspaceId);
+    }
+  }, UNREAD_POLL_MS);
   set({ unreadPollTimer: timer, unreadPollWorkspaceId: workspaceId });
 }
 
-function recentKey(workspaceId: string, limit: number) {
-  return `${workspaceId}:${limit}`;
+function recentKey(userId: string, workspaceId: string, limit: number) {
+  return notificationRecentKey(userId, workspaceId, limit);
+}
+
+function unreadKey(userId: string, workspaceId: string) {
+  return notificationUnreadKey(userId, workspaceId);
 }
 
 let globalListenersAttached = false;
@@ -117,17 +146,23 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
   removeWorkspace: (workspaceId) => {
     set((state) => {
       const unreadByWorkspace = { ...state.unreadByWorkspace };
-      delete unreadByWorkspace[workspaceId];
+      for (const key of notificationKeysForWorkspace(workspaceId, unreadByWorkspace)) {
+        delete unreadByWorkspace[key];
+      }
+
       const unreadRefCounts = { ...state.unreadRefCounts };
-      delete unreadRefCounts[workspaceId];
+      for (const key of notificationKeysForWorkspace(workspaceId, unreadRefCounts)) {
+        delete unreadRefCounts[key];
+      }
 
       const recentByWorkspace = { ...state.recentByWorkspace };
-      for (const key of Object.keys(recentByWorkspace)) {
-        if (key.startsWith(`${workspaceId}:`)) delete recentByWorkspace[key];
+      for (const key of notificationKeysForWorkspace(workspaceId, recentByWorkspace)) {
+        delete recentByWorkspace[key];
       }
+
       const recentRefCounts = { ...state.recentRefCounts };
-      for (const key of Object.keys(recentRefCounts)) {
-        if (key.startsWith(`${workspaceId}:`)) delete recentRefCounts[key];
+      for (const key of notificationKeysForWorkspace(workspaceId, recentRefCounts)) {
+        delete recentRefCounts[key];
       }
 
       return { unreadByWorkspace, unreadRefCounts, recentByWorkspace, recentRefCounts };
@@ -140,13 +175,14 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
     syncUnreadPoll(get, set);
   },
 
-  refreshUnread: async (workspaceId) => {
-    if (!workspaceId) return;
+  refreshUnread: async (userId, workspaceId) => {
+    if (!userId || !workspaceId) return;
+    const key = unreadKey(userId, workspaceId);
     set((state) => ({
       unreadByWorkspace: {
         ...state.unreadByWorkspace,
-        [workspaceId]: {
-          count: state.unreadByWorkspace[workspaceId]?.count ?? 0,
+        [key]: {
+          count: state.unreadByWorkspace[key]?.count ?? 0,
           loading: true
         }
       }
@@ -156,22 +192,22 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
       set((state) => ({
         unreadByWorkspace: {
           ...state.unreadByWorkspace,
-          [workspaceId]: { count: res.count, loading: false }
+          [key]: { count: res.count, loading: false }
         }
       }));
     } catch {
       set((state) => ({
         unreadByWorkspace: {
           ...state.unreadByWorkspace,
-          [workspaceId]: { count: 0, loading: false }
+          [key]: { count: 0, loading: false }
         }
       }));
     }
   },
 
-  refreshRecent: async (workspaceId, limit) => {
-    if (!workspaceId) return;
-    const key = recentKey(workspaceId, limit);
+  refreshRecent: async (userId, workspaceId, limit) => {
+    if (!userId || !workspaceId) return;
+    const key = recentKey(userId, workspaceId, limit);
     set((state) => ({
       recentByWorkspace: {
         ...state.recentByWorkspace,
@@ -203,8 +239,8 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
     }
   },
 
-  setRecentItems: (workspaceId, limit, updater) => {
-    const key = recentKey(workspaceId, limit);
+  setRecentItems: (userId, workspaceId, limit, updater) => {
+    const key = recentKey(userId, workspaceId, limit);
     set((state) => {
       const prev = state.recentByWorkspace[key]?.items ?? [];
       const items = typeof updater === "function" ? updater(prev) : updater;
@@ -221,11 +257,12 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
     });
   },
 
-  subscribeUnread: (workspaceId) => {
+  subscribeUnread: (userId, workspaceId) => {
+    const key = unreadKey(userId, workspaceId);
     const state = get();
-    const nextCount = (state.unreadRefCounts[workspaceId] ?? 0) + 1;
+    const nextCount = (state.unreadRefCounts[key] ?? 0) + 1;
     set((s) => ({
-      unreadRefCounts: { ...s.unreadRefCounts, [workspaceId]: nextCount }
+      unreadRefCounts: { ...s.unreadRefCounts, [key]: nextCount }
     }));
 
     if (state.unreadPollTimer && state.unreadPollWorkspaceId !== workspaceId) {
@@ -233,26 +270,29 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
       set({ unreadPollTimer: null, unreadPollWorkspaceId: null });
     }
 
-    if (get().unreadByWorkspace[workspaceId] === undefined) {
-      void get().refreshUnread(workspaceId);
+    if (get().unreadByWorkspace[key] === undefined) {
+      void get().refreshUnread(userId, workspaceId);
     }
 
     if (!get().unreadPollTimer && !get().socketConnected) {
       syncUnreadPoll(get, set);
       attachGlobalListeners(
-        (ws) => void get().refreshUnread(ws),
+        (ws) => {
+          const currentUserId = readUserIdFromToken(getAccessToken());
+          if (currentUserId) void get().refreshUnread(currentUserId, ws);
+        },
         () => get().unreadPollWorkspaceId
       );
     }
 
     return () => {
       const current = get();
-      const remaining = Math.max(0, (current.unreadRefCounts[workspaceId] ?? 1) - 1);
+      const remaining = Math.max(0, (current.unreadRefCounts[key] ?? 1) - 1);
       const nextRefCounts = { ...current.unreadRefCounts };
       if (remaining === 0) {
-        delete nextRefCounts[workspaceId];
+        delete nextRefCounts[key];
       } else {
-        nextRefCounts[workspaceId] = remaining;
+        nextRefCounts[key] = remaining;
       }
       set({ unreadRefCounts: nextRefCounts });
 
@@ -264,15 +304,15 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
     };
   },
 
-  subscribeRecent: (workspaceId, limit) => {
-    const key = recentKey(workspaceId, limit);
+  subscribeRecent: (userId, workspaceId, limit) => {
+    const key = recentKey(userId, workspaceId, limit);
     const nextCount = (get().recentRefCounts[key] ?? 0) + 1;
     set((s) => ({
       recentRefCounts: { ...s.recentRefCounts, [key]: nextCount }
     }));
 
     if (get().recentByWorkspace[key] === undefined) {
-      void get().refreshRecent(workspaceId, limit);
+      void get().refreshRecent(userId, workspaceId, limit);
     }
 
     return () => {
@@ -289,16 +329,20 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
   },
 
   applyNotificationPush: (payload) => {
+    const userId = readUserIdFromToken(getAccessToken());
+    if (!userId) return;
     const { workspaceId, unreadCount, notification } = payload;
+    const unreadCacheKey = unreadKey(userId, workspaceId);
     set((state) => {
       const nextUnread = {
         ...state.unreadByWorkspace,
-        [workspaceId]: { count: unreadCount, loading: false }
+        [unreadCacheKey]: { count: unreadCount, loading: false }
       };
 
       const nextRecent = { ...state.recentByWorkspace };
+      const recentPrefix = `${userId}:${workspaceId}:`;
       for (const key of Object.keys(nextRecent)) {
-        if (!key.startsWith(`${workspaceId}:`)) continue;
+        if (!key.startsWith(recentPrefix)) continue;
         const entry = nextRecent[key];
         if (!entry) continue;
         const exists = entry.items.some((item) => item.id === notification.id);

@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 vi.mock("../../hooks/use-notifications", () => ({
-  useNotificationUnreadCount: () => ({ count: 1, refresh: vi.fn() }),
+  useNotificationUnreadCount: () => ({ count: 1, refresh: vi.fn(), aligned: true }),
   usePaginatedNotifications: () => ({
     items: [
       {

@@ -14,7 +14,7 @@ import {
   ProjectColorPicker,
   cn
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { fetchListItems, getAccessToken, readUserIdFromToken } from "@kloqra/web-shared";
 import { ArrowRight, Clock, HelpCircle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -59,6 +59,9 @@ export function OnboardingOverlay({
   const ws = session?.workspaceId ?? "";
   const isAdmin = session?.workspaceRole === "ADMIN";
   const isImpersonating = useIsImpersonating();
+  const sessionUserId = session?.user?.id;
+  const tokenUserId = readUserIdFromToken(getAccessToken());
+  const sessionAligned = Boolean(sessionUserId && tokenUserId && sessionUserId === tokenUserId);
   const userName = session?.user.name ?? "there";
   const { profileLoading, wizardDone, markWizardDone } = useOnboardingStatus();
 
@@ -79,11 +82,15 @@ export function OnboardingOverlay({
       setShow(forceOpen);
       return;
     }
+    if (!sessionAligned) {
+      setShow(false);
+      return;
+    }
     if (profileLoading || replay) return;
     if (!wizardDone) {
       setShow(true);
     }
-  }, [forceOpen, replay, isImpersonating, profileLoading, wizardDone]);
+  }, [forceOpen, replay, isImpersonating, profileLoading, wizardDone, sessionAligned]);
 
   useEffect(() => {
     if (replay && forceOpen) {
@@ -93,7 +100,9 @@ export function OnboardingOverlay({
 
   useEffect(() => {
     if (!show || !ws || isAdmin) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
+    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
+      setProjects(ws, items)
+    );
   }, [show, ws, isAdmin, setProjects]);
 
   const closeOverlay = () => {
@@ -174,8 +183,8 @@ export function OnboardingOverlay({
         fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }),
         fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws })
       ]);
-      setProjects(allProjects);
-      setTasks(allTasks);
+      setProjects(ws, allProjects);
+      setTasks(ws, allTasks);
 
       toast.success(`Project "${projectName}" and default task created!`);
       setStepIndex(ONBOARDING_STEP_IDS.indexOf("track-time"));

@@ -18,7 +18,7 @@ export async function loadEntryCatalog(workspaceId: string) {
 export async function refreshEntryCatalog(workspaceId: string) {
   const data = await loadEntryCatalog(workspaceId);
   const { setTasks, setProjects } = useProjectsStore.getState();
-  setTasks(data.tasks);
-  setProjects(data.projects);
+  setTasks(workspaceId, data.tasks);
+  setProjects(workspaceId, data.projects);
   return data;
 }

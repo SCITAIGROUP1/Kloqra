@@ -4,6 +4,7 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
 import { timerAutoStoppedKey } from "../../../common/redis/timer-keys";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
+import { WorkspaceDataRealtimeService } from "../../notifications/application/workspace-data-realtime.service";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
 
@@ -19,6 +20,8 @@ interface TimerState {
   pausedAt: string | null;
 }
 
+const TIMELOG_STALE_SCOPES = ["timelogs", "timesheet"] as const;
+
 @Injectable()
 export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(StaleTimerService.name);
@@ -28,7 +31,8 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
     private prisma: PrismaService,
     private redis: RedisService,
     private audit: TimelogAuditService,
-    private notificationsDispatch: NotificationsDispatchService
+    private notificationsDispatch: NotificationsDispatchService,
+    private workspaceDataRealtime: WorkspaceDataRealtimeService
   ) {}
 
   onModuleInit() {
@@ -156,6 +160,12 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
             `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
           );
         });
+
+      await this.workspaceDataRealtime.publishStale(state.userId, {
+        workspaceId: state.workspaceId,
+        scopes: [...TIMELOG_STALE_SCOPES],
+        actorUserId: state.userId
+      });
 
       this.logger.warn(
         `Auto-stopped stale timer for user ${state.userId} in workspace ${state.workspaceId} after ${capSec}s`,

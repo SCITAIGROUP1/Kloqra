@@ -36,6 +36,7 @@ export function scopesForNotificationType(type: string): WorkspaceDataInvalidate
   if (TIMESHEET_MEMBER_TYPES.has(type)) {
     scopes.add("submissions");
     scopes.add("timesheet");
+    scopes.add("timelogs");
   }
   if (type === NotificationType.TIMESHEET_STATUS) {
     scopes.add("projects");

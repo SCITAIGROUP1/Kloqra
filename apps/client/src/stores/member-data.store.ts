@@ -9,12 +9,39 @@ import type {
   TimesheetPeriodDto
 } from "@kloqra/contracts";
 import { create } from "zustand";
+import {
+  memberStoreKey,
+  memberStoreKeysForWorkspace,
+  workspaceIdFromMemberStoreKey
+} from "./member-store-cache-key";
 import { api } from "@/lib/api";
+import { useSessionStore } from "@/stores/session.store";
 import { normalizeActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 export function buildSubmissionsPath(query?: URLSearchParams) {
   const qs = query?.toString();
   return qs ? `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${qs}` : ROUTES.TIMESHEETS.MY_SUBMISSIONS;
+}
+
+function resolveMemberUserId(): string | null {
+  return useSessionStore.getState().session?.user?.id ?? null;
+}
+
+function pathForSubmissionQueryKey(queryKey: string): string {
+  if (queryKey === "all") return buildSubmissionsPath();
+  return buildSubmissionsPath(new URLSearchParams(queryKey));
+}
+
+function parseSubmissionStoreKey(
+  key: string
+): { userId: string; workspaceId: string; queryKey: string } | null {
+  const parts = key.split(":");
+  if (parts.length < 3) return null;
+  const userId = parts[0];
+  const workspaceId = parts[1];
+  const queryKey = parts.slice(2).join(":");
+  if (!userId || !workspaceId || !queryKey) return null;
+  return { userId, workspaceId, queryKey };
 }
 
 type SubmissionsEntry = {
@@ -28,6 +55,7 @@ type MemberReportingStoreState = {
 
   refreshWeekSummary: (workspaceId: string) => Promise<void>;
   subscribeWeekSummary: (workspaceId: string) => () => void;
+  invalidateWeekSummary: (workspaceId: string) => void;
   removeWorkspace: (workspaceId: string) => void;
   clear: () => void;
 };
@@ -37,62 +65,87 @@ export const useMemberReportingStore = create<MemberReportingStoreState>((set, g
   weekSummaryRefCounts: {},
 
   refreshWeekSummary: async (workspaceId) => {
-    if (!workspaceId) return;
+    const userId = resolveMemberUserId();
+    if (!workspaceId || !userId) return;
+    const key = memberStoreKey(userId, workspaceId);
     set((state) => ({
       weekSummaryByWorkspace: {
         ...state.weekSummaryByWorkspace,
-        [workspaceId]: {
-          summary: state.weekSummaryByWorkspace[workspaceId]?.summary ?? null,
+        [key]: {
+          summary: state.weekSummaryByWorkspace[key]?.summary ?? null,
           loading: true
         }
       }
     }));
     try {
       const summary = await api<MyWeekSummaryDto>(ROUTES.REPORTING.ME, { workspaceId });
+      const activeUserId = resolveMemberUserId();
+      if (activeUserId !== userId) return;
       set((state) => ({
         weekSummaryByWorkspace: {
           ...state.weekSummaryByWorkspace,
-          [workspaceId]: { summary, loading: false }
+          [key]: { summary, loading: false }
         }
       }));
     } catch {
       set((state) => ({
         weekSummaryByWorkspace: {
           ...state.weekSummaryByWorkspace,
-          [workspaceId]: { summary: null, loading: false }
+          [key]: { summary: null, loading: false }
         }
       }));
     }
   },
 
   subscribeWeekSummary: (workspaceId) => {
-    const nextCount = (get().weekSummaryRefCounts[workspaceId] ?? 0) + 1;
+    const userId = resolveMemberUserId();
+    if (!userId || !workspaceId) return () => undefined;
+
+    const key = memberStoreKey(userId, workspaceId);
+    const nextCount = (get().weekSummaryRefCounts[key] ?? 0) + 1;
     set((s) => ({
-      weekSummaryRefCounts: { ...s.weekSummaryRefCounts, [workspaceId]: nextCount }
+      weekSummaryRefCounts: { ...s.weekSummaryRefCounts, [key]: nextCount }
     }));
 
-    if (get().weekSummaryByWorkspace[workspaceId] === undefined) {
+    const cached = get().weekSummaryByWorkspace[key];
+    if (cached === undefined) {
       void get().refreshWeekSummary(workspaceId);
     }
 
     return () => {
-      const remaining = Math.max(0, (get().weekSummaryRefCounts[workspaceId] ?? 1) - 1);
+      const remaining = Math.max(0, (get().weekSummaryRefCounts[key] ?? 1) - 1);
       const nextRefCounts = { ...get().weekSummaryRefCounts };
       if (remaining === 0) {
-        delete nextRefCounts[workspaceId];
+        delete nextRefCounts[key];
       } else {
-        nextRefCounts[workspaceId] = remaining;
+        nextRefCounts[key] = remaining;
       }
       set({ weekSummaryRefCounts: nextRefCounts });
     };
   },
 
+  invalidateWeekSummary: (workspaceId) => {
+    const userId = resolveMemberUserId();
+    if (!userId) return;
+    const key = memberStoreKey(userId, workspaceId);
+    set((state) => {
+      const weekSummaryByWorkspace = { ...state.weekSummaryByWorkspace };
+      delete weekSummaryByWorkspace[key];
+      return { weekSummaryByWorkspace };
+    });
+    if ((get().weekSummaryRefCounts[key] ?? 0) > 0) {
+      void get().refreshWeekSummary(workspaceId);
+    }
+  },
+
   removeWorkspace: (workspaceId) => {
     set((state) => {
       const weekSummaryByWorkspace = { ...state.weekSummaryByWorkspace };
-      delete weekSummaryByWorkspace[workspaceId];
       const weekSummaryRefCounts = { ...state.weekSummaryRefCounts };
-      delete weekSummaryRefCounts[workspaceId];
+      for (const key of memberStoreKeysForWorkspace(weekSummaryByWorkspace, workspaceId)) {
+        delete weekSummaryByWorkspace[key];
+        delete weekSummaryRefCounts[key];
+      }
       return { weekSummaryByWorkspace, weekSummaryRefCounts };
     });
   },
@@ -105,6 +158,7 @@ type ActiveTimerStoreState = {
   initialized: Record<string, boolean>;
   refreshActive: (workspaceId: string) => Promise<void>;
   subscribeActive: (workspaceId: string) => () => void;
+  invalidateActive: (workspaceId: string) => void;
   removeWorkspace: (workspaceId: string) => void;
   clear: () => void;
 };
@@ -114,11 +168,15 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
   initialized: {},
 
   refreshActive: async (workspaceId) => {
-    if (!workspaceId) return;
+    const userId = resolveMemberUserId();
+    if (!workspaceId || !userId) return;
+    const key = memberStoreKey(userId, workspaceId);
     try {
       const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
         workspaceId
       });
+      const activeUserId = resolveMemberUserId();
+      if (activeUserId !== userId) return;
       const active =
         res && "autostopped" in res && res.autostopped
           ? null
@@ -128,37 +186,57 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
       useTimerStore.getState().setActive(null);
     } finally {
       set((state) => ({
-        initialized: { ...state.initialized, [workspaceId]: true }
+        initialized: { ...state.initialized, [key]: true }
       }));
     }
   },
 
   subscribeActive: (workspaceId) => {
-    const nextCount = (get().refCounts[workspaceId] ?? 0) + 1;
-    set((s) => ({ refCounts: { ...s.refCounts, [workspaceId]: nextCount } }));
+    const userId = resolveMemberUserId();
+    if (!userId || !workspaceId) return () => undefined;
 
-    if (!get().initialized[workspaceId]) {
+    const key = memberStoreKey(userId, workspaceId);
+    const nextCount = (get().refCounts[key] ?? 0) + 1;
+    set((s) => ({ refCounts: { ...s.refCounts, [key]: nextCount } }));
+
+    if (!get().initialized[key]) {
       void get().refreshActive(workspaceId);
     }
 
     return () => {
-      const remaining = Math.max(0, (get().refCounts[workspaceId] ?? 1) - 1);
+      const remaining = Math.max(0, (get().refCounts[key] ?? 1) - 1);
       const nextRefCounts = { ...get().refCounts };
       if (remaining === 0) {
-        delete nextRefCounts[workspaceId];
+        delete nextRefCounts[key];
       } else {
-        nextRefCounts[workspaceId] = remaining;
+        nextRefCounts[key] = remaining;
       }
       set({ refCounts: nextRefCounts });
     };
   },
 
+  invalidateActive: (workspaceId) => {
+    const userId = resolveMemberUserId();
+    if (!userId) return;
+    const key = memberStoreKey(userId, workspaceId);
+    set((state) => {
+      const initialized = { ...state.initialized };
+      delete initialized[key];
+      return { initialized };
+    });
+    if ((get().refCounts[key] ?? 0) > 0) {
+      void get().refreshActive(workspaceId);
+    }
+  },
+
   removeWorkspace: (workspaceId) => {
     set((state) => {
       const initialized = { ...state.initialized };
-      delete initialized[workspaceId];
       const refCounts = { ...state.refCounts };
-      delete refCounts[workspaceId];
+      for (const key of memberStoreKeysForWorkspace(initialized, workspaceId)) {
+        delete initialized[key];
+        delete refCounts[key];
+      }
       return { initialized, refCounts };
     });
   },
@@ -183,8 +261,9 @@ export const useMySubmissionsStore = create<MySubmissionsStoreState>((set, get) 
   refCounts: {},
 
   fetchSubmissions: async (workspaceId, queryKey, path) => {
-    if (!workspaceId) return;
-    const key = `${workspaceId}:${queryKey}`;
+    const userId = resolveMemberUserId();
+    if (!workspaceId || !userId) return;
+    const key = memberStoreKey(userId, workspaceId, queryKey);
     set((state) => ({
       byKey: {
         ...state.byKey,
@@ -196,6 +275,8 @@ export const useMySubmissionsStore = create<MySubmissionsStoreState>((set, get) 
     }));
     try {
       const res = await api<ListTimesheetSubmissionsResponseDto>(path, { workspaceId });
+      const activeUserId = resolveMemberUserId();
+      if (activeUserId !== userId) return;
       set((state) => ({
         byKey: {
           ...state.byKey,
@@ -213,7 +294,10 @@ export const useMySubmissionsStore = create<MySubmissionsStoreState>((set, get) 
   },
 
   subscribe: (workspaceId, queryKey, path) => {
-    const key = `${workspaceId}:${queryKey}`;
+    const userId = resolveMemberUserId();
+    if (!userId || !workspaceId) return () => undefined;
+
+    const key = memberStoreKey(userId, workspaceId, queryKey);
     const nextCount = (get().refCounts[key] ?? 0) + 1;
     set((s) => ({ refCounts: { ...s.refCounts, [key]: nextCount } }));
 
@@ -234,18 +318,35 @@ export const useMySubmissionsStore = create<MySubmissionsStoreState>((set, get) 
   },
 
   invalidate: (workspaceId) => {
+    const keys = memberStoreKeysForWorkspace(get().byKey, workspaceId);
+    if (keys.length === 0) return;
+
     set((state) => {
       const nextByKey = { ...state.byKey };
-      const nextRefCounts = { ...state.refCounts };
-      for (const key of Object.keys(nextByKey)) {
-        if (key.startsWith(`${workspaceId}:`)) {
-          delete nextByKey[key];
-          delete nextRefCounts[key];
-        }
+      for (const key of keys) {
+        delete nextByKey[key];
       }
-      return { byKey: nextByKey, refCounts: nextRefCounts };
+      return { byKey: nextByKey };
     });
+
+    for (const key of keys) {
+      if ((get().refCounts[key] ?? 0) <= 0) continue;
+      const parsed = parseSubmissionStoreKey(key);
+      if (!parsed) continue;
+      void get().fetchSubmissions(
+        parsed.workspaceId,
+        parsed.queryKey,
+        pathForSubmissionQueryKey(parsed.queryKey)
+      );
+    }
   },
 
   clear: () => set({ byKey: {}, refCounts: {} })
 }));
+
+/** @internal test helper */
+export function submissionStoreKey(userId: string, workspaceId: string, queryKey: string): string {
+  return memberStoreKey(userId, workspaceId, queryKey);
+}
+
+export { workspaceIdFromMemberStoreKey };
