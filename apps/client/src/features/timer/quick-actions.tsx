@@ -1,11 +1,11 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@kloqra/ui";
 import {
   readScopedJSON,
   scopedStorageKey,
+  useTimelogListQuery,
   useWorkspaceStaleRefetch,
   writeScopedJSON
 } from "@kloqra/web-shared";
@@ -72,6 +72,22 @@ export function QuickActions({
     return recents.filter((r) => r.projectId === filterProjectId);
   }, [recents, filterProjectId]);
 
+  const recentsPath = useMemo(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const params = new URLSearchParams({
+      from: oneWeekAgo.toISOString(),
+      to: new Date().toISOString()
+    });
+    return `/timelogs?${params.toString()}`;
+  }, []);
+
+  const { data: recentLogsData, refetch: refetchRecentLogs } = useTimelogListQuery(
+    ws,
+    recentsPath,
+    Boolean(ws && projects.length > 0 && tasks.length > 0)
+  );
+
   // Load favorites from scoped localStorage
   useEffect(() => {
     const userId = session?.user?.id;
@@ -102,57 +118,36 @@ export function QuickActions({
     }
   };
 
-  // Fetch recent time logs to build recents list
-  const fetchRecents = useCallback(async () => {
+  // Build recents list from shared timelog query cache
+  useEffect(() => {
     if (!ws || projects.length === 0 || tasks.length === 0) return;
-    try {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const params = new URLSearchParams({
-        from: oneWeekAgo.toISOString(),
-        to: new Date().toISOString()
-      });
-      const res = await api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
-        workspaceId: ws
-      });
+    const items = recentLogsData?.items ?? [];
+    const counts: Record<string, number> = {};
 
-      // Group by taskId and count frequencies
-      const counts: Record<string, number> = {};
-      const logMap: Record<string, TimeLogDto> = {};
+    for (const log of items) {
+      counts[log.taskId] = (counts[log.taskId] ?? 0) + 1;
+    }
 
-      for (const log of res.items) {
-        counts[log.taskId] = (counts[log.taskId] ?? 0) + 1;
-        logMap[log.taskId] = log;
-      }
-
-      const sortedTaskIds = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-
-      const recentItems: RecentItem[] = [];
-      for (const tId of sortedTaskIds.slice(0, 3)) {
-        const task = tasks.find((t) => t.id === tId);
-        if (task) {
-          const project = projects.find((p) => p.id === task.projectId);
-          if (project) {
-            recentItems.push({
-              projectId: project.id,
-              taskId: task.id,
-              projectName: project.name,
-              taskName: task.taskName,
-              projectColor: project.color,
-              categoryName: task.categoryName
-            });
-          }
+    const sortedTaskIds = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    const recentItems: RecentItem[] = [];
+    for (const tId of sortedTaskIds.slice(0, 3)) {
+      const task = tasks.find((t) => t.id === tId);
+      if (task) {
+        const project = projects.find((p) => p.id === task.projectId);
+        if (project) {
+          recentItems.push({
+            projectId: project.id,
+            taskId: task.id,
+            projectName: project.name,
+            taskName: task.taskName,
+            projectColor: project.color,
+            categoryName: task.categoryName
+          });
         }
       }
-      setRecents(recentItems);
-    } catch {
-      // ignore
     }
-  }, [ws, projects, tasks]);
-
-  useEffect(() => {
-    void fetchRecents();
-  }, [fetchRecents]);
+    setRecents(recentItems);
+  }, [ws, projects, tasks, recentLogsData?.items]);
 
   const fetchYesterday = useCallback(async () => {
     if (!ws) return;
@@ -177,7 +172,7 @@ export function QuickActions({
     ws,
     ["timelogs", "timesheet"],
     () => {
-      void fetchRecents();
+      void refetchRecentLogs();
       void fetchYesterday();
     },
     Boolean(ws)

@@ -5,7 +5,12 @@ import { clearInflightGetRequestsForPath } from "../api/inflight-requests";
 import { invalidateTimelogQueries } from "../query/invalidate-timelog-queries";
 import { applyTimelogCachePatch } from "../query/patch-timelog-list-caches";
 import { getQueryClient, resetQueryClient } from "../query/query-client";
-import { commitTimelogMutation, invalidateTimelogData } from "./timelog-data-sync";
+import {
+  commitTimelogMutation,
+  invalidateTimelogData,
+  TIMELOG_DERIVED_INVALIDATE_SCOPES,
+  TIMELOG_INVALIDATE_SCOPES
+} from "./timelog-data-sync";
 import { invalidateWorkspaceData } from "./workspace-data-sync";
 
 vi.mock("../api/inflight-requests", () => ({
@@ -48,10 +53,10 @@ describe("timelog-data-sync", () => {
 
     expect(clearInflightGetRequestsForPath).toHaveBeenCalledWith("/timelogs");
     expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
-    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_INVALIDATE_SCOPES);
   });
 
-  it("runs local refresh before broadcasting stale", async () => {
+  it("runs local refresh before broadcasting stale when no cache patch", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const client = getQueryClient();
     const cancelSpy = vi.spyOn(client, "cancelQueries");
@@ -61,16 +66,28 @@ describe("timelog-data-sync", () => {
     expect(cancelSpy).toHaveBeenCalled();
     expect(localRefresh).toHaveBeenCalled();
     expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
-    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_INVALIDATE_SCOPES);
   });
 
-  it("applies cache patch before local refresh", async () => {
+  it("patches cache, runs local refresh, marks queries stale, and invalidates derived stores", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const patch = { type: "upsert" as const, log: sampleLog };
+    const client = getQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
 
     await commitTimelogMutation(workspaceId, localRefresh, patch);
 
+    expect(applyTimelogCachePatch).toHaveBeenCalledOnce();
     expect(applyTimelogCachePatch).toHaveBeenCalledWith(workspaceId, patch);
     expect(localRefresh).toHaveBeenCalled();
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["timelogs", workspaceId],
+      refetchType: "none"
+    });
+    expect(invalidateTimelogQueries).not.toHaveBeenCalled();
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(
+      workspaceId,
+      TIMELOG_DERIVED_INVALIDATE_SCOPES
+    );
   });
 });

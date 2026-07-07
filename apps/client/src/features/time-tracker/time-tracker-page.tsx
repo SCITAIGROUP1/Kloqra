@@ -2,7 +2,6 @@
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
-  BatchTimeLogsResponseDto,
   CategoryDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
@@ -10,7 +9,7 @@ import type {
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
-import { api as sharedApi, commitTimelogMutation } from "@kloqra/web-shared";
+import { api as sharedApi, useTimelogMutations } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { todayInZone } from "../timesheet/calendar-utils";
@@ -252,6 +251,8 @@ export function TimeTrackerPage() {
     await Promise.all([refreshLogs(), refreshSubmissions()]);
   }, [refreshLogs, refreshSubmissions]);
 
+  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshTimelogSurface });
+
   useTimelogStaleRefetch(
     ws,
     () => {
@@ -398,6 +399,11 @@ export function TimeTrackerPage() {
           setSaving(false);
           return;
         }
+        if (!draft.recurrence || draft.recurrence === "none") {
+          setError("Select a recurrence pattern.");
+          setSaving(false);
+          return;
+        }
         const body = {
           taskId,
           localStartTime: draft.startTime,
@@ -409,15 +415,7 @@ export function TimeTrackerPage() {
           description: draft.description || undefined,
           isBillable: draft.isBillable
         };
-        const res = await api<BatchTimeLogsResponseDto>(ROUTES.TIMELOGS.CREATE_BATCH, {
-          method: "POST",
-          workspaceId: ws,
-          body: JSON.stringify(body)
-        });
-        await commitTimelogMutation(ws, refreshTimelogSurface, {
-          type: "upsertMany",
-          logs: res.items
-        });
+        const res = await timelogMutations.createBatch(body);
         closeDialog();
         if (res.skippedCount > 0) {
           toast.success(
@@ -476,19 +474,9 @@ export function TimeTrackerPage() {
       }
 
       if (editingLog) {
-        const updated = await api<TimeLogDto>(`/timelogs/${editingLog.id}`, {
-          method: "PATCH",
-          workspaceId: ws,
-          body: JSON.stringify(body)
-        });
-        await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: updated });
+        await timelogMutations.update(editingLog.id, body);
       } else {
-        const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
-          method: "POST",
-          workspaceId: ws,
-          body: JSON.stringify(body)
-        });
-        await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: created });
+        await timelogMutations.create(body);
       }
       closeDialog();
       toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
@@ -540,11 +528,7 @@ export function TimeTrackerPage() {
     setSaving(true);
     setError(null);
     try {
-      await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
-      await commitTimelogMutation(ws, refreshTimelogSurface, {
-        type: "remove",
-        logId: target.id
-      });
+      await timelogMutations.remove(target.id);
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
     } catch (e) {

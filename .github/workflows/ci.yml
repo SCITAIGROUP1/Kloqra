@@ -235,9 +235,16 @@ jobs:
         run: |
           # GitHub-hosted Ubuntu 24.04 images can ship broken Microsoft APT mirrors
           # (NOSPLIT / InRelease not signed), which makes `install --with-deps` fail.
-          for f in /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/azure-cli.list; do
-            [ -f "$f" ] && sudo rm -f "$f"
-          done
+          if command -v sudo >/dev/null; then
+            sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list \
+                      /etc/apt/sources.list.d/microsoft-prod.sources \
+                      /etc/apt/sources.list.d/azure-cli.list \
+                      /etc/apt/sources.list.d/azure-cli.sources 2>/dev/null || true
+            for f in $(grep -rl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true); do
+              sudo rm -f "$f"
+            done
+            sudo apt-get update
+          fi
           pnpm --filter @kloqra/${{ matrix.app }} exec playwright install chromium --with-deps
       - name: Run E2E tests (Playwright)
         run: |

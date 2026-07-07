@@ -6,7 +6,14 @@ import { getQueryClient } from "../query/query-client";
 import { timelogQueryKeys } from "../query/timelog-query-keys";
 import { invalidateWorkspaceData } from "./workspace-data-sync";
 
+/** Remote/socket/API: refetch timelog lists and timesheet-adjacent stores. */
 export const TIMELOG_INVALIDATE_SCOPES: WorkspaceDataInvalidateScope[] = ["timelogs", "timesheet"];
+
+/** Local save: refresh submissions/week-summary only — never refetch timelog lists we just patched. */
+export const TIMELOG_DERIVED_INVALIDATE_SCOPES: WorkspaceDataInvalidateScope[] = [
+  "submissions",
+  "timesheet"
+];
 
 function clearTimelogInflightRequests(): void {
   clearInflightGetRequestsForPath("/timelogs");
@@ -27,9 +34,20 @@ export async function commitTimelogMutation(
 ): Promise<void> {
   clearTimelogInflightRequests();
   await getQueryClient().cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
+
   if (cachePatch) {
     applyTimelogCachePatch(workspaceId, cachePatch);
+    if (localRefresh) {
+      await localRefresh();
+    }
+    await getQueryClient().invalidateQueries({
+      queryKey: timelogQueryKeys.workspace(workspaceId),
+      refetchType: "none"
+    });
+    invalidateWorkspaceData(workspaceId, TIMELOG_DERIVED_INVALIDATE_SCOPES);
+    return;
   }
+
   if (localRefresh) {
     await localRefresh();
   }

@@ -19,8 +19,8 @@ import {
 } from "@kloqra/ui";
 import {
   buildMemberTimesheetHrefFromSubmission,
-  commitTimelogMutation,
-  useTimelogListQuery
+  useTimelogListQuery,
+  useTimelogMutations
 } from "@kloqra/web-shared";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
@@ -33,7 +33,6 @@ import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overl
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
 import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
-import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 
 export type SubmissionsTableProps = {
@@ -116,6 +115,11 @@ function SubmissionRowLogs({
     await refetchLogs();
   }, [refetchLogs]);
 
+  const timelogMutations = useTimelogMutations(workspaceId, {
+    onLocalRefresh: refreshLogs,
+    projectId: submission.projectId
+  });
+
   useTimelogStaleRefetch(
     workspaceId,
     () => {
@@ -177,14 +181,9 @@ function SubmissionRowLogs({
         isBillable: draft.isBillable
       };
       if (editingLog) {
-        const updated = await api<TimeLogDto>(`/timelogs/${editingLog.id}`, {
-          method: "PATCH",
-          workspaceId,
-          body: JSON.stringify(body)
-        });
+        await timelogMutations.update(editingLog.id, body);
         toast.success("Time entry updated!");
         closeDialog();
-        await commitTimelogMutation(workspaceId, refreshLogs, { type: "upsert", log: updated });
       }
       onLogUpdated();
     } catch (e) {
@@ -202,12 +201,8 @@ function SubmissionRowLogs({
     if (!target) return;
     setSaving(true);
     try {
-      await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId });
+      await timelogMutations.remove(target.id);
       toast.success("Time entry deleted!");
-      await commitTimelogMutation(workspaceId, refreshLogs, {
-        type: "remove",
-        logId: target.id
-      });
       onLogUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not delete entry");

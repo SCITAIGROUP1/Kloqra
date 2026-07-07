@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { loginPlatformAdmin } from "./helpers/platform-auth";
+import { openPlatformConsoleNav } from "./helpers/platform-nav";
 
 const OPS_SUMMARY = {
   tenants: {
@@ -44,9 +45,12 @@ test("platform ops dashboard shows fleet metrics", async ({ page }) => {
   await loginPlatformAdmin(page);
   await expect(page).toHaveURL(/\/tenants/, { timeout: 30_000 });
 
-  await page.getByRole("link", { name: "Ops" }).click();
-  await expect(page).toHaveURL(/\/ops/);
-  await expect(page.getByRole("heading", { name: "Ops" })).toBeVisible();
+  await Promise.all([
+    page.waitForURL(/\/ops/, { timeout: 15_000 }),
+    openPlatformConsoleNav(page, "Ops")
+  ]);
+
+  await expect(page.getByRole("heading", { name: "Ops Dashboard" })).toBeVisible();
   await expect(page.getByText("Active tenants")).toBeVisible();
   await expect(page.getByText("$99")).toBeVisible();
   await expect(page.getByTestId("ops-queue-mail-queue")).toBeVisible();

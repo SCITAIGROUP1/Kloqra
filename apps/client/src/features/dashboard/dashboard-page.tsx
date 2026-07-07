@@ -41,8 +41,8 @@ import {
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
   fetchListItems,
-  commitTimelogMutation,
   useTimelogListQuery,
+  useTimelogMutations,
   useUserProfile,
   useWorkspaceStaleRefetch,
   localMidnightUtcInZone,
@@ -388,6 +388,8 @@ export function DashboardPage() {
     await refetchLogs();
   }, [refetchLogs]);
 
+  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshLogs });
+
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
@@ -509,7 +511,7 @@ export function DashboardPage() {
       setActive(null);
       setStopDescription("");
       toast.success("Timer stopped! Time entry saved.");
-      await commitTimelogMutation(ws, refreshLogs, { type: "upsert", log: created });
+      await timelogMutations.commitUpsert(created);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not stop timer";
       toast.error(message);
@@ -565,9 +567,8 @@ export function DashboardPage() {
       return;
     }
     try {
-      await api(`/timelogs/${logId}`, { method: "DELETE", workspaceId: ws });
       toast.success("Time entry deleted!");
-      await commitTimelogMutation(ws, refreshLogs, { type: "remove", logId });
+      await timelogMutations.remove(logId);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not delete time log");
     }

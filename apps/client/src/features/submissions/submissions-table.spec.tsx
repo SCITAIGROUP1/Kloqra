@@ -1,7 +1,28 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SubmissionsTable } from "./submissions-table";
+
+vi.mock("@kloqra/web-shared", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    useTimelogListQuery: () => ({
+      data: { items: [] },
+      refetch: vi.fn(),
+      isLoading: false,
+      error: null
+    }),
+    useTimelogMutations: () => ({
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      createBatch: vi.fn(),
+      commitUpsert: vi.fn(),
+      invalidateAll: vi.fn()
+    })
+  };
+});
 
 const draftSubmission = {
   id: "period-1",

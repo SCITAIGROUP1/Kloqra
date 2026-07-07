@@ -18,6 +18,7 @@ describe("invalidateTimelogQueries", () => {
   it("refetches active timelog queries on the shared provider client", async () => {
     const client = getQueryClient();
     const cancelSpy = vi.spyOn(client, "cancelQueries");
+    const refetchSpy = vi.spyOn(client, "refetchQueries");
     const queryFn = vi
       .fn()
       .mockResolvedValueOnce({ items: [{ id: "log-1" }] })
@@ -43,6 +44,10 @@ describe("invalidateTimelogQueries", () => {
 
     expect(cancelSpy).toHaveBeenCalledWith({
       queryKey: timelogQueryKeys.workspace(workspaceId)
+    });
+    expect(refetchSpy).toHaveBeenCalledWith({
+      queryKey: timelogQueryKeys.workspace(workspaceId),
+      type: "all"
     });
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
   });

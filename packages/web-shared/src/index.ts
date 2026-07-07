@@ -175,6 +175,7 @@ export {
   type WorkspaceDataStaleDetail
 } from "./realtime/workspace-data-sync";
 export {
+  TIMELOG_DERIVED_INVALIDATE_SCOPES,
   TIMELOG_INVALIDATE_SCOPES,
   commitTimelogMutation,
   invalidateTimelogData
@@ -185,11 +186,19 @@ export { invalidateTimelogQueries } from "./query/invalidate-timelog-queries";
 export {
   applyTimelogCachePatch,
   removeTimelogFromListCaches,
+  relocateTimelogInListCaches,
+  timelogMatchesListQueryPath,
   upsertTimelogInListCaches,
-  type TimelogCachePatch
+  type TimelogCachePatch,
+  type TimelogListQueryMatchOptions
 } from "./query/patch-timelog-list-caches";
 export { timelogQueryKeys } from "./query/timelog-query-keys";
 export { useTimelogListQuery, useTimelogListAllQuery } from "./query/use-timelog-list-query";
+export {
+  useTimelogMutations,
+  type TimelogMutations,
+  type UseTimelogMutationsOptions
+} from "./query/use-timelog-mutations";
 export { useTimelogQuerySync } from "./query/use-timelog-query-sync";
 export { useClientTablePagination } from "./hooks/use-client-table-pagination";
 export { fetchUserProfile } from "./stores/user-profile.store";

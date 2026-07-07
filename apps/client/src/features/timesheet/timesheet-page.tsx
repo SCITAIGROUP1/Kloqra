@@ -4,13 +4,12 @@ import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
   AutoStoppedTimerDto,
+  CategoryDto,
   ListTimeLogOccupancyResponseDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
-  CategoryDto,
   TimesheetPeriodDto,
-  UserProfileDto,
-  BatchTimeLogsResponseDto
+  UserProfileDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -25,11 +24,11 @@ import {
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
-  commitTimelogMutation,
   invalidateTimelogData,
   parseMemberTimesheetSearch,
   scopedStorageKey,
   useTimelogListQuery,
+  useTimelogMutations,
   useWorkspaceStaleRefetch
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
@@ -486,9 +485,11 @@ export function TimesheetPage() {
     await Promise.all([refreshLogs(), refreshOccupancy()]);
   }, [refreshLogs, refreshOccupancy]);
 
+  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshTimelogSurface });
+
   useWorkspaceStaleRefetch(
     ws,
-    ["timelogs", "timesheet"],
+    ["timelogs"],
     () => {
       void refreshTimelogSurface();
     },
@@ -665,6 +666,11 @@ export function TimesheetPage() {
           setSaving(false);
           return;
         }
+        if (!draft.recurrence || draft.recurrence === "none") {
+          setError("Select a recurrence pattern.");
+          setSaving(false);
+          return;
+        }
         const body = {
           taskId,
           localStartTime: draft.startTime,
@@ -676,15 +682,7 @@ export function TimesheetPage() {
           description: draft.description || undefined,
           isBillable: draft.isBillable
         };
-        const res = await api<BatchTimeLogsResponseDto>(ROUTES.TIMELOGS.CREATE_BATCH, {
-          method: "POST",
-          workspaceId: ws,
-          body: JSON.stringify(body)
-        });
-        await commitTimelogMutation(ws, refreshTimelogSurface, {
-          type: "upsertMany",
-          logs: res.items
-        });
+        const res = await timelogMutations.createBatch(body);
         closeDialog();
         if (res.skippedCount > 0) {
           toast.success(
@@ -702,19 +700,9 @@ export function TimesheetPage() {
           isBillable: draft.isBillable
         };
         if (editingLog) {
-          const updated = await api<TimeLogDto>(`/timelogs/${editingLog.id}`, {
-            method: "PATCH",
-            workspaceId: ws,
-            body: JSON.stringify(body)
-          });
-          await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: updated });
+          await timelogMutations.update(editingLog.id, body);
         } else {
-          const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
-            method: "POST",
-            workspaceId: ws,
-            body: JSON.stringify(body)
-          });
-          await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: created });
+          await timelogMutations.create(body);
         }
         closeDialog();
         toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
@@ -751,11 +739,7 @@ export function TimesheetPage() {
     setSaving(true);
     setError(null);
     try {
-      await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
-      await commitTimelogMutation(ws, refreshTimelogSurface, {
-        type: "remove",
-        logId: target.id
-      });
+      await timelogMutations.remove(target.id);
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
     } catch (e) {
@@ -779,18 +763,13 @@ export function TimesheetPage() {
     }
     setError(null);
     try {
-      const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
-        method: "POST",
-        workspaceId: ws,
-        body: JSON.stringify({
-          taskId: log.taskId,
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          description: log.description ?? undefined,
-          isBillable: log.isBillable
-        })
+      const created = await timelogMutations.create({
+        taskId: log.taskId,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        description: log.description ?? undefined,
+        isBillable: log.isBillable
       });
-      await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: created });
       openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
     } catch (e) {
@@ -814,15 +793,10 @@ export function TimesheetPage() {
 
     setError(null);
     try {
-      const updated = await api<TimeLogDto>(`/timelogs/${log.id}`, {
-        method: "PATCH",
-        workspaceId: ws,
-        body: JSON.stringify({
-          startTime: start.toISOString(),
-          endTime: end.toISOString()
-        })
+      await timelogMutations.update(log.id, {
+        startTime: start.toISOString(),
+        endTime: end.toISOString()
       });
-      await commitTimelogMutation(ws, refreshTimelogSurface, { type: "upsert", log: updated });
       toast.success("Time entry updated!");
     } catch (e) {
       const msg = e instanceof Error ? e.message : errorLabel;

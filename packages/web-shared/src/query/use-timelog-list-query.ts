@@ -4,12 +4,13 @@ import type { ListTimeLogsResponseDto } from "@kloqra/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { readUserIdFromToken } from "../auth/jwt-payload";
-import { getAccessToken, useSessionStore } from "../stores/session.store";
+import { useSessionStore } from "../stores/session.store";
 import { timelogQueryKeys } from "./timelog-query-keys";
 
 function useTimelogQueryEnabled(workspaceId: string, enabled: boolean): boolean {
   const sessionUserId = useSessionStore((s) => s.session?.user?.id);
-  const tokenUserId = readUserIdFromToken(getAccessToken());
+  const accessToken = useSessionStore((s) => s.accessToken);
+  const tokenUserId = readUserIdFromToken(accessToken);
   return Boolean(
     enabled && workspaceId && sessionUserId && tokenUserId && sessionUserId === tokenUserId
   );
@@ -23,7 +24,9 @@ export function useTimelogListQuery(workspaceId: string, path: string, enabled =
     queryFn: ({ signal }) => api<ListTimeLogsResponseDto>(path, { workspaceId, signal }),
     enabled: queryEnabled,
     staleTime: 0,
-    refetchOnMount: "always"
+    gcTime: 5 * 60_000,
+    refetchOnMount: "always",
+    structuralSharing: false
   });
 }
 
@@ -58,6 +61,8 @@ export function useTimelogListAllQuery(workspaceId: string, basePath: string, en
     },
     enabled: queryEnabled,
     staleTime: 0,
-    refetchOnMount: "always"
+    gcTime: 5 * 60_000,
+    refetchOnMount: "always",
+    structuralSharing: false
   });
 }

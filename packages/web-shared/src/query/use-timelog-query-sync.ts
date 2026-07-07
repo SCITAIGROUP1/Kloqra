@@ -12,7 +12,7 @@ export function useTimelogQuerySync() {
   useEffect(() => {
     const onStale = (event: Event) => {
       const detail = (event as CustomEvent<WorkspaceDataStaleDetail>).detail;
-      if (!detail?.scopes.includes("timelogs") && !detail?.scopes.includes("timesheet")) {
+      if (!detail?.scopes.includes("timelogs")) {
         return;
       }
       void invalidateTimelogQueries(detail.workspaceId);

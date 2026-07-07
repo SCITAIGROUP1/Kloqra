@@ -26,9 +26,9 @@ import {
   fetchListItems,
   useRefetchOnWindowFocus,
   useTimelogListQuery,
+  useTimelogMutations,
   useUserProfile,
   useWorkspaceStaleRefetch,
-  commitTimelogMutation,
   todayInZone,
   localMidnightUtcInZone,
   toDateKeyInZone
@@ -220,6 +220,8 @@ export function TimerPage() {
     await refetchRecentLogs();
   }, [refetchRecentLogs]);
 
+  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshRecentLogs });
+
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
     try {
@@ -229,14 +231,14 @@ export function TimerPage() {
       if (res && "autostopped" in res && res.autostopped) {
         setActive(null);
         toast.warning(formatAutoStopToastMessage(), { duration: 8000 });
-        await commitTimelogMutation(ws, refreshRecentLogs);
+        await timelogMutations.invalidateAll();
         return;
       }
       setActive(res as ActiveTimerDto | null);
     } catch {
       // ignore
     }
-  }, [ws, setActive, refreshRecentLogs]);
+  }, [ws, setActive, timelogMutations]);
 
   useEffect(() => {
     if (!ws) return;
@@ -414,7 +416,7 @@ export function TimerPage() {
       setActive(null);
       setStopDescription("");
       toast.success(`Timer stopped. ${logged} logged.`);
-      await commitTimelogMutation(ws, refreshRecentLogs, { type: "upsert", log: created });
+      await timelogMutations.commitUpsert(created);
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Something went wrong. Your time is safe — try again.";

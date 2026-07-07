@@ -47,10 +47,12 @@ export function useClientWorkspaceDataSync(workspaceId: string) {
       if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
         useMySubmissionsStore.getState().invalidate(workspaceId);
       }
-      if (detail.scopes.includes("timelogs") || detail.scopes.includes("timesheet")) {
+      if (detail.scopes.includes("timelogs")) {
         void invalidateTimelogQueries(workspaceId);
         useMemberReportingStore.getState().invalidateWeekSummary(workspaceId);
         useActiveTimerSessionStore.getState().invalidateActive(workspaceId);
+      } else if (detail.scopes.includes("timesheet")) {
+        useMemberReportingStore.getState().invalidateWeekSummary(workspaceId);
       }
       if (detail.scopes.includes("projects")) {
         refetchProjects(workspaceId);
