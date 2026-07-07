@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 import { waitForAdminShell } from "./helpers/shell";
 
 const PENDING_TENANT = {
@@ -17,15 +17,24 @@ const PROVISIONED_OWNER_SESSION = {
   requiresWorkspaceSetup: true
 };
 
+const PROVISIONED_OWNER_SUBSCRIPTION = {
+  tenantId: PENDING_TENANT.id,
+  planId: "00000000-0000-4000-8000-000000000010",
+  planName: "Trial",
+  status: "active",
+  trialEndsAt: null,
+  currentPeriodEnd: null,
+  limits: { maxWorkspaces: 25, maxSeats: 100, maxReportingApiKeys: 50 },
+  stripeCustomerId: null,
+  billingAlert: null,
+  billingMode: "simulated"
+};
+
 const PROVISIONED_OWNER_OVERVIEW = {
   tenant: PENDING_TENANT,
   workspaceCount: 0,
   seatCount: 1,
-  subscription: {
-    planName: "Trial",
-    status: "active",
-    billingAlert: null
-  }
+  subscription: PROVISIONED_OWNER_SUBSCRIPTION
 };
 
 const PROVISIONED_OWNER_ANALYTICS = {
@@ -45,6 +54,36 @@ const PROVISIONED_OWNER_ANALYTICS = {
   byWorkspace: []
 };
 
+const PROVISIONED_OWNER_USER_PROFILE = {
+  email: "owner@example.com",
+  name: "Provisioned Owner",
+  firstName: "Provisioned",
+  lastName: "Owner",
+  phone: null,
+  location: null,
+  jobTitle: null,
+  department: null,
+  workStartDate: null,
+  preferences: { enabled: true, theme: "system" },
+  effectiveDailyTargetHours: 8,
+  effectiveTimerStaleWarningHours: 8,
+  effectiveTimezone: "UTC",
+  effectiveDateFormat: "MDY",
+  effectiveTimeFormat: "12h",
+  effectiveTheme: "system",
+  twoFactorEnabled: false,
+  workContext: {
+    organizationName: PENDING_TENANT.name,
+    workspaceName: "No workspace yet",
+    workspaceRole: "ADMIN"
+  },
+  activityStats: {
+    totalHours: 0,
+    projectCount: 0,
+    memberSince: new Date().toISOString()
+  }
+};
+
 function buildProvisionedOwnerAccessToken(): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
@@ -59,6 +98,14 @@ function buildProvisionedOwnerAccessToken(): string {
   return `${header}.${payload}.sig`;
 }
 
+async function fulfillJson(route: Route, body: unknown, status = 200) {
+  await route.fulfill({
+    status,
+    contentType: "application/json",
+    body: JSON.stringify(body)
+  });
+}
+
 async function mockProvisionedOwnerSession(page: Page) {
   const accessToken = buildProvisionedOwnerAccessToken();
   const refreshBody = {
@@ -66,46 +113,59 @@ async function mockProvisionedOwnerSession(page: Page) {
     accessToken
   };
 
-  await page.route("**/auth/refresh", async (route) => {
-    if (route.request().method() !== "POST") {
-      await route.continue();
+  await page.route(/localhost:3001\/.*/, async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    const method = route.request().method();
+
+    if (path === "/auth/refresh" && method === "POST") {
+      await fulfillJson(route, refreshBody);
       return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(refreshBody)
-    });
-  });
-  await page.route("**/auth/me", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(PROVISIONED_OWNER_SESSION)
-    });
-  });
-  await page.route("**/tenants/current/overview**", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
+    if (path === "/auth/me") {
+      await fulfillJson(route, PROVISIONED_OWNER_SESSION);
       return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(PROVISIONED_OWNER_OVERVIEW)
-    });
-  });
-  await page.route("**/tenants/current/analytics**", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
+    if (path === "/users/me" && method === "GET") {
+      await fulfillJson(route, PROVISIONED_OWNER_USER_PROFILE);
       return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(PROVISIONED_OWNER_ANALYTICS)
-    });
+    if (path === "/users/me" && method === "PATCH") {
+      await fulfillJson(route, PROVISIONED_OWNER_USER_PROFILE);
+      return;
+    }
+    if (path === "/users/me/preferences" && method === "PATCH") {
+      await fulfillJson(route, PROVISIONED_OWNER_USER_PROFILE);
+      return;
+    }
+    if (path === "/tenants/current" && method === "GET") {
+      await fulfillJson(route, PENDING_TENANT);
+      return;
+    }
+    if (path.startsWith("/tenants/current/overview")) {
+      await fulfillJson(route, PROVISIONED_OWNER_OVERVIEW);
+      return;
+    }
+    if (path.startsWith("/tenants/current/analytics")) {
+      await fulfillJson(route, PROVISIONED_OWNER_ANALYTICS);
+      return;
+    }
+    if (path.startsWith("/tenants/current/subscription")) {
+      await fulfillJson(route, PROVISIONED_OWNER_SUBSCRIPTION);
+      return;
+    }
+    if (path.startsWith("/tenants/current/workspace-admins")) {
+      await fulfillJson(route, { items: [], total: 0, page: 1, limit: 25 });
+      return;
+    }
+    if (path === "/workspaces" && method === "GET") {
+      await fulfillJson(route, []);
+      return;
+    }
+
+    await fulfillJson(route, {});
   });
+
   await page.addInitScript((token) => {
     for (const key of [
       "cm-admin-access-token",
@@ -169,6 +229,7 @@ test.describe("provisioned owner without workspace", () => {
 
     await page.goto("/account");
     await waitForAdminShell(page);
+    await expect(page).toHaveURL(/\/account\/workspaces\?setup=required/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: "Create your first workspace" })).toBeVisible({
       timeout: 30_000
     });
@@ -177,46 +238,6 @@ test.describe("provisioned owner without workspace", () => {
 
   test("owner without workspace can open account settings and profile", async ({ page }) => {
     await mockProvisionedOwnerSession(page);
-
-    await page.route("**/users/me", async (route) => {
-      if (route.request().method() !== "GET") {
-        await route.continue();
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          email: "owner@example.com",
-          name: "Provisioned Owner",
-          firstName: "Provisioned",
-          lastName: "Owner",
-          phone: null,
-          location: null,
-          jobTitle: null,
-          department: null,
-          workStartDate: null,
-          preferences: { enabled: true },
-          effectiveDailyTargetHours: 8,
-          effectiveTimerStaleWarningHours: 8,
-          effectiveTimezone: "UTC",
-          effectiveDateFormat: "MDY",
-          effectiveTimeFormat: "12h",
-          effectiveTheme: "system",
-          twoFactorEnabled: false,
-          workContext: {
-            organizationName: PENDING_TENANT.name,
-            workspaceName: "No workspace yet",
-            workspaceRole: "ADMIN"
-          },
-          activityStats: {
-            totalHours: 0,
-            projectCount: 0,
-            memberSince: new Date().toISOString()
-          }
-        })
-      });
-    });
 
     await page.goto("/account/settings?section=appearance");
     await waitForAdminShell(page);
@@ -231,16 +252,12 @@ test.describe("provisioned owner without workspace", () => {
   test("owner without workspace is redirected to required workspace setup", async ({ page }) => {
     await mockProvisionedOwnerSession(page);
 
-    await page.route("**/tenants/current", async (route) => {
+    await page.route(/localhost:3001\/tenants\/current$/, async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
         return;
       }
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ ...PENDING_TENANT, status: "active" })
-      });
+      await fulfillJson(route, { ...PENDING_TENANT, status: "active" });
     });
 
     await page.goto("/account/billing");
