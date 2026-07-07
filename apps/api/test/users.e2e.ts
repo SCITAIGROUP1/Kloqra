@@ -88,6 +88,15 @@ describe("Users E2E", () => {
     expect(res.body.effectiveDailyTargetHours).toBe(5.5);
   });
 
+  it("PATCH /users/me/preferences persists onboarding completion flags", async () => {
+    const res = await authedAgent(app, session)
+      .patch("/users/me/preferences")
+      .send({ onboardingWizardDone: true, onboardingTourDone: true });
+    expect(res.status).toBe(200);
+    expect(res.body.preferences.onboardingWizardDone).toBe(true);
+    expect(res.body.preferences.onboardingTourDone).toBe(true);
+  });
+
   it("PATCH /users/me updates display name", async () => {
     const res = await authedAgent(app, session).patch("/users/me").send({ name: "Sam Rivera" });
     expect(res.status).toBe(200);

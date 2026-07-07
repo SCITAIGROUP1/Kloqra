@@ -1,5 +1,5 @@
 import { tryRefreshPlatformSession } from "../auth/bootstrap-platform-session";
-import { isAccessTokenExpired } from "../auth/jwt-payload";
+import { isAccessTokenExpired, readUserIdFromToken } from "../auth/jwt-payload";
 import { tryRefreshSession } from "../auth/refresh-session";
 import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
 import { usePlatformNotificationsStore } from "../stores/platform-notifications-store";
@@ -18,8 +18,26 @@ const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 /** Coalesce concurrent identical GET requests (e.g. React Strict Mode double-mount). */
 const inflightGetRequests = getInflightGetRequests();
 
-function buildInflightGetKey(method: string, path: string, workspaceId?: string | null): string {
-  return `${method}:${path}:${workspaceId ?? ""}`;
+function buildInflightGetKey(
+  method: string,
+  path: string,
+  workspaceId?: string | null,
+  userId?: string | null
+): string {
+  return `${userId ?? resolveAuthUserId()}:${method}:${path}:${workspaceId ?? ""}`;
+}
+
+function resolveAuthUserId(): string {
+  if (AUTH_SCOPE === "platform") {
+    return (
+      usePlatformSessionStore.getState().session?.user.id ??
+      readUserIdFromToken(getPlatformAccessToken()) ??
+      ""
+    );
+  }
+  return (
+    useSessionStore.getState().session?.user?.id ?? readUserIdFromToken(getAccessToken()) ?? ""
+  );
 }
 
 function isDedupeEligibleRequest(method: string, options: ApiOptions): boolean {

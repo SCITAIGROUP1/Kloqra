@@ -2,11 +2,15 @@ import type { AuthSessionDto } from "@kloqra/contracts";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
-export type AuthChannelMessage = {
-  type: "session-updated";
-  session: AuthSessionDto;
-  accessToken: string;
-};
+export type AuthChannelMessage =
+  | {
+      type: "session-updated";
+      session: AuthSessionDto;
+      accessToken: string;
+    }
+  | {
+      type: "session-cleared";
+    };
 
 function channelName(): string {
   return `cm-auth-${AUTH_SCOPE}`;
@@ -27,8 +31,20 @@ export function broadcastSessionUpdate(session: AuthSessionDto, accessToken: str
   }
 }
 
+export function broadcastSessionCleared(): void {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return;
+  try {
+    const channel = new BroadcastChannel(channelName());
+    channel.postMessage({ type: "session-cleared" } satisfies AuthChannelMessage);
+    channel.close();
+  } catch {
+    /* ignore */
+  }
+}
+
 export function subscribeSessionUpdates(
-  onUpdate: (session: AuthSessionDto, accessToken: string) => void
+  onUpdate: (session: AuthSessionDto, accessToken: string) => void,
+  onClear?: () => void
 ): () => void {
   if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") {
     return () => undefined;
@@ -37,6 +53,10 @@ export function subscribeSessionUpdates(
   channel.onmessage = (event: MessageEvent<AuthChannelMessage>) => {
     if (event.data?.type === "session-updated" && event.data.accessToken) {
       onUpdate(event.data.session, event.data.accessToken);
+      return;
+    }
+    if (event.data?.type === "session-cleared") {
+      onClear?.();
     }
   };
   return () => channel.close();

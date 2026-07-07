@@ -648,4 +648,94 @@ describe("AuthService unit tests", () => {
       expect(expiresAt - Date.now()).toBeGreaterThanOrEqual(expectedDiff - 5000);
     });
   });
+
+  describe("invite handoff", () => {
+    it("signs invite handoff token with temp password", () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      authService.signInviteHandoffToken("user-1", "TempPass123!");
+      expect(mockJwt.sign).toHaveBeenCalledWith(
+        {
+          sub: "user-1",
+          purpose: "invite-handoff",
+          temporaryPassword: "TempPass123!"
+        },
+        expect.objectContaining({ secret: "my-secret-key-32-chars-long-or-more", expiresIn: "7d" })
+      );
+    });
+
+    it("consumes invite handoff and returns credentials plus pending token", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        purpose: "invite-handoff",
+        temporaryPassword: "TempPass123!",
+        emailVerificationToken: "verify-token"
+      });
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "new@kloqra.dev",
+          mustChangePassword: true,
+          emailVerifiedAt: null
+        })
+      };
+
+      const result = await authService.consumeInviteHandoff("invite-jwt");
+
+      expect(result).toEqual({
+        email: "new@kloqra.dev",
+        temporaryPassword: "TempPass123!",
+        requiresPasswordChange: true,
+        pendingToken: "mocked-token",
+        emailVerificationToken: "verify-token"
+      });
+    });
+
+    it("omits verification token when email is already verified", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        purpose: "invite-handoff",
+        temporaryPassword: "TempPass123!",
+        emailVerificationToken: "verify-token"
+      });
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "new@kloqra.dev",
+          mustChangePassword: true,
+          emailVerifiedAt: new Date()
+        })
+      };
+
+      const result = await authService.consumeInviteHandoff("invite-jwt");
+
+      expect(result).toEqual({
+        email: "new@kloqra.dev",
+        temporaryPassword: "TempPass123!",
+        requiresPasswordChange: true,
+        pendingToken: "mocked-token"
+      });
+    });
+
+    it("rejects invite handoff when password already changed", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        purpose: "invite-handoff",
+        temporaryPassword: "TempPass123!"
+      });
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "new@kloqra.dev",
+          mustChangePassword: false
+        })
+      };
+
+      await expect(authService.consumeInviteHandoff("invite-jwt")).rejects.toMatchObject({
+        code: "UNAUTHORIZED"
+      });
+    });
+  });
 });

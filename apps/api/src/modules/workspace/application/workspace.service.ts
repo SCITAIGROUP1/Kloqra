@@ -378,13 +378,19 @@ export class WorkspaceService {
       include: { user: true }
     });
 
-    const emailDelivery = await deliverMemberEmail(this.memberMailer.isConfigured, () =>
+    const inviteHandoff =
       userCreated && temporaryPassword
+        ? await this.auth.prepareInviteHandoff(user.id, temporaryPassword)
+        : undefined;
+
+    const emailDelivery = await deliverMemberEmail(this.memberMailer.isConfigured, () =>
+      userCreated && temporaryPassword && inviteHandoff
         ? this.memberMailer.sendNewMemberCredentials({
             to: email,
             workspaceName: workspace.name,
             inviterName,
-            temporaryPassword
+            temporaryPassword,
+            inviteHandoffToken: inviteHandoff.inviteHandoffToken
           })
         : this.memberMailer.sendWorkspaceAdded({
             to: email,
@@ -415,10 +421,6 @@ export class WorkspaceService {
         }
       })
       .catch(() => undefined);
-
-    if (userCreated) {
-      void this.auth.sendEmailVerification(user.id).catch(() => undefined);
-    }
 
     return {
       member: this.toMemberDto(toWorkspaceMemberWithUser(membership)),
@@ -468,13 +470,18 @@ export class WorkspaceService {
       }
     });
 
-    return deliverMemberEmail(this.memberMailer.isConfigured, () =>
+    const inviteHandoff = await this.auth.prepareInviteHandoff(member.userId, temporaryPassword);
+
+    const emailDelivery = await deliverMemberEmail(this.memberMailer.isConfigured, () =>
       this.memberMailer.sendNewMemberCredentials({
         to: member.user.email,
         workspaceName: workspace.name,
-        temporaryPassword
+        temporaryPassword,
+        inviteHandoffToken: inviteHandoff.inviteHandoffToken
       })
     );
+
+    return emailDelivery;
   }
 
   async generateBulkInviteTemplate(res: Response) {

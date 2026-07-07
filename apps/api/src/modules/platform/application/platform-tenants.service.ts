@@ -193,21 +193,32 @@ export class PlatformTenantsService {
       );
     }
 
+    const ownerHandoff = await this.auth.prepareInviteHandoff(
+      result.ownerUserId,
+      temporaryPassword
+    );
+
     void this.ownerMailer
       .sendOwnerCredentials({
         to: email,
         organizationName,
-        temporaryPassword
+        temporaryPassword,
+        inviteHandoffToken: ownerHandoff.inviteHandoffToken
       })
       .catch(() => undefined);
 
-    if (tenantAdminEmail && result.tenantAdminTemporaryPassword) {
+    if (tenantAdminEmail && result.tenantAdminTemporaryPassword && result.tenantAdminUserId) {
+      const adminHandoff = await this.auth.prepareInviteHandoff(
+        result.tenantAdminUserId,
+        result.tenantAdminTemporaryPassword
+      );
       void this.ownerMailer
         .sendTenantAdminCredentials({
           to: tenantAdminEmail,
           organizationName,
           inviterName: "Kloqra Platform",
-          temporaryPassword: result.tenantAdminTemporaryPassword
+          temporaryPassword: result.tenantAdminTemporaryPassword,
+          inviteHandoffToken: adminHandoff.inviteHandoffToken
         })
         .catch(() => undefined);
     }

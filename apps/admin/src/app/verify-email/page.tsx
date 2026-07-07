@@ -27,19 +27,19 @@ function VerifyEmailContent() {
         }
         establishTenantSession(session, accessToken, refreshToken);
         if (session.requiresWorkspaceSetup) {
-          router.push(await resolveAdminOnboardingPath(session));
+          router.replace(await resolveAdminOnboardingPath(session));
           return;
         }
         const multi = await hasMultipleWorkspaces(session.workspaceId!, "ADMIN");
         if (multi) {
-          router.push("/select-workspace");
+          router.replace("/select-workspace");
           return;
         }
         if (session.tenantRole === "OWNER" || session.tenantRole === "ADMIN") {
-          router.push(await resolveAdminOnboardingPath(session));
+          router.replace(await resolveAdminOnboardingPath(session));
           return;
         }
-        router.push("/dashboard");
+        router.replace("/dashboard");
       }}
     />
   );

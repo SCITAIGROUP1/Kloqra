@@ -83,6 +83,7 @@ export class BulkInviteWorker extends WorkerHost {
 
       // Enqueue email job
       if (userCreated && temporaryPassword) {
+        const inviteHandoff = await this.auth.prepareInviteHandoff(user.id, temporaryPassword);
         await this.mailQueue.add(
           "sendNewMemberCredentials",
           {
@@ -91,7 +92,8 @@ export class BulkInviteWorker extends WorkerHost {
               to: email,
               workspaceName: workspace.name,
               inviterName,
-              temporaryPassword
+              temporaryPassword,
+              inviteHandoffToken: inviteHandoff.inviteHandoffToken
             }
           },
           { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
@@ -134,10 +136,6 @@ export class BulkInviteWorker extends WorkerHost {
           }
         })
         .catch(() => undefined);
-
-      if (userCreated) {
-        void this.auth.sendEmailVerification(user.id).catch(() => undefined);
-      }
     }
 
     return { successCount, skippedCount, totalProcessed: members.length };

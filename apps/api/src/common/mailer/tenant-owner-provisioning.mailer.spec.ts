@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { adminClientOrigin } from "./admin-origin.util";
+import { buildInviteLoginUrl } from "./invite-login-url.util";
 import { TenantOwnerProvisioningMailer } from "./tenant-owner-provisioning.mailer";
 
 describe("TenantOwnerProvisioningMailer", () => {
@@ -12,24 +13,28 @@ describe("TenantOwnerProvisioningMailer", () => {
   });
 
   it("sends tenant admin credentials to the admin portal", async () => {
+    const inviteHandoffToken = "invite-jwt-token";
     await mailer.sendTenantAdminCredentials({
       to: "admin@example.com",
       organizationName: "ABC",
       temporaryPassword: "TempPass123!",
-      inviterName: "Kloqra Platform"
+      inviterName: "Kloqra Platform",
+      inviteHandoffToken
     });
 
-    const adminLogin = `${adminClientOrigin()}/login`;
+    const loginUrl = buildInviteLoginUrl(adminClientOrigin(), inviteHandoffToken);
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: ["admin@example.com"],
         subject: expect.stringContaining("Organization admin access for ABC"),
-        html: expect.stringContaining(adminLogin),
-        text: expect.stringContaining("Sign in to Kloqra Admin")
+        text: expect.stringContaining(loginUrl)
       })
     );
     expect(send.mock.calls[0]?.[0]?.html).toContain("Kloqra Platform");
     expect(send.mock.calls[0]?.[0]?.html).not.toContain("localhost:3000");
+    expect(send.mock.calls[0]?.[0]?.html).toContain("invite=invite-jwt-token");
+    expect(send.mock.calls[0]?.[0]?.html).toContain("auto=1");
+    expect(send.mock.calls[0]?.[0]?.text).toContain("Sign in to Kloqra Admin");
   });
 
   it("sends tenant admin added notice to the admin portal", async () => {

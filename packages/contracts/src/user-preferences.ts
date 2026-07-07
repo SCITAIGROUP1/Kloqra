@@ -165,7 +165,11 @@ export const userPreferencesSchema = z
     startupPage: startupPagePreferenceSchema.optional(),
     notifications: userNotificationsSchema.partial().optional(),
     /** Per-workspace dashboard widget layouts (client + admin apps). */
-    dashboardLayouts: userDashboardLayoutsSchema.optional()
+    dashboardLayouts: userDashboardLayoutsSchema.optional(),
+    /** Member portal onboarding wizard completed (persisted server-side). */
+    onboardingWizardDone: z.boolean().optional(),
+    /** Member portal product tour completed (persisted server-side). */
+    onboardingTourDone: z.boolean().optional()
   })
   .passthrough();
 
@@ -272,6 +276,14 @@ export function resolveEffectiveStartupPage(
   userPreferences: UserPreferences
 ): StartupPagePreference {
   return userPreferences.startupPage ?? DEFAULT_STARTUP_PAGE;
+}
+
+export function isOnboardingWizardDone(preferences: UserPreferences): boolean {
+  return preferences.onboardingWizardDone === true;
+}
+
+export function isOnboardingTourDone(preferences: UserPreferences): boolean {
+  return preferences.onboardingTourDone === true;
 }
 
 export function resolveEffectiveNotifications(

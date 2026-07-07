@@ -177,6 +177,32 @@ describe("UsersService", () => {
     expect(profile.preferences.theme).toBe("light");
   });
 
+  it("persists onboarding completion flags in preferences", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({ ...baseUser, preferences: {} });
+    mockPrisma.user.update.mockImplementation(
+      ({ data }: { data: { preferences?: Record<string, unknown> } }) => ({
+        ...baseUser,
+        preferences: data.preferences
+      })
+    );
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      name: "Acme Corporation",
+      settings: {},
+      tenant: { name: "Acme Corporation", slug: "acme" }
+    });
+
+    const profile = await service.updatePreferences(
+      "user-1",
+      "ws-1",
+      { onboardingWizardDone: true, onboardingTourDone: true },
+      "MEMBER"
+    );
+
+    expect(profile.preferences.onboardingWizardDone).toBe(true);
+    expect(profile.preferences.onboardingTourDone).toBe(true);
+  });
+
   it("clears saved timezone when browser default is selected", async () => {
     mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
       ...baseUser,

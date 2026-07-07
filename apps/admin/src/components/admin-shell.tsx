@@ -184,7 +184,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               userName={session.user.name ?? (projectLeadOnly ? "Project manager" : "Admin")}
               profileHref={isAccountMode ? "/account/profile" : "/profile"}
               onLogout={() => {
-                void logoutSession(session.workspaceId).then(() => router.push("/login"));
+                void logoutSession(session.workspaceId);
               }}
             />
           </div>

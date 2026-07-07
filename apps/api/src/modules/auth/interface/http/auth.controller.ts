@@ -10,6 +10,7 @@ import {
   completeImpersonationSchema,
   impersonateSchema,
   refreshSessionSchema,
+  inviteHandoffSchema,
   platform2faSetupEnableRequestSchema,
   completePlatform2faSetupSchema,
   ROUTES,
@@ -96,6 +97,14 @@ export class AuthController {
   @Post(ROUTES.AUTH.SIGNUP)
   async signup(@Body(new ZodValidationPipe(signupSchema)) body: unknown) {
     return this.auth.signup(body as Parameters<AuthService["signup"]>[0]);
+  }
+
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.INVITE_HANDOFF)
+  async inviteHandoff(
+    @Body(new ZodValidationPipe(inviteHandoffSchema)) body: { inviteToken: string }
+  ) {
+    return this.auth.consumeInviteHandoff(body.inviteToken);
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -493,10 +502,16 @@ export class AuthController {
   }
 
   @Delete(ROUTES.AUTH.LOGOUT)
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Body(new ZodValidationPipe(refreshSessionSchema)) body: { refreshToken?: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    const cookieRefresh =
+      req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token ?? undefined;
+    const refresh = body.refreshToken?.trim() ?? cookieRefresh;
     if (refresh) {
       if (scope === "platform") {
         await this.auth.revokePlatformRefreshToken(refresh);
@@ -504,11 +519,14 @@ export class AuthController {
         await this.auth.revokeRefreshToken(refresh);
       }
     }
-    const clearOpts = getClearCookieOpts();
-    res.clearCookie(accessCookieName(scope), clearOpts);
-    res.clearCookie(refreshCookieName(scope), clearOpts);
-    res.clearCookie("access_token", clearOpts);
-    res.clearCookie("refresh_token", clearOpts);
+    const shouldClearCookies = !refresh || !cookieRefresh || refresh === cookieRefresh;
+    if (shouldClearCookies) {
+      const clearOpts = getClearCookieOpts();
+      res.clearCookie(accessCookieName(scope), clearOpts);
+      res.clearCookie(refreshCookieName(scope), clearOpts);
+      res.clearCookie("access_token", clearOpts);
+      res.clearCookie("refresh_token", clearOpts);
+    }
     return { ok: true };
   }
 

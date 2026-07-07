@@ -6,11 +6,14 @@ const mockTryRefresh = vi.fn();
 
 vi.mock("../stores/session.store", () => ({
   getAccessToken: () => mockGetAccessToken(),
-  useSessionStore: { getState: () => ({ clear: vi.fn() }) }
+  useSessionStore: {
+    getState: () => ({ clear: vi.fn(), session: { user: { id: "user-1" } } })
+  }
 }));
 
 vi.mock("../auth/jwt-payload", () => ({
-  isAccessTokenExpired: (token: string | null) => token === "expired-token"
+  isAccessTokenExpired: (token: string | null) => token === "expired-token",
+  readUserIdFromToken: () => "user-1"
 }));
 
 vi.mock("../auth/refresh-session", () => ({

@@ -3,6 +3,7 @@
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import { useBfCacheSessionReconcile } from "../auth/bfcache-session-reconcile";
 import { bootstrapTokenSchedulerFromStorage } from "../auth/refresh-session";
 import { themeStorageKey } from "../hooks/theme-storage";
 import { usePlatformSessionStore } from "../stores/platform-session.store";
@@ -33,6 +34,8 @@ function SessionAwareThemeProvider({ children }: { children: ReactNode }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  useBfCacheSessionReconcile();
+
   useEffect(() => {
     bootstrapTokenSchedulerFromStorage();
   }, []);

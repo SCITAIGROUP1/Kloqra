@@ -2,8 +2,15 @@ import { ROUTES } from "@kloqra/contracts";
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { getAccessToken, getRefreshToken, useSessionStore } from "../stores/session.store";
-import { isAccessTokenExpired } from "./jwt-payload";
+import {
+  getAuthRefreshGeneration,
+  isAuthRefreshStale,
+  onAuthRefreshInvalidated
+} from "./auth-refresh-guard";
+import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
 import { configureProactiveRefresh, scheduleProactiveRefresh } from "./token-scheduler";
+
+export { invalidateAuthRefresh } from "./auth-refresh-guard";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
@@ -11,6 +18,33 @@ const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 const REFRESH_RETRY_MS = 30_000;
 
 let refreshPromise: Promise<string | null> | null = null;
+
+onAuthRefreshInvalidated(() => {
+  refreshPromise = null;
+});
+
+function shouldApplyRefreshSession(body: AuthSessionDto): boolean {
+  const storedToken = getAccessToken();
+  const currentSession = useSessionStore.getState().session;
+
+  if (!storedToken && !currentSession) {
+    return false;
+  }
+
+  const nextUserId = body.user?.id;
+  if (!nextUserId) return false;
+
+  if (currentSession && currentSession.user.id !== nextUserId) {
+    return false;
+  }
+
+  const tokenUserId = readUserIdFromToken(storedToken);
+  if (tokenUserId && tokenUserId !== nextUserId) {
+    return false;
+  }
+
+  return true;
+}
 
 function scheduleRefreshRetry(): void {
   if (typeof window === "undefined") return;
@@ -21,6 +55,7 @@ function scheduleRefreshRetry(): void {
 }
 
 async function performRefresh(): Promise<string | null> {
+  const generation = getAuthRefreshGeneration();
   try {
     const storedRefresh = getRefreshToken();
     const res = await fetch(`${getApiBase()}${ROUTES.AUTH.REFRESH}`, {
@@ -32,6 +67,7 @@ async function performRefresh(): Promise<string | null> {
       },
       body: JSON.stringify(storedRefresh ? { refreshToken: storedRefresh } : {})
     });
+    if (isAuthRefreshStale(generation)) return null;
     if (!res.ok) {
       scheduleRefreshRetry();
       return null;
@@ -40,13 +76,18 @@ async function performRefresh(): Promise<string | null> {
       accessToken?: string;
       refreshToken?: string;
     };
+    if (isAuthRefreshStale(generation)) return null;
     if (!body.accessToken) {
       scheduleRefreshRetry();
+      return null;
+    }
+    if (!shouldApplyRefreshSession(body)) {
       return null;
     }
     useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
     return body.accessToken;
   } catch (error) {
+    if (isAuthRefreshStale(generation)) return null;
     console.warn(
       "[Refresh Session] Failed to fetch token refresh (API server may be offline):",
       error instanceof Error ? error.message : error

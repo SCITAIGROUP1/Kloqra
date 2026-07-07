@@ -135,7 +135,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
           userName={session.user.name}
           profileHref="/profile"
           onLogout={() => {
-            void logoutPlatformSession().then(() => router.push("/login"));
+            void logoutPlatformSession();
           }}
         />
       )}

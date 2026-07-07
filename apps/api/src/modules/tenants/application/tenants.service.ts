@@ -255,13 +255,19 @@ export class TenantsService {
       include: { user: true }
     });
 
-    await deliverMemberEmail(this.tenantMailer.isConfigured, () =>
+    const inviteHandoff =
       userCreated && temporaryPassword
+        ? await this.auth.prepareInviteHandoff(user.id, temporaryPassword)
+        : undefined;
+
+    await deliverMemberEmail(this.tenantMailer.isConfigured, () =>
+      userCreated && temporaryPassword && inviteHandoff
         ? this.tenantMailer.sendTenantAdminCredentials({
             to: email,
             organizationName: tenant.name,
             inviterName,
-            temporaryPassword
+            temporaryPassword,
+            inviteHandoffToken: inviteHandoff.inviteHandoffToken
           })
         : this.tenantMailer.sendTenantAdminAdded({
             to: email,
@@ -269,10 +275,6 @@ export class TenantsService {
             inviterName
           })
     );
-
-    if (userCreated) {
-      void this.auth.sendEmailVerification(user.id).catch(() => undefined);
-    }
 
     return {
       member: this.toMemberDto(membership),

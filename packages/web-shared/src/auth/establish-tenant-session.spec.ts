@@ -16,6 +16,17 @@ vi.mock("../stores/session.store", () => ({
   }
 }));
 
+vi.mock("./auth-refresh-guard", () => ({
+  invalidateAuthRefresh: vi.fn(),
+  onAuthRefreshInvalidated: vi.fn(),
+  getAuthRefreshGeneration: () => 0,
+  isAuthRefreshStale: () => false
+}));
+
+vi.mock("./logout-session", () => ({
+  invalidatePendingLogout: vi.fn()
+}));
+
 describe("establishTenantSession", () => {
   beforeEach(() => {
     mockClear.mockReset();

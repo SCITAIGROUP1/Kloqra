@@ -4,6 +4,8 @@ import {
   buildPaginationMeta,
   type PaginatedResponse
 } from "@kloqra/contracts";
+import { readUserIdFromToken } from "../auth/jwt-payload";
+import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { api } from "./client";
 import {
   buildListCacheKey,
@@ -16,6 +18,12 @@ import { appendListQuery, buildListQuery } from "./list-query";
 type ListApiResponse<T> = T[] | PaginatedResponse<T>;
 
 export { invalidateListItemsCache } from "./list-items-cache";
+
+function resolveListCacheUserId(): string {
+  const sessionUserId = useSessionStore.getState().session?.user?.id;
+  if (sessionUserId) return sessionUserId;
+  return readUserIdFromToken(getAccessToken()) ?? "anonymous";
+}
 
 /** @deprecated Use invalidateListItemsCache() */
 export function clearListItemsCache() {
@@ -52,7 +60,8 @@ export async function fetchListItems<T>(
   }
 ): Promise<T[]> {
   const limit = options.limit ?? DEFAULT_DROPDOWN_LIST_LIMIT;
-  const cacheKey = buildListCacheKey(path, options.workspaceId, options.filters, limit);
+  const userId = resolveListCacheUserId();
+  const cacheKey = buildListCacheKey(path, options.workspaceId, userId, options.filters, limit);
 
   if (!options.bypassCache) {
     const cached = getCachedListItems(cacheKey);

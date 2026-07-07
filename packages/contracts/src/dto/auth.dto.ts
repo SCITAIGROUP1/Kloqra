@@ -111,6 +111,16 @@ export const loginRequiresPasswordChangeResponseSchema = z.object({
   pendingToken: z.string()
 });
 
+export const inviteHandoffSchema = z.object({
+  inviteToken: z.string().min(1)
+});
+
+export const inviteHandoffResponseSchema = loginRequiresPasswordChangeResponseSchema.extend({
+  email: emailSchema,
+  temporaryPassword: z.string().min(1),
+  emailVerificationToken: z.string().min(1).optional()
+});
+
 export const loginRequiresEmailVerificationResponseSchema = z.object({
   requiresEmailVerification: z.literal(true),
   email: emailSchema
@@ -161,6 +171,8 @@ export type LoginDto = z.infer<typeof loginSchema>;
 export type LoginRequiresPasswordChangeResponseDto = z.infer<
   typeof loginRequiresPasswordChangeResponseSchema
 >;
+export type InviteHandoffDto = z.infer<typeof inviteHandoffSchema>;
+export type InviteHandoffResponseDto = z.infer<typeof inviteHandoffResponseSchema>;
 export type LoginRequiresEmailVerificationResponseDto = z.infer<
   typeof loginRequiresEmailVerificationResponseSchema
 >;

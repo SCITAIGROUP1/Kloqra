@@ -15,7 +15,8 @@ import {
   establishTenantSession,
   extractFieldErrorsFromMessage,
   resolveStartupPath,
-  hasMultipleWorkspaces
+  hasMultipleWorkspaces,
+  verifyEmailWithToken
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -30,8 +31,10 @@ export function SetPasswordPageForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pendingToken, setPendingToken] = useState(() => searchParams.get("token") ?? "");
+  const verifyToken = searchParams.get("verifyToken");
   const [totpCode, setTotpCode] = useState("");
   const [needs2fa, setNeeds2fa] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [error, setError] = useState("");
   const [totpError, setTotpError] = useState("");
 
@@ -43,7 +46,7 @@ export function SetPasswordPageForm() {
     try {
       const multi = await hasMultipleWorkspaces(switched.session.workspaceId);
       if (multi) {
-        router.push("/select-workspace");
+        router.replace("/select-workspace");
         return;
       }
 
@@ -51,9 +54,9 @@ export function SetPasswordPageForm() {
         ROUTES.USERS.ME,
         { workspaceId: switched.session.workspaceId }
       );
-      router.push(resolveStartupPath(profile.preferences.startupPage));
+      router.replace(resolveStartupPath(profile.preferences.startupPage));
     } catch {
-      router.push("/dashboard");
+      router.replace("/dashboard");
     }
   }
 
@@ -99,18 +102,51 @@ export function SetPasswordPageForm() {
       return;
     }
     if ("requiresEmailVerification" in res && res.requiresEmailVerification) {
-      router.push(`/verify-email?email=${encodeURIComponent(res.email)}`);
+      if (verifyToken) {
+        setVerifyingEmail(true);
+        try {
+          const verifyRes = await verifyEmailWithToken(verifyToken);
+          if ("requires2fa" in verifyRes && verifyRes.requires2fa) {
+            setPendingToken(verifyRes.pendingToken);
+            setNeeds2fa(true);
+            return;
+          }
+          if ("requiresPasswordChange" in verifyRes && verifyRes.requiresPasswordChange) {
+            setPendingToken(verifyRes.pendingToken);
+            setNeeds2fa(false);
+            setError("Set your password before verifying email.");
+            return;
+          }
+          await finishSession(verifyRes as AuthSessionDto & { accessToken: string });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Could not verify email.");
+        } finally {
+          setVerifyingEmail(false);
+        }
+        return;
+      }
+      router.replace(`/verify-email?email=${encodeURIComponent(res.email)}`);
       return;
     }
     await finishSession(res as AuthSessionDto & { accessToken: string });
   }
 
   return (
-    <AuthShell title={needs2fa ? "Two-factor authentication" : "Set your password"}>
+    <AuthShell
+      title={
+        verifyingEmail
+          ? "Verify email"
+          : needs2fa
+            ? "Two-factor authentication"
+            : "Set your password"
+      }
+    >
       <p className="mb-4 text-sm text-muted-foreground">
-        {needs2fa
-          ? "Enter the code from your authenticator app to finish signing in."
-          : "Choose a new password before continuing."}
+        {verifyingEmail
+          ? "Confirming your email and finishing sign-in…"
+          : needs2fa
+            ? "Enter the code from your authenticator app to finish signing in."
+            : "Choose a new password before continuing."}
       </p>
       {needs2fa ? (
         <form onSubmit={complete2fa} className="flex flex-col gap-4">
@@ -133,7 +169,7 @@ export function SetPasswordPageForm() {
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <Button type="submit">Verify</Button>
         </form>
-      ) : (
+      ) : verifyingEmail ? null : (
         <SetPasswordForm pendingToken={pendingToken} onSubmit={handleSetPassword} />
       )}
     </AuthShell>

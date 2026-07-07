@@ -1,6 +1,11 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { create } from "zustand";
-import { broadcastSessionUpdate, subscribeSessionUpdates } from "../auth/auth-channel";
+import {
+  broadcastSessionCleared,
+  broadcastSessionUpdate,
+  subscribeSessionUpdates
+} from "../auth/auth-channel";
+import { invalidateAuthRefresh } from "../auth/auth-refresh-guard";
 import { readWorkspaceIdFromToken } from "../auth/jwt-payload";
 import { applySessionBoundary, type SessionBoundaryReason } from "../auth/session-boundary";
 import { cancelProactiveRefresh, scheduleProactiveRefresh } from "../auth/token-scheduler";
@@ -93,6 +98,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
   clear: (options) => {
     const prev = get().session;
+    invalidateAuthRefresh();
     applySessionBoundary({
       prev,
       next: null,
@@ -100,6 +106,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       level: "full"
     });
     clearPersistedTokens();
+    if (typeof window !== "undefined" && !applyingPeerSessionClear) {
+      broadcastSessionCleared();
+    }
     set({ session: null, accessToken: null });
   }
 }));
@@ -141,10 +150,23 @@ export function applySessionFromPeer(session: AuthSessionDto, accessToken: strin
   useSessionStore.setState({ session, accessToken });
 }
 
+let applyingPeerSessionClear = false;
+
+function clearSessionFromPeer(): void {
+  applyingPeerSessionClear = true;
+  useSessionStore.getState().clear({ boundaryReason: "peer_sync" });
+  applyingPeerSessionClear = false;
+}
+
 if (typeof window !== "undefined") {
   queueMicrotask(() => {
-    subscribeSessionUpdates((session, accessToken) => {
-      applySessionFromPeer(session, accessToken);
-    });
+    subscribeSessionUpdates(
+      (session, accessToken) => {
+        applySessionFromPeer(session, accessToken);
+      },
+      () => {
+        clearSessionFromPeer();
+      }
+    );
   });
 }

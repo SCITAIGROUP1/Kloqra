@@ -9,6 +9,15 @@ vi.mock("./client", () => ({
   api: (...args: unknown[]) => api(...args)
 }));
 
+vi.mock("../stores/session.store", () => ({
+  getAccessToken: () => "token-user-1",
+  useSessionStore: {
+    getState: () => ({
+      session: { user: { id: "user-1" } }
+    })
+  }
+}));
+
 describe("normalizePaginatedListResponse", () => {
   it("unwraps legacy array list responses", () => {
     const normalized = normalizePaginatedListResponse([{ id: "p1" }], 1, 20);
@@ -47,7 +56,7 @@ describe("fetchListItems", () => {
   });
 
   it("bypasses cached list responses when requested", async () => {
-    const cacheKey = buildListCacheKey("/tasks", "ws-1", { projectId: "p-1" }, 100);
+    const cacheKey = buildListCacheKey("/tasks", "ws-1", "user-1", { projectId: "p-1" }, 100);
     setCachedListItems(cacheKey, [{ id: "stale" }]);
     api.mockResolvedValue({
       items: [{ id: "fresh" }],

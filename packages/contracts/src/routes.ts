@@ -17,7 +17,8 @@ export const ROUTES = {
     VERIFY_EMAIL: "/auth/verify-email",
     RESEND_VERIFICATION: "/auth/resend-verification",
     PLATFORM_COMPLETE_2FA_SETUP: "/auth/platform/complete-2fa-setup",
-    PLATFORM_2FA_SETUP_ENABLE: "/auth/platform/2fa-setup/enable"
+    PLATFORM_2FA_SETUP_ENABLE: "/auth/platform/2fa-setup/enable",
+    INVITE_HANDOFF: "/auth/invite-handoff"
   },
   USERS: {
     ME: "/users/me",

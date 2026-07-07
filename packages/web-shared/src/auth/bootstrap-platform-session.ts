@@ -12,6 +12,7 @@ import {
 import { usePlatformUserProfileStore } from "../stores/platform-user-profile.store";
 import { establishPlatformSession } from "./establish-tenant-session";
 import { isAccessTokenExpired } from "./jwt-payload";
+import { beginLogout, isLogoutEpochCurrent } from "./logout-session";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "platform";
 
@@ -77,19 +78,29 @@ export async function bootstrapPlatformSession(): Promise<BootstrapPlatformResul
 }
 
 export async function logoutPlatformSession(): Promise<void> {
+  const epoch = beginLogout();
   const userId = usePlatformSessionStore.getState().session?.user.id;
-  try {
-    await fetch(`${getApiBase()}${ROUTES.AUTH.LOGOUT}`, {
-      method: "DELETE",
-      credentials: "include",
-      headers: { "X-Auth-Scope": AUTH_SCOPE }
-    });
-  } catch {
-    /* clear local state regardless */
-  }
+  const refreshToken = getPlatformRefreshToken() ?? undefined;
+
   clearStoredThemePreference(userId);
   clearThemeHydration();
   usePlatformNotificationsStore.getState().clear();
   usePlatformUserProfileStore.getState().clear();
   usePlatformSessionStore.getState().clear({ boundaryReason: "logout" });
+
+  void fetch(`${getApiBase()}${ROUTES.AUTH.LOGOUT}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Auth-Scope": AUTH_SCOPE
+    },
+    ...(refreshToken ? { body: JSON.stringify({ refreshToken }) } : {})
+  }).catch(() => {
+    /* Best-effort server revoke; local session is already cleared */
+  });
+
+  if (typeof window !== "undefined" && isLogoutEpochCurrent(epoch)) {
+    window.location.assign("/login");
+  }
 }

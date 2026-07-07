@@ -113,6 +113,9 @@ describe("Auth E2E", () => {
       .set("Cookie", [`refresh_token_client=${rawRefresh}`]);
     expect(second.status).toBe(201);
     expect(second.body.accessToken).toBeTruthy();
+    expect(second.body.refreshToken).toBeTruthy();
+    const secondCookies = setCookieHeaders(second.headers);
+    expect(secondCookies.some((cookie) => cookie.startsWith("refresh_token_client="))).toBe(true);
   });
 
   it("POST /auth/refresh accepts refresh token in request body", async () => {

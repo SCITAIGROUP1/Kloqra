@@ -22,9 +22,9 @@ function VerifyEmailContent() {
         establishTenantSession(session, accessToken, refreshToken);
         const multi = await hasMultipleWorkspaces(session.workspaceId);
         if (multi) {
-          router.push("/select-workspace");
+          router.replace("/select-workspace");
         } else {
-          router.push("/dashboard");
+          router.replace("/dashboard");
         }
       }}
     />

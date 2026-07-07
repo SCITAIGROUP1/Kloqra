@@ -16,7 +16,8 @@ import {
   extractFieldErrorsFromMessage,
   hasMultipleWorkspaces,
   resolveAdminLandingPath,
-  resolveAdminOnboardingPath
+  resolveAdminOnboardingPath,
+  verifyEmailWithToken
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -31,8 +32,10 @@ export function AdminSetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pendingToken, setPendingToken] = useState(() => searchParams.get("token") ?? "");
+  const verifyToken = searchParams.get("verifyToken");
   const [totpCode, setTotpCode] = useState("");
   const [needs2fa, setNeeds2fa] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [error, setError] = useState("");
   const [totpError, setTotpError] = useState("");
 
@@ -46,21 +49,21 @@ export function AdminSetPasswordForm() {
     establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
 
     if (switched.session.requiresWorkspaceSetup) {
-      router.push(await resolveAdminOnboardingPath(switched.session));
+      router.replace(await resolveAdminOnboardingPath(switched.session));
       return;
     }
 
     try {
       const multi = await hasMultipleWorkspaces(switched.session.workspaceId!, "ADMIN");
       if (multi) {
-        router.push("/select-workspace");
+        router.replace("/select-workspace");
         return;
       }
     } catch (err) {
       console.error("Failed to check workspaces:", err);
     }
 
-    router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId!));
+    router.replace(await resolveAdminLandingPath(switched.session, switched.session.workspaceId!));
   }
 
   async function complete2fa(e: React.FormEvent) {
@@ -105,18 +108,51 @@ export function AdminSetPasswordForm() {
       return;
     }
     if ("requiresEmailVerification" in res && res.requiresEmailVerification) {
-      router.push(`/verify-email?email=${encodeURIComponent(res.email)}`);
+      if (verifyToken) {
+        setVerifyingEmail(true);
+        try {
+          const verifyRes = await verifyEmailWithToken(verifyToken);
+          if ("requires2fa" in verifyRes && verifyRes.requires2fa) {
+            setPendingToken(verifyRes.pendingToken);
+            setNeeds2fa(true);
+            return;
+          }
+          if ("requiresPasswordChange" in verifyRes && verifyRes.requiresPasswordChange) {
+            setPendingToken(verifyRes.pendingToken);
+            setNeeds2fa(false);
+            setError("Set your password before verifying email.");
+            return;
+          }
+          await finishSession(verifyRes as AuthSessionDto & { accessToken: string });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Could not verify email.");
+        } finally {
+          setVerifyingEmail(false);
+        }
+        return;
+      }
+      router.replace(`/verify-email?email=${encodeURIComponent(res.email)}`);
       return;
     }
     await finishSession(res as AuthSessionDto & { accessToken: string });
   }
 
   return (
-    <AuthShell title={needs2fa ? "Two-factor authentication" : "Set your password"}>
+    <AuthShell
+      title={
+        verifyingEmail
+          ? "Verify email"
+          : needs2fa
+            ? "Two-factor authentication"
+            : "Set your password"
+      }
+    >
       <p className="mb-4 text-sm text-muted-foreground">
-        {needs2fa
-          ? "Enter the code from your authenticator app to finish signing in."
-          : "Choose a new password before continuing."}
+        {verifyingEmail
+          ? "Confirming your email and finishing sign-in…"
+          : needs2fa
+            ? "Enter the code from your authenticator app to finish signing in."
+            : "Choose a new password before continuing."}
       </p>
       {needs2fa ? (
         <form onSubmit={complete2fa} className="flex flex-col gap-4">
@@ -139,7 +175,7 @@ export function AdminSetPasswordForm() {
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <Button type="submit">Verify</Button>
         </form>
-      ) : (
+      ) : verifyingEmail ? null : (
         <SetPasswordForm pendingToken={pendingToken} onSubmit={handleSetPassword} />
       )}
     </AuthShell>

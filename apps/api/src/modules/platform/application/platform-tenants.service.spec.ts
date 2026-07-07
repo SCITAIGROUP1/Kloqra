@@ -39,7 +39,14 @@ describe("PlatformTenantsService", () => {
         .mockResolvedValue({ sent: false, reason: "unconfigured" }),
       isConfigured: false
     };
-    mockAuth = { revokeAllRefreshTokens: vi.fn().mockResolvedValue(undefined) };
+    mockAuth = {
+      revokeAllRefreshTokens: vi.fn().mockResolvedValue(undefined),
+      prepareInviteHandoff: vi.fn().mockResolvedValue({
+        inviteHandoffToken: "invite-jwt",
+        emailVerificationToken: "verify-token"
+      }),
+      sendEmailVerificationWithToken: vi.fn().mockResolvedValue(undefined)
+    };
     mockStripe = {
       isConfigured: vi.fn().mockReturnValue(false),
       getClient: vi.fn()

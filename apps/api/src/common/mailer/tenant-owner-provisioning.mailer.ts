@@ -5,12 +5,14 @@ import {
   renderBrandedEmailText,
   subjectPrefix
 } from "./branded-email.layout";
+import { buildInviteLoginUrl } from "./invite-login-url.util";
 import { MailerService, type SendMailResult } from "./mailer.service";
 
 export type TenantOwnerCredentialsMailInput = {
   to: string;
   organizationName: string;
   temporaryPassword: string;
+  inviteHandoffToken: string;
 };
 
 export type TenantAdminCredentialsMailInput = {
@@ -18,6 +20,7 @@ export type TenantAdminCredentialsMailInput = {
   organizationName: string;
   temporaryPassword: string;
   inviterName?: string;
+  inviteHandoffToken: string;
 };
 
 export type TenantAdminAddedMailInput = {
@@ -37,7 +40,7 @@ export class TenantOwnerProvisioningMailer {
   }
 
   async sendOwnerCredentials(input: TenantOwnerCredentialsMailInput): Promise<SendMailResult> {
-    const loginUrl = `${adminClientOrigin()}/login`;
+    const loginUrl = buildInviteLoginUrl(adminClientOrigin(), input.inviteHandoffToken);
     const layout = {
       title: `Welcome to ${input.organizationName}`,
       preheader: "Your organization owner sign-in details are inside.",
@@ -73,7 +76,7 @@ export class TenantOwnerProvisioningMailer {
   async sendTenantAdminCredentials(
     input: TenantAdminCredentialsMailInput
   ): Promise<SendMailResult> {
-    const loginUrl = `${adminClientOrigin()}/login`;
+    const loginUrl = buildInviteLoginUrl(adminClientOrigin(), input.inviteHandoffToken);
     const intro = input.inviterName
       ? `${input.inviterName} added you as an organization administrator for ${input.organizationName}.`
       : `You've been added as an organization administrator for ${input.organizationName} on Kloqra.`;

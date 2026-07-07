@@ -8,7 +8,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 const scope = {
-  authScope: "client",
+  authScope: "app",
   userId: "user-1",
   tenantId: "tenant-1",
   workspaceId: "ws-1"

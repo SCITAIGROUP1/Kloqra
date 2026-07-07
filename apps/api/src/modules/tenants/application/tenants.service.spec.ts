@@ -85,7 +85,13 @@ describe("TenantsService", () => {
     service = new TenantsService(
       mockPrisma,
       mockMailer as unknown as TenantOwnerProvisioningMailer,
-      { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never,
+      {
+        prepareInviteHandoff: vi.fn().mockResolvedValue({
+          inviteHandoffToken: "invite-jwt",
+          emailVerificationToken: "verify-token"
+        }),
+        sendEmailVerificationWithToken: vi.fn().mockResolvedValue(undefined)
+      } as never,
       mockSubscriptions,
       mockPlanLimit
     );

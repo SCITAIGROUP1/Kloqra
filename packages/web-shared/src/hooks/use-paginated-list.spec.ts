@@ -6,14 +6,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePaginatedList } from "./use-paginated-list";
 
 const fetchPaginatedList = vi.fn();
+const mockSessionGeneration = vi.fn();
 
 vi.mock("../api/fetch-list-items", () => ({
   fetchPaginatedList: (...args: unknown[]) => fetchPaginatedList(...args)
 }));
 
+vi.mock("./use-session-generation", () => ({
+  useSessionGeneration: () => mockSessionGeneration()
+}));
+
 describe("usePaginatedList", () => {
   beforeEach(() => {
     fetchPaginatedList.mockReset();
+    mockSessionGeneration.mockReturnValue(0);
     fetchPaginatedList.mockResolvedValue({
       items: [{ id: "1" }],
       total: 1,
@@ -127,5 +133,42 @@ describe("usePaginatedList", () => {
     });
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(2));
+  });
+
+  it("drops stale list responses after session generation changes", async () => {
+    let deferredResolve: ((value: unknown) => void) | undefined;
+    const deferred = new Promise((resolve) => {
+      deferredResolve = resolve;
+    });
+
+    fetchPaginatedList.mockReturnValueOnce(deferred as Promise<never>).mockResolvedValue({
+      items: [{ id: "fresh" }],
+      total: 1,
+      totalPages: 1
+    });
+
+    const { result, rerender } = renderHook(
+      ({ generation }: { generation: number }) => {
+        mockSessionGeneration.mockReturnValue(generation);
+        return usePaginatedList<{ id: string }>({
+          workspaceId: "ws-1",
+          basePath: "/tasks"
+        });
+      },
+      { initialProps: { generation: 0 } }
+    );
+
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
+    rerender({ generation: 1 });
+    await waitFor(() => expect(result.current.items).toEqual([]));
+
+    deferredResolve?.({
+      items: [{ id: "stale" }],
+      total: 1,
+      totalPages: 1
+    });
+
+    await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(2));
+    expect(result.current.items).toEqual([{ id: "fresh" }]);
   });
 });

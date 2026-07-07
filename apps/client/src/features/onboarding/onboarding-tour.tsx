@@ -1,8 +1,8 @@
 "use client";
 
 import { SpotlightTour } from "@kloqra/ui";
-import { markTourDone } from "./onboarding-storage";
 import { ONBOARDING_TOUR_STEPS } from "./onboarding-tour-steps";
+import { useOnboardingStatus } from "./use-onboarding-status";
 
 type OnboardingTourProps = {
   open: boolean;
@@ -17,9 +17,11 @@ export function OnboardingTour({
   onOpenChange,
   onComplete
 }: OnboardingTourProps) {
+  const { markTourDone } = useOnboardingStatus();
+
   const handleFinish = () => {
     if (!replay) {
-      markTourDone();
+      void markTourDone();
     }
     onOpenChange(false);
     onComplete?.();

@@ -6,7 +6,7 @@ import type {
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
   LoginRequiresEmailVerificationResponseDto,
-  StartupPagePreference
+  WorkspaceListItemDto
 } from "@kloqra/contracts";
 import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
@@ -14,15 +14,15 @@ import {
   AuthShell,
   establishTenantSession,
   extractFieldErrorsFromMessage,
-  fetchUserProfile,
-  resolveStartupPath,
   hasMultipleWorkspaces,
+  resolveAdminOnboardingPath,
+  shouldShowAdminContextPicker,
   orgLoginDescription,
   useInviteHandoffLogin,
   useOrgLoginBranding
 } from "@kloqra/web-shared";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -32,12 +32,10 @@ type LoginResponse =
   | LoginRequiresPasswordChangeResponseDto
   | LoginRequiresEmailVerificationResponseDto;
 
-export function LoginForm() {
+export function AdminLoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const orgBranding = useOrgLoginBranding();
-  const next = searchParams.get("next");
-  const [email, setEmail] = useState("member@kloqra.dev");
+  const [email, setEmail] = useState("admin@kloqra.dev");
   const [password, setPassword] = useState("password123");
   const [totpCode, setTotpCode] = useState("");
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -68,21 +66,38 @@ export function LoginForm() {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
 
+    if (switched.session.requiresWorkspaceSetup) {
+      router.push(await resolveAdminOnboardingPath(switched.session));
+      return;
+    }
+
     try {
-      const multi = await hasMultipleWorkspaces(switched.session.workspaceId);
-      if (multi) {
-        router.push(`/select-workspace${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+      const workspaces = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
+        workspaceId: switched.session.workspaceId
+      });
+
+      if (shouldShowAdminContextPicker(switched.session, workspaces)) {
+        router.push("/select-context");
         return;
       }
 
-      const profile = await fetchUserProfile(switched.session.workspaceId);
-      const startup = resolveStartupPath(
-        profile?.preferences.startupPage as StartupPagePreference | undefined
-      );
-      router.push(next && next.startsWith("/") ? next : startup);
-    } catch {
-      router.push(next && next.startsWith("/") ? next : "/dashboard");
+      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, {
+        filterAdminAccess: true
+      });
+      if (multi) {
+        router.push("/select-workspace");
+        return;
+      }
+    } catch (err) {
+      console.error("Failed to check workspaces:", err);
     }
+
+    if (switched.session.tenantRole === "OWNER" || switched.session.tenantRole === "ADMIN") {
+      router.push(await resolveAdminOnboardingPath(switched.session));
+      return;
+    }
+
+    router.push("/dashboard");
   }
 
   async function submit(e: React.FormEvent) {
@@ -146,8 +161,8 @@ export function LoginForm() {
 
   return (
     <AuthShell
-      title="Sign in"
-      portalLabel="Member Portal"
+      title="Admin sign in"
+      portalLabel="Admin Portal"
       description={orgLoginDescription(
         orgBranding,
         "Enter your email and password to access your account."
@@ -227,6 +242,14 @@ export function LoginForm() {
               <Link href="/forgot-password" className="text-primary hover:underline">
                 Forgot password?
               </Link>
+              {process.env.NEXT_PUBLIC_SELF_SERVE_SIGNUP === "true" ? (
+                <>
+                  {" · "}
+                  <Link href="/signup" className="text-primary hover:underline">
+                    Create an account
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : null}
         </form>

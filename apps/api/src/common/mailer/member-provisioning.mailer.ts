@@ -5,6 +5,7 @@ import {
   subjectPrefix
 } from "./branded-email.layout";
 import { memberClientOrigin } from "./client-origin.util";
+import { buildInviteLoginUrl } from "./invite-login-url.util";
 import { MailerService, type SendMailResult } from "./mailer.service";
 
 export type MemberCredentialsMailInput = {
@@ -12,6 +13,7 @@ export type MemberCredentialsMailInput = {
   workspaceName: string;
   inviterName?: string;
   temporaryPassword: string;
+  inviteHandoffToken: string;
 };
 
 export type WorkspaceAddedMailInput = {
@@ -31,7 +33,7 @@ export class MemberProvisioningMailer {
   }
 
   async sendNewMemberCredentials(input: MemberCredentialsMailInput): Promise<SendMailResult> {
-    const loginUrl = `${memberClientOrigin()}/login`;
+    const loginUrl = buildInviteLoginUrl(memberClientOrigin(), input.inviteHandoffToken);
     const intro = input.inviterName
       ? `${input.inviterName} added you to ${input.workspaceName}.`
       : `You've been added to ${input.workspaceName}.`;

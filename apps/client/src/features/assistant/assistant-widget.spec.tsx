@@ -7,7 +7,8 @@ import {
   useAssistant,
   useSuppressAssistantLauncher
 } from "./assistant-provider";
-import { ASSISTANT_FEEDBACK_STORAGE_KEY, ASSISTANT_TURNS_STORAGE_KEY } from "./assistant-storage";
+const ASSISTANT_TURNS_SCOPED_KEY = "kloqra:client:user-1:assistant_turns";
+const ASSISTANT_FEEDBACK_SCOPED_KEY = "kloqra:client:user-1:assistant_feedback";
 import { AssistantWidget } from "./assistant-widget";
 
 const mockSendMessage = vi.fn().mockResolvedValue({
@@ -28,10 +29,16 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/timer"
 }));
 
-vi.mock("@/stores/session.store", () => ({
-  useSessionStore: (selector: (state: { session: { user: { firstName: string } } }) => unknown) =>
-    selector({ session: { user: { firstName: "Sam" } } })
-}));
+vi.mock("@/stores/session.store", () => {
+  const sessionState = {
+    session: { user: { id: "user-1", firstName: "Sam" } }
+  };
+  const useSessionStore = Object.assign(
+    (selector: (state: typeof sessionState) => unknown) => selector(sessionState),
+    { getState: () => sessionState }
+  );
+  return { useSessionStore };
+});
 
 function OpenAssistantOnMount() {
   const { openAssistant } = useAssistant();
@@ -153,7 +160,7 @@ describe("AssistantWidget", () => {
 
     fireEvent.click(within(getDialog()).getByRole("button", { name: "Start new chat" }));
     expect(screen.queryByText(/Open Timer and click Start/i)).toBeNull();
-    expect(sessionStorage.getItem(ASSISTANT_TURNS_STORAGE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(ASSISTANT_TURNS_SCOPED_KEY)).toBeNull();
   });
 
   it("stores feedback in session storage", async () => {
@@ -171,7 +178,7 @@ describe("AssistantWidget", () => {
     fireEvent.click(within(getDialog()).getByRole("button", { name: "Helpful response" }));
 
     await waitFor(() => {
-      const raw = sessionStorage.getItem(ASSISTANT_FEEDBACK_STORAGE_KEY);
+      const raw = sessionStorage.getItem(ASSISTANT_FEEDBACK_SCOPED_KEY);
       expect(raw).toBeTruthy();
       expect(raw).toContain('"helpful":true');
     });

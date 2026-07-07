@@ -29,7 +29,7 @@ import {
   getStepTitle,
   type OnboardingStepId
 } from "./onboarding-steps";
-import { isWizardDone, markWizardDone } from "./onboarding-storage";
+import { useOnboardingStatus } from "./use-onboarding-status";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -60,6 +60,7 @@ export function OnboardingOverlay({
   const isAdmin = session?.workspaceRole === "ADMIN";
   const isImpersonating = useIsImpersonating();
   const userName = session?.user.name ?? "there";
+  const { profileLoading, wizardDone, markWizardDone } = useOnboardingStatus();
 
   const { projects, setProjects, setTasks } = useProjectsStore();
 
@@ -78,10 +79,11 @@ export function OnboardingOverlay({
       setShow(forceOpen);
       return;
     }
-    if (typeof window !== "undefined" && !replay && !isWizardDone()) {
+    if (profileLoading || replay) return;
+    if (!wizardDone) {
       setShow(true);
     }
-  }, [forceOpen, replay, isImpersonating]);
+  }, [forceOpen, replay, isImpersonating, profileLoading, wizardDone]);
 
   useEffect(() => {
     if (replay && forceOpen) {
@@ -100,8 +102,8 @@ export function OnboardingOverlay({
   };
 
   const handleComplete = (options: OnboardingCompleteOptions) => {
-    if (typeof window !== "undefined" && !replay) {
-      markWizardDone();
+    if (!replay) {
+      void markWizardDone();
     }
     closeOverlay();
     onComplete?.(options);

@@ -44,7 +44,7 @@ export function VerifyEmailPageContent({
         body: JSON.stringify({ token: verifyToken })
       });
       if ("requires2fa" in res && res.requires2fa) {
-        router.push(`${loginHref}?reason=verify-2fa`);
+        router.replace(`${loginHref}?reason=verify-2fa`);
         return;
       }
       const session = res as AuthSessionDto & { accessToken: string; refreshToken?: string };

@@ -11,6 +11,13 @@ export function readJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+export function readUserIdFromToken(token: string | null): string | null {
+  if (!token) return null;
+  const payload = readJwtPayload(token);
+  const userId = payload?.userId ?? payload?.sub;
+  return typeof userId === "string" && userId.length > 0 ? userId : null;
+}
+
 export function readWorkspaceIdFromToken(token: string | null): string | null {
   if (!token) return null;
   const payload = readJwtPayload(token);

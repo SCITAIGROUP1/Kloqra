@@ -31,6 +31,7 @@ import {
   listTimeLogOccupancyQuerySchema,
   listTimeLogsQuerySchema,
   loginSchema,
+  inviteHandoffSchema,
   mergeUserPreferences,
   normalizeNotificationChannels,
   normalizeNotificationPreference,
@@ -75,6 +76,11 @@ const UUID_2 = "550e8400-e29b-41d4-a716-446655440001";
 describe("contracts", () => {
   it("validates login", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "secret" });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates invite handoff token", () => {
+    const r = inviteHandoffSchema.safeParse({ inviteToken: "signed-jwt" });
     expect(r.success).toBe(true);
   });
 
@@ -176,7 +182,9 @@ describe("contracts", () => {
       theme: "dark",
       dateFormat: "DMY",
       timeFormat: "24h",
-      notifications: { enabled: false }
+      notifications: { enabled: false },
+      onboardingWizardDone: true,
+      onboardingTourDone: false
     });
     expect(r.success).toBe(true);
   });

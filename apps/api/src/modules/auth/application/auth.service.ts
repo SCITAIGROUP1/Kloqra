@@ -381,27 +381,36 @@ export class AuthService {
   }
 
   async sendEmailVerification(userId: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.emailVerifiedAt) return;
-
-    const raw = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        emailVerificationTokenHash: hashToken(raw),
-        emailVerificationExpiresAt: expiresAt
-      }
-    });
-
-    void this.authMailer
-      .sendEmailVerification({ to: user.email, verifyUrl: buildVerifyEmailUrl(raw) })
-      .catch(() => undefined);
+    const raw = await this.mintEmailVerificationToken(userId);
+    if (!raw) return;
+    await this.sendEmailVerificationWithToken(userId, raw, "client");
   }
 
   async sendAdminEmailVerification(userId: string): Promise<void> {
+    const raw = await this.mintEmailVerificationToken(userId);
+    if (!raw) return;
+    await this.sendEmailVerificationWithToken(userId, raw, "admin");
+  }
+
+  async sendEmailVerificationWithToken(
+    userId: string,
+    rawToken: string,
+    scope: "client" | "admin" = "client"
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.emailVerifiedAt) return;
+
+    const verifyUrl =
+      scope === "admin" ? buildAdminVerifyEmailUrl(rawToken) : buildVerifyEmailUrl(rawToken);
+
+    void this.authMailer
+      .sendEmailVerification({ to: user.email, verifyUrl })
+      .catch(() => undefined);
+  }
+
+  private async mintEmailVerificationToken(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.emailVerifiedAt) return null;
 
     const raw = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -412,10 +421,23 @@ export class AuthService {
         emailVerificationExpiresAt: expiresAt
       }
     });
+    return raw;
+  }
 
-    void this.authMailer
-      .sendEmailVerification({ to: user.email, verifyUrl: buildAdminVerifyEmailUrl(raw) })
-      .catch(() => undefined);
+  /** Mint invite + optional verification tokens for provisioning emails. */
+  async prepareInviteHandoff(
+    userId: string,
+    temporaryPassword: string
+  ): Promise<{ inviteHandoffToken: string; emailVerificationToken?: string }> {
+    const emailVerificationToken = (await this.mintEmailVerificationToken(userId)) ?? undefined;
+    return {
+      inviteHandoffToken: this.signInviteHandoffToken(
+        userId,
+        temporaryPassword,
+        emailVerificationToken
+      ),
+      emailVerificationToken
+    };
   }
 
   async resendVerification(email: string): Promise<OkResponseDto> {
@@ -580,6 +602,76 @@ export class AuthService {
       "password-change-pending",
       "Password change session expired — sign in again"
     );
+  }
+
+  /** Signed link for invite emails — encodes temp password until first set-password. */
+  signInviteHandoffToken(
+    userId: string,
+    temporaryPassword: string,
+    emailVerificationToken?: string
+  ): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    return this.jwt.sign(
+      {
+        sub: userId,
+        purpose: "invite-handoff",
+        temporaryPassword,
+        ...(emailVerificationToken ? { emailVerificationToken } : {})
+      },
+      { secret, expiresIn: "7d" }
+    );
+  }
+
+  async consumeInviteHandoff(inviteToken: string): Promise<{
+    email: string;
+    temporaryPassword: string;
+    requiresPasswordChange: true;
+    pendingToken: string;
+    emailVerificationToken?: string;
+  }> {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    let userId: string;
+    let temporaryPassword: string;
+    let emailVerificationToken: string | undefined;
+    try {
+      const payload = this.jwt.verify(inviteToken, { secret }) as {
+        sub: string;
+        purpose?: string;
+        temporaryPassword?: string;
+        emailVerificationToken?: string;
+      };
+      if (payload.purpose !== "invite-handoff" || !payload.temporaryPassword) {
+        throw new Error("invalid invite");
+      }
+      userId = payload.sub;
+      temporaryPassword = payload.temporaryPassword;
+      emailVerificationToken = payload.emailVerificationToken;
+    } catch {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Invite link is invalid or expired",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.mustChangePassword) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Invite link is no longer valid — sign in with your password",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    return {
+      email: user.email,
+      temporaryPassword,
+      requiresPasswordChange: true,
+      pendingToken: this.signPendingPasswordChangeToken(userId),
+      ...(!user.emailVerifiedAt && emailVerificationToken ? { emailVerificationToken } : {})
+    };
   }
 
   private verifyPendingToken(token: string, purpose: string, expiredMessage: string): string {
@@ -769,7 +861,24 @@ export class AuthService {
             stored.workspaceId ?? undefined,
             impersonatorId
           );
-          return { session, newRefreshToken: null, family: family ?? stored.family };
+          if (!session) return { session: null, newRefreshToken: null };
+          const newToken = await this.signAndStoreRefreshToken(
+            stored.userId,
+            stored.workspaceId,
+            family ?? stored.family,
+            impersonatorId,
+            {
+              userAgent:
+                requestMeta?.userAgent ?? active.userAgent ?? stored.userAgent ?? undefined,
+              ipAddress: active.ipAddress ?? stored.ipAddress ?? undefined
+            },
+            scope
+          );
+          return {
+            session,
+            newRefreshToken: newToken.raw,
+            family: family ?? stored.family
+          };
         }
       }
 
@@ -1542,7 +1651,21 @@ export class AuthService {
           active.userAgent === requestMeta.userAgent;
         if (active && uaMatch) {
           const session = await this.refreshPlatformSession(stored.platformUserId);
-          return { session, newRefreshToken: null, family: family ?? stored.family };
+          if (!session) return { session: null, newRefreshToken: null };
+          const newToken = await this.signAndStorePlatformRefreshToken(
+            stored.platformUserId,
+            family ?? stored.family,
+            {
+              userAgent:
+                requestMeta?.userAgent ?? active.userAgent ?? stored.userAgent ?? undefined,
+              ipAddress: active.ipAddress ?? stored.ipAddress ?? undefined
+            }
+          );
+          return {
+            session,
+            newRefreshToken: newToken.raw,
+            family: family ?? stored.family
+          };
         }
       }
 

@@ -7,6 +7,7 @@ const listCache = new Map<string, CacheEntry>();
 export function buildListCacheKey(
   path: string,
   workspaceId: string,
+  userId: string,
   filters: Record<string, string | string[] | number | boolean | undefined | null> | undefined,
   limit: number
 ) {
@@ -20,7 +21,7 @@ export function buildListCacheKey(
         })
         .join("&")
     : "";
-  return `${workspaceId}:${path}:${limit}:${filterKey}`;
+  return `${userId}:${workspaceId}:${path}:${limit}:${filterKey}`;
 }
 
 export function getCachedListItems(cacheKey: string): unknown[] | null {
@@ -49,7 +50,7 @@ export function invalidateListItemsCache(scope?: InvalidateListItemsCacheScope) 
   }
 
   for (const key of [...listCache.keys()]) {
-    if (scope.workspaceId && !key.startsWith(`${scope.workspaceId}:`)) continue;
+    if (scope.workspaceId && !key.includes(`:${scope.workspaceId}:`)) continue;
     if (scope.path && !key.includes(`:${scope.path}:`)) continue;
     listCache.delete(key);
   }

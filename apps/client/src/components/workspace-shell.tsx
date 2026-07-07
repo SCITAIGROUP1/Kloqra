@@ -242,7 +242,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
           lastName={session.user.lastName}
           profileHref="/profile"
           onLogout={() => {
-            void logoutSession(session.workspaceId).then(() => router.push("/login"));
+            void logoutSession(session.workspaceId);
           }}
         />
       )}

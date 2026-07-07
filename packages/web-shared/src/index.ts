@@ -33,6 +33,8 @@ export {
 } from "./auth/bootstrap-platform-session";
 export { logoutSession } from "./auth/logout";
 export { establishTenantSession, establishPlatformSession } from "./auth/establish-tenant-session";
+export { useInviteHandoffLogin } from "./auth/use-invite-handoff";
+export { verifyEmailWithToken } from "./auth/verify-email-with-token";
 export {
   applySessionBoundary,
   getSessionGeneration,

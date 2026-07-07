@@ -5,8 +5,9 @@ import {
   type PaginatedResponse,
   type WorkspaceDataInvalidateScope
 } from "@kloqra/contracts";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchPaginatedList } from "../api/fetch-list-items";
+import { useSessionGeneration } from "./use-session-generation";
 import { useWorkspaceStaleRefetch } from "./use-workspace-stale-refetch";
 
 type UsePaginatedListOptions = {
@@ -30,6 +31,10 @@ export function usePaginatedList<T>({
   refreshOnFocus = false,
   refreshOnStaleScopes
 }: UsePaginatedListOptions) {
+  const sessionGeneration = useSessionGeneration();
+  const generationRef = useRef(sessionGeneration);
+  generationRef.current = sessionGeneration;
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
@@ -49,6 +54,16 @@ export function usePaginatedList<T>({
   );
 
   useEffect(() => {
+    setPage(1);
+    setSearch("");
+    setDebouncedSearch("");
+    setItems([]);
+    setTotal(0);
+    setTotalPages(0);
+    setError(null);
+  }, [sessionGeneration]);
+
+  useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), debounceMs);
     return () => clearTimeout(timer);
   }, [search, debounceMs]);
@@ -64,6 +79,7 @@ export function usePaginatedList<T>({
 
   const reload = useCallback(async () => {
     if (!enabled || !workspaceId) return;
+    const generationAtStart = generationRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -74,22 +90,26 @@ export function usePaginatedList<T>({
         search: debouncedSearch,
         filters: stableFilters
       });
+      if (generationAtStart !== generationRef.current) return;
       setItems(data.items ?? []);
       setTotal(data.total ?? data.items?.length ?? 0);
       setTotalPages(data.totalPages ?? 0);
     } catch {
+      if (generationAtStart !== generationRef.current) return;
       setItems([]);
       setTotal(0);
       setTotalPages(0);
       setError("Could not load data.");
     } finally {
-      setLoading(false);
+      if (generationAtStart === generationRef.current) {
+        setLoading(false);
+      }
     }
   }, [enabled, workspaceId, basePath, page, limit, debouncedSearch, stableFilters]);
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, sessionGeneration]);
 
   useEffect(() => {
     if (!refreshOnFocus || !enabled || !workspaceId || typeof window === "undefined") return;

@@ -12,16 +12,16 @@ describe("list-items-cache", () => {
   });
 
   it("stores and returns cached list items before expiry", () => {
-    const key = buildListCacheKey("/tasks", "ws-1", { projectId: "p-1" }, 100);
+    const key = buildListCacheKey("/tasks", "ws-1", "user-1", { projectId: "p-1" }, 100);
     setCachedListItems(key, [{ id: "t-1" }]);
 
     expect(getCachedListItems(key)).toEqual([{ id: "t-1" }]);
   });
 
   it("invalidates all entries for a workspace", () => {
-    const tasksKey = buildListCacheKey("/tasks", "ws-1", undefined, 100);
-    const projectsKey = buildListCacheKey("/projects", "ws-1", undefined, 100);
-    const otherWorkspaceKey = buildListCacheKey("/tasks", "ws-2", undefined, 100);
+    const tasksKey = buildListCacheKey("/tasks", "ws-1", "user-1", undefined, 100);
+    const projectsKey = buildListCacheKey("/projects", "ws-1", "user-1", undefined, 100);
+    const otherWorkspaceKey = buildListCacheKey("/tasks", "ws-2", "user-1", undefined, 100);
 
     setCachedListItems(tasksKey, [{ id: "t-1" }]);
     setCachedListItems(projectsKey, [{ id: "p-1" }]);
@@ -35,8 +35,8 @@ describe("list-items-cache", () => {
   });
 
   it("invalidates entries for a specific list path", () => {
-    const tasksKey = buildListCacheKey("/tasks", "ws-1", undefined, 100);
-    const projectsKey = buildListCacheKey("/projects", "ws-1", undefined, 100);
+    const tasksKey = buildListCacheKey("/tasks", "ws-1", "user-1", undefined, 100);
+    const projectsKey = buildListCacheKey("/projects", "ws-1", "user-1", undefined, 100);
 
     setCachedListItems(tasksKey, [{ id: "t-1" }]);
     setCachedListItems(projectsKey, [{ id: "p-1" }]);

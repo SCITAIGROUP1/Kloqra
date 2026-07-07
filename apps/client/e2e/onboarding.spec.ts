@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { clearOnboardingStorage } from "./helpers/onboarding";
+import { clearOnboardingStorage, markOnboardingDoneInStorage } from "./helpers/onboarding";
 
 async function gotoDashboard(page: Page, options?: { expectWizard?: boolean }) {
   await page.goto("/dashboard");
@@ -95,9 +95,7 @@ test.describe("Onboarding persistence", () => {
 
 test.describe("Onboarding replay", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem("kloqra_onboarding_done", "true");
-    });
+    await markOnboardingDoneInStorage(page);
     await gotoDashboard(page);
   });
 
