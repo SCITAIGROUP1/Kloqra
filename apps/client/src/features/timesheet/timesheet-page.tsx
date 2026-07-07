@@ -26,8 +26,11 @@ import {
   api as sharedApi,
   buildMemberSubmissionsHref,
   commitTimelogMutation,
+  invalidateTimelogData,
   parseMemberTimesheetSearch,
+  removeTimelogFromListCaches,
   scopedStorageKey,
+  upsertTimelogInListCaches,
   useTimelogListQuery,
   useWorkspaceStaleRefetch
 } from "@kloqra/web-shared";
@@ -239,6 +242,7 @@ export function TimesheetPage() {
       });
       if (res && "autostopped" in res && res.autostopped) {
         setActive(null);
+        void invalidateTimelogData(ws);
         return;
       }
       setActive(res as ActiveTimerDto | null);
@@ -373,12 +377,11 @@ export function TimesheetPage() {
     data: logsData,
     refetch: refetchLogs,
     isLoading: logsQueryLoading,
-    isFetching: logsFetching,
     error: logsQueryError
   } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
 
   const logs = logsData?.items ?? [];
-  const calendarLoading = logsQueryLoading || logsFetching || occupancyLoading;
+  const calendarLoading = logsQueryLoading || occupancyLoading;
 
   const refreshSubmissions = useCallback(async () => {
     if (!ws) return;
@@ -680,6 +683,9 @@ export function TimesheetPage() {
           workspaceId: ws,
           body: JSON.stringify(body)
         });
+        for (const item of res.items) {
+          upsertTimelogInListCaches(ws, item);
+        }
         await commitTimelogMutation(ws, refreshTimelogSurface);
         closeDialog();
         if (res.skippedCount > 0) {
@@ -698,17 +704,19 @@ export function TimesheetPage() {
           isBillable: draft.isBillable
         };
         if (editingLog) {
-          await api(`/timelogs/${editingLog.id}`, {
+          const updated = await api<TimeLogDto>(`/timelogs/${editingLog.id}`, {
             method: "PATCH",
             workspaceId: ws,
             body: JSON.stringify(body)
           });
+          upsertTimelogInListCaches(ws, updated);
         } else {
-          await api(ROUTES.TIMELOGS.CREATE, {
+          const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
             method: "POST",
             workspaceId: ws,
             body: JSON.stringify(body)
           });
+          upsertTimelogInListCaches(ws, created);
         }
         await commitTimelogMutation(ws, refreshTimelogSurface);
         closeDialog();
@@ -747,6 +755,7 @@ export function TimesheetPage() {
     setError(null);
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
+      removeTimelogFromListCaches(ws, target.id);
       await commitTimelogMutation(ws, refreshTimelogSurface);
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
@@ -782,6 +791,7 @@ export function TimesheetPage() {
           isBillable: log.isBillable
         })
       });
+      upsertTimelogInListCaches(ws, created);
       await commitTimelogMutation(ws, refreshTimelogSurface);
       openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
@@ -806,7 +816,7 @@ export function TimesheetPage() {
 
     setError(null);
     try {
-      await api(`/timelogs/${log.id}`, {
+      const updated = await api<TimeLogDto>(`/timelogs/${log.id}`, {
         method: "PATCH",
         workspaceId: ws,
         body: JSON.stringify({
@@ -814,6 +824,7 @@ export function TimesheetPage() {
           endTime: end.toISOString()
         })
       });
+      upsertTimelogInListCaches(ws, updated);
       await commitTimelogMutation(ws, refreshTimelogSurface);
       toast.success("Time entry updated!");
     } catch (e) {

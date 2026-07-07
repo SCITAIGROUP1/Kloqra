@@ -17,6 +17,7 @@ describe("invalidateTimelogQueries", () => {
 
   it("refetches active timelog queries on the shared provider client", async () => {
     const client = getQueryClient();
+    const cancelSpy = vi.spyOn(client, "cancelQueries");
     const queryFn = vi
       .fn()
       .mockResolvedValueOnce({ items: [{ id: "log-1" }] })
@@ -37,6 +38,37 @@ describe("invalidateTimelogQueries", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(queryFn).toHaveBeenCalledTimes(1);
+
+    await invalidateTimelogQueries(workspaceId);
+
+    expect(cancelSpy).toHaveBeenCalledWith({
+      queryKey: timelogQueryKeys.workspace(workspaceId)
+    });
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+  });
+
+  it("refetches inactive cached timelog queries after invalidation", async () => {
+    const client = getQueryClient();
+    const queryFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: [{ id: "log-1" }] })
+      .mockResolvedValueOnce({ items: [{ id: "log-1" }, { id: "log-2" }] });
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    const { unmount } = renderHook(
+      () =>
+        useQuery({
+          queryKey: timelogQueryKeys.list(workspaceId, path),
+          queryFn
+        }),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1));
+    unmount();
 
     await invalidateTimelogQueries(workspaceId);
 

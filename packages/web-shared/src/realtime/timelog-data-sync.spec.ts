@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearInflightGetRequestsForPath } from "../api/inflight-requests";
 import { invalidateTimelogQueries } from "../query/invalidate-timelog-queries";
+import { resetQueryClient } from "../query/query-client";
 import { commitTimelogMutation, invalidateTimelogData } from "./timelog-data-sync";
 import { invalidateWorkspaceData } from "./workspace-data-sync";
 
@@ -22,6 +23,7 @@ describe("timelog-data-sync", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetQueryClient();
   });
 
   it("invalidates inflight requests, query cache, and workspace scopes", async () => {

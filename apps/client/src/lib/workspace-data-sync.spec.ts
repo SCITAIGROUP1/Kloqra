@@ -12,7 +12,8 @@ const mocks = vi.hoisted(() => ({
   setProjects: vi.fn(),
   setTasks: vi.fn(),
   invalidateListItemsCache: vi.fn(),
-  fetchListItems: vi.fn().mockResolvedValue([])
+  fetchListItems: vi.fn().mockResolvedValue([]),
+  invalidateTimelogQueries: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock("@/stores/member-data.store", () => ({
@@ -38,7 +39,8 @@ vi.mock("@kloqra/web-shared", async (importOriginal) => {
   return {
     ...(actual as Record<string, unknown>),
     invalidateListItemsCache: mocks.invalidateListItemsCache,
-    fetchListItems: mocks.fetchListItems
+    fetchListItems: mocks.fetchListItems,
+    invalidateTimelogQueries: mocks.invalidateTimelogQueries
   };
 });
 
@@ -62,6 +64,7 @@ describe("useClientWorkspaceDataSync", () => {
 
     expect(mocks.invalidateWeekSummary).toHaveBeenCalledWith(workspaceId);
     expect(mocks.invalidateActive).toHaveBeenCalledWith(workspaceId);
+    expect(mocks.invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
   });
 
   it("invalidates submissions when timesheet scope is stale", async () => {
