@@ -21,6 +21,7 @@ import {
   api as sharedApi,
   buildMemberSubmissionsHref,
   invalidateTimelogData,
+  logStartDateKey,
   parseMemberTimesheetSearch,
   scopedStorageKey,
   useDisplayPreferences,
@@ -368,19 +369,14 @@ export function TimesheetPage() {
   const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
 
   const submissionDates = useMemo(() => {
-    // Local calendar day keys — ISO UTC slice can disagree with the workspace day.
     const dates = new Set<string>([toDateKey(anchor)]);
     for (const log of logs) {
-      dates.add(log.startTime.slice(0, 10));
+      dates.add(logStartDateKey(log, timezone));
     }
     return [...dates];
-  }, [anchor, logs]);
+  }, [anchor, logs, timezone]);
 
-  const { submissionByKey, refetch: refreshSubmissions } = useTimesheetSubmissionStatusQuery(
-    ws,
-    submissionDates,
-    Boolean(ws)
-  );
+  const { submissionByKey } = useTimesheetSubmissionStatusQuery(ws, submissionDates, Boolean(ws));
 
   const isEntryInactive = useCallback(
     (log: TimeLogDto) =>
@@ -456,20 +452,12 @@ export function TimesheetPage() {
   // Lists patched in commit; occupancy/submissions refreshed via derived RQ invalidation.
   const timelogMutations = useTimelogMutations(ws);
 
+  // Remote stale only (shell RQ also invalidates). Skip during local mutation echo window.
   useWorkspaceStaleRefetch(
     ws,
-    ["timelogs"],
+    ["timelogs", "timesheet"],
     () => {
       void Promise.all([refreshLogs(), refetchOccupancy()]);
-    },
-    Boolean(ws)
-  );
-
-  useWorkspaceStaleRefetch(
-    ws,
-    ["submissions", "timesheet"],
-    () => {
-      void refreshSubmissions();
     },
     Boolean(ws)
   );

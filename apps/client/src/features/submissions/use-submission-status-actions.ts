@@ -21,7 +21,6 @@ export function submitButtonLabel(approvalPeriod: TimesheetPeriodDto["approvalPe
 
 export function useSubmissionStatusActions(
   statusInfo: TimesheetPeriodDto,
-  anchorDate: Date,
   onSubmitted: () => void
 ) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
@@ -44,7 +43,7 @@ export function useSubmissionStatusActions(
     try {
       const params = new URLSearchParams({
         projectId: statusInfo.projectId,
-        date: anchorDate.toISOString()
+        date: statusInfo.periodStart
       });
       const data = await api<TimesheetSubmitPreviewDto>(
         `${ROUTES.TIMESHEETS.SUBMIT_PREVIEW}?${params}`,
@@ -67,7 +66,7 @@ export function useSubmissionStatusActions(
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
-          date: anchorDate.toISOString(),
+          date: statusInfo.periodStart,
           projectId: statusInfo.projectId,
           note: note.trim() || undefined
         })

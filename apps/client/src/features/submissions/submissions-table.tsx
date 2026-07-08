@@ -32,7 +32,6 @@ import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
-import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { useProjectsStore } from "@/stores/projects.store";
 
 export type SubmissionsTableProps = {
@@ -96,7 +95,6 @@ function SubmissionRowLogs({
 
   const {
     data: logsData,
-    refetch: refetchLogs,
     isLoading: loading,
     error: logsQueryError
   } = useTimelogListQuery(workspaceId, logsPath, Boolean(workspaceId));
@@ -114,22 +112,10 @@ function SubmissionRowLogs({
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
-  const refreshLogs = useCallback(async () => {
-    await refetchLogs();
-  }, [refetchLogs]);
-
   // List cache is patched in commitTimelogMutation — skip redundant local refetch.
   const timelogMutations = useTimelogMutations(workspaceId, {
     projectId: submission.projectId
   });
-
-  useTimelogStaleRefetch(
-    workspaceId,
-    () => {
-      void refreshLogs();
-    },
-    Boolean(workspaceId)
-  );
 
   const taskLabel = useCallback(
     (id: string) => tasks.find((t) => t.id === id)?.taskName ?? "Task",
@@ -331,11 +317,7 @@ function SubmissionTableRow({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const actions = useSubmissionStatusActions(
-    statusInfo,
-    new Date(statusInfo.periodStart),
-    onSubmitted
-  );
+  const actions = useSubmissionStatusActions(statusInfo, onSubmitted);
 
   const timesheetHref = useMemo(
     () => buildMemberTimesheetHrefFromSubmission(statusInfo),

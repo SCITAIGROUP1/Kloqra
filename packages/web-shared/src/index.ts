@@ -209,7 +209,9 @@ export { useMySubmissionsQuery, useWeekSummaryQuery } from "./query/use-member-r
 export { approvalsQueryKeys } from "./query/approvals-query-keys";
 export {
   buildPendingApprovalsPath,
+  buildSubmissionsLookbackQueryKey,
   mapApprovalsQueryData,
+  SUBMISSIONS_LOOKBACK_WEEKS,
   useAllTimesheetsQuery,
   useMissingTimesheetsQuery,
   useMySubmissionsLookbackQuery,

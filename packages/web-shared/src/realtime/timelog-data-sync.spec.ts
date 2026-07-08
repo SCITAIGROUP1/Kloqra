@@ -79,7 +79,7 @@ describe("timelog-data-sync", () => {
     expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_MUTATION_SCOPES);
   });
 
-  it("fast path patches then refetches active lists + derived once (no storm broadcast)", async () => {
+  it("fast path patches then soft-stales lists + occupancy (no list / submissions storm)", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const patch = { type: "upsert" as const, log: sampleLog };
     const client = getQueryClient();
@@ -98,11 +98,11 @@ describe("timelog-data-sync", () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: timelogQueryKeys.workspace(workspaceId),
-      refetchType: "active"
+      refetchType: "none"
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: submissionsQueryKeys.workspace(workspaceId),
-      refetchType: "active"
+      refetchType: "none"
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: occupancyQueryKeys.workspace(workspaceId),
@@ -151,7 +151,8 @@ describe("timelog-data-sync", () => {
       log: sampleLog
     });
 
-    expect(activeFetches).toBe(fetchesAfterMount + 1);
+    // Soft-stale: no extra active list refetch after patch
+    expect(activeFetches).toBe(fetchesAfterMount);
     expect(client.getQueryState(inactiveKey)?.isInvalidated).toBe(true);
 
     unsubActive();

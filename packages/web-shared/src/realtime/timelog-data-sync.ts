@@ -32,13 +32,14 @@ function clearTimelogInflightRequests(): void {
   clearInflightGetRequestsForPath("/timelogs");
 }
 
-/** One active refetch for submission locks, occupancy, and week summaries. */
+/** Soft-stale derived caches; only refetch active occupancy + week summary once. */
 async function refreshDerivedTimelogQueries(workspaceId: string): Promise<void> {
   const client = getQueryClient();
   await Promise.all([
+    // Lock map rarely changes on create — soft-stale avoids N submissions refetches.
     client.invalidateQueries({
       queryKey: submissionsQueryKeys.workspace(workspaceId),
-      refetchType: "active"
+      refetchType: "none"
     }),
     client.invalidateQueries({
       queryKey: occupancyQueryKeys.workspace(workspaceId),
@@ -60,9 +61,9 @@ export async function invalidateTimelogData(workspaceId: string): Promise<void> 
 
 /**
  * After create/update/delete:
- * - With cachePatch: patch lists (instant UI), then one active list refetch + one derived
- *   refetch so every mounted view confirms server truth — without broadcasting `timelogs`
- *   (that stack with page/shell listeners caused the Network storm).
+ * - With cachePatch: patch lists (instant UI), soft-stale list caches (no list refetch —
+ *   we already patched), one occupancy/week-summary refresh. No workspace-data-stale
+ *   broadcast (shell + page listeners would stack another Network storm).
  * - Without cachePatch: full invalidate + broadcast (timer autostop, etc.).
  */
 export async function commitTimelogMutation(
@@ -81,14 +82,12 @@ export async function commitTimelogMutation(
     if (localRefresh) {
       await localRefresh();
     }
-    // Marks all list caches stale; refetches only *active* ones once (mounted views).
-    // Inactive views remount with refetchOnMount: "always" against the soft-stale flag.
+    // Soft-stale lists only — patch already updated active UIs; remounts refetch via "always".
     await client.invalidateQueries({
       queryKey: timelogQueryKeys.workspace(workspaceId),
-      refetchType: "active"
+      refetchType: "none"
     });
     await refreshDerivedTimelogQueries(workspaceId);
-    // No workspace-data-stale broadcast: shell/page listeners would stack another wave.
     return;
   }
 

@@ -10,4 +10,9 @@ describe("normalizeSubmissionDateKey", () => {
   it("keeps day-only keys stable", () => {
     expect(normalizeSubmissionDateKey("2026-07-08")).toBe("2026-07-08");
   });
+
+  it("does not re-zone bare YYYY-MM-DD through Date (browser TZ trap)", () => {
+    // Prefer-calendar keys must stay as provided even when local midnight would shift UTC day.
+    expect(normalizeSubmissionDateKey("2026-07-08")).toBe("2026-07-08");
+  });
 });

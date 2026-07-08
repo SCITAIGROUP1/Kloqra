@@ -3,6 +3,7 @@
 import type { TimeLogDto } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
 import {
+  logStartDateKey,
   useDisplayPreferences,
   useEntryCatalogQueries,
   useTimelogMutations,
@@ -40,7 +41,6 @@ import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
-import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -123,12 +123,7 @@ export function TimeTrackerPage() {
     [visibleRange, projectFilter, categoryFilter, taskFilter, debouncedSearch, billability]
   );
 
-  const {
-    logs,
-    loading: logsLoading,
-    error: logsError,
-    refresh: refreshLogs
-  } = useTimeTrackerLogs(ws, serverFilters);
+  const { logs, loading: logsLoading, error: logsError } = useTimeTrackerLogs(ws, serverFilters);
 
   const [weeksPerPage, setWeeksPerPage] = useState(1);
   const [page, setPage] = useState(1);
@@ -188,11 +183,11 @@ export function TimeTrackerPage() {
     setPage(1);
   }, []);
 
-  // Local calendar day keys — ISO slice shifts UTC for Colombo (+5:30) and dupes on refetch.
+  // Preference-TZ start days (not UTC slice) — one lookback query covers lock status.
   const submissionDates = useMemo(() => {
     const dates = new Set<string>();
     for (const log of logs) {
-      dates.add(log.startTime.slice(0, 10));
+      dates.add(logStartDateKey(log, timezone));
     }
     if (dates.size === 0) {
       dates.add(toDateKey(todayInZone(timezone)));
@@ -200,22 +195,10 @@ export function TimeTrackerPage() {
     return [...dates];
   }, [logs, timezone]);
 
-  const { submissionByKey, refetch: refreshSubmissions } = useTimesheetSubmissionStatusQuery(
-    ws,
-    submissionDates,
-    Boolean(ws)
-  );
+  const { submissionByKey } = useTimesheetSubmissionStatusQuery(ws, submissionDates, Boolean(ws));
 
   // Cache patch + derived RQ invalidation update UI; do not refetch lists again on local save.
   const timelogMutations = useTimelogMutations(ws);
-
-  useTimelogStaleRefetch(
-    ws,
-    () => {
-      void Promise.all([refreshLogs(), refreshSubmissions()]);
-    },
-    Boolean(ws)
-  );
 
   const projectForTask = useCallback(
     (taskId: string) => {

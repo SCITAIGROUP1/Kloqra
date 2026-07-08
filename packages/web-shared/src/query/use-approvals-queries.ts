@@ -9,7 +9,7 @@ import type {
   ListTimesheetSubmissionsResponseDto,
   TimesheetPeriodDto
 } from "@kloqra/contracts";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { api } from "../api/client";
 import { useSessionGeneration } from "../hooks/use-session-generation";
@@ -157,18 +157,30 @@ export function useMissingTimesheetsQuery(
   });
 }
 
+export const SUBMISSIONS_LOOKBACK_WEEKS = 26;
+
+export function buildSubmissionsLookbackQueryKey(
+  lookbackWeeks: number,
+  anchorDateKey: string,
+  scope: "logged" | "assigned"
+): string {
+  return `lookback=${lookbackWeeks}&date=${normalizeSubmissionDateKey(anchorDateKey)}&scope=${scope}`;
+}
+
+/** Member submission list for a lookback window anchored on a calendar day (YYYY-MM-DD). */
 export function useMySubmissionsLookbackQuery(
   workspaceId: string,
-  anchorDate: Date,
+  anchorDateKey: string,
   lookbackWeeks: number,
   scope: "logged" | "assigned",
   enabled = true
 ) {
   const sessionGeneration = useSessionGeneration();
   const queryEnabled = useWorkspaceQueryEnabled(workspaceId, enabled);
-  const queryKey = `lookback=${lookbackWeeks}&date=${normalizeSubmissionDateKey(anchorDate.toISOString())}&scope=${scope}`;
+  const dateKey = normalizeSubmissionDateKey(anchorDateKey);
+  const queryKey = buildSubmissionsLookbackQueryKey(lookbackWeeks, dateKey, scope);
   const path = `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${new URLSearchParams({
-    date: normalizeSubmissionDateKey(anchorDate.toISOString()),
+    date: dateKey,
     scope,
     lookbackWeeks: String(lookbackWeeks)
   })}`;
@@ -180,54 +192,50 @@ export function useMySubmissionsLookbackQuery(
         (res) => res.items ?? []
       ),
     enabled: queryEnabled,
-    staleTime: 0,
-    refetchOnMount: "always"
+    staleTime: 60_000,
+    refetchOnMount: true
   });
 }
 
-/** Submission lock status keyed by projectId:periodStart for visible timelog dates. */
+/** Submission lock status for visible timelogs — one lookback GET, never N×per-day. */
 export function useTimesheetSubmissionStatusQuery(
   workspaceId: string,
   dates: string[],
   enabled = true
 ) {
-  const sessionGeneration = useSessionGeneration();
-  const queryEnabled = useWorkspaceQueryEnabled(workspaceId, enabled);
   const uniqueDates = useMemo(
     () => [...new Set(dates.filter(Boolean).map(normalizeSubmissionDateKey))].sort(),
     [dates]
   );
+  // Latest visible day (or today) anchors one lookback covering all periods we care about.
+  const anchorDateKey = useMemo(() => {
+    if (uniqueDates.length > 0) return uniqueDates[uniqueDates.length - 1]!;
+    return normalizeSubmissionDateKey(new Date().toISOString());
+  }, [uniqueDates]);
 
-  const results = useQueries({
-    queries: uniqueDates.map((date) => ({
-      queryKey: [...submissionsQueryKeys.list(workspaceId, `date=${date}`), sessionGeneration],
-      queryFn: ({ signal }: { signal?: AbortSignal }) =>
-        api<ListTimesheetSubmissionsResponseDto>(
-          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${new URLSearchParams({ date })}`,
-          { workspaceId, signal }
-        ).then((res) => res.items ?? []),
-      enabled: queryEnabled && uniqueDates.length > 0,
-      staleTime: 60_000,
-      refetchOnMount: true as const
-    }))
-  });
+  const query = useMySubmissionsLookbackQuery(
+    workspaceId,
+    anchorDateKey,
+    SUBMISSIONS_LOOKBACK_WEEKS,
+    "assigned",
+    enabled
+  );
 
   const submissionByKey = useMemo(() => {
     const merged = new Map<string, TimesheetPeriodDto>();
-    for (const result of results) {
-      for (const item of result.data ?? []) {
-        merged.set(`${item.projectId}:${item.periodStart}`, item);
-      }
+    for (const item of query.data ?? []) {
+      merged.set(`${item.projectId}:${item.periodStart}`, item);
     }
     return merged;
-  }, [results]);
+  }, [query.data]);
 
-  const isLoading = results.some((result) => result.isLoading);
-  const refetch = async () => {
-    await Promise.all(results.map((result) => result.refetch()));
+  return {
+    submissionByKey,
+    isLoading: query.isLoading,
+    refetch: async () => {
+      await query.refetch();
+    }
   };
-
-  return { submissionByKey, isLoading, refetch };
 }
 
 export function mapApprovalsQueryData<T>(

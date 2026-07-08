@@ -3,7 +3,11 @@
 import type { WorkspaceDataInvalidateScope } from "@kloqra/contracts";
 import { useEffect } from "react";
 import { invalidateWorkspaceQueries } from "../query/invalidate-workspace-queries";
-import { WORKSPACE_DATA_STALE_EVENT, type WorkspaceDataStaleDetail } from "./workspace-data-sync";
+import {
+  shouldSuppressLocalTimelogMutationEcho,
+  WORKSPACE_DATA_STALE_EVENT,
+  type WorkspaceDataStaleDetail
+} from "./workspace-data-sync";
 
 /**
  * Shell-level listener: maps workspace stale events to React Query invalidation.
@@ -16,6 +20,10 @@ export function useWorkspaceQuerySync(workspaceId: string) {
     const onStale = (event: Event) => {
       const detail = (event as CustomEvent<WorkspaceDataStaleDetail>).detail;
       if (!detail || detail.workspaceId !== workspaceId || detail.scopes.length === 0) return;
+      // Creating tab already applied cache patch + derived invalidate — skip echo storm.
+      if (shouldSuppressLocalTimelogMutationEcho(detail.workspaceId, detail.scopes)) {
+        return;
+      }
       void invalidateWorkspaceQueries(workspaceId, detail.scopes as WorkspaceDataInvalidateScope[]);
     };
 
