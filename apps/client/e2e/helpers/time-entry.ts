@@ -11,6 +11,13 @@ export type TimeEntryDialogOptions = {
 /** Matches empty calendar slot labels ("10 AM", "10:30 AM", "14:00", etc.). */
 const TIME_SLOT_LABEL = /^\d{1,2}(:\d{2})?\s*(AM|PM)?$/i;
 
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 async function selectComboboxOption(page: Page, label: string, option: RegExp | string) {
   await page.getByRole("combobox", { name: label }).click();
   await page.getByRole("option", { name: option }).click();
@@ -55,13 +62,22 @@ async function pickLowCollisionEntryDate(page: Page) {
   const entryDate = page.getByRole("button", { name: "Entry date" });
   if (!(await entryDate.isVisible({ timeout: 1000 }).catch(() => false))) return;
   await entryDate.click();
+
   const target = new Date();
-  target.setDate(target.getDate() - 2 - (timeSlotSeq % 4));
-  const dayLabel = String(target.getDate());
-  await page
-    .getByRole("gridcell", { name: new RegExp(`^${dayLabel}$`) })
-    .first()
-    .click();
+  // 1–2 days ago keeps the entry inside the current tracker week on most run days.
+  target.setDate(target.getDate() - (1 + (timeSlotSeq % 2)));
+  const dateKey = toDateKey(target);
+
+  for (let guard = 0; guard < 12; guard += 1) {
+    const day = page.getByRole("button", { name: dateKey, exact: true });
+    if (await day.isVisible({ timeout: 500 }).catch(() => false)) {
+      await day.click();
+      return;
+    }
+    await page.getByRole("button", { name: "Previous month" }).click();
+  }
+
+  await page.getByRole("button", { name: dateKey, exact: true }).click();
 }
 
 export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOptions) {

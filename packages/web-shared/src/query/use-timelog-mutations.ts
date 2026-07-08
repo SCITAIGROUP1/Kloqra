@@ -13,10 +13,12 @@ import { api } from "../api/client";
 import { commitTimelogMutation } from "../realtime/timelog-data-sync";
 
 export type UseTimelogMutationsOptions = {
-  /** Refresh view-local state (e.g. timesheet occupancy) after each mutation. */
+  /** Refetch the mounted list query after each mutation (preferred over global invalidation). */
   onLocalRefresh?: () => void | Promise<void>;
   /** When set, patches submission-style list caches filtered by projectId. */
   projectId?: string;
+  /** Explicit list cache paths for the view issuing the mutation (e.g. time tracker `all:` key). */
+  listPaths?: string[];
 };
 
 export type TimelogMutations = {
@@ -34,7 +36,9 @@ export function useTimelogMutations(
   workspaceId: string,
   options: UseTimelogMutationsOptions = {}
 ): TimelogMutations {
-  const { onLocalRefresh, projectId } = options;
+  const { onLocalRefresh, projectId, listPaths } = options;
+
+  const patchOptions = useMemo(() => ({ projectId, listPaths }), [projectId, listPaths]);
 
   const create = useCallback(
     async (body: CreateTimeLogDto) => {
@@ -46,11 +50,11 @@ export function useTimelogMutations(
       await commitTimelogMutation(workspaceId, onLocalRefresh, {
         type: "upsert",
         log: created,
-        projectId
+        ...patchOptions
       });
       return created;
     },
-    [workspaceId, onLocalRefresh, projectId]
+    [workspaceId, onLocalRefresh, patchOptions]
   );
 
   const update = useCallback(
@@ -63,11 +67,11 @@ export function useTimelogMutations(
       await commitTimelogMutation(workspaceId, onLocalRefresh, {
         type: "upsert",
         log: updated,
-        projectId
+        ...patchOptions
       });
       return updated;
     },
-    [workspaceId, onLocalRefresh, projectId]
+    [workspaceId, onLocalRefresh, patchOptions]
   );
 
   const remove = useCallback(
@@ -75,10 +79,11 @@ export function useTimelogMutations(
       await api(ROUTES.TIMELOGS.BY_ID(id), { method: "DELETE", workspaceId });
       await commitTimelogMutation(workspaceId, onLocalRefresh, {
         type: "remove",
-        logId: id
+        logId: id,
+        listPaths
       });
     },
-    [workspaceId, onLocalRefresh]
+    [workspaceId, onLocalRefresh, listPaths]
   );
 
   const createBatch = useCallback(
@@ -91,11 +96,11 @@ export function useTimelogMutations(
       await commitTimelogMutation(workspaceId, onLocalRefresh, {
         type: "upsertMany",
         logs: res.items,
-        projectId
+        ...patchOptions
       });
       return res;
     },
-    [workspaceId, onLocalRefresh, projectId]
+    [workspaceId, onLocalRefresh, patchOptions]
   );
 
   const commitUpsert = useCallback(
@@ -103,10 +108,10 @@ export function useTimelogMutations(
       await commitTimelogMutation(workspaceId, onLocalRefresh, {
         type: "upsert",
         log,
-        projectId
+        ...patchOptions
       });
     },
-    [workspaceId, onLocalRefresh, projectId]
+    [workspaceId, onLocalRefresh, patchOptions]
   );
 
   const invalidateAll = useCallback(async () => {

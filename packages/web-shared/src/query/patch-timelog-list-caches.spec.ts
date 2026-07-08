@@ -161,6 +161,17 @@ describe("patchTimelogListCaches", () => {
     expect(client.getQueryData(key)).toEqual({ items: [logA] });
   });
 
+  it("patches explicit list paths even when no cached query exists yet", () => {
+    const client = getQueryClient();
+    const trackerPath = `all:${weekPath}`;
+
+    upsertTimelogInListCaches(workspaceId, logA, { listPaths: [trackerPath] });
+
+    expect(client.getQueryData(timelogQueryKeys.list(workspaceId, trackerPath))).toEqual({
+      items: [logA]
+    });
+  });
+
   it("seeds in-flight list queries that are registered but not yet fetched", () => {
     const client = getQueryClient();
     const key = timelogQueryKeys.list(workspaceId, weekPath);

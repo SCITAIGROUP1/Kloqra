@@ -1,7 +1,7 @@
 "use client";
 
 import type { ListTimeLogsResponseDto } from "@kloqra/contracts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { readUserIdFromToken } from "../auth/jwt-payload";
 import { useSessionStore } from "../stores/session.store";
@@ -26,7 +26,8 @@ export function useTimelogListQuery(workspaceId: string, path: string, enabled =
     staleTime: 0,
     gcTime: 5 * 60_000,
     refetchOnMount: "always",
-    structuralSharing: false
+    structuralSharing: false,
+    placeholderData: keepPreviousData
   });
 }
 
@@ -63,6 +64,7 @@ export function useTimelogListAllQuery(workspaceId: string, basePath: string, en
     staleTime: 0,
     gcTime: 5 * 60_000,
     refetchOnMount: "always",
-    structuralSharing: false
+    structuralSharing: false,
+    placeholderData: keepPreviousData
   });
 }

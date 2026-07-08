@@ -11,6 +11,8 @@ export type TimeTrackerLogsState = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  /** React Query list cache path for this view (`all:` + filters). */
+  listCachePath: string;
 };
 
 export function useTimeTrackerLogs(
@@ -18,6 +20,7 @@ export function useTimeTrackerLogs(
   filters: TimeTrackerServerFilters
 ): TimeTrackerLogsState {
   const basePath = useMemo(() => buildTimeTrackerLogsQuery({ ...filters, limit: 250 }), [filters]);
+  const listCachePath = useMemo(() => `all:${basePath}`, [basePath]);
 
   const { data, isLoading, error, refetch } = useTimelogListAllQuery(
     workspaceId,
@@ -31,6 +34,7 @@ export function useTimeTrackerLogs(
     error: error ? (error instanceof Error ? error.message : "Could not load time entries") : null,
     refresh: async () => {
       await refetch();
-    }
+    },
+    listCachePath
   };
 }

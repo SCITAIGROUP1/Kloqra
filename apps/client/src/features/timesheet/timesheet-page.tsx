@@ -332,10 +332,11 @@ export function TimesheetPage() {
   const {
     data: logsData,
     isLoading: logsQueryLoading,
-    error: logsQueryError
+    error: logsQueryError,
+    refetch: refetchLogs
   } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
 
-  const { data: occupancy = [], isLoading: occupancyLoading } = useTimelogOccupancyQuery(
+  const { data: occupancy = [] } = useTimelogOccupancyQuery(
     ws,
     visibleRange?.from.toISOString(),
     visibleRange?.to.toISOString(),
@@ -343,7 +344,8 @@ export function TimesheetPage() {
   );
 
   const logs = logsData?.items ?? [];
-  const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
+  // Occupancy refetches after saves — do not hide the calendar; list patch/refetch owns entries.
+  const calendarLoading = logsQueryLoading || catalog.isLoading;
 
   const submissionDates = useMemo(() => {
     const dates = new Set<string>([toDateKeyInZone(anchor, timezone)]);
@@ -427,8 +429,13 @@ export function TimesheetPage() {
     );
   }, [logsQueryError]);
 
-  // Lists patched in commit; occupancy/submissions refreshed via shell RQ invalidation.
-  const timelogMutations = useTimelogMutations(ws);
+  // Patch the mounted list cache path, then refetch that query once (no global storm).
+  const timelogMutations = useTimelogMutations(ws, {
+    onLocalRefresh: async () => {
+      await refetchLogs();
+    },
+    listPaths: [logsPath]
+  });
 
   const overlapConflictMessage = useCallback(
     (conflict: { workspaceName: string; label: string; startTime: string; endTime: string }) => {

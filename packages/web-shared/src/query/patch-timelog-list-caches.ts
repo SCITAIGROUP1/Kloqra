@@ -3,9 +3,9 @@ import { getQueryClient } from "./query-client";
 import { timelogQueryKeys } from "./timelog-query-keys";
 
 export type TimelogCachePatch =
-  | { type: "upsert"; log: TimeLogDto; projectId?: string }
-  | { type: "upsertMany"; logs: TimeLogDto[]; projectId?: string }
-  | { type: "remove"; logId: string };
+  | { type: "upsert"; log: TimeLogDto; projectId?: string; listPaths?: string[] }
+  | { type: "upsertMany"; logs: TimeLogDto[]; projectId?: string; listPaths?: string[] }
+  | { type: "remove"; logId: string; listPaths?: string[] };
 
 export type TimelogListQueryMatchOptions = {
   projectId?: string;
@@ -49,7 +49,7 @@ export function timelogMatchesListQueryPath(
   const toMs = new Date(to).getTime();
   if (Number.isNaN(fromMs) || Number.isNaN(toMs)) return true;
 
-  return startMs >= fromMs && startMs <= toMs;
+  return startMs >= fromMs && startMs < toMs;
 }
 
 function listPathFromQueryKey(key: readonly unknown[]): string | null {
@@ -63,6 +63,50 @@ function patchListData(
 ): ListTimeLogsResponseDto {
   const items = data?.items ?? [];
   return { ...(data ?? { items: [] }), items: patch(items) };
+}
+
+function removeFromListCache(
+  workspaceId: string,
+  path: string,
+  logId: string,
+  data: ListTimeLogsResponseDto | undefined
+): void {
+  const client = getQueryClient();
+  const key = timelogQueryKeys.list(workspaceId, path);
+  client.setQueryData(
+    key,
+    patchListData(data, (items) => items.filter((item) => item.id !== logId))
+  );
+}
+
+function upsertIntoListCache(
+  workspaceId: string,
+  path: string,
+  log: TimeLogDto,
+  data: ListTimeLogsResponseDto | undefined
+): void {
+  const client = getQueryClient();
+  const key = timelogQueryKeys.list(workspaceId, path);
+  client.setQueryData(
+    key,
+    patchListData(data, (items) => [log, ...items.filter((item) => item.id !== log.id)])
+  );
+}
+
+function patchExplicitListPaths(
+  workspaceId: string,
+  paths: string[] | undefined,
+  log: TimeLogDto,
+  options?: TimelogListQueryMatchOptions
+): void {
+  if (!paths?.length) return;
+  for (const path of paths) {
+    if (!timelogMatchesListQueryPath(log, path, options)) continue;
+    const data = getQueryClient().getQueryData<ListTimeLogsResponseDto>(
+      timelogQueryKeys.list(workspaceId, path)
+    );
+    upsertIntoListCache(workspaceId, path, log, data);
+  }
 }
 
 function forEachTimelogListQuery(
@@ -102,25 +146,23 @@ export function removeTimelogFromListCaches(workspaceId: string, logId: string):
 export function relocateTimelogInListCaches(
   workspaceId: string,
   log: TimeLogDto,
-  options?: TimelogListQueryMatchOptions
+  options?: TimelogListQueryMatchOptions & { listPaths?: string[] }
 ): void {
   removeTimelogFromListCaches(workspaceId, log.id);
 
-  const client = getQueryClient();
   forEachTimelogListQuery(workspaceId, (key, path, data) => {
     if (!timelogMatchesListQueryPath(log, path, options)) return;
-    client.setQueryData(
-      key,
-      patchListData(data, (items) => [log, ...items])
-    );
+    upsertIntoListCache(workspaceId, path, log, data);
   });
+
+  patchExplicitListPaths(workspaceId, options?.listPaths, log, options);
 }
 
 /** Immediately reflect a created/updated timelog in all cached list queries for a workspace. */
 export function upsertTimelogInListCaches(
   workspaceId: string,
   log: TimeLogDto,
-  options?: TimelogListQueryMatchOptions
+  options?: TimelogListQueryMatchOptions & { listPaths?: string[] }
 ): void {
   relocateTimelogInListCaches(workspaceId, log, options);
 }
@@ -128,14 +170,27 @@ export function upsertTimelogInListCaches(
 export function applyTimelogCachePatch(workspaceId: string, patch: TimelogCachePatch): void {
   switch (patch.type) {
     case "upsert":
-      upsertTimelogInListCaches(workspaceId, patch.log, { projectId: patch.projectId });
+      upsertTimelogInListCaches(workspaceId, patch.log, {
+        projectId: patch.projectId,
+        listPaths: patch.listPaths
+      });
       return;
     case "upsertMany":
       for (const log of patch.logs) {
-        upsertTimelogInListCaches(workspaceId, log, { projectId: patch.projectId });
+        upsertTimelogInListCaches(workspaceId, log, {
+          projectId: patch.projectId,
+          listPaths: patch.listPaths
+        });
       }
       return;
     case "remove":
       removeTimelogFromListCaches(workspaceId, patch.logId);
+      if (patch.listPaths?.length) {
+        for (const path of patch.listPaths) {
+          const key = timelogQueryKeys.list(workspaceId, path);
+          const data = getQueryClient().getQueryData<ListTimeLogsResponseDto>(key);
+          removeFromListCache(workspaceId, path, patch.logId, data);
+        }
+      }
   }
 }

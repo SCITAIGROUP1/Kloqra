@@ -129,7 +129,13 @@ export function TimeTrackerPage() {
     [visibleRange, projectFilter, categoryFilter, taskFilter, debouncedSearch, billability]
   );
 
-  const { logs, loading: logsLoading, error: logsError } = useTimeTrackerLogs(ws, serverFilters);
+  const {
+    logs,
+    loading: logsLoading,
+    error: logsError,
+    refresh,
+    listCachePath
+  } = useTimeTrackerLogs(ws, serverFilters);
 
   const [weeksPerPage, setWeeksPerPage] = useState(1);
   const [page, setPage] = useState(1);
@@ -208,8 +214,11 @@ export function TimeTrackerPage() {
     timezone
   );
 
-  // Cache patch + derived RQ invalidation update UI; do not refetch lists again on local save.
-  const timelogMutations = useTimelogMutations(ws);
+  // Patch the mounted list cache path, then refetch that query once (no global storm).
+  const timelogMutations = useTimelogMutations(ws, {
+    onLocalRefresh: refresh,
+    listPaths: [listCachePath]
+  });
 
   const projectForTask = useCallback(
     (taskId: string) => {

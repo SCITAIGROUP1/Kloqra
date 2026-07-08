@@ -73,20 +73,20 @@ export async function commitTimelogMutation(
 ): Promise<void> {
   clearTimelogInflightRequests();
   const client = getQueryClient();
-  await client.cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
 
   if (cachePatch) {
     // Suppress this tab's API workspace.data.stale echo (other tabs still refresh).
     noteLocalTimelogMutation(workspaceId);
     applyTimelogCachePatch(workspaceId, cachePatch);
+    await client.cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
     if (localRefresh) {
       await localRefresh();
+    } else {
+      await client.invalidateQueries({
+        queryKey: timelogQueryKeys.workspace(workspaceId),
+        refetchType: "active"
+      });
     }
-    // Soft-stale lists only — patch already updated active UIs; remounts refetch via "always".
-    await client.invalidateQueries({
-      queryKey: timelogQueryKeys.workspace(workspaceId),
-      refetchType: "none"
-    });
     await refreshDerivedTimelogQueries(workspaceId);
     return;
   }

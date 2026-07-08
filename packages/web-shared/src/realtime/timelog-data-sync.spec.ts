@@ -79,9 +79,9 @@ describe("timelog-data-sync", () => {
     expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_MUTATION_SCOPES);
   });
 
-  it("fast path patches then soft-stales lists + occupancy (no list / submissions storm)", async () => {
+  it("fast path patches then refreshes mounted list via localRefresh", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
-    const patch = { type: "upsert" as const, log: sampleLog };
+    const patch = { type: "upsert" as const, log: sampleLog, listPaths: ["/timelogs?from=a&to=b"] };
     const client = getQueryClient();
     const invalidateSpy = vi
       .spyOn(client, "invalidateQueries")
@@ -96,9 +96,9 @@ describe("timelog-data-sync", () => {
     expect(invalidateWorkspaceData).not.toHaveBeenCalled();
     expect(TIMELOG_DERIVED_INVALIDATE_SCOPES).toEqual(["submissions", "timesheet"]);
 
-    expect(invalidateSpy).toHaveBeenCalledWith({
+    expect(invalidateSpy).not.toHaveBeenCalledWith({
       queryKey: timelogQueryKeys.workspace(workspaceId),
-      refetchType: "none"
+      refetchType: "active"
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: submissionsQueryKeys.workspace(workspaceId),
@@ -114,6 +114,21 @@ describe("timelog-data-sync", () => {
     });
   });
 
+  it("fast path refetches active list queries when no localRefresh is provided", async () => {
+    const patch = { type: "upsert" as const, log: sampleLog };
+    const client = getQueryClient();
+    const invalidateSpy = vi
+      .spyOn(client, "invalidateQueries")
+      .mockResolvedValue(undefined as never);
+
+    await commitTimelogMutation(workspaceId, undefined, patch);
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: timelogQueryKeys.workspace(workspaceId),
+      refetchType: "active"
+    });
+  });
+
   it("arms local mutation echo suppression so socket self-echo is ignored", async () => {
     await commitTimelogMutation(workspaceId, undefined, {
       type: "upsert",
@@ -125,7 +140,7 @@ describe("timelog-data-sync", () => {
     );
   });
 
-  it("fast path marks inactive list queries stale without refetching them", async () => {
+  it("fast path refetches mounted observers when no localRefresh is provided", async () => {
     const client = getQueryClient();
     const { QueryObserver } = await import("@tanstack/react-query");
     const activeKey = timelogQueryKeys.list(workspaceId, "/timelogs?from=a&to=b");
@@ -151,8 +166,7 @@ describe("timelog-data-sync", () => {
       log: sampleLog
     });
 
-    // Soft-stale: no extra active list refetch after patch
-    expect(activeFetches).toBe(fetchesAfterMount);
+    expect(activeFetches).toBeGreaterThan(fetchesAfterMount);
     expect(client.getQueryState(inactiveKey)?.isInvalidated).toBe(true);
 
     unsubActive();
