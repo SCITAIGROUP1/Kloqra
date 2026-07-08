@@ -63,25 +63,37 @@ function endOfLocalDayUtc(y: number, m: number, d: number, timeZone: string): Da
 }
 
 function getTimezoneOffsetMs(date: Date, timeZone: string): number {
-  const utc = new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date);
-  const local = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date);
-  const [uh, um, us] = utc.split(":").map(Number);
-  const [lh, lm, ls] = local.split(":").map(Number);
-  const utcSec = uh * 3600 + um * 60 + us;
-  const localSec = lh * 3600 + lm * 60 + ls;
-  return (localSec - utcSec) * 1000;
+  if (timeZone === "UTC") return 0;
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+
+    let hour = getVal("hour");
+    if (hour === 24) hour = 0;
+
+    const tzDateUtc = Date.UTC(
+      getVal("year"),
+      getVal("month") - 1,
+      getVal("day"),
+      hour,
+      getVal("minute"),
+      getVal("second")
+    );
+
+    return tzDateUtc - date.getTime();
+  } catch {
+    return 0;
+  }
 }
 
 /** Local weekday 0=Sun..6=Sat for Y-M-D in zone. */

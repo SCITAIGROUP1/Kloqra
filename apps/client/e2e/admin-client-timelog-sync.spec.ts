@@ -5,7 +5,6 @@ import { loginAsMember } from "./helpers/auth";
 import { dismissOnboardingIfVisible } from "./helpers/onboarding";
 import {
   fillTimeEntryDialog,
-  openTimesheetSlot,
   saveTimeEntryDialog,
   uniqueTimelogMarker,
   uniqueTimeSlot
@@ -22,13 +21,10 @@ test.describe("Client to admin timelog sync", () => {
 
     const clientContext = await browser.newContext();
     const clientPage = await clientContext.newPage();
-
     await loginAsMember(clientPage);
-    await clientPage.goto("/timesheet");
+    await clientPage.goto("/time-tracker");
     await dismissOnboardingIfVisible(clientPage);
-    await clientPage.getByRole("button", { name: "day", exact: true }).click();
-    await clientPage.getByRole("button", { name: "Today" }).click();
-    await openTimesheetSlot(clientPage);
+    await clientPage.getByRole("button", { name: "Add Entry" }).click();
     await fillTimeEntryDialog(clientPage, {
       projectName: PROJECT,
       taskName: TASK,
@@ -36,23 +32,27 @@ test.describe("Client to admin timelog sync", () => {
       startTime,
       endTime
     });
+    const createResponse = clientPage.waitForResponse(
+      (response) =>
+        response.url().includes("/timelogs") &&
+        response.request().method() === "POST" &&
+        response.ok()
+    );
     await saveTimeEntryDialog(clientPage);
-    await expect(clientPage.getByText(marker)).toBeVisible({ timeout: 20_000 });
+    await createResponse;
 
-    const adminContext = await browser.newContext();
+    const adminContext = await browser.newContext({ baseURL: ADMIN_BASE_URL });
     const adminPage = await adminContext.newPage();
-
     await loginAsAdmin(adminPage);
-    await adminPage.goto(`${ADMIN_BASE_URL}/time-tracker`);
+    await adminPage.goto("/time-tracker");
     await expect(adminPage.getByRole("heading", { name: "Time Tracker", exact: true })).toBeVisible(
       { timeout: 30_000 }
     );
-
     await adminPage.getByRole("combobox", { name: /member/i }).click();
     await adminPage
       .getByRole("option", { name: new RegExp(SEED.personas.member.name, "i") })
       .click();
-
+    await adminPage.getByPlaceholder("Search entries...").fill(marker);
     await expect(adminPage.getByText(marker)).toBeVisible({ timeout: 30_000 });
 
     await clientContext.close();

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { SEED } from "./constants/seed";
 import { loginAsAdmin, loginAsWorkspaceAdmin } from "./helpers/auth";
+import { adminSidebarUserLink, clickAdminLogout } from "./helpers/shell";
 
 test.describe("Admin session boundary", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -9,17 +10,16 @@ test.describe("Admin session boundary", () => {
     await loginAsAdmin(page);
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("link", { name: new RegExp(SEED.personas.tenantOwner.name, "i") })
+      adminSidebarUserLink(page, new RegExp(SEED.personas.tenantOwner.name, "i"))
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Log out" }).click();
-    await page.waitForURL(/\/login/, { timeout: 30_000 });
+    await clickAdminLogout(page);
     await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 
     await loginAsWorkspaceAdmin(page);
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("link", { name: new RegExp(SEED.personas.acmeAdmin.name, "i") })
+      adminSidebarUserLink(page, new RegExp(SEED.personas.acmeAdmin.name, "i"))
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: new RegExp(SEED.personas.tenantOwner.name, "i") })

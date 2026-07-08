@@ -1,7 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 import { SEED } from "./constants/seed";
 import { loginAsAdmin, loginAsOrganizationAdmin } from "./helpers/auth";
-import { waitForAdminShell } from "./helpers/shell";
+import {
+  adminSidebarUserLink,
+  clickAdminSidebarLink,
+  clickSettingsNavSection,
+  waitForAdminShell,
+  waitForProfilePage,
+  waitForSettingsPage
+} from "./helpers/shell";
 
 async function expandSidebarIfCollapsed(page: Page) {
   const expand = page.getByRole("button", { name: "Expand sidebar" });
@@ -54,17 +61,21 @@ test.describe("Admin nav scope by role", () => {
   test("tenant owner keeps organization chrome on profile and settings", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/account");
+    await waitForAdminShell(page);
     await expect(page.getByRole("link", { name: "Kloqra Organization" }).first()).toBeVisible({
       timeout: 30_000
     });
 
-    await page.getByRole("link", { name: "Settings" }).click();
-    await expect(page).toHaveURL(/\/settings/, { timeout: 15_000 });
+    await clickAdminSidebarLink(page, "Settings");
+    await expect(page).toHaveURL(/\/account\/settings/, { timeout: 15_000 });
+    await waitForSettingsPage(page);
     await expect(page.getByRole("link", { name: "Kloqra Organization" }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
 
-    await page.goto("/account/profile");
+    await adminSidebarUserLink(page, /Avery Org Owner/i).click();
+    await expect(page).toHaveURL(/\/account\/profile/, { timeout: 15_000 });
+    await waitForProfilePage(page);
     await expect(page.getByRole("link", { name: "Kloqra Organization" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
     await expect(page.getByLabel(/display name|first name/i).first()).toBeVisible();
@@ -74,10 +85,15 @@ test.describe("Admin nav scope by role", () => {
     page
   }) => {
     await loginAsAdmin(page);
-    await page.goto("/account/settings?section=notifications");
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({
-      timeout: 30_000
-    });
+    await page.goto("/account");
+    await waitForAdminShell(page);
+
+    await clickAdminSidebarLink(page, "Settings");
+    await expect(page).toHaveURL(/\/account\/settings/, { timeout: 15_000 });
+    await waitForSettingsPage(page);
+    await clickSettingsNavSection(page, "Notifications");
+    await expect(page).toHaveURL(/section=notifications/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await expect(page.getByText("Workspace Creation")).toBeVisible();
     await expect(
       page.getByText("When a new workspace is created in your organization")

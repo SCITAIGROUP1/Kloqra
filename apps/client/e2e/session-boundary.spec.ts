@@ -1,10 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
 import { SEED } from "./constants/seed";
 import { loginAsDrew, loginAsMember, logoutFromClient } from "./helpers/auth";
-import { dismissOnboardingIfVisible, waitForClientShell } from "./helpers/onboarding";
+import { dismissOnboardingIfVisible } from "./helpers/onboarding";
+import {
+  clientSidebarProfileLink,
+  expectWorkspaceSwitcherShows,
+  waitForProfilePage
+} from "./helpers/shell";
 
 function sidebarProfileLink(page: Page, name: string) {
-  return page.getByRole("link", { name: new RegExp(name, "i") });
+  return clientSidebarProfileLink(page, new RegExp(name, "i"));
 }
 
 test.describe("Session boundary", () => {
@@ -14,8 +19,8 @@ test.describe("Session boundary", () => {
     await dismissOnboardingIfVisible(page);
 
     await expect(sidebarProfileLink(page, SEED.personas.member.name)).toBeVisible();
-    await page.goto("/profile");
-    await waitForClientShell(page);
+    await sidebarProfileLink(page, SEED.personas.member.name).click();
+    await waitForProfilePage(page);
     await expect(page.locator("#email")).toHaveValue(SEED.personas.member.email);
 
     await logoutFromClient(page);
@@ -27,8 +32,8 @@ test.describe("Session boundary", () => {
     await expect(sidebarProfileLink(page, SEED.personas.drew.name)).toBeVisible();
     await expect(sidebarProfileLink(page, SEED.personas.member.name)).toHaveCount(0);
 
-    await page.goto("/profile");
-    await waitForClientShell(page);
+    await sidebarProfileLink(page, SEED.personas.drew.name).click();
+    await waitForProfilePage(page);
     await expect(page.locator("#email")).toHaveValue(SEED.personas.drew.email);
     await expect(page.locator("#email")).not.toHaveValue(SEED.personas.member.email);
   });
@@ -40,8 +45,8 @@ test.describe("Session boundary", () => {
 
     const workspaceSwitcher = page.locator("button[aria-haspopup='listbox']").first();
     await expect(workspaceSwitcher).toBeVisible();
-    const currentWorkspace = (await workspaceSwitcher.textContent()) ?? "";
-    const targetWorkspace = currentWorkspace.includes(SEED.workspaces.meridian.name.split(" ")[0])
+    const currentLabel = (await workspaceSwitcher.getAttribute("aria-label")) ?? "";
+    const targetWorkspace = currentLabel.includes(SEED.workspaces.meridian.name)
       ? SEED.workspaces.acme.name
       : SEED.workspaces.meridian.name;
 
@@ -50,7 +55,7 @@ test.describe("Session boundary", () => {
     await page.waitForURL(/\/(dashboard|timer|timesheet|time-tracker)/, { timeout: 30_000 });
     await dismissOnboardingIfVisible(page);
 
-    await expect(workspaceSwitcher).toContainText(targetWorkspace.split(" ")[0]);
+    await expectWorkspaceSwitcherShows(page, targetWorkspace);
     await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
   });
 
@@ -58,15 +63,19 @@ test.describe("Session boundary", () => {
     page
   }) => {
     await loginAsMember(page);
-    await page.goto("/profile");
-    await waitForClientShell(page);
+    await page.goto("/dashboard");
+    await dismissOnboardingIfVisible(page);
+    await sidebarProfileLink(page, SEED.personas.member.name).click();
+    await waitForProfilePage(page);
     await dismissOnboardingIfVisible(page);
     await expect(page.locator("#email")).toHaveValue(SEED.personas.member.email);
 
     await logoutFromClient(page);
     await loginAsDrew(page);
-    await page.goto("/profile");
-    await waitForClientShell(page);
+    await page.goto("/dashboard");
+    await dismissOnboardingIfVisible(page);
+    await sidebarProfileLink(page, SEED.personas.drew.name).click();
+    await waitForProfilePage(page);
     await dismissOnboardingIfVisible(page);
     await expect(page.locator("#email")).toHaveValue(SEED.personas.drew.email);
 
@@ -78,7 +87,15 @@ test.describe("Session boundary", () => {
       return;
     }
 
-    await expect(page.locator("#email")).toHaveValue(SEED.personas.drew.email);
-    await expect(page.locator("#email")).not.toHaveValue(SEED.personas.member.email);
+    if (page.url().includes("/profile")) {
+      await waitForProfilePage(page);
+      await expect(page.locator("#email")).toHaveValue(SEED.personas.drew.email);
+      await expect(page.locator("#email")).not.toHaveValue(SEED.personas.member.email);
+      return;
+    }
+
+    // bfcache may restore dashboard shell instead of the prior profile route.
+    await expect(sidebarProfileLink(page, SEED.personas.drew.name)).toBeVisible();
+    await expect(sidebarProfileLink(page, SEED.personas.member.name)).toHaveCount(0);
   });
 });

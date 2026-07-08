@@ -43,7 +43,7 @@ export async function loginAsDrew(page: Page) {
 }
 
 export async function logoutFromClient(page: Page) {
-  await page.getByRole("button", { name: "Log out" }).click();
-  await page.waitForURL(/\/login/, { timeout: 30_000 });
+  const { clickClientLogout } = await import("./shell");
+  await clickClientLogout(page);
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 }

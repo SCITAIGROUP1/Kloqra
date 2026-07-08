@@ -18,6 +18,7 @@ pnpm -r --if-present typecheck
 
 echo "→ unit tests (coverage)"
 pnpm --filter @kloqra/contracts build
+pnpm --filter @kloqra/web-shared build
 pnpm --filter @kloqra/api test:coverage
 pnpm --parallel --filter @kloqra/contracts --filter @kloqra/ui test -- --coverage
 pnpm --parallel --filter @kloqra/web-shared --filter @kloqra/admin --filter @kloqra/client test

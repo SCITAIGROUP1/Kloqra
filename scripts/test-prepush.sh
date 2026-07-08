@@ -10,6 +10,12 @@ PNPM="${PNPM:-bash "$ROOT/scripts/pnpm-wrap.sh"}"
 
 export NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}"
 
+echo "→ migrate + seed (CI parity)"
+$PNPM prisma:generate
+$PNPM --filter @kloqra/api exec prisma migrate deploy
+$PNPM build --filter=@kloqra/contracts
+$PNPM prisma:seed
+
 echo "→ API integration"
 $PNPM --filter @kloqra/api test:e2e
 
@@ -24,5 +30,8 @@ NEXT_PUBLIC_AUTH_SCOPE=admin $PNPM --filter @kloqra/admin test:e2e
 
 echo "→ Client Playwright e2e (NEXT_PUBLIC_AUTH_SCOPE=client)"
 NEXT_PUBLIC_AUTH_SCOPE=client $PNPM --filter @kloqra/client test:e2e
+
+echo "→ Platform-admin Playwright e2e"
+$PNPM --filter @kloqra/platform-admin test:e2e
 
 echo "✓ Pre-push test suite passed (matches CI integration + e2e)"

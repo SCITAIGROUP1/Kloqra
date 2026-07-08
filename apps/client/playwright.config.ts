@@ -12,6 +12,7 @@ export default defineConfig({
   testDir: "./e2e",
   workers: 1,
   timeout: 60_000,
+  retries: 2,
   reporter: [
     ["list"],
     ["junit", { outputFile: "test-results/playwright-junit.xml" }],

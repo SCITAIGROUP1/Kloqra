@@ -20,7 +20,10 @@ test.describe("Timelog cross-page sync", () => {
     await page.goto("/timesheet");
     await dismissOnboardingIfVisible(page);
     await page.getByRole("button", { name: "day", exact: true }).click();
-    await page.getByRole("button", { name: "Today" }).click();
+    // Use a past day to avoid collisions with seed data on today's calendar.
+    for (let i = 0; i < 4; i += 1) {
+      await page.getByRole("button", { name: "‹" }).click();
+    }
     await openTimesheetSlot(page);
 
     await fillTimeEntryDialog(page, {

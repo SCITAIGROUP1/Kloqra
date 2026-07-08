@@ -46,6 +46,24 @@ export async function openTimesheetSlot(page: Page) {
   throw new Error("No open timesheet slot found");
 }
 
+async function pickLowCollisionEntryDate(page: Page) {
+  const isAddEntry = await page
+    .getByRole("heading", { name: "Add time entry" })
+    .isVisible()
+    .catch(() => false);
+  if (!isAddEntry) return;
+  const entryDate = page.getByRole("button", { name: "Entry date" });
+  if (!(await entryDate.isVisible({ timeout: 1000 }).catch(() => false))) return;
+  await entryDate.click();
+  const target = new Date();
+  target.setDate(target.getDate() - 2 - (timeSlotSeq % 4));
+  const dayLabel = String(target.getDate());
+  await page
+    .getByRole("gridcell", { name: new RegExp(`^${dayLabel}$`) })
+    .first()
+    .click();
+}
+
 export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOptions) {
   await selectComboboxOption(page, "Project", options.projectName);
   await selectComboboxOption(page, "Task", options.taskName);
@@ -57,11 +75,24 @@ export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOp
     await page.getByLabel("End time").fill(options.endTime);
   }
 
+  await pickLowCollisionEntryDate(page);
   await page.getByLabel("Description").fill(options.description);
 }
 
 export async function saveTimeEntryDialog(page: Page) {
-  await page.getByRole("button", { name: "Log time" }).click();
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await page.getByRole("button", { name: "Log time" }).click();
+    const overlap = page.getByText(/overlaps|two projects at once/i);
+    if (await overlap.isVisible({ timeout: 1500 }).catch(() => false)) {
+      const retry = uniqueTimeSlot();
+      await page.getByLabel("Start time").fill(retry.startTime);
+      await page.getByLabel("End time").fill(retry.endTime);
+      await pickLowCollisionEntryDate(page);
+      continue;
+    }
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 20_000 });
+    return;
+  }
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: 20_000 });
 }
 
@@ -76,9 +107,16 @@ export function uniqueTimelogMarker(prefix: string): string {
 
 let timeSlotSeq = 0;
 
-/** Pick a morning slot unlikely to collide with seed data or prior e2e runs. */
+/** Pick an afternoon slot unlikely to collide with seed data or prior e2e runs. */
 export function uniqueTimeSlot(): { startTime: string; endTime: string } {
-  const hour = 4 + ((Math.floor(Date.now() / 1000) + timeSlotSeq++) % 10);
+  timeSlotSeq += 1;
+  const seed = Date.now() + timeSlotSeq * 7919 + Math.floor(Math.random() * 60_000);
+  const hour = 14 + Math.floor((seed / 1000) % 8);
+  const minute = (seed % 50) + 5;
   const pad = (n: number) => String(n).padStart(2, "0");
-  return { startTime: `${pad(hour)}:10`, endTime: `${pad(hour)}:40` };
+  const endTotal = hour * 60 + minute + 25;
+  return {
+    startTime: `${pad(hour)}:${pad(minute)}`,
+    endTime: `${pad(Math.floor(endTotal / 60) % 24)}:${pad(endTotal % 60)}`
+  };
 }
