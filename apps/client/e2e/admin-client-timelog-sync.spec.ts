@@ -40,6 +40,7 @@ test.describe("Client to admin timelog sync", () => {
     );
     await saveTimeEntryDialog(clientPage);
     await createResponse;
+    await expect(clientPage.getByText(marker)).toBeVisible({ timeout: 20_000 });
 
     const adminContext = await browser.newContext({ baseURL: ADMIN_BASE_URL });
     const adminPage = await adminContext.newPage();

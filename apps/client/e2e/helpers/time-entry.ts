@@ -18,6 +18,13 @@ function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** App modal only — excludes Radix date-picker popovers that also use role="dialog". */
+function entryDialog(page: Page) {
+  return page.getByRole("dialog").filter({
+    has: page.getByRole("heading", { name: /^(Add time entry|Log time|Edit time entry)$/ })
+  });
+}
+
 async function selectComboboxOption(page: Page, label: string, option: RegExp | string) {
   await page.getByRole("combobox", { name: label }).click();
   await page.getByRole("option", { name: option }).click();
@@ -54,12 +61,10 @@ export async function openTimesheetSlot(page: Page) {
 }
 
 async function pickLowCollisionEntryDate(page: Page) {
-  const isAddEntry = await page
-    .getByRole("heading", { name: "Add time entry" })
-    .isVisible()
-    .catch(() => false);
-  if (!isAddEntry) return;
-  const entryDate = page.getByRole("button", { name: "Entry date" });
+  const dialog = entryDialog(page);
+  if (!(await dialog.isVisible({ timeout: 1000 }).catch(() => false))) return;
+
+  const entryDate = dialog.getByRole("button", { name: "Entry date" });
   if (!(await entryDate.isVisible({ timeout: 1000 }).catch(() => false))) return;
   await entryDate.click();
 
@@ -68,16 +73,20 @@ async function pickLowCollisionEntryDate(page: Page) {
   target.setDate(target.getDate() - (1 + (timeSlotSeq % 2)));
   const dateKey = toDateKey(target);
 
+  const popover = page.locator('[data-state="open"][data-side]').last();
+
   for (let guard = 0; guard < 12; guard += 1) {
-    const day = page.getByRole("button", { name: dateKey, exact: true });
+    const day = popover.getByRole("button", { name: dateKey, exact: true });
     if (await day.isVisible({ timeout: 500 }).catch(() => false)) {
       await day.click();
+      await expect(popover).toBeHidden({ timeout: 3_000 });
       return;
     }
-    await page.getByRole("button", { name: "Previous month" }).click();
+    await popover.getByRole("button", { name: "Previous month" }).click();
   }
 
-  await page.getByRole("button", { name: dateKey, exact: true }).click();
+  await popover.getByRole("button", { name: dateKey, exact: true }).click();
+  await expect(popover).toBeHidden({ timeout: 3_000 });
 }
 
 export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOptions) {
@@ -91,13 +100,13 @@ export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOp
     await page.getByLabel("End time").fill(options.endTime);
   }
 
-  await pickLowCollisionEntryDate(page);
+  // Keep the default entry date (today) — unique afternoon slots avoid overlap.
   await page.getByLabel("Description").fill(options.description);
 }
 
 export async function saveTimeEntryDialog(page: Page) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    await page.getByRole("button", { name: "Log time" }).click();
+    await entryDialog(page).getByRole("button", { name: "Log time" }).click();
     const overlap = page.getByText(/overlaps|two projects at once/i);
     if (await overlap.isVisible({ timeout: 1500 }).catch(() => false)) {
       const retry = uniqueTimeSlot();
@@ -106,15 +115,18 @@ export async function saveTimeEntryDialog(page: Page) {
       await pickLowCollisionEntryDate(page);
       continue;
     }
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 20_000 });
+    await expect(page.getByText("Time entry created!")).toBeVisible({ timeout: 20_000 });
+    await expect(entryDialog(page)).toBeHidden({ timeout: 5_000 });
     return;
   }
-  await expect(page.getByRole("dialog")).toBeHidden({ timeout: 20_000 });
+  await expect(page.getByText("Time entry created!")).toBeVisible({ timeout: 20_000 });
+  await expect(entryDialog(page)).toBeHidden({ timeout: 5_000 });
 }
 
 export async function saveTimeEntryChanges(page: Page) {
-  await page.getByRole("button", { name: "Save changes" }).click();
+  await entryDialog(page).getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Time entry updated!")).toBeVisible({ timeout: 15_000 });
+  await expect(entryDialog(page)).toBeHidden({ timeout: 5_000 });
 }
 
 export function uniqueTimelogMarker(prefix: string): string {
