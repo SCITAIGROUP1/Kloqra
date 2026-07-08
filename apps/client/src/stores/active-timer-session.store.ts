@@ -16,6 +16,7 @@ function resolveMemberUserId(): string | null {
 type ActiveTimerStoreState = {
   refCounts: Record<string, number>;
   initialized: Record<string, boolean>;
+  inflight: Record<string, Promise<void>>;
   refreshActive: (workspaceId: string) => Promise<void>;
   subscribeActive: (workspaceId: string) => () => void;
   invalidateActive: (workspaceId: string) => void;
@@ -26,32 +27,46 @@ type ActiveTimerStoreState = {
 export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, get) => ({
   refCounts: {},
   initialized: {},
+  inflight: {},
 
   refreshActive: async (workspaceId) => {
     const userId = resolveMemberUserId();
     if (!workspaceId || !userId) return;
     const key = memberStoreKey(userId, workspaceId);
-    try {
-      const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
-        workspaceId
-      });
-      const activeUserId = resolveMemberUserId();
-      if (activeUserId !== userId) return;
-      const active =
-        res && "autostopped" in res && res.autostopped
-          ? null
-          : normalizeActiveTimer(res as ActiveTimerDto | null);
-      useTimerStore.getState().setActive(active);
-      if (res && "autostopped" in res && res.autostopped) {
-        void invalidateTimelogData(workspaceId);
+    const existing = get().inflight[key];
+    if (existing) return existing;
+
+    const request = (async () => {
+      try {
+        const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
+          workspaceId
+        });
+        const activeUserId = resolveMemberUserId();
+        if (activeUserId !== userId) return;
+        const active =
+          res && "autostopped" in res && res.autostopped
+            ? null
+            : normalizeActiveTimer(res as ActiveTimerDto | null);
+        useTimerStore.getState().setActive(active);
+        if (res && "autostopped" in res && res.autostopped) {
+          void invalidateTimelogData(workspaceId);
+        }
+      } catch {
+        useTimerStore.getState().setActive(null);
+      } finally {
+        set((state) => {
+          const inflight = { ...state.inflight };
+          delete inflight[key];
+          return {
+            initialized: { ...state.initialized, [key]: true },
+            inflight
+          };
+        });
       }
-    } catch {
-      useTimerStore.getState().setActive(null);
-    } finally {
-      set((state) => ({
-        initialized: { ...state.initialized, [key]: true }
-      }));
-    }
+    })();
+
+    set((state) => ({ inflight: { ...state.inflight, [key]: request } }));
+    return request;
   },
 
   subscribeActive: (workspaceId) => {
@@ -62,7 +77,7 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
     const nextCount = (get().refCounts[key] ?? 0) + 1;
     set((s) => ({ refCounts: { ...s.refCounts, [key]: nextCount } }));
 
-    if (!get().initialized[key]) {
+    if (!get().initialized[key] && !get().inflight[key]) {
       void get().refreshActive(workspaceId);
     }
 
@@ -104,5 +119,5 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
     });
   },
 
-  clear: () => set({ refCounts: {}, initialized: {} })
+  clear: () => set({ refCounts: {}, initialized: {}, inflight: {} })
 }));

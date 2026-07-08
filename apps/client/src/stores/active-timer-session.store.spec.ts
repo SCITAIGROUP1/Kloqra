@@ -28,7 +28,7 @@ vi.mock("@/stores/session.store", () => ({
 
 describe("useActiveTimerSessionStore", () => {
   beforeEach(() => {
-    useActiveTimerSessionStore.setState({ refCounts: {}, initialized: {} });
+    useActiveTimerSessionStore.setState({ refCounts: {}, initialized: {}, inflight: {} });
     mockApi.mockReset();
     mockSetActive.mockReset();
   });
@@ -58,5 +58,6 @@ describe("useActiveTimerSessionStore", () => {
 
     expect(useActiveTimerSessionStore.getState().refCounts).toEqual({});
     expect(useActiveTimerSessionStore.getState().initialized).toEqual({});
+    expect(useActiveTimerSessionStore.getState().inflight).toEqual({});
   });
 });
