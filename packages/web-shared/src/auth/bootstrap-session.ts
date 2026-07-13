@@ -8,6 +8,7 @@ import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
 import { classifyBootstrapError, type BootstrapFailureReason } from "./bootstrap-failure";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
+import { isLogoutInFlight } from "./logout-session";
 import { tryRefreshSession } from "./refresh-session";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -101,6 +102,10 @@ export function shouldApplyBootstrapSession(
  * Restore session from refresh cookie and/or access token, then load workspaces.
  */
 export async function bootstrapSession(options: BootstrapOptions = {}): Promise<BootstrapResult> {
+  if (isLogoutInFlight() && !options.handoffToken) {
+    return { ok: false, reason: "unauthenticated" };
+  }
+
   if (options.clearBeforeRefresh || options.handoffToken) {
     useSessionStore.getState().clear({
       boundaryReason: options.handoffToken ? "impersonation" : "login"

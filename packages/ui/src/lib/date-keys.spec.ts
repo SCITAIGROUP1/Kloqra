@@ -35,7 +35,7 @@ describe("date-keys", () => {
         .flat()
         .filter(Boolean)
         .map((key) => key?.split("-")[2])
-    ).toContain("1");
+    ).toContain("01");
     expect(toDateKey(2026, 6, 30)).toBe("2026-06-30");
   });
 

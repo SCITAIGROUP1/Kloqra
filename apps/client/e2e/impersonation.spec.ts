@@ -22,7 +22,8 @@ test("admin impersonation redirects to client dashboard", async ({ page }) => {
 
   await page.waitForURL(clientDashboardUrl());
   await dismissOnboardingIfVisible(page);
-  await expect(page.getByText(/Viewing as/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("impersonation-banner")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("impersonation-banner")).toContainText(/Viewing as/);
   await expect(page.getByRole("heading", { name: "Total Hours (Today)" })).toBeVisible({
     timeout: 15_000
   });
@@ -38,6 +39,6 @@ test("admin impersonation redirects to client dashboard", async ({ page }) => {
   await page.getByRole("listbox").getByRole("option", { name: targetWorkspace }).click();
 
   await page.waitForURL(clientDashboardUrl());
-  await expect(page.getByText(/Viewing as/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("impersonation-banner")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "Total Hours (Today)" })).toBeVisible();
 });

@@ -237,7 +237,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       }
       impersonationBanner={
         session.impersonatorId ? (
-          <div className="sticky top-0 z-50 flex flex-col">
+          <div data-testid="impersonation-banner" className="sticky top-0 z-50 flex flex-col">
             <div className="flex items-center justify-between border-b border-status-warning-border bg-status-warning-bg px-6 py-3 text-xs text-status-warning-fg backdrop-blur-md lg:px-8">
               <div className="flex items-center gap-2.5">
                 <span className="relative flex h-2.5 w-2.5">
@@ -245,7 +245,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
                 </span>
                 <span>
-                  👁 Viewing as <strong className="font-semibold">{session.user.name}</strong> —
+                  Viewing as <strong className="font-semibold">{session.user.name}</strong> —
                   read-only mode{" "}
                   <span className="opacity-70">
                     (impersonated by Admin{" "}

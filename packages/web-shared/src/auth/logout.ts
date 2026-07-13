@@ -19,13 +19,15 @@ export async function logoutSession(workspaceId?: string | null): Promise<void> 
   usePlatformUserProfileStore.getState().clear();
   usePlatformNotificationsStore.getState().clear();
 
-  void api(ROUTES.AUTH.LOGOUT, {
-    method: "DELETE",
-    ...(refreshToken ? { body: JSON.stringify({ refreshToken }) } : {}),
-    ...(workspaceId ? { workspaceId } : {})
-  }).catch(() => {
+  try {
+    await api(ROUTES.AUTH.LOGOUT, {
+      method: "DELETE",
+      ...(refreshToken ? { body: JSON.stringify({ refreshToken }) } : {}),
+      ...(workspaceId ? { workspaceId } : {})
+    });
+  } catch {
     /* Best-effort server revoke; local session is already cleared */
-  });
+  }
 
   if (typeof window !== "undefined" && isLogoutEpochCurrent(epoch)) {
     window.location.assign("/login");

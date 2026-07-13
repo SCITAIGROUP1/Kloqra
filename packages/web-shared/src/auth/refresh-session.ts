@@ -12,6 +12,7 @@ import {
 } from "./auth-refresh-guard";
 import { forceTenantAuthSignOut } from "./force-auth-sign-out";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
+import { isLogoutInFlight } from "./logout-session";
 import { configureProactiveRefresh, scheduleProactiveRefresh } from "./token-scheduler";
 
 export { invalidateAuthRefresh, cancelAuthRefreshRetries } from "./auth-refresh-guard";
@@ -129,6 +130,7 @@ async function performRefresh(): Promise<string | null> {
 
 /** Silent refresh using httpOnly cookie; returns new access token or null. */
 export async function tryRefreshSession(): Promise<string | null> {
+  if (isLogoutInFlight()) return null;
   if (refreshPromise) return refreshPromise;
   refreshPromise = performRefresh().finally(() => {
     refreshPromise = null;

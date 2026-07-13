@@ -57,5 +57,5 @@ export async function clickSettingsNavSection(page: Page, label: string) {
 export async function clickClientLogout(page: Page) {
   await expandClientSidebarIfCollapsed(page);
   await clientSidebar(page).getByRole("button", { name: "Log out" }).click();
-  await page.waitForURL(/\/login/, { timeout: 30_000 });
+  await page.waitForURL(/\/login/, { timeout: 30_000, waitUntil: "domcontentloaded" });
 }

@@ -66,7 +66,7 @@ describe("logoutSession", () => {
     const { logoutSession } = await import("./logout");
     await logoutSession("ws-1");
 
-    expect(callOrder[0]).toBe("clear");
+    expect(callOrder).toEqual(["clear", "api"]);
     expect(mockApi).toHaveBeenCalledWith(
       ROUTES.AUTH.LOGOUT,
       expect.objectContaining({
@@ -75,6 +75,24 @@ describe("logoutSession", () => {
         workspaceId: "ws-1"
       })
     );
+    expect(window.location.assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("awaits logout API before navigating so refresh cannot revive the session", async () => {
+    let resolveApi: (() => void) | undefined;
+    mockApi.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveApi = () => resolve({ ok: true });
+        })
+    );
+
+    const { logoutSession } = await import("./logout");
+    const pending = logoutSession("ws-1");
+
+    expect(window.location.assign).not.toHaveBeenCalled();
+    resolveApi?.();
+    await pending;
     expect(window.location.assign).toHaveBeenCalledWith("/login");
   });
 });
