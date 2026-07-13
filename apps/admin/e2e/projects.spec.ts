@@ -1,12 +1,16 @@
 import { test, expect } from "@playwright/test";
 import { SEED } from "./constants/seed";
+import { loginAsAdmin } from "./helpers/auth";
 import { waitForAdminShell } from "./helpers/shell";
 
 test.describe("Admin projects", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
     await page.goto("/projects");
     await waitForAdminShell(page);
-    await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible({
+      timeout: 30_000
+    });
   });
 
   test("lists seeded workspace projects", async ({ page }) => {

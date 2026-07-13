@@ -1,16 +1,20 @@
 import { test, expect, type Page } from "@playwright/test";
 import { SEED } from "./constants/seed";
-import { loginAsAdmin, completePostLoginSelection } from "./helpers/auth";
+import { clearAdminBrowserSession, completePostLoginSelection, loginAsAdmin } from "./helpers/auth";
 
 const LEAD_EMAIL = SEED.personas.member.email;
 const LEAD_PASSWORD = SEED.personas.member.password;
 
 async function loginAsProjectLead(page: Page) {
+  await clearAdminBrowserSession(page);
   await page.goto("/login");
-  await page.fill("input[type='email']", LEAD_EMAIL);
-  await page.fill("input[type='password']", LEAD_PASSWORD);
-  await page.click("button[type='submit']");
-  await page.waitForURL(/.*(select-context|select-workspace|dashboard|login)/, { timeout: 30_000 });
+  await page.locator("input[type='email']").fill(LEAD_EMAIL);
+  const password = page.locator("input[type='password']");
+  await password.fill(LEAD_PASSWORD);
+  await password.press("Enter");
+  await page.waitForURL(/\/(select-context|select-workspace|dashboard|login)(\/|\?|$)/, {
+    timeout: 30_000
+  });
 
   await completePostLoginSelection(page);
 }

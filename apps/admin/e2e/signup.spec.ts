@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// Signup must start unauthenticated; shared admin storageState redirects away.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("signup page submits and redirects to verify email", async ({ page }) => {
   await page.route("**/plans/public", async (route) => {
     await route.fulfill({

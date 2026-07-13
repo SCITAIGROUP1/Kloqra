@@ -178,47 +178,42 @@ async function mockProvisionedOwnerSession(page: Page) {
   }, accessToken);
 }
 
-test("provisioned owner sees organization setup form", async ({ page }) => {
-  await page.route("**/tenants/current", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(PENDING_TENANT)
+test.describe("organization setup with mocked tenant profile", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("provisioned owner sees organization setup form", async ({ page }) => {
+    await mockProvisionedOwnerSession(page);
+
+    await page.goto("/account/organization");
+    await expect(page.getByRole("heading", { name: "Finish setup" })).toBeVisible({
+      timeout: 30_000
     });
+    await expect(page.getByLabel("Organization name")).toBeVisible();
+    await expect(page.getByLabel("Organization ID")).toBeVisible();
   });
 
-  await page.goto("/account/organization");
-  await expect(page.getByRole("heading", { name: "Finish setup" })).toBeVisible({
-    timeout: 30_000
-  });
-  await expect(page.getByLabel("Organization name")).toBeVisible();
-  await expect(page.getByLabel("Organization ID")).toBeVisible();
-});
-
-test("organization page shows recoverable error when profile cannot be loaded", async ({
-  page
-}) => {
-  await page.route("**/tenants/current", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ message: "Service unavailable" })
+  test("organization page shows recoverable error when profile cannot be loaded", async ({
+    page
+  }) => {
+    await mockProvisionedOwnerSession(page);
+    await page.route("**/tenants/current", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Service unavailable" })
+      });
     });
-  });
 
-  await page.goto("/account/organization");
-  await expect(page.getByText("Unable to load organization profile")).toBeVisible({
-    timeout: 30_000
+    await page.goto("/account/organization");
+    await expect(page.getByText("Unable to load organization profile")).toBeVisible({
+      timeout: 30_000
+    });
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   });
-  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
 test.describe("provisioned owner without workspace", () => {
@@ -297,8 +292,9 @@ test.describe("provisioned owner without workspace", () => {
         await fulfillJson(route, loginBody);
         return;
       }
+      // Do not mint a session via refresh before the user submits the form.
       if (path === "/auth/refresh" && method === "POST") {
-        await fulfillJson(route, loginBody);
+        await fulfillJson(route, { message: "Unauthorized" }, 401);
         return;
       }
       if (path === "/auth/me") {
@@ -345,7 +341,7 @@ test.describe("provisioned owner without workspace", () => {
     await page.goto("/login");
     await expect(page.getByLabel("Email")).toBeVisible({ timeout: 15_000 });
     await page.getByLabel("Email").fill("owner@example.com");
-    await page.getByLabel("Password").fill("password123");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).toHaveURL(/\/account\/organization/, { timeout: 15_000 });

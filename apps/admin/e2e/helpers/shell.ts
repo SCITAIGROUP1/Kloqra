@@ -1,10 +1,12 @@
 import { expect, type Page } from "@playwright/test";
 
-/** Wait until admin shell finished bootstrapping (not login/loading). */
+/** Wait until admin shell finished bootstrapping (not login/context picker/loading). */
 export async function waitForAdminShell(page: Page) {
   await page.waitForLoadState("domcontentloaded");
   await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
+  await expect(page).not.toHaveURL(/\/select-(context|workspace)/, { timeout: 30_000 });
   await expect(page.getByText("Loading workspace…")).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByText("Checking your session…")).toHaveCount(0);
 }
 
 /** Sidebar nav in workspace or account mode — avoids duplicate header/profile matches. */
