@@ -12,7 +12,8 @@ import {
   TaskAssigneePicker,
   cn,
   CenteredLoader,
-  ConfirmDialog
+  ConfirmDialog,
+  entityRowClassName
 } from "@kloqra/ui";
 import {
   SettingsCard,
@@ -456,7 +457,8 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
                         key={task.id}
                         className={cn(
                           "rounded-lg border border-border/80 bg-muted/10 px-4 py-3 transition-colors",
-                          isEditing && "border-primary/30 bg-primary/5"
+                          isEditing && "border-primary/30 bg-primary/5",
+                          !isEditing && entityRowClassName(task.isActive)
                         )}
                       >
                         {isEditing ? (

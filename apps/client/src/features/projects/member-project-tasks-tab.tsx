@@ -9,6 +9,7 @@ import {
   DataTableHead,
   DataTableHeaderRow,
   EmptyState,
+  entityRowClassName,
   Table,
   TableBody,
   TableHeader,
@@ -83,7 +84,7 @@ export function MemberProjectTasksTab() {
                   </TableHeader>
                   <TableBody>
                     {categoryTasks.map((t) => (
-                      <TableRow key={t.id}>
+                      <TableRow key={t.id} className={entityRowClassName(t.isActive)}>
                         <DataTableCell className="font-medium">{t.taskName}</DataTableCell>
                         <DataTableCell>
                           <Badge variant={t.billableDefault ? "default" : "secondary"}>

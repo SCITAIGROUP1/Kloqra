@@ -169,6 +169,8 @@ export {
   type FilterableOption
 } from "./lib/filter-options.js";
 
+export { entityRowClassName, inactiveEntityRowClassName } from "./lib/inactive-entity-row.js";
+
 export {
   ProjectColorDot,
   ProjectColorEditor,

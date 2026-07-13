@@ -9,6 +9,7 @@ import {
   DataTableHead,
   DataTableHeaderRow,
   EmptyState,
+  entityRowClassName,
   ProjectNameWithColor,
   Table,
   TableBody,
@@ -68,7 +69,7 @@ export function ProjectsPage() {
               </TableHeader>
               <TableBody>
                 {projects.map((p) => (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} className={entityRowClassName(p.isActive)}>
                     <DataTableCell>
                       {p.workspaceName ?? workspaceNamesById[p.workspaceId] ?? "—"}
                     </DataTableCell>

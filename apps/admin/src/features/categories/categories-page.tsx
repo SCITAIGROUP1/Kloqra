@@ -12,6 +12,7 @@ import {
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
+  entityRowClassName,
   Input,
   Label,
   Table,
@@ -386,7 +387,7 @@ export function AdminCategoriesPage() {
                 {categories.map((category) => {
                   const isEditing = editingId === category.id;
                   return (
-                    <TableRow key={category.id}>
+                    <TableRow key={category.id} className={entityRowClassName(category.isActive)}>
                       <DataTableCell>
                         {isEditing ? (
                           <Input

@@ -13,6 +13,7 @@ import {
   DataTableHead,
   DataTableHeaderRow,
   EmptyState,
+  entityRowClassName,
   Input,
   Label,
   ProjectColorPicker,
@@ -218,7 +219,7 @@ export function ProjectsListPage() {
                   return (
                     <TableRow
                       key={p.id}
-                      className="group cursor-pointer hover:bg-muted/40"
+                      className={entityRowClassName(p.isActive, "group cursor-pointer")}
                       tabIndex={0}
                       role="link"
                       aria-label={`Open ${p.name}`}
