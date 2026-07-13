@@ -122,8 +122,21 @@ test("manage subscription button is disabled without stripe customer", async ({ 
 
 test("contact sales opens dialog and submits inquiry", async ({ page }) => {
   let submitted = false;
+  const inquiryBody = {
+    id: "00000000-0000-4000-8000-0000000000aa",
+    tenantId: "00000000-0000-4000-8000-000000000099",
+    planSlug: "pilot",
+    planName: "Enterprise",
+    status: "open",
+    message: null,
+    billingInterval: "monthly",
+    instructionsSentAt: null,
+    createdAt: new Date().toISOString(),
+    fulfilledAt: null
+  };
 
-  await page.route("**/tenants/current/subscription", async (route) => {
+  // Exact subscription path — do not steal /subscription/sales-inquiry.
+  await page.route(/\/tenants\/current\/subscription$/, async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
         status: 200,
@@ -146,26 +159,13 @@ test("contact sales opens dialog and submits inquiry", async ({ page }) => {
     await route.continue();
   });
 
-  await page.route("**/tenants/current/subscription/sales-inquiry**", async (route) => {
+  await page.route(/\/tenants\/current\/subscription\/sales-inquiry(?:\?|$)/, async (route) => {
     const method = route.request().method();
     if (method === "GET") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: submitted
-          ? JSON.stringify({
-              id: "inq-test",
-              tenantId: "00000000-0000-4000-8000-000000000099",
-              planSlug: "pilot",
-              planName: "Enterprise",
-              status: "open",
-              message: null,
-              billingInterval: "monthly",
-              instructionsSentAt: null,
-              createdAt: new Date().toISOString(),
-              fulfilledAt: null
-            })
-          : "null"
+        body: JSON.stringify(submitted ? inquiryBody : null)
       });
       return;
     }
@@ -174,18 +174,7 @@ test("contact sales opens dialog and submits inquiry", async ({ page }) => {
       await route.fulfill({
         status: 201,
         contentType: "application/json",
-        body: JSON.stringify({
-          id: "inq-test",
-          tenantId: "00000000-0000-4000-8000-000000000099",
-          planSlug: "pilot",
-          planName: "Enterprise",
-          status: "open",
-          message: null,
-          billingInterval: "monthly",
-          instructionsSentAt: null,
-          createdAt: new Date().toISOString(),
-          fulfilledAt: null
-        })
+        body: JSON.stringify(inquiryBody)
       });
       return;
     }
@@ -196,6 +185,15 @@ test("contact sales opens dialog and submits inquiry", async ({ page }) => {
   await expect(page.getByTestId("billing-contact-sales")).toBeVisible({ timeout: 30_000 });
   await page.getByTestId("billing-contact-sales").click();
   await expect(page.getByTestId("contact-sales-dialog")).toBeVisible();
+
+  const postResponse = page.waitForResponse(
+    (res) =>
+      /\/tenants\/current\/subscription\/sales-inquiry/.test(res.url()) &&
+      res.request().method() === "POST"
+  );
   await page.getByTestId("contact-sales-submit").click();
+  expect((await postResponse).status()).toBe(201);
+
+  await expect(page.getByTestId("contact-sales-dialog")).toBeHidden({ timeout: 15_000 });
   await expect(page.getByTestId("sales-inquiry-status")).toBeVisible({ timeout: 15_000 });
 });

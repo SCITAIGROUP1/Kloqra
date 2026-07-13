@@ -53,7 +53,7 @@ function tierTestId(tier: PlanPricingTier): string | undefined {
 export function AccountBillingPage() {
   const { subscription, loading, error, reload } = useTenantSubscription();
   const { catalog, loading: pricingLoading } = usePricingPlans();
-  const { inquiry, reload: reloadInquiry } = useSalesInquiry();
+  const { inquiry, reload: reloadInquiry, setInquiry } = useSalesInquiry();
   const { submit: submitInquiry, loading: submitInquiryLoading } = useSubmitSalesInquiry();
   const { upload: uploadReceipt, loading: uploadReceiptLoading } = useUploadSalesReceipt();
   const pricingTiers = useMemo(
@@ -110,7 +110,9 @@ export function AccountBillingPage() {
     });
     if (result) {
       setContactDialogOpen(false);
-      await reloadInquiry();
+      // Show status immediately from the POST body; refresh in the background.
+      setInquiry(result);
+      void reloadInquiry();
       toast.success("Sales request submitted — we will email you shortly.");
       return;
     }

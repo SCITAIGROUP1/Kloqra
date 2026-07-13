@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
+import { tenantApiOptions, useTenantApiWorkspaceId } from "./tenant-api-workspace";
 
 export function useCreateCheckoutSession() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
@@ -100,23 +101,20 @@ export function useCreatePortalSession() {
 }
 
 export function useSalesInquiry() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  // Tenant-scoped: works in organization account mode without a workspace header.
+  const workspaceId = useTenantApiWorkspaceId();
   const [inquiry, setInquiry] = useState<SalesInquiryDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!ws) {
-      setInquiry(null);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
-      const result = await api<SalesInquiryDto | null>(ROUTES.TENANTS.SALES_INQUIRY, {
-        workspaceId: ws
-      });
+      const result = await api<SalesInquiryDto | null>(
+        ROUTES.TENANTS.SALES_INQUIRY,
+        tenantApiOptions(workspaceId)
+      );
       setInquiry(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load sales inquiry");
@@ -124,29 +122,28 @@ export function useSalesInquiry() {
     } finally {
       setLoading(false);
     }
-  }, [ws]);
+  }, [workspaceId]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { inquiry, loading, error, reload };
+  return { inquiry, loading, error, reload, setInquiry };
 }
 
 export function useSubmitSalesInquiry() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const workspaceId = useTenantApiWorkspaceId();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = useCallback(
     async (input: CreateSalesInquiryDto) => {
-      if (!ws) return null;
       setLoading(true);
       setError(null);
       try {
         return await api<SalesInquiryDto>(ROUTES.TENANTS.SALES_INQUIRY, {
           method: "POST",
-          workspaceId: ws,
+          ...tenantApiOptions(workspaceId),
           body: JSON.stringify(input)
         });
       } catch (e) {
@@ -156,20 +153,19 @@ export function useSubmitSalesInquiry() {
         setLoading(false);
       }
     },
-    [ws]
+    [workspaceId]
   );
 
   return { submit, loading, error };
 }
 
 export function useUploadSalesReceipt() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const workspaceId = useTenantApiWorkspaceId();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const upload = useCallback(
     async (file: File) => {
-      if (!ws) return null;
       setLoading(true);
       setError(null);
       try {
@@ -177,7 +173,7 @@ export function useUploadSalesReceipt() {
         form.append("file", file);
         return await api<SalesInquiryDto>(ROUTES.TENANTS.SALES_INQUIRY_RECEIPTS, {
           method: "POST",
-          workspaceId: ws,
+          ...tenantApiOptions(workspaceId),
           body: form
         });
       } catch (e) {
@@ -187,7 +183,7 @@ export function useUploadSalesReceipt() {
         setLoading(false);
       }
     },
-    [ws]
+    [workspaceId]
   );
 
   return { upload, loading, error };
