@@ -32,6 +32,7 @@ import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
+import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { sendAttachment } from "../../../../common/http/attachment.util";
@@ -71,6 +72,7 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @UseGuards(CommercialFeaturesGuard)
   @Post(ROUTES.EXPORT.INVOICE)
   async generateInvoice(
     @WorkspaceUser() user: WorkspaceRequestUser,

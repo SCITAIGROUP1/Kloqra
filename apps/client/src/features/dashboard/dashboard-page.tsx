@@ -62,11 +62,9 @@ import {
   QuickActions,
   TimesheetSubmissionsWidget,
   TodayLogsWidget,
-  TeamActivitiesWidget,
   WeeklyProgressWidget
 } from "./widgets-lazy";
 import { useSuppressAssistantLauncher } from "@/features/assistant/assistant-provider";
-import { useTeamActivities } from "@/features/dashboard/use-team-activities";
 import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import {
   buildSubmissionByKey,
@@ -216,47 +214,8 @@ export function DashboardPage() {
   );
   const draftCount = useMemo(() => countActionableSubmissions(submissions), [submissions]);
 
-  const teamActivitiesFilters = useMemo(() => {
-    const [fy, fm, fd] = startDate.split("-").map(Number);
-    const [ty, tm, td] = endDate.split("-").map(Number);
-    const from = localMidnightUtcInZone(fy, fm, fd, timezone).toISOString();
-    const to = new Date(
-      localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
-    ).toISOString();
-    return {
-      from,
-      to,
-      ...(filterProjectId ? { projectId: filterProjectId } : {}),
-      ...(filterCategoryId ? { categoryId: filterCategoryId } : {}),
-      ...(filterTaskId ? { taskId: filterTaskId } : {}),
-      ...(isAdmin && filterUserId ? { userId: filterUserId } : {})
-    };
-  }, [
-    startDate,
-    endDate,
-    filterProjectId,
-    filterCategoryId,
-    filterTaskId,
-    filterUserId,
-    isAdmin,
-    timezone
-  ]);
-
   const layoutsByWorkspace = useWidgetLayout((s) => s.layoutsByWorkspace);
   const initialized = useWidgetLayout((s) => s.initialized);
-  const teamActivitiesWidgetVisible = (layoutsByWorkspace[ws] ?? []).some(
-    (item) => item.i === "team_activities" && item.visible
-  );
-
-  const {
-    data: teamActivities,
-    loading: teamActivitiesLoading,
-    error: teamActivitiesError
-  } = useTeamActivities(
-    ws,
-    Boolean(ws) && initialized && teamActivitiesWidgetVisible,
-    teamActivitiesFilters
-  );
   useActiveTimerSession(ws, Boolean(ws));
 
   // Layout customizing states
@@ -998,18 +957,6 @@ export function DashboardPage() {
                               onDeleteLog={handleDeleteLog}
                               onResumeTask={handleResumeTask}
                               isLogLocked={isLogLocked}
-                              timezone={timezone}
-                            />
-                          );
-                        case "team_activities":
-                          return (
-                            <TeamActivitiesWidget
-                              data={teamActivities}
-                              projects={projects}
-                              loading={teamActivitiesLoading}
-                              error={teamActivitiesError}
-                              range={range}
-                              filters={teamActivitiesFilters}
                               timezone={timezone}
                             />
                           );

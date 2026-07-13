@@ -15,6 +15,7 @@ import {
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
 import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
+import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -61,7 +62,7 @@ export class ReportingController {
     return this.reporting.utilization(user.workspaceId, query, projectIds);
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
+  @UseGuards(AdminOrProjectManagerGuard, CommercialFeaturesGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.BUDGET(":id"))
   async budgetBurnDown(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {

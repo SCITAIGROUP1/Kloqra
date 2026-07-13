@@ -79,34 +79,4 @@ test.describe("Client dashboard", () => {
     await expect(legend.getByText("Hours", { exact: true })).toBeVisible();
     await expect(legend.getByText("%", { exact: true })).toBeVisible();
   });
-
-  test("team activities widget shows member table columns", async ({ page }) => {
-    const teamActivitiesHeader = page.getByRole("heading", { name: "Team Activities" });
-    if (!(await teamActivitiesHeader.isVisible())) {
-      await page.getByRole("button", { name: "Add Widgets" }).click();
-      await page.getByText("Team Activities", { exact: true }).first().click();
-      await page.getByRole("button", { name: "Done Editing" }).click();
-    }
-
-    await expect(page.getByRole("heading", { name: "Team Activities" })).toBeVisible();
-
-    const widget = page
-      .getByRole("heading", { name: "Team Activities" })
-      .locator("..")
-      .locator("..");
-    await expect(widget.getByRole("columnheader", { name: "Member", exact: true })).toBeVisible();
-    await expect(
-      widget.getByRole("columnheader", { name: "Latest activity", exact: true })
-    ).toBeVisible();
-    await expect(widget.getByRole("columnheader", { name: "Duration", exact: true })).toBeVisible();
-    await expect(
-      widget.getByRole("columnheader", { name: "Time since", exact: true })
-    ).toBeVisible();
-    await expect(
-      widget.getByRole("columnheader", { name: "This week", exact: true })
-    ).toBeVisible();
-    await expect(
-      widget.getByRole("columnheader", { name: "Hours by day", exact: true })
-    ).toBeVisible();
-  });
 });

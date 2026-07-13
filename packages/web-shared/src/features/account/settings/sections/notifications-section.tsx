@@ -29,6 +29,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { isClientCommercialFeaturesEnabled } from "../../../../client-commercial-features";
 import { NotificationChannelRow } from "../notification-channel-row";
 import { SettingsCard } from "../settings-card";
 import { SettingsSaveBar } from "../settings-save-bar";
@@ -181,6 +182,10 @@ export function NotificationsSection({
 
   const isDirty = JSON.stringify(state) !== snapshot;
   const rows = useMemo(() => {
+    const hideBudget = !isClientCommercialFeaturesEnabled();
+    const withoutBudget = <T extends { key: string }>(list: T[]) =>
+      hideBudget ? list.filter((row) => row.key !== "budgetAlert") : list;
+
     if (variant === "tenant-admin-org") {
       const orgAdminRows = ADMIN_ROWS.filter(
         (row) =>
@@ -191,7 +196,7 @@ export function NotificationsSection({
       const personalOrgRows = MEMBER_ROWS.filter(
         (row) => row.key === "workspaceAdded" || row.key === "roleChanges"
       );
-      return [...personalOrgRows, ...orgAdminRows];
+      return withoutBudget([...personalOrgRows, ...orgAdminRows]);
     }
     if (variant === "project-manager") {
       const pmAdminRows = ADMIN_ROWS.filter(
@@ -200,15 +205,15 @@ export function NotificationsSection({
           row.key === "budgetAlert" ||
           row.key === "missingTimesheets"
       );
-      return [...MEMBER_ROWS, ...pmAdminRows];
+      return withoutBudget([...MEMBER_ROWS, ...pmAdminRows]);
     }
     if (variant === "workspace-admin") {
-      return [...MEMBER_ROWS, ...ADMIN_ROWS];
+      return withoutBudget([...MEMBER_ROWS, ...ADMIN_ROWS]);
     }
     if (variant === "admin") {
-      return ADMIN_ROWS;
+      return withoutBudget(ADMIN_ROWS);
     }
-    return MEMBER_ROWS;
+    return withoutBudget(MEMBER_ROWS);
   }, [variant]);
 
   function updateKey(key: NotificationPreferenceKey, channels: NotificationChannels) {

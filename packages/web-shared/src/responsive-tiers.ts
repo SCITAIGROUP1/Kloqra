@@ -16,9 +16,6 @@ export const COMPACT_LAPTOP_SHELL_MAX = 1100;
 /** Shell container width where two-column export / report layouts are comfortable. */
 export const COMFORTABLE_DESKTOP_SHELL_MIN = 1101;
 
-/** Team Activities desktop table needs roughly this widget column width. */
-export const TEAM_ACTIVITIES_TABLE_MIN = 700;
-
 /** Shell width where export quick/custom flows use a side-by-side form + download panel. */
 export const EXPORT_TWO_COLUMN_SHELL_MIN = 1280;
 

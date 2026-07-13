@@ -31,12 +31,13 @@ import { ExportDownloadPanel } from "./export-download-panel";
 import { ExportOrganizePicker } from "./export-organize-picker";
 import { ExportPeriodFilter } from "./export-period-filter";
 import {
-  EXPORT_SCENARIOS,
+  getVisibleExportScenarios,
   getExportScenario,
   type ExportScenario,
   type ExportScenarioId
 } from "./export-scenarios";
 import { ExportScopeFilters } from "./export-scope-filters";
+import { isClientCommercialFeaturesEnabled } from "@/lib/client-commercial-features";
 import { toDateInputValue, formatExportPeriodLabel } from "@/lib/export-date-presets";
 import { describeOrganize, type ExportOrganizePreset } from "@/lib/export-organize";
 import { applyOrganizePreset } from "@/lib/export-organize";
@@ -117,6 +118,10 @@ export function ExportQuickFlow({
   onJobCreated,
   timezone
 }: ExportQuickFlowProps) {
+  const scenarios = useMemo(
+    () => getVisibleExportScenarios(isClientCommercialFeaturesEnabled()),
+    []
+  );
   const [step, setStep] = useState(0);
   const [scenarioId, setScenarioId] = useState<ExportScenarioId | null>(initialScenarioId ?? null);
   const [organizePreset, setOrganizePreset] = useState<ExportOrganizePreset>(
@@ -247,7 +252,7 @@ export function ExportQuickFlow({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 @min-[960px]/shell:grid-cols-2">
-            {EXPORT_SCENARIOS.map((s) => (
+            {scenarios.map((s) => (
               <button
                 key={s.id}
                 type="button"
@@ -307,7 +312,7 @@ export function ExportQuickFlow({
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 @min-[960px]/shell:grid-cols-2">
-                {EXPORT_SCENARIOS.map((s) => (
+                {scenarios.map((s) => (
                   <button
                     key={s.id}
                     type="button"

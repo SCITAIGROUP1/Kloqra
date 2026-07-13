@@ -23,6 +23,7 @@ import type { ExportScenarioId } from "./export-scenarios";
 import { InvoiceWizard } from "./invoice-wizard";
 import { AppBar, SegmentedControl } from "@/components/admin-page";
 import { api } from "@/lib/api";
+import { isClientCommercialFeaturesEnabled } from "@/lib/client-commercial-features";
 import { describeExportPeriodApplied, toDateInputValue } from "@/lib/export-date-presets";
 import { normalizeExportPreview } from "@/lib/export-normalize";
 import { listLocalExportPresets, type StoredExportPreset } from "@/lib/export-presets";
@@ -31,6 +32,7 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 type ExportMode = "quick" | "custom" | "invoice";
 
 export function ExportsPage() {
+  const commercialEnabled = isClientCommercialFeaturesEnabled();
   const session = useSessionStore((s) => s.session);
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
   const workspaceSlug = session?.workspaceName ?? "workspace";
@@ -78,6 +80,12 @@ export function ExportsPage() {
   const [serverPresets, setServerPresets] = useState<ExportPresetDto[]>([]);
 
   const initialTaskIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!commercialEnabled && exportMode === "invoice") {
+      setExportMode("quick");
+    }
+  }, [commercialEnabled, exportMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -288,13 +296,15 @@ export function ExportsPage() {
             ]}
           />
         </div>
-        <button
-          type="button"
-          className="shrink-0 text-left text-sm text-muted-foreground hover:text-primary hover:underline sm:text-right"
-          onClick={() => setExportMode("invoice")}
-        >
-          Need a formal invoice PDF?
-        </button>
+        {commercialEnabled ? (
+          <button
+            type="button"
+            className="shrink-0 text-left text-sm text-muted-foreground hover:text-primary hover:underline sm:text-right"
+            onClick={() => setExportMode("invoice")}
+          >
+            Need a formal invoice PDF?
+          </button>
+        ) : null}
       </div>
 
       {exportMode === "quick" ? (
@@ -314,7 +324,7 @@ export function ExportsPage() {
           onPreviewBodyChange={setPreviewBody}
           onJobCreated={() => setJobRefreshKey((k) => k + 1)}
         />
-      ) : exportMode === "invoice" ? (
+      ) : commercialEnabled && exportMode === "invoice" ? (
         <InvoiceWizard />
       ) : null}
 

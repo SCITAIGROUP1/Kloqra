@@ -4,7 +4,7 @@ import { Button } from "@kloqra/ui";
 import { RotateCcw, Check, Sparkles, Filter, X } from "lucide-react";
 import React, { useState } from "react";
 import {
-  WIDGET_REGISTRY,
+  ACTIVE_WIDGET_REGISTRY as WIDGET_REGISTRY,
   WIDGET_ICONS,
   WIDGET_GROUPS,
   type WidgetLayoutItem,

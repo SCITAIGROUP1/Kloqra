@@ -346,7 +346,7 @@ Pick **one** — don’t rush all:
 **Dashboard (`/dashboard`):**
 
 1. Period filter — week / month
-2. Widgets: utilization, project split, category heatmap, team activities
+2. Widgets: utilization, project split, category heatmap
 3. **Arrange mode** — drag/resize (responsive grid layouts)
 4. Optional: **widget share** — public token URL for read-only embed
 

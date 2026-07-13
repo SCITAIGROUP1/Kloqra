@@ -35,6 +35,7 @@ import { Section, ToggleChip } from "@/components/admin-page";
 import { ExportColumnPicker } from "@/components/export-column-picker";
 import { ExportSchedulesPanel } from "@/components/export-schedules-panel";
 import { api } from "@/lib/api";
+import { isClientCommercialFeaturesEnabled } from "@/lib/client-commercial-features";
 import {
   loadExportColumnPreferences,
   mergeColumnPreferences,
@@ -49,6 +50,8 @@ import {
   type StoredExportPreset
 } from "@/lib/export-presets";
 import { groupByForSheetLayout, sheetLayoutRequiresTimeEntries } from "@/lib/export-sheet-layout";
+
+const COMMERCIAL_REPORT_IDS = new Set<ExportReportType>(["invoice", "budget_vs_actual"]);
 
 const REPORT_GROUPS: { title: string; reports: { id: ExportReportType; label: string }[] }[] = [
   {
@@ -162,6 +165,15 @@ export function ExportCustomFlow({
   onJobCreated,
   timezone
 }: ExportCustomFlowProps) {
+  const commercialEnabled = isClientCommercialFeaturesEnabled();
+  const visibleReportGroups = useMemo(() => {
+    if (commercialEnabled) return REPORT_GROUPS;
+    return REPORT_GROUPS.map((group) => ({
+      ...group,
+      reports: group.reports.filter((r) => !COMMERCIAL_REPORT_IDS.has(r.id))
+    })).filter((group) => group.reports.length > 0);
+  }, [commercialEnabled]);
+
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
   const [sheetLayout, setSheetLayout] = useState<ExportBodyDto["sheetLayout"]>("standard");
@@ -177,6 +189,11 @@ export function ExportCustomFlow({
     if (!workspaceId) return;
     saveExportColumnPreferences(workspaceId, columnsByReport);
   }, [workspaceId, columnsByReport]);
+
+  useEffect(() => {
+    if (commercialEnabled) return;
+    setReportTypes((prev) => prev.filter((rt) => !COMMERCIAL_REPORT_IDS.has(rt)));
+  }, [commercialEnabled]);
 
   const safeReportTypes = useMemo(
     () => (Array.isArray(reportTypes) ? reportTypes : []),
@@ -481,7 +498,7 @@ export function ExportCustomFlow({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              {REPORT_GROUPS.map((group) => (
+              {visibleReportGroups.map((group) => (
                 <Section key={group.title} title={group.title}>
                   <div className="flex flex-wrap gap-2">
                     {group.reports.map((opt) => (
@@ -509,7 +526,8 @@ export function ExportCustomFlow({
             <CardContent className="space-y-2">
               {safeReportTypes.map((rt) => {
                 const label =
-                  REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
+                  visibleReportGroups.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ??
+                  rt;
                 const open = expandedReport === rt;
                 return (
                   <div key={rt} className="rounded-lg border border-border overflow-hidden">

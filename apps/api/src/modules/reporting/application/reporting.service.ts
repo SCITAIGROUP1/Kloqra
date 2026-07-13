@@ -18,6 +18,8 @@ import {
 } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
+import { assertClientCommercialFeaturesEnabled } from "../../../common/commercial/assert-commercial-features";
+import { isClientCommercialFeaturesEnabled } from "../../../common/commercial/client-commercial-features.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { parseWorkspaceSettingsFromRaw } from "../../../common/time/approval-period.util";
@@ -365,6 +367,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       categoryId: query.categoryId,
       taskId: query.taskId
     });
+    const commercialEnabled = isClientCommercialFeaturesEnabled();
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const { workspaceAgg, byProject, byUser, byCategory } = this.aggregation.buildAggregates(
       logs,
@@ -393,14 +396,16 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     for (const log of logs) {
       const hours = log.durationSec / 3600;
       const billable = log.isBillable;
-      const amount = billable
-        ? hours *
-          resolveRate(
-            log.userId,
-            log.task.projectId,
-            log.user.defaultHourlyRate?.toNumber() ?? null,
-            log.startTime
-          )
+      const amount = commercialEnabled
+        ? billable
+          ? hours *
+            resolveRate(
+              log.userId,
+              log.task.projectId,
+              log.user.defaultHourlyRate?.toNumber() ?? null,
+              log.startTime
+            )
+          : 0
         : 0;
 
       const weekKey = getWeekStartUtc(log.startTime, "sunday");
@@ -427,15 +432,21 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       wsTotal > 0 ? roundExport((workspaceAgg.billableHours / wsTotal) * 100) : 0;
 
     const projectIds = [...byProject.keys()];
-    const [budgetRows, cumulativeHoursByProject] = await Promise.all([
-      projectIds.length > 0
-        ? this.prisma.project.findMany({
-            where: { id: { in: projectIds }, workspaceId },
-            select: { id: true, budgetHours: true }
-          })
-        : Promise.resolve([]),
-      this.cumulativeHoursByProject(workspaceId, projectIds)
-    ]);
+    // Perf: skip budgetHours + cumulative hours queries when commercial features are off.
+    const [budgetRows, cumulativeHoursByProject] = commercialEnabled
+      ? await Promise.all([
+          projectIds.length > 0
+            ? this.prisma.project.findMany({
+                where: { id: { in: projectIds }, workspaceId },
+                select: { id: true, budgetHours: true }
+              })
+            : Promise.resolve([]),
+          this.cumulativeHoursByProject(workspaceId, projectIds)
+        ])
+      : [
+          [] as { id: string; budgetHours: { toNumber: () => number } | null }[],
+          new Map<string, number>()
+        ];
     const budgetByProject = new Map(
       budgetRows.map((p) => [p.id, p.budgetHours?.toNumber() ?? null])
     );
@@ -611,6 +622,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
   // ── Budget Burn-Down ──────────────────────────────────────────────────────
 
   async budgetBurnDown(workspaceId: string, projectId: string) {
+    assertClientCommercialFeaturesEnabled();
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, workspaceId },
       select: { id: true, name: true, color: true, budgetHours: true }

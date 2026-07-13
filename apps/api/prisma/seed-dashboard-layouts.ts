@@ -19,7 +19,6 @@ export const SEED_CLIENT_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
   { i: "pinned_favorites", x: 0, y: 6, w: 3, h: 3, visible: false },
   { i: "recent_activity", x: 9, y: 14, w: 3, h: 3, visible: false },
   { i: "today_logs", x: 0, y: 10, w: 8, h: 4, visible: true },
-  { i: "team_activities", x: 0, y: 14, w: 12, h: 5, visible: true },
   { i: "timesheet_submissions", x: 6, y: 13, w: 6, h: 3, visible: false }
 ];
 

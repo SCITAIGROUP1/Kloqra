@@ -67,10 +67,11 @@ Health check: `GET /health` on your API URL.
    - Build: `pnpm --filter @kloqra/client... build`
 7. **Environment variables:**
 
-   | Name                       | Value                                                   |
-   | -------------------------- | ------------------------------------------------------- |
-   | `NEXT_PUBLIC_API_BASE_URL` | `https://your-api-host.example.com` (no trailing slash) |
-   | `NEXT_PUBLIC_AUTH_SCOPE`   | `client`                                                |
+   | Name                                     | Value                                                                      |
+   | ---------------------------------------- | -------------------------------------------------------------------------- |
+   | `NEXT_PUBLIC_API_BASE_URL`               | `https://your-api-host.example.com` (no trailing slash)                    |
+   | `NEXT_PUBLIC_AUTH_SCOPE`                 | `client`                                                                   |
+   | `NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES` | Match API `CLIENT_COMMERCIAL_FEATURES_ENABLED` (`true` prod / `false` UAT) |
 
 8. Deploy → copy production URL.
 
@@ -88,11 +89,12 @@ Create a **second** Vercel project (same repo, different root):
    - Build: `pnpm --filter @kloqra/admin... build`
 6. **Environment variables:**
 
-   | Name                       | Value                          |
-   | -------------------------- | ------------------------------ |
-   | `NEXT_PUBLIC_API_BASE_URL` | Same API URL as client         |
-   | `NEXT_PUBLIC_AUTH_SCOPE`   | `admin`                        |
-   | `NEXT_PUBLIC_ADMIN_URL`    | Admin public URL (share links) |
+   | Name                                     | Value                                      |
+   | ---------------------------------------- | ------------------------------------------ |
+   | `NEXT_PUBLIC_API_BASE_URL`               | Same API URL as client                     |
+   | `NEXT_PUBLIC_AUTH_SCOPE`                 | `admin`                                    |
+   | `NEXT_PUBLIC_ADMIN_URL`                  | Admin public URL (share links)             |
+   | `NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES` | Match API flag (`true` prod / `false` UAT) |
 
 7. Deploy.
 

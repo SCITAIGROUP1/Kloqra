@@ -44,7 +44,7 @@ import { toast } from "sonner";
 import { useWidgetLayout } from "./use-widget-layout";
 import type { WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
-import { WIDGET_REGISTRY } from "./widget-registry";
+import { ACTIVE_WIDGET_REGISTRY as WIDGET_REGISTRY } from "./widget-registry";
 import { WidgetShareButton } from "./widget-share-button";
 import { widgetShareOptionsForId } from "./widget-share-utils";
 import {

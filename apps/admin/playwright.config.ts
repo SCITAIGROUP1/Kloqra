@@ -46,7 +46,9 @@ export default defineConfig({
       timeout: 180_000,
       env: {
         PATH: e2ePath,
-        E2E_DISABLE_AUTH_THROTTLE: "1"
+        E2E_DISABLE_AUTH_THROTTLE: "1",
+        // CI / e2e: hourly-rates flows require commercial features ON
+        CLIENT_COMMERCIAL_FEATURES_ENABLED: "true"
       }
     },
     {
@@ -57,7 +59,8 @@ export default defineConfig({
       env: {
         PATH: e2ePath,
         NEXT_PUBLIC_AUTH_SCOPE: "admin",
-        NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
+        NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001",
+        NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES: "true"
       }
     }
   ]

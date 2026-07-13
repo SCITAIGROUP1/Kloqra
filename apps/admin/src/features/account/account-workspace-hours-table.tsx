@@ -22,7 +22,7 @@ import {
   TableRow,
   TableToolbar
 } from "@kloqra/ui";
-import { useClientTablePagination } from "@kloqra/web-shared";
+import { useClientTablePagination, isClientCommercialFeaturesEnabled } from "@kloqra/web-shared";
 import { useMemo, useState } from "react";
 import {
   filterWorkspaceHoursRows,
@@ -45,6 +45,7 @@ export function AccountWorkspaceHoursTable({
   fallbackCurrency = "USD",
   formatMoney
 }: AccountWorkspaceHoursTableProps) {
+  const showAmount = isClientCommercialFeaturesEnabled();
   const [search, setSearch] = useState("");
   const [billabilityFilter, setBillabilityFilter] =
     useState<WorkspaceHoursBillabilityFilter>("ALL");
@@ -160,7 +161,7 @@ export function AccountWorkspaceHoursTable({
                   <DataTableHead>Workspace</DataTableHead>
                   <DataTableHead className="text-right">Hours</DataTableHead>
                   <DataTableHead className="text-right">Billable %</DataTableHead>
-                  <DataTableHead className="text-right">Amount</DataTableHead>
+                  {showAmount ? <DataTableHead className="text-right">Amount</DataTableHead> : null}
                 </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
@@ -173,9 +174,11 @@ export function AccountWorkspaceHoursTable({
                     <DataTableCell className="text-right tabular-nums">
                       {row.totalHours > 0 ? `${row.billablePercent.toFixed(0)}%` : "—"}
                     </DataTableCell>
-                    <DataTableCell className="text-right tabular-nums">
-                      {formatMoney(row.billableAmount, row.currency ?? fallbackCurrency)}
-                    </DataTableCell>
+                    {showAmount ? (
+                      <DataTableCell className="text-right tabular-nums">
+                        {formatMoney(row.billableAmount, row.currency ?? fallbackCurrency)}
+                      </DataTableCell>
+                    ) : null}
                   </TableRow>
                 ))}
               </TableBody>

@@ -8,8 +8,7 @@ import {
   History,
   ListTodo,
   Activity,
-  Tags,
-  Users
+  Tags
 } from "lucide-react";
 
 export type WidgetGroup = "kpi" | "trends" | "composition" | "workflow";
@@ -175,17 +174,6 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     iconName: "ListTodo"
   },
   {
-    id: "team_activities",
-    label: "Team Activities",
-    description:
-      "Workspace team table with latest activity, duration, time since, period totals, and daily hours bar",
-    group: "workflow",
-    defaultSize: { w: 12, h: 5 },
-    minSize: { w: 8, h: 4 },
-    defaultVisible: true,
-    iconName: "Users"
-  },
-  {
     id: "timesheet_submissions",
     label: "My Timesheets",
     description: "Summary of your timesheet submission periods and approval statuses",
@@ -210,7 +198,6 @@ export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
   { i: "pinned_favorites", x: 0, y: 6, w: 3, h: 3, visible: false },
   { i: "recent_activity", x: 9, y: 14, w: 3, h: 3, visible: false },
   { i: "today_logs", x: 0, y: 10, w: 8, h: 4, visible: true },
-  { i: "team_activities", x: 0, y: 14, w: 12, h: 5, visible: true },
   { i: "timesheet_submissions", x: 6, y: 13, w: 6, h: 3, visible: false }
 ];
 
@@ -224,6 +211,5 @@ export const WIDGET_ICONS: Record<string, any> = {
   History,
   ListTodo,
   Activity,
-  Tags,
-  Users
+  Tags
 };

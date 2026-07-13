@@ -11,13 +11,14 @@ import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
+import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { BillingService } from "../../application/billing.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, CommercialFeaturesGuard)
 export class BillingController {
   constructor(private billing: BillingService) {}
 

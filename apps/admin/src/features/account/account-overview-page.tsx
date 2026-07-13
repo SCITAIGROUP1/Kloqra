@@ -65,7 +65,7 @@ import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { formatDurationClock } from "@/components/report-charts";
 import { useAccountWidgetLayout } from "./use-account-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
-import { WIDGET_REGISTRY } from "./widget-registry";
+import { ACTIVE_WIDGET_REGISTRY as WIDGET_REGISTRY } from "./widget-registry";
 import { useSessionStore } from "@/stores/session.store";
 
 type AccountRollupPreset = "7d" | "30d" | "90d" | "custom";

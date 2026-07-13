@@ -1,6 +1,7 @@
 import { BRAND_COLORS, BRAND_TAGLINE, ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import PDFDocument from "pdfkit";
+import { assertClientCommercialFeaturesEnabled } from "../../../common/commercial/assert-commercial-features";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
@@ -26,6 +27,7 @@ export class InvoiceService {
     workspaceId: string,
     dto: GenerateInvoiceDto
   ): Promise<{ buffer: Buffer; filename: string }> {
+    assertClientCommercialFeaturesEnabled();
     const project = await this.prisma.project.findFirst({
       where: { id: dto.projectId, workspaceId }
     });

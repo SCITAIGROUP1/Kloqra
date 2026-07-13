@@ -1,4 +1,4 @@
-import { ROUTES, type TeamActivitiesDto, type TeamMembersOverviewDto } from "@kloqra/contracts";
+import { ROUTES, type TeamMembersOverviewDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -45,31 +45,6 @@ describe("Workspace E2E", () => {
     const path = `${ROUTES.WORKSPACES.MEMBERS_OVERVIEW(memberSession.workspaceId)}?page=1&limit=20`;
     const res = await authedAgent(app, memberSession).get(path);
     expect(res.status).toBe(403);
-  });
-
-  it("GET /workspaces/:id/team-activities returns team activity rows for member", async () => {
-    const path = ROUTES.WORKSPACES.TEAM_ACTIVITIES(memberSession.workspaceId);
-    const res = await authedAgent(app, memberSession).get(path);
-    expect(res.status).toBe(200);
-
-    const body = res.body as TeamActivitiesDto;
-    expect(body.periodStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(body.periodEnd).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(Array.isArray(body.members)).toBe(true);
-    expect(body.members.length).toBeGreaterThan(0);
-    expect(body.members[0]).toMatchObject({
-      userId: expect.any(String),
-      userName: expect.any(String),
-      periodTotalHours: expect.any(Number),
-      dailyHours: expect.any(Array)
-    });
-  });
-
-  it("GET /workspaces/:id/team-activities returns team activity rows for admin", async () => {
-    const path = ROUTES.WORKSPACES.TEAM_ACTIVITIES(adminSession.workspaceId);
-    const res = await authedAgent(app, adminSession).get(path);
-    expect(res.status).toBe(200);
-    expect((res.body as TeamActivitiesDto).members.length).toBeGreaterThan(0);
   });
 
   it("POST /workspaces rejects duplicate workspace names", async () => {

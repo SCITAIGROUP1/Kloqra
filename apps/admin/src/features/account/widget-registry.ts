@@ -1,4 +1,8 @@
 import {
+  COMMERCIAL_ACCOUNT_WIDGET_IDS,
+  isClientCommercialFeaturesEnabled
+} from "@kloqra/web-shared";
+import {
   CreditCard,
   Building2,
   Users,
@@ -198,3 +202,13 @@ export const WIDGET_ICONS: Record<string, any> = {
   Contact2,
   Briefcase
 };
+
+const commercialIds = new Set<string>(COMMERCIAL_ACCOUNT_WIDGET_IDS);
+
+export const ACTIVE_WIDGET_REGISTRY: WidgetDefinition[] = isClientCommercialFeaturesEnabled()
+  ? WIDGET_REGISTRY
+  : WIDGET_REGISTRY.filter((w) => !commercialIds.has(w.id));
+
+export const ACTIVE_DEFAULT_LAYOUT: WidgetLayoutItem[] = isClientCommercialFeaturesEnabled()
+  ? DEFAULT_LAYOUT
+  : DEFAULT_LAYOUT.filter((item) => !commercialIds.has(item.i));

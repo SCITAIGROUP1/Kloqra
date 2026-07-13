@@ -1,5 +1,6 @@
 import type { ExportBillableFilter } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
+import { isClientCommercialFeaturesEnabled } from "../commercial/client-commercial-features.util";
 import { PrismaService } from "../prisma/prisma.service";
 
 export type TimeLogWithRelations = Awaited<ReturnType<TimeAggregationService["fetchLogs"]>>[number];
@@ -134,6 +135,13 @@ export class TimeAggregationService {
   }
 
   async resolveRateMaps(workspaceId: string) {
+    // Perf: skip HourlyRate query entirely when commercial features are off (UAT).
+    if (!isClientCommercialFeaturesEnabled()) {
+      return {
+        resolveRate: () => 0
+      };
+    }
+
     const rates = await this.prisma.hourlyRate.findMany({
       where: { workspaceId },
       orderBy: { effectiveFrom: "desc" }

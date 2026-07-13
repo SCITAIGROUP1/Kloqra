@@ -32,6 +32,9 @@ services:
         sync: false
       - key: PUBLIC_ADMIN_URL
         sync: false
+      - key: CLIENT_COMMERCIAL_FEATURES_ENABLED
+        # Default ON. Set false for UAT without rates/revenue/budgets/invoices (not SaaS billing).
+        value: "true"
 
 databases:
   - name: kloqra-db

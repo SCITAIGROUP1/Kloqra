@@ -22,6 +22,7 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import archiver from "archiver";
 import PDFDocument from "pdfkit";
+import { assertClientCommercialFeaturesEnabled } from "../../../common/commercial/assert-commercial-features";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
@@ -53,6 +54,22 @@ type SheetData = ExportSheetPayload & {
 
 type ExportScope = "admin" | "member";
 
+const COMMERCIAL_REPORT_TYPES = new Set<ExportReportType>(["invoice", "budget_vs_actual"]);
+const COMMERCIAL_EXPORT_COLUMNS = new Set(["rate", "amount", "billable_amount"]);
+
+function assertExportAllowsCommercialFeatures(
+  reportTypes: readonly string[],
+  columns?: Partial<Record<string, string[]>> | null
+): void {
+  const columnValues = columns ? Object.values(columns).flatMap((c) => c ?? []) : [];
+  const needsCommercial =
+    reportTypes.some((r) => COMMERCIAL_REPORT_TYPES.has(r as ExportReportType)) ||
+    columnValues.some((c) => COMMERCIAL_EXPORT_COLUMNS.has(c));
+  if (needsCommercial) {
+    assertClientCommercialFeaturesEnabled();
+  }
+}
+
 type ExportFileBase = {
   workspaceSlug: string;
   tenantSlug?: string;
@@ -75,6 +92,7 @@ export class ExportService {
     workspaceId: string,
     body: ExportBodyDto
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    assertExportAllowsCommercialFeatures(body.reportTypes, body.columns);
     return this.runExport(workspaceId, body, "admin");
   }
 
@@ -83,6 +101,7 @@ export class ExportService {
     userId: string,
     body: MemberExportBodyDto
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    assertExportAllowsCommercialFeatures(body.reportTypes, body.columns);
     return this.runExport(
       workspaceId,
       {
@@ -131,6 +150,7 @@ export class ExportService {
     workspaceId: string,
     body: ExportPreviewBodyDto
   ): Promise<ExportPreviewResponseDto> {
+    assertExportAllowsCommercialFeatures(body.reportTypes, body.columns);
     const ctx = await this.loadContext(workspaceId, body);
     const counts = {} as Record<ExportReportType, number>;
     const sheetPlan = await this.buildSheets(

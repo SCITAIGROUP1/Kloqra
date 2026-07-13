@@ -5,6 +5,7 @@ import { Button, Input, Label } from "@kloqra/ui";
 import { Building2, Calendar, Clock, FolderKanban } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { isClientCommercialFeaturesEnabled } from "../../../client-commercial-features";
 
 function formatMemberSince(iso: string) {
   try {
@@ -29,6 +30,7 @@ export function WorkDetailsSection({
     workStartDate: string | null;
   }) => Promise<void>;
 }) {
+  const showHourlyRate = isClientCommercialFeaturesEnabled();
   const [jobTitle, setJobTitle] = useState(profile.jobTitle ?? "");
   const [department, setDepartment] = useState(profile.department ?? "");
   const [workStartDate, setWorkStartDate] = useState(profile.workStartDate ?? "");
@@ -114,15 +116,17 @@ export function WorkDetailsSection({
               onChange={(e) => setWorkStartDate(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="hourly-rate">Hourly Rate (Optional)</Label>
-            <Input
-              id="hourly-rate"
-              value={profile.defaultHourlyRate != null ? String(profile.defaultHourlyRate) : "—"}
-              disabled
-              className="bg-muted/30"
-            />
-          </div>
+          {showHourlyRate ? (
+            <div className="space-y-2">
+              <Label htmlFor="hourly-rate">Hourly Rate (Optional)</Label>
+              <Input
+                id="hourly-rate"
+                value={profile.defaultHourlyRate != null ? String(profile.defaultHourlyRate) : "—"}
+                disabled
+                className="bg-muted/30"
+              />
+            </div>
+          ) : null}
         </div>
         <div className="mt-6">
           <Button type="button" onClick={() => void handleSave()} disabled={saving || !isDirty}>

@@ -28,6 +28,7 @@ import { ADMIN_NAV_ITEMS } from "@/config/admin-nav";
 import { canAccessAdminApp, isProjectLeadOnly } from "@/config/project-manager-nav";
 import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
 import { GlobalSearchShell } from "@/features/global-search/global-search-shell";
+import { isClientCommercialFeaturesEnabled } from "@/lib/client-commercial-features";
 import { resolveAdminShellMode, resolveAdminShellNav } from "@/lib/resolve-admin-shell-nav";
 import { useAdminWorkspaceDataSync } from "@/lib/workspace-data-sync";
 import { useSessionStore } from "@/stores/session.store";
@@ -62,10 +63,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const billingAlert = isOwner ? subscription?.billingAlert : null;
 
   const { mode: _mode, navItems } = useMemo(() => {
+    const workspaceNavItems = isClientCommercialFeaturesEnabled()
+      ? ADMIN_NAV_ITEMS
+      : ADMIN_NAV_ITEMS.filter((item) => item.href !== "/billing");
     return resolveAdminShellNav({
       pathname,
       projectLeadOnly,
-      workspaceNavItems: ADMIN_NAV_ITEMS,
+      workspaceNavItems,
       pendingCount,
       notificationUnreadCount,
       session

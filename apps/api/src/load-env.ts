@@ -115,7 +115,8 @@ const optionalEnvSchema = z.object({
   SMTP_FROM: z.string().optional(),
   ASSISTANT_SERVICE_URL: z.string().url().optional(),
   ASSISTANT_INTERNAL_SECRET: z.string().optional(),
-  ASSISTANT_ENABLED: z.enum(["true", "false"]).optional()
+  ASSISTANT_ENABLED: z.enum(["true", "false"]).optional(),
+  CLIENT_COMMERCIAL_FEATURES_ENABLED: z.enum(["true", "false"]).optional()
 });
 
 export function validateRequiredEnv(): void {

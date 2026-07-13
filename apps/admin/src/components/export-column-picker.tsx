@@ -6,7 +6,10 @@ import {
   type ExportReportType
 } from "@kloqra/contracts";
 import { Button, Label } from "@kloqra/ui";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { isClientCommercialFeaturesEnabled } from "@/lib/client-commercial-features";
+
+const COMMERCIAL_COLUMN_IDS = new Set(["rate", "amount", "billable_amount"]);
 
 const REPORT_LABELS: Record<ExportReportType, string> = {
   time_entries: "Time entries",
@@ -36,7 +39,11 @@ type Props = {
 };
 
 export function ExportColumnPicker({ report, selected, onChange }: Props) {
-  const allKeys = [...DEFAULT_EXPORT_COLUMNS[report]];
+  const commercialEnabled = isClientCommercialFeaturesEnabled();
+  const allKeys = useMemo(() => {
+    const keys = [...DEFAULT_EXPORT_COLUMNS[report]];
+    return commercialEnabled ? keys : keys.filter((k) => !COMMERCIAL_COLUMN_IDS.has(k));
+  }, [report, commercialEnabled]);
   const labels = EXPORT_COLUMN_LABELS[report];
   const selectedSet = new Set(selected);
   const unselected = allKeys.filter((k) => !selectedSet.has(k));

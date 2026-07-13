@@ -9,6 +9,8 @@ cd "$ROOT"
 PNPM="${PNPM:-bash "$ROOT/scripts/pnpm-wrap.sh"}"
 
 export NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}"
+export CLIENT_COMMERCIAL_FEATURES_ENABLED="${CLIENT_COMMERCIAL_FEATURES_ENABLED:-true}"
+export NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES="${NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES:-true}"
 
 echo "→ migrate + seed (CI parity)"
 $PNPM prisma:generate

@@ -53,12 +53,4 @@ export const TodayLogsWidget = dynamic(
   { ssr: false, loading: () => <WidgetSkeleton className="min-h-[240px]" /> }
 );
 
-export const TeamActivitiesWidget = dynamic(
-  () =>
-    import("./widgets/team-activities-widget").then((m) => ({
-      default: m.TeamActivitiesWidget
-    })),
-  { ssr: false, loading: () => <WidgetSkeleton className="min-h-[280px]" /> }
-);
-
 export { DailyGoalWidget, QuickActions } from "@/features/timer/timer-dynamic-widgets";

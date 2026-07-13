@@ -5,9 +5,7 @@ import {
   createWorkspaceSchema,
   bulkInviteMemberSchema,
   teamMembersOverviewQuerySchema,
-  teamActivitiesQuerySchema,
   projectManagersOverviewQuerySchema,
-  type TeamActivitiesQuery,
   type InviteMemberDto,
   type TeamMembersOverviewQuery,
   type ProjectManagersOverviewQuery,
@@ -40,7 +38,6 @@ import { WorkspaceMatchGuard } from "../../../../common/guards/workspace-match.g
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
 import { WorkspaceProjectManagersOverviewService } from "../../application/workspace-project-managers-overview.service";
-import { WorkspaceTeamActivitiesService } from "../../application/workspace-team-activities.service";
 import { WorkspaceService } from "../../application/workspace.service";
 
 @Controller()
@@ -49,8 +46,7 @@ export class WorkspaceController {
   constructor(
     private workspace: WorkspaceService,
     private overviewService: WorkspaceMembersOverviewService,
-    private projectManagersOverviewService: WorkspaceProjectManagersOverviewService,
-    private teamActivitiesService: WorkspaceTeamActivitiesService
+    private projectManagersOverviewService: WorkspaceProjectManagersOverviewService
   ) {}
 
   @Post(ROUTES.WORKSPACES.CREATE)
@@ -90,15 +86,6 @@ export class WorkspaceController {
   @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
   members(@Param("id") id: string, @WorkspaceUser() _user: WorkspaceRequestUser) {
     return this.workspace.listMembers(id);
-  }
-
-  @Get(ROUTES.WORKSPACES.TEAM_ACTIVITIES(":id"))
-  teamActivities(
-    @Param("id") id: string,
-    @Query(new ZodValidationPipe(teamActivitiesQuerySchema)) query: TeamActivitiesQuery,
-    @WorkspaceUser() _user: WorkspaceRequestUser
-  ) {
-    return this.teamActivitiesService.getTeamActivities(id, query);
   }
 
   @Roles("ADMIN")

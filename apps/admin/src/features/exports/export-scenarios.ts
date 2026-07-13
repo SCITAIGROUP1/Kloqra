@@ -115,6 +115,13 @@ export const EXPORT_SCENARIOS: ExportScenario[] = [
   })
 ];
 
+const COMMERCIAL_SCENARIO_IDS = new Set<ExportScenarioId>(["client_billing", "project_review"]);
+
+export function getVisibleExportScenarios(commercialEnabled = true): ExportScenario[] {
+  if (commercialEnabled) return EXPORT_SCENARIOS;
+  return EXPORT_SCENARIOS.filter((s) => !COMMERCIAL_SCENARIO_IDS.has(s.id));
+}
+
 export function getExportScenario(id: ExportScenarioId): ExportScenario {
   const found = EXPORT_SCENARIOS.find((s) => s.id === id);
   if (!found) throw new Error(`Unknown export scenario: ${id}`);

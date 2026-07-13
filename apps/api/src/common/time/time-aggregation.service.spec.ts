@@ -1,9 +1,20 @@
 import { Decimal } from "@prisma/client/runtime/library";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimeAggregationService } from "./time-aggregation.service";
 
 describe("TimeAggregationService.resolveRateMaps", () => {
+  const prev = process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED;
+
+  afterEach(() => {
+    if (prev === undefined) {
+      delete process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED;
+    } else {
+      process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED = prev;
+    }
+  });
+
   it("resolves time-scoped rates with correct precedence (project > user > default)", async () => {
+    process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED = "true";
     const mockRates = [
       // Project rates
       {
@@ -57,6 +68,17 @@ describe("TimeAggregationService.resolveRateMaps", () => {
 
     // Test zero fallback when defaultRate is null and no other rate matches
     expect(resolveRate("user-2", "proj-2", null, new Date("2024-02-15T00:00:00Z"))).toBe(0);
+  });
+
+  it("skips HourlyRate DB load when commercial features are disabled", async () => {
+    process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED = "false";
+    const findMany = vi.fn();
+    const service = new TimeAggregationService({
+      hourlyRate: { findMany }
+    } as any);
+    const { resolveRate } = await service.resolveRateMaps("ws-1");
+    expect(findMany).not.toHaveBeenCalled();
+    expect(resolveRate("user-1", "proj-1", 100, new Date())).toBe(0);
   });
 });
 
