@@ -29,7 +29,14 @@ export {
   type PlatformContextBreadcrumbSegment
 } from "./auth/platform-context";
 export { hasMultipleWorkspaces } from "./auth/workspace-check";
-export { bootstrapSession, type BootstrapResult } from "./auth/bootstrap-session";
+export {
+  bootstrapSession,
+  type BootstrapFailureReason,
+  type BootstrapResult
+} from "./auth/bootstrap-session";
+export { classifyBootstrapError, shouldRedirectBootstrapToLogin } from "./auth/bootstrap-failure";
+export { resolveClientPostAuthPath } from "./auth/resolve-client-post-auth-path";
+export { useRedirectIfAuthenticated } from "./auth/use-redirect-if-authenticated";
 export {
   bootstrapPlatformSession,
   logoutPlatformSession,

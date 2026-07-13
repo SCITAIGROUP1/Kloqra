@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND_NAME } from "@kloqra/contracts";
-import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
+import { Button, ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
   bootstrapSession,
   BrandMark,
@@ -13,6 +13,7 @@ import {
   logoutSession,
   SessionGenerationBoundary,
   ShellHeaderActions,
+  shouldRedirectBootstrapToLogin,
   useNotificationSocket,
   useNotificationUnreadCount,
   useTenantSubscription,
@@ -22,7 +23,7 @@ import {
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminScopeHint } from "@/components/admin-scope-hint";
 import { ADMIN_NAV_ITEMS } from "@/config/admin-nav";
 import { canAccessAdminApp, isProjectLeadOnly } from "@/config/project-manager-nav";
@@ -39,6 +40,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const session = useSessionStore((s) => s.session);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
+  const [bootstrapFailure, setBootstrapFailure] = useState<"transient" | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const wsId = session?.workspaceId ?? "";
   const isOwner = session?.tenantRole === "OWNER";
   const canManageOrg = canManageOrganization(session);
@@ -78,6 +81,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session) {
+      setBootstrapFailure(null);
       const setupRedirect = resolveWorkspaceSetupRedirect(pathname, session);
       if (setupRedirect) {
         router.replace(setupRedirect);
@@ -106,13 +110,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let cancelled = false;
+    setBootstrapFailure(null);
     void bootstrapSession({
       allowProjectLead: true,
       allowTenantOperator: true
     })
       .then((result) => {
+        if (cancelled) return;
         if (!result.ok) {
-          router.replace("/login?error=admin");
+          if (shouldRedirectBootstrapToLogin(result.reason)) {
+            router.replace("/login?error=admin");
+            return;
+          }
+          setBootstrapFailure("transient");
           return;
         }
         setWorkspaces(result.workspaces);
@@ -120,16 +131,37 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           router.replace("/select-workspace");
         }
       })
-      .catch(() => router.replace("/login?error=admin"));
-  }, [session, setWorkspaces, router, isAccountMode, pathname]);
+      .catch(() => {
+        if (!cancelled) setBootstrapFailure("transient");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, setWorkspaces, router, isAccountMode, pathname, bootstrapAttempt]);
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <BrandMark size="sm" iconOnly className="animate-pulse" />
-          Loading workspace…
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-6">
+        {bootstrapFailure === "transient" ? (
+          <>
+            <p className="max-w-sm text-center text-sm text-muted-foreground">
+              Couldn&apos;t restore your session. Check your connection and try again.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBootstrapAttempt((n) => n + 1)}
+            >
+              Try again
+            </Button>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <BrandMark size="sm" iconOnly className="animate-pulse" />
+            Loading workspace…
+          </div>
+        )}
       </div>
     );
   }

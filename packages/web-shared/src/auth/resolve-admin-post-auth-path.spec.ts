@@ -28,6 +28,26 @@ describe("resolveAdminPostAuthPath", () => {
     useWorkspacesStore.getState().clear();
   });
 
+  it("short-circuits to organization setup when workspace setup is required", async () => {
+    apiMock.mockResolvedValue({
+      id: "t-1",
+      name: "Org",
+      slug: "org",
+      status: "pending_setup",
+      settings: {},
+      createdAt: new Date().toISOString()
+    });
+
+    await expect(
+      resolveAdminPostAuthPath({
+        tenantRole: "OWNER",
+        requiresWorkspaceSetup: true,
+        user: { id: "u-1", email: "o@example.com", name: "Owner" }
+      } as AuthSessionDto)
+    ).resolves.toBe("/account/organization");
+    expect(apiMock).toHaveBeenCalledTimes(1);
+  });
+
   it("routes tenant owner with one workspace to select-context", async () => {
     apiMock.mockResolvedValue(workspaces.slice(0, 1));
 

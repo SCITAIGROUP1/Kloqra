@@ -9,6 +9,7 @@ import {
   logoutSession,
   SessionGenerationBoundary,
   ShellHeaderActions,
+  shouldRedirectBootstrapToLogin,
   SUBMISSIONS_LOOKBACK_WEEKS,
   useMySubmissionsLookbackQuery,
   useNotificationSocket,
@@ -26,7 +27,7 @@ import {
   Timer as TimerIcon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AssistantProvider, useAssistant } from "@/features/assistant/assistant-provider";
 import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
@@ -74,9 +75,12 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const ensureWorkspacesLoaded = useWorkspacesStore((s) => s.ensureLoaded);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
+  const [bootstrapFailure, setBootstrapFailure] = useState<"transient" | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
 
   useEffect(() => {
     if (session) {
+      setBootstrapFailure(null);
       if (workspaces.length > 0) {
         // Login / bootstrap already seeded the list — sync names without refetching.
         setWorkspaceNames(workspaces);
@@ -116,30 +120,43 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
     const handoffToken =
       handoffFromUrl ?? sessionStorage.getItem(IMPERSONATION_HANDOFF_KEY) ?? undefined;
 
+    let cancelled = false;
+    setBootstrapFailure(null);
     void bootstrapSession({
       handoffToken,
       clearBeforeRefresh: legacyImpersonate && !handoffToken
     })
       .then((result) => {
+        if (cancelled) return;
         sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
         if (!result.ok) {
-          router.replace("/login");
+          if (shouldRedirectBootstrapToLogin(result.reason)) {
+            router.replace("/login");
+            return;
+          }
+          setBootstrapFailure("transient");
           return;
         }
         setWorkspaces(result.workspaces);
         setWorkspaceNames(result.workspaces);
       })
       .catch(() => {
+        if (cancelled) return;
         sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
-        router.replace("/login");
+        setBootstrapFailure("transient");
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     session,
     setWorkspaces,
     setWorkspaceNames,
     ensureWorkspacesLoaded,
     router,
-    workspaces.length
+    workspaces,
+    bootstrapAttempt
   ]);
 
   async function handleStopImpersonation() {
@@ -176,11 +193,26 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <BrandMark size="sm" iconOnly className="animate-pulse" />
-          Loading workspace…
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-6">
+        {bootstrapFailure === "transient" ? (
+          <>
+            <p className="max-w-sm text-center text-sm text-muted-foreground">
+              Couldn&apos;t restore your session. Check your connection and try again.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBootstrapAttempt((n) => n + 1)}
+            >
+              Try again
+            </Button>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <BrandMark size="sm" iconOnly className="animate-pulse" />
+            Loading workspace…
+          </div>
+        )}
       </div>
     );
   }

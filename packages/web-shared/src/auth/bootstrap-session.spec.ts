@@ -49,9 +49,13 @@ vi.mock("./refresh-session", () => ({
   tryRefreshSession: vi.fn().mockResolvedValue(null)
 }));
 
-vi.mock("../api/client", () => ({
-  api: (...args: unknown[]) => mockApi(...args)
-}));
+vi.mock("../api/client", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    api: (...args: unknown[]) => mockApi(...args)
+  };
+});
 
 describe("bootstrapSession impersonation handoff", () => {
   beforeEach(() => {
@@ -155,6 +159,52 @@ describe("bootstrapSession impersonation handoff", () => {
     );
     const { bootstrapSession } = await import("./bootstrap-session");
     const result = await bootstrapSession({ handoffToken: "expired-token" });
-    expect(result).toEqual({ ok: false });
+    expect(result).toEqual({ ok: false, reason: "unauthenticated" });
+  });
+
+  it("returns transient when /auth/me fails with a server error", async () => {
+    const { ApiRequestError } = await import("../api/client");
+    mockApi.mockReset();
+    mockApi.mockRejectedValueOnce(new ApiRequestError("Service unavailable", 503));
+    mockGetAccessToken.mockReturnValue(
+      [
+        Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"),
+        Buffer.from(
+          JSON.stringify({
+            sub: "user-1",
+            userId: "user-1",
+            exp: Math.floor(Date.now() / 1000) + 3600
+          })
+        ).toString("base64url"),
+        "sig"
+      ].join(".")
+    );
+
+    const { bootstrapSession } = await import("./bootstrap-session");
+    const result = await bootstrapSession();
+    expect(result).toEqual({ ok: false, reason: "transient" });
+  });
+
+  it("returns unauthenticated when /auth/me returns 401", async () => {
+    const { ApiRequestError } = await import("../api/client");
+    mockApi.mockReset();
+    mockApi.mockRejectedValueOnce(new ApiRequestError("Unauthorized", 401));
+    mockGetAccessToken.mockReturnValue(
+      [
+        Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"),
+        Buffer.from(
+          JSON.stringify({
+            sub: "user-1",
+            userId: "user-1",
+            exp: Math.floor(Date.now() / 1000) + 3600
+          })
+        ).toString("base64url"),
+        "sig"
+      ].join(".")
+    );
+
+    const { bootstrapSession } = await import("./bootstrap-session");
+    const result = await bootstrapSession();
+    expect(result).toEqual({ ok: false, reason: "unauthenticated" });
   });
 });

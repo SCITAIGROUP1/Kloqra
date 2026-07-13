@@ -5,8 +5,7 @@ import type {
   AuthSessionDto,
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
-  LoginRequiresEmailVerificationResponseDto,
-  StartupPagePreference
+  LoginRequiresEmailVerificationResponseDto
 } from "@kloqra/contracts";
 import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
@@ -14,12 +13,11 @@ import {
   AuthShell,
   establishTenantSession,
   extractFieldErrorsFromMessage,
-  fetchUserProfile,
-  resolveStartupPath,
-  hasMultipleWorkspaces,
   orgLoginDescription,
+  resolveClientPostAuthPath,
   useInviteHandoffLogin,
-  useOrgLoginBranding
+  useOrgLoginBranding,
+  useRedirectIfAuthenticated
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -37,6 +35,9 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const orgBranding = useOrgLoginBranding();
   const next = searchParams.get("next");
+  const { checking: sessionChecking } = useRedirectIfAuthenticated({
+    resolvePath: (session) => resolveClientPostAuthPath(session, next)
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -67,22 +68,7 @@ export function LoginForm() {
   ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
-
-    try {
-      const multi = await hasMultipleWorkspaces(switched.session.workspaceId);
-      if (multi) {
-        router.push(`/select-workspace${next ? `?next=${encodeURIComponent(next)}` : ""}`);
-        return;
-      }
-
-      const profile = await fetchUserProfile(switched.session.workspaceId);
-      const startup = resolveStartupPath(
-        profile?.preferences.startupPage as StartupPagePreference | undefined
-      );
-      router.push(next && next.startsWith("/") ? next : startup);
-    } catch {
-      router.push(next && next.startsWith("/") ? next : "/dashboard");
-    }
+    router.push(await resolveClientPostAuthPath(switched.session, next));
   }
 
   async function submit(e: React.FormEvent) {
@@ -153,8 +139,10 @@ export function LoginForm() {
         "Enter your email and password to access your account."
       )}
     >
-      {inviteLoading ? (
-        <p className="text-sm text-muted-foreground">Preparing your sign-in…</p>
+      {sessionChecking || inviteLoading ? (
+        <p className="text-sm text-muted-foreground">
+          {sessionChecking ? "Checking your session…" : "Preparing your sign-in…"}
+        </p>
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-4">
           {!pendingToken ? (
