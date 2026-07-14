@@ -12,7 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
+  DatePicker,
   Label
 } from "@kloqra/ui";
 import { api } from "@kloqra/web-shared";
@@ -20,6 +20,16 @@ import { useMemo, useState } from "react";
 import { previewTrialEndsAtFromDays } from "./trial-extend.util";
 
 const PRESET_DAYS = [7, 14, 30] as const;
+const MAX_TRIAL_EXTEND_DAYS = 365;
+
+function maxTrialEndDateKey(now = new Date()): string {
+  const max = new Date(now);
+  max.setDate(max.getDate() + MAX_TRIAL_EXTEND_DAYS);
+  const y = max.getFullYear();
+  const m = String(max.getMonth() + 1).padStart(2, "0");
+  const d = String(max.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 type TenantTrialExtendCardProps = {
   tenantId: string;
@@ -38,6 +48,7 @@ export function TenantTrialExtendCard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const maxDate = useMemo(() => maxTrialEndDateKey(), []);
 
   const trialLabel = useMemo(() => {
     if (!subscription.trialEndsAt) return "No trial end date";
@@ -130,15 +141,19 @@ export function TenantTrialExtendCard({
 
         <div className="flex flex-wrap items-end gap-2">
           <div className="space-y-2">
-            <Label htmlFor={`trial-end-${tenantId}`}>Custom end date</Label>
-            <Input
-              id={`trial-end-${tenantId}`}
-              type="date"
-              value={customDate}
-              onChange={(e) => setCustomDate(e.target.value)}
-              disabled={disabled || saving}
-              data-testid="extend-trial-custom-date"
-            />
+            <Label>Custom end date</Label>
+            <div data-testid="extend-trial-custom-date">
+              <DatePicker
+                value={customDate}
+                onChange={setCustomDate}
+                placeholder="Select end date"
+                ariaLabel="Custom trial end date"
+                disabled={disabled || saving}
+                maxDate={maxDate}
+                className="h-10 w-[220px] justify-start bg-background"
+                popoverAlign="start"
+              />
+            </div>
           </div>
           <Button
             type="button"
