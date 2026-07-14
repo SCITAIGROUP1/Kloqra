@@ -272,6 +272,7 @@ export const ROUTES = {
       `/platform/queues/${name}/jobs/${jobId}/retry`,
     TENANT_LIMITS_OVERRIDE: (id: string) => `/platform/tenants/${id}/limits-override`,
     TENANT_GRACE_PERIOD: (id: string) => `/platform/tenants/${id}/grace-period`,
+    TENANT_EXTEND_TRIAL: (id: string) => `/platform/tenants/${id}/extend-trial`,
     TENANT_REVOKE_SESSIONS: (id: string) => `/platform/tenants/${id}/sessions/revoke`,
     TENANT_RESET_MFA: (id: string) => `/platform/tenants/${id}/2fa/reset`,
     TENANT_GDPR_EXPORT: (id: string) => `/platform/tenants/${id}/gdpr/export`,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createPlatformTenantSchema,
+  extendPlatformTenantTrialSchema,
   listPlatformTenantsQuerySchema,
   platformOpsSummarySchema
 } from "./platform.dto";
@@ -80,5 +81,40 @@ describe("listPlatformTenantsQuerySchema", () => {
     const result = listPlatformTenantsQuerySchema.parse({});
     expect(result.page).toBe(1);
     expect(result.limit).toBeGreaterThan(0);
+  });
+});
+
+describe("extendPlatformTenantTrialSchema", () => {
+  it("accepts extendDays alone", () => {
+    expect(extendPlatformTenantTrialSchema.safeParse({ extendDays: 14 }).success).toBe(true);
+  });
+
+  it("accepts trialEndsAt alone", () => {
+    expect(
+      extendPlatformTenantTrialSchema.safeParse({
+        trialEndsAt: "2026-08-01T00:00:00.000Z"
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects neither field", () => {
+    expect(extendPlatformTenantTrialSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("rejects both fields", () => {
+    expect(
+      extendPlatformTenantTrialSchema.safeParse({
+        extendDays: 7,
+        trialEndsAt: "2026-08-01T00:00:00.000Z"
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects extendDays of 0", () => {
+    expect(extendPlatformTenantTrialSchema.safeParse({ extendDays: 0 }).success).toBe(false);
+  });
+
+  it("rejects extendDays above 90", () => {
+    expect(extendPlatformTenantTrialSchema.safeParse({ extendDays: 91 }).success).toBe(false);
   });
 });

@@ -1,9 +1,12 @@
 import type { InviteMemberDto } from "@kloqra/contracts";
+import { ErrorCodes } from "@kloqra/contracts";
 import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
 import { Job, Queue } from "bullmq";
 import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
+import { assertUserNotInOtherTenant } from "../../../common/tenant/tenant-context";
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
@@ -63,6 +66,16 @@ export class BulkInviteWorker extends WorkerHost {
           }
         });
         userCreated = true;
+      } else {
+        try {
+          await assertUserNotInOtherTenant(this.prisma, user.id, (workspace as any).tenantId);
+        } catch (err) {
+          if (err instanceof DomainException && err.code === ErrorCodes.CONFLICT) {
+            skippedCount++;
+            continue;
+          }
+          throw err;
+        }
       }
 
       const existing = await this.prisma.workspaceMember.findUnique({

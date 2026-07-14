@@ -12,6 +12,7 @@ export const platformAuditActionSchema = z.enum([
   "platform.tenant.suspended",
   "platform.tenant.churned",
   "platform.tenant.deleted",
+  "platform.tenant.trial_extended",
   "platform.plan.updated",
   "platform.catalog_settings.updated"
 ]);

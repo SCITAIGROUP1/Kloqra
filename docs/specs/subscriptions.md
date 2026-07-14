@@ -4,15 +4,25 @@ SaaS-F11–F13: paid plans via Stripe Checkout, webhooks, subscription write-gua
 
 ## API routes
 
-| Route                                   | Method   | Role  | Purpose                                                                         |
-| --------------------------------------- | -------- | ----- | ------------------------------------------------------------------------------- |
-| `ROUTES.TENANTS.SUBSCRIPTION`           | GET      | OWNER | Current plan, limits, `billingAlert`, `billingMode`                             |
-| `ROUTES.TENANTS.SUBSCRIPTION`           | PATCH    | OWNER | Simulated plan change (`{ planSlug }`) — only when `billingMode` is `simulated` |
-| `ROUTES.TENANTS.CHECKOUT`               | POST     | OWNER | Stripe Checkout Session (`{ planSlug }`)                                        |
-| `ROUTES.TENANTS.PORTAL`                 | POST     | OWNER | Stripe Customer Portal session                                                  |
-| `ROUTES.TENANTS.SALES_INQUIRY`          | GET/POST | OWNER | Contact-sales inquiry (Enterprise)                                              |
-| `ROUTES.TENANTS.SALES_INQUIRY_RECEIPTS` | POST     | OWNER | Upload payment receipt (when `awaiting_receipt`)                                |
-| `ROUTES.WEBHOOKS.STRIPE`                | POST     | —     | Stripe webhook ingestion (raw body)                                             |
+| Route                                   | Method   | Role       | Purpose                                                                         |
+| --------------------------------------- | -------- | ---------- | ------------------------------------------------------------------------------- |
+| `ROUTES.TENANTS.SUBSCRIPTION`           | GET      | OWNER      | Current plan, limits, `billingAlert`, `billingMode`                             |
+| `ROUTES.TENANTS.SUBSCRIPTION`           | PATCH    | OWNER      | Simulated plan change (`{ planSlug }`) — only when `billingMode` is `simulated` |
+| `ROUTES.TENANTS.CHECKOUT`               | POST     | OWNER      | Stripe Checkout Session (`{ planSlug }`)                                        |
+| `ROUTES.TENANTS.PORTAL`                 | POST     | OWNER      | Stripe Customer Portal session                                                  |
+| `ROUTES.TENANTS.SALES_INQUIRY`          | GET/POST | OWNER      | Contact-sales inquiry (Enterprise)                                              |
+| `ROUTES.TENANTS.SALES_INQUIRY_RECEIPTS` | POST     | OWNER      | Upload payment receipt (when `awaiting_receipt`)                                |
+| `ROUTES.WEBHOOKS.STRIPE`                | POST     | —          | Stripe webhook ingestion (raw body)                                             |
+| `ROUTES.PLATFORM.TENANT_EXTEND_TRIAL`   | POST     | SUPERADMIN | Extend trial (`{ extendDays }` xor `{ trialEndsAt }`); sets status `trial`      |
+
+### Platform trial extension
+
+SUPERADMIN `POST PLATFORM.TENANT_EXTEND_TRIAL` accepts exactly one of:
+
+- `extendDays` (1–90): new end = `max(now, current trialEndsAt ?? now) + days`
+- `trialEndsAt` (ISO): must be in the future and within 365 days
+
+Rejects churned tenants and canceled subscriptions. Writes `trial_extended` lifecycle events and `platform.tenant.trial_extended` audit entries.
 
 ## Two-path billing
 
@@ -112,7 +122,7 @@ To support fleet-wide operations, subscriptions track historical tenures and per
 
 All changes to subscription state (plan changes, renewals, cancellations) are recorded immutably:
 
-- `eventType`: `created`, `plan_changed`, `status_changed`, `period_renewed`, `trial_started`, `trial_ended`, `canceled`.
+- `eventType`: `created`, `plan_changed`, `status_changed`, `period_renewed`, `trial_started`, `trial_ended`, `trial_extended`, `canceled`.
 - `occurredAt`: The timestamp of the change.
 - `fromPlanId`/`toPlanId` and `fromStatus`/`toStatus`: Captures the transition state.
 - `actorType` / `actorId`: Identifies if the change was triggered by `system`, a `platform_user` (staff), or the `tenant_owner`.

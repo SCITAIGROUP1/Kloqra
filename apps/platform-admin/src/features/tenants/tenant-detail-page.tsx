@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatTenantStatusLabel, tenantStatusTone } from "./tenant-labels";
 import { TenantSalesInquiriesCard } from "./tenant-sales-inquiries-card";
+import { TenantTrialExtendCard } from "./tenant-trial-extend-card";
 
 function syncPlanId(
   tenant: PlatformTenantDetailDto,
@@ -35,7 +36,7 @@ function syncPlanId(
 
 export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const { plans } = usePlatformPlans();
-  const { tenant, setTenant, loading, error } = usePlatformTenantDetail(tenantId);
+  const { tenant, setTenant, loading, error, reload } = usePlatformTenantDetail(tenantId);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [planId, setPlanId] = useState("");
@@ -265,6 +266,17 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
         </Card>
 
         <TenantSalesInquiriesCard tenantId={tenantId} />
+
+        {tenant.subscription && tenant.subscription.status !== "canceled" ? (
+          <TenantTrialExtendCard
+            tenantId={tenantId}
+            subscription={tenant.subscription}
+            disabled={saving}
+            onExtended={() => {
+              void reload().then(() => setActionMessage("Trial extended."));
+            }}
+          />
+        ) : null}
 
         <Card className="border-destructive/20">
           <CardHeader>

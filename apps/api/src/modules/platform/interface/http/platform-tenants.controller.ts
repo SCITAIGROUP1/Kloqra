@@ -1,9 +1,11 @@
 import {
   createPlatformTenantSchema,
+  extendPlatformTenantTrialSchema,
   listPlatformTenantsQuerySchema,
   ROUTES,
   updatePlatformTenantSchema,
   type CreatePlatformTenantDto,
+  type ExtendPlatformTenantTrialDto,
   type UpdatePlatformTenantDto
 } from "@kloqra/contracts";
 import {
@@ -65,6 +67,17 @@ export class PlatformTenantsController {
     @Req() req: Request
   ) {
     return this.platformTenants.updateTenant(id, body, platformAuditContextFromRequest(user, req));
+  }
+
+  @Post(ROUTES.PLATFORM.TENANT_EXTEND_TRIAL(":id"))
+  extendTrial(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(extendPlatformTenantTrialSchema))
+    body: ExtendPlatformTenantTrialDto,
+    @CurrentPlatformUser() user: PlatformRequestUser,
+    @Req() req: Request
+  ) {
+    return this.platformTenants.extendTrial(id, body, platformAuditContextFromRequest(user, req));
   }
 
   @Post(ROUTES.PLATFORM.SUSPEND_TENANT(":id"))

@@ -4,6 +4,8 @@ import {
   type CreatePlatformTenantDto,
   type CreatePlatformTenantResponseDto,
   type DeleteTenantResponseDto,
+  type ExtendPlatformTenantTrialDto,
+  type ExtendPlatformTenantTrialResponseDto,
   type PlatformTenantDetailDto,
   type PlatformTenantListResponseDto,
   type UpdatePlatformTenantDto
@@ -22,6 +24,7 @@ import { resolveBillingAlert } from "../../subscriptions/application/billing-ale
 import { SubscriptionLifecycleService } from "../../subscriptions/application/subscription-lifecycle.service";
 import { SubscriptionSalesInquiryService } from "../../subscriptions/application/subscription-sales-inquiry.service";
 import { StripeClient } from "../../subscriptions/stripe/stripe.client";
+import { assertTrialEndsAtAllowed, computeExtendedTrialEndsAt } from "./extend-trial.util";
 import { PlatformAuditService, type PlatformAuditContext } from "./platform-audit.service";
 import { PlatformNotificationsDispatchService } from "./platform-notifications-dispatch.service";
 import {
@@ -482,6 +485,116 @@ export class PlatformTenantsService {
       ctx,
       "suspend"
     );
+  }
+
+  async extendTrial(
+    id: string,
+    dto: ExtendPlatformTenantTrialDto,
+    ctx: PlatformAuditContext
+  ): Promise<ExtendPlatformTenantTrialResponseDto> {
+    const db = this.db();
+    const tenant = await db.tenant.findUnique({
+      where: { id },
+      include: { subscription: { include: { plan: true } } }
+    });
+    if (!tenant) {
+      throw new NotFoundException({
+        code: ErrorCodes.NOT_FOUND,
+        message: "Tenant not found"
+      });
+    }
+    if (tenant.status === "churned") {
+      throw new DomainException(
+        ErrorCodes.TRIAL_EXTEND_NOT_ALLOWED,
+        "Cannot extend trial for a churned organization",
+        HttpStatus.CONFLICT
+      );
+    }
+    if (!tenant.subscription) {
+      throw new DomainException(
+        ErrorCodes.TRIAL_EXTEND_NOT_ALLOWED,
+        "Organization has no subscription",
+        HttpStatus.CONFLICT
+      );
+    }
+    if (tenant.subscription.status === "canceled") {
+      throw new DomainException(
+        ErrorCodes.TRIAL_EXTEND_NOT_ALLOWED,
+        "Cannot extend trial for a canceled subscription",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const now = new Date();
+    const previousTrialEndsAt = tenant.subscription.trialEndsAt;
+    const previousStatus = tenant.subscription.status;
+
+    let trialEndsAt: Date;
+    if (dto.extendDays !== undefined) {
+      trialEndsAt = computeExtendedTrialEndsAt(now, previousTrialEndsAt, dto.extendDays);
+    } else {
+      trialEndsAt = new Date(dto.trialEndsAt!);
+      try {
+        assertTrialEndsAtAllowed(now, trialEndsAt);
+      } catch (err) {
+        throw new DomainException(
+          ErrorCodes.VALIDATION_ERROR,
+          err instanceof Error ? err.message : "Invalid trialEndsAt",
+          HttpStatus.BAD_REQUEST
+        );
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const gtx = generatedPrisma(tx);
+      await gtx.tenantSubscription.update({
+        where: { tenantId: id },
+        data: {
+          status: "trial",
+          trialEndsAt
+        }
+      });
+
+      await this.lifecycle.recordEvent(
+        id,
+        {
+          eventType: "trial_extended",
+          fromStatus: previousStatus,
+          toStatus: "trial",
+          actorType: "platform_user",
+          actorId: ctx.actorPlatformUserId,
+          metadata: {
+            previousTrialEndsAt: previousTrialEndsAt?.toISOString() ?? null,
+            trialEndsAt: trialEndsAt.toISOString(),
+            ...(dto.extendDays !== undefined ? { extendDays: dto.extendDays } : {})
+          }
+        },
+        tx
+      );
+    });
+
+    await this.audit.recordEvent({
+      context: ctx,
+      action: "platform.tenant.trial_extended",
+      tenantId: id,
+      summary: {
+        tenantId: id,
+        previousTrialEndsAt: previousTrialEndsAt?.toISOString() ?? null,
+        trialEndsAt: trialEndsAt.toISOString(),
+        previousStatus,
+        ...(dto.extendDays !== undefined ? { extendDays: dto.extendDays } : {})
+      }
+    });
+
+    const detail = await this.getTenant(id);
+    if (!detail.subscription) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Subscription missing after trial extension",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return { subscription: detail.subscription };
   }
 
   async deleteTenant(id: string, ctx: PlatformAuditContext): Promise<DeleteTenantResponseDto> {

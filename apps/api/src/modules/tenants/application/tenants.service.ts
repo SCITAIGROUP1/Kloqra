@@ -16,10 +16,10 @@ import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery
 import { TenantOwnerProvisioningMailer } from "../../../common/mailer/tenant-owner-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
+  assertUserNotInOtherTenant,
   requireTenantMember,
   requireTenantOwnerInTenant,
-  requireTenantOwnerOrAdmin,
-  resolveUserTenantId
+  requireTenantOwnerOrAdmin
 } from "../../../common/tenant/tenant-context";
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
@@ -209,14 +209,7 @@ export class TenantsService {
     let temporaryPassword: string | undefined;
 
     if (user) {
-      const existingTenantId = await resolveUserTenantId(this.prisma, user.id);
-      if (existingTenantId && existingTenantId !== tenantId) {
-        throw new DomainException(
-          ErrorCodes.CONFLICT,
-          "User already belongs to another organization",
-          HttpStatus.CONFLICT
-        );
-      }
+      await assertUserNotInOtherTenant(this.prisma, user.id, tenantId);
       const existingMember = await this.prisma.tenantMember.findUnique({
         where: { userId: user.id }
       });

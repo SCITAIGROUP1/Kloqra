@@ -115,6 +115,23 @@ export const updatePlatformTenantSchema = z
     { message: "At least one field is required" }
   );
 
+/** Exactly one of extendDays (1–90) or trialEndsAt (future, ≤365d). Absolute date “after now” is enforced at the API. */
+export const extendPlatformTenantTrialSchema = z
+  .object({
+    extendDays: z.number().int().min(1).max(90).optional(),
+    trialEndsAt: isoDatetimeSchema.optional()
+  })
+  .refine(
+    (value) =>
+      (value.extendDays !== undefined && value.trialEndsAt === undefined) ||
+      (value.extendDays === undefined && value.trialEndsAt !== undefined),
+    { message: "Provide exactly one of extendDays or trialEndsAt" }
+  );
+
+export const extendPlatformTenantTrialResponseSchema = z.object({
+  subscription: platformTenantSubscriptionSummarySchema
+});
+
 export const createPlatformTenantResponseSchema = z.object({
   tenant: platformTenantDetailSchema,
   ownerUserId: uuidSchema,
@@ -172,11 +189,18 @@ export type PlatformUserDto = z.infer<typeof platformUserSchema>;
 export type PlatformSessionDto = z.infer<typeof platformSessionSchema>;
 export type PlatformSessionWithTokenDto = z.infer<typeof platformSessionWithTokenSchema>;
 export type PlatformTenantListItemDto = z.infer<typeof platformTenantListItemSchema>;
+export type PlatformTenantSubscriptionSummaryDto = z.infer<
+  typeof platformTenantSubscriptionSummarySchema
+>;
 export type PlatformTenantDetailDto = z.infer<typeof platformTenantDetailSchema>;
 export type PlatformTenantListResponseDto = z.infer<typeof platformTenantListResponseSchema>;
 export type ListPlatformTenantsQuery = z.infer<typeof listPlatformTenantsQuerySchema>;
 export type CreatePlatformTenantDto = z.infer<typeof createPlatformTenantSchema>;
 export type UpdatePlatformTenantDto = z.infer<typeof updatePlatformTenantSchema>;
+export type ExtendPlatformTenantTrialDto = z.infer<typeof extendPlatformTenantTrialSchema>;
+export type ExtendPlatformTenantTrialResponseDto = z.infer<
+  typeof extendPlatformTenantTrialResponseSchema
+>;
 export type CreatePlatformTenantResponseDto = z.infer<typeof createPlatformTenantResponseSchema>;
 export type PlatformPlanListItemDto = z.infer<typeof platformPlanListItemSchema>;
 export type PlatformPlanListResponseDto = z.infer<typeof platformPlanListResponseSchema>;

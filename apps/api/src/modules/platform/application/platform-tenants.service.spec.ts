@@ -354,4 +354,136 @@ describe("PlatformTenantsService", () => {
     );
     delete process.env.TENANT_DELETE_MIN_DAYS_AFTER_CHURN;
   });
+
+  describe("extendTrial", () => {
+    const trialEndsAt = new Date("2026-07-20T12:00:00.000Z");
+    const subscriptionBase = {
+      id: "sub-1",
+      status: "active",
+      trialEndsAt,
+      currentPeriodEnd: null,
+      currentPeriodStart: null,
+      billingInterval: "monthly",
+      billingSource: "simulated",
+      planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
+      plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
+    };
+
+    it("extends by days, forces status trial, audits and records lifecycle", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-14T12:00:00.000Z"));
+      try {
+        const mockLifecycle = { recordEvent: vi.fn().mockResolvedValue(undefined) };
+        service = new PlatformTenantsService(
+          mockPrisma,
+          mockOwnerMailer as never,
+          mockAuth as never,
+          mockStripe as never,
+          mockAudit as never,
+          { provisionTenant: vi.fn() } as never,
+          { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
+          { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never,
+          mockLifecycle as never
+        );
+
+        const afterExtend = {
+          ...subscriptionBase,
+          status: "trial",
+          trialEndsAt: new Date("2026-07-27T12:00:00.000Z")
+        };
+
+        mockPrisma.tenant.findUnique
+          .mockResolvedValueOnce({
+            id: "tenant-1",
+            name: "Acme",
+            slug: "acme",
+            status: "active",
+            subscription: subscriptionBase
+          })
+          .mockResolvedValueOnce({
+            id: "tenant-1",
+            name: "Acme",
+            slug: "acme",
+            status: "active",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            subscription: afterExtend,
+            members: [{ user: { email: "owner@acme.com" } }],
+            _count: { workspaces: 1, members: 1 }
+          });
+
+        const result = await service.extendTrial("tenant-1", { extendDays: 7 }, auditCtx);
+
+        expect(mockPrisma.tenantSubscription.update).toHaveBeenCalledWith({
+          where: { tenantId: "tenant-1" },
+          data: expect.objectContaining({
+            status: "trial",
+            trialEndsAt: new Date("2026-07-27T12:00:00.000Z")
+          })
+        });
+        expect(mockLifecycle.recordEvent).toHaveBeenCalledWith(
+          "tenant-1",
+          expect.objectContaining({
+            eventType: "trial_extended",
+            fromStatus: "active",
+            toStatus: "trial",
+            actorType: "platform_user",
+            metadata: expect.objectContaining({ extendDays: 7 })
+          }),
+          mockPrisma
+        );
+        expect(mockAudit.recordEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            action: "platform.tenant.trial_extended",
+            tenantId: "tenant-1"
+          })
+        );
+        expect(result.subscription.status).toBe("trial");
+        expect(result.subscription.trialEndsAt).toBe("2026-07-27T12:00:00.000Z");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("rejects churned tenants", async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: "tenant-1",
+        status: "churned",
+        subscription: subscriptionBase
+      });
+
+      await expect(
+        service.extendTrial("tenant-1", { extendDays: 7 }, auditCtx)
+      ).rejects.toMatchObject({ code: "TRIAL_EXTEND_NOT_ALLOWED" });
+    });
+
+    it("rejects canceled subscriptions", async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: "tenant-1",
+        status: "active",
+        subscription: { ...subscriptionBase, status: "canceled" }
+      });
+
+      await expect(
+        service.extendTrial("tenant-1", { extendDays: 7 }, auditCtx)
+      ).rejects.toMatchObject({ code: "TRIAL_EXTEND_NOT_ALLOWED" });
+    });
+
+    it("rejects past absolute trialEndsAt", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-14T12:00:00.000Z"));
+      try {
+        mockPrisma.tenant.findUnique.mockResolvedValue({
+          id: "tenant-1",
+          status: "active",
+          subscription: subscriptionBase
+        });
+
+        await expect(
+          service.extendTrial("tenant-1", { trialEndsAt: "2020-01-01T00:00:00.000Z" }, auditCtx)
+        ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });

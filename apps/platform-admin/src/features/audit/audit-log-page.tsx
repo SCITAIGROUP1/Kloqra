@@ -25,7 +25,8 @@ const ACTION_OPTIONS: Array<{ value: PlatformAuditAction | ""; label: string }> 
   { value: "platform.tenant.created", label: "Tenant created" },
   { value: "platform.tenant.updated", label: "Tenant updated" },
   { value: "platform.tenant.suspended", label: "Tenant suspended" },
-  { value: "platform.tenant.churned", label: "Tenant churned" }
+  { value: "platform.tenant.churned", label: "Tenant churned" },
+  { value: "platform.tenant.trial_extended", label: "Trial extended" }
 ];
 
 function formatSummary(summary: PlatformAuditEventDto["summary"]): string {

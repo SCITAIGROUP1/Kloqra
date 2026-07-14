@@ -223,7 +223,13 @@ describe("TenantsService", () => {
   });
 
   it("inviteMember rejects users from another organization", async () => {
-    vi.spyOn(tenantContext, "resolveUserTenantId").mockResolvedValue("other-tenant");
+    vi.spyOn(tenantContext, "assertUserNotInOtherTenant").mockRejectedValue(
+      new DomainException(
+        ErrorCodes.CONFLICT,
+        "User already belongs to another organization",
+        HttpStatus.CONFLICT
+      )
+    );
     mockPrisma.tenantMember.findUnique.mockResolvedValue({
       tenantId,
       role: "OWNER",

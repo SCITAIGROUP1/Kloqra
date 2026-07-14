@@ -75,7 +75,7 @@
 
 ## Edge cases
 
-- One user cannot belong to two tenants (D08).
+- One user cannot belong to two tenants (D08). Enforced on tenant-admin invite, workspace invite, bulk invite, assign-workspace-admin, signup, and platform provision.
 - Workspace-only users cannot call tenant account routes.
 - Cannot deactivate or demote the last active tenant owner.
 - Workspace admin in two workspaces requires two invites (D14).

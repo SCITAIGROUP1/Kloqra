@@ -23,6 +23,7 @@ import { MemberProvisioningMailer } from "../../../common/mailer/member-provisio
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
 import {
+  assertUserNotInOtherTenant,
   resolveUserTenantId,
   requireTenantOperator,
   requireTenantOwnerOrAdmin
@@ -360,6 +361,8 @@ export class WorkspaceService {
         }
       });
       userCreated = true;
+    } else {
+      await assertUserNotInOtherTenant(this.prisma, user.id, (workspace as any).tenantId);
     }
 
     const existing = await this.prisma.workspaceMember.findUnique({
@@ -743,14 +746,7 @@ export class WorkspaceService {
       if (!user) {
         throw new DomainException(ErrorCodes.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND);
       }
-      const userTenantId = await resolveUserTenantId(this.prisma, user.id);
-      if (userTenantId && userTenantId !== tenantId) {
-        throw new DomainException(
-          ErrorCodes.CONFLICT,
-          "User already belongs to another organization",
-          HttpStatus.CONFLICT
-        );
-      }
+      await assertUserNotInOtherTenant(this.prisma, user.id, tenantId);
       email = user.email;
       name = user.name;
     } else {
@@ -758,14 +754,7 @@ export class WorkspaceService {
       name = dto.name!.trim();
       const user = await this.prisma.user.findUnique({ where: { email } });
       if (user) {
-        const userTenantId = await resolveUserTenantId(this.prisma, user.id);
-        if (userTenantId && userTenantId !== tenantId) {
-          throw new DomainException(
-            ErrorCodes.CONFLICT,
-            "User already belongs to another organization",
-            HttpStatus.CONFLICT
-          );
-        }
+        await assertUserNotInOtherTenant(this.prisma, user.id, tenantId);
       }
     }
 

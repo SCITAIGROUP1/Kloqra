@@ -14,6 +14,9 @@ describe("platformAuditActionSchema", () => {
     expect(platformAuditActionSchema.safeParse("platform.login").success).toBe(true);
     expect(platformAuditActionSchema.safeParse("platform.tenant.created").success).toBe(true);
     expect(platformAuditActionSchema.safeParse("platform.tenant.suspended").success).toBe(true);
+    expect(platformAuditActionSchema.safeParse("platform.tenant.trial_extended").success).toBe(
+      true
+    );
   });
 
   it("rejects unknown actions", () => {

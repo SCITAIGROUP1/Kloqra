@@ -125,6 +125,14 @@ describe("Workspace lifecycle E2E", () => {
     expect(res.body.code).toBe("CONFLICT");
   });
 
+  it("rejects workspace invite for a user from another organization", async () => {
+    const res = await authedAgent(app, adminSession)
+      .post(ROUTES.WORKSPACES.INVITE(adminSession.workspaceId))
+      .send({ email: TENANT_B_OWNER_EMAIL, name: "Owner B", role: "MEMBER" });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("CONFLICT");
+  });
+
   it("rejects duplicate workspace names within the same tenant", async () => {
     const name = `Duplicate Tenant WS ${uniqueSuffix}`;
     const first = await authedAgent(app, adminSession)

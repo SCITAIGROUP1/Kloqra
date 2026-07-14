@@ -23,6 +23,22 @@ export async function resolveUserTenantId(
   return membership?.workspace.tenantId ?? null;
 }
 
+/** D08 — reject if the user already belongs to a different organization. */
+export async function assertUserNotInOtherTenant(
+  prisma: PrismaService,
+  userId: string,
+  tenantId: string
+): Promise<void> {
+  const existingTenantId = await resolveUserTenantId(prisma, userId);
+  if (existingTenantId && existingTenantId !== tenantId) {
+    throw new DomainException(
+      ErrorCodes.CONFLICT,
+      "User already belongs to another organization",
+      HttpStatus.CONFLICT
+    );
+  }
+}
+
 export async function assertWorkspaceInUserTenant(
   prisma: PrismaService,
   userId: string,

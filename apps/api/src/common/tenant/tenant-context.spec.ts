@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DomainException } from "../errors/domain.exception";
 import {
   assertJwtWorkspaceTenant,
+  assertUserNotInOtherTenant,
   assertWorkspaceInUserTenant,
   requireTenantMember,
   requireTenantOwner,
@@ -46,6 +47,32 @@ describe("tenant-context", () => {
       code: "FORBIDDEN",
       status: HttpStatus.FORBIDDEN
     });
+  });
+
+  it("assertUserNotInOtherTenant rejects users from another organization", async () => {
+    const prisma = {
+      tenantMember: { findUnique: vi.fn().mockResolvedValue({ tenantId: "t-other" }) },
+      workspaceMember: { findFirst: vi.fn() }
+    } as never;
+
+    await expect(assertUserNotInOtherTenant(prisma, "u-1", "t-1")).rejects.toMatchObject({
+      code: "CONFLICT",
+      status: HttpStatus.CONFLICT
+    });
+  });
+
+  it("assertUserNotInOtherTenant allows users with no tenant or same tenant", async () => {
+    const noTenant = {
+      tenantMember: { findUnique: vi.fn().mockResolvedValue(null) },
+      workspaceMember: { findFirst: vi.fn().mockResolvedValue(null) }
+    } as never;
+    await expect(assertUserNotInOtherTenant(noTenant, "u-1", "t-1")).resolves.toBeUndefined();
+
+    const sameTenant = {
+      tenantMember: { findUnique: vi.fn().mockResolvedValue({ tenantId: "t-1" }) },
+      workspaceMember: { findFirst: vi.fn() }
+    } as never;
+    await expect(assertUserNotInOtherTenant(sameTenant, "u-1", "t-1")).resolves.toBeUndefined();
   });
 
   it("requireTenantOwner rejects non-owners", async () => {

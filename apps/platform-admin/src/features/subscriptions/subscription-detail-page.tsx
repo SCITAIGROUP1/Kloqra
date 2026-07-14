@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { TenantTrialExtendCard } from "../tenants/tenant-trial-extend-card";
 
 type SubscriptionDetailPageProps = {
   tenantId: string;
@@ -135,6 +136,9 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
         return <Settings className="h-4 w-4 text-amber-500" />;
       case "period_renewed":
         return <Calendar className="h-4 w-4 text-indigo-500" />;
+      case "trial_extended":
+      case "trial_started":
+        return <Calendar className="h-4 w-4 text-blue-500" />;
       case "canceled":
         return <FileText className="h-4 w-4 text-gray-500" />;
       default:
@@ -366,6 +370,19 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
           </CardContent>
         </Card>
       </div>
+
+      {subscription.status !== "canceled" ? (
+        <TenantTrialExtendCard
+          tenantId={tenantId}
+          subscription={{
+            status: subscription.status,
+            trialEndsAt: subscription.trialEndsAt
+          }}
+          onExtended={() => {
+            void reload();
+          }}
+        />
+      ) : null}
 
       {/* Immutable Event Timeline */}
       <Card className="border-border/60 shadow-sm">

@@ -7,7 +7,7 @@ export const platformSubscriptionEventSchema = z.object({
   id: uuidSchema,
   tenantId: uuidSchema,
   subscriptionId: uuidSchema,
-  eventType: z.string(), // 'created' | 'plan_changed' | 'status_changed' | 'period_renewed' | 'trial_started' | 'trial_ended' | 'canceled'
+  eventType: z.string(), // 'created' | 'plan_changed' | 'status_changed' | 'period_renewed' | 'trial_started' | 'trial_ended' | 'trial_extended' | 'canceled'
   occurredAt: isoDatetimeSchema,
   fromPlanId: uuidSchema.nullable(),
   fromPlanName: z.string().nullable().optional(),

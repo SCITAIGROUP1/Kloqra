@@ -14,7 +14,7 @@ export class SubscriptionLifecycleService {
   async recordEvent(
     tenantId: string,
     data: {
-      eventType: string; // 'created' | 'plan_changed' | 'status_changed' | 'period_renewed' | 'trial_started' | 'trial_ended' | 'canceled'
+      eventType: string; // 'created' | 'plan_changed' | 'status_changed' | 'period_renewed' | 'trial_started' | 'trial_ended' | 'trial_extended' | 'canceled'
       occurredAt?: Date;
       fromPlanId?: string | null;
       toPlanId?: string | null;

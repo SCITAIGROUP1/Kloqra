@@ -125,7 +125,11 @@ describe("WorkspaceService", () => {
   });
 
   it("invite creates user and membership for new email", async () => {
-    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
     mockPrisma.user.findUnique.mockResolvedValueOnce(null);
     mockPrisma.user.create.mockResolvedValue({
       id: "u-new",
@@ -157,7 +161,11 @@ describe("WorkspaceService", () => {
   });
 
   it("invite rejects duplicate members", async () => {
-    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
     mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "member@kloqra.dev" });
     mockPrisma.workspaceMember.findUnique.mockResolvedValue({ id: "m-existing" });
 
@@ -175,9 +183,38 @@ describe("WorkspaceService", () => {
     );
   });
 
+  it("invite rejects users from another organization", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: "u-other", email: "other@kloqra.dev" });
+    mockPrisma.tenantMember.findUnique.mockResolvedValue({ tenantId: "t-other" });
+
+    await expect(
+      service.invite(
+        workspaceId,
+        { email: "other@kloqra.dev", role: "MEMBER", name: "Other Org User" },
+        inviterId
+      )
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.CONFLICT &&
+        err.getStatus() === HttpStatus.CONFLICT
+    );
+    expect(mockPrisma.workspaceMember.create).not.toHaveBeenCalled();
+  });
+
   it("invite adds existing user and sends workspace-added email", async () => {
-    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
     mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "member@kloqra.dev" });
+    mockPrisma.tenantMember.findUnique.mockResolvedValue({ tenantId: "t-1" });
     mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
     mockPrisma.workspaceMember.create.mockResolvedValue({
       id: "m2",
@@ -199,7 +236,11 @@ describe("WorkspaceService", () => {
   });
 
   it("invite sends workspace admin credentials with admin portal role", async () => {
-    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
     mockPrisma.user.findUnique.mockResolvedValueOnce(null);
     mockPrisma.user.create.mockResolvedValue({
       id: "u-admin",
@@ -227,8 +268,13 @@ describe("WorkspaceService", () => {
   });
 
   it("invite adds existing admin and sends admin-portal workspace-added email", async () => {
-    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
     mockPrisma.user.findUnique.mockResolvedValue({ id: "u-admin", email: "wsadmin@kloqra.dev" });
+    mockPrisma.tenantMember.findUnique.mockResolvedValue({ tenantId: "t-1" });
     mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
     mockPrisma.workspaceMember.create.mockResolvedValue({
       id: "m-admin",

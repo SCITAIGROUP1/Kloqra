@@ -793,6 +793,9 @@ describe("contracts", () => {
     expect(ROUTES.PLANS.PUBLIC).toBe("/plans/public");
     expect(ROUTES.PLANS.PRICING).toBe("/plans/pricing");
     expect(ROUTES.PLATFORM.OPS_SUMMARY).toBe("/platform/ops/summary");
+    expect(ROUTES.PLATFORM.TENANT_EXTEND_TRIAL(UUID)).toBe(
+      `/platform/tenants/${UUID}/extend-trial`
+    );
   });
 
   it("validates refresh session body", () => {
