@@ -20,7 +20,7 @@ import {
   SelectValue
 } from "@kloqra/ui";
 import { api, CopyableValue, usePlatformPlans, usePlatformTenantDetail } from "@kloqra/web-shared";
-import { Activity, CreditCard, Users } from "lucide-react";
+import { Activity, ArrowLeft, CreditCard, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatTenantStatusLabel, tenantStatusTone } from "./tenant-labels";
@@ -141,13 +141,19 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   return (
     <div className="space-y-6">
       <AppBar
-        title={tenant.name}
-        description="Organization account on Kloqra."
-        actions={
-          <Link href="/tenants" className="text-sm text-primary hover:underline">
-            Back to tenants
-          </Link>
+        title={
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/tenants"
+              className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Back to tenants"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <span className="truncate font-semibold text-foreground">{tenant.name}</span>
+          </div>
         }
+        description="Organization account on Kloqra."
       />
 
       <div className="mx-auto max-w-6xl space-y-6">

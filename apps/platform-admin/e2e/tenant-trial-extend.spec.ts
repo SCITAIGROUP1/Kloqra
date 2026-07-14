@@ -20,13 +20,12 @@ test.describe("Platform tenant trial extension", () => {
       return;
     }
 
+    await page.getByTestId("extend-trial-open").click();
+    await expect(page.getByTestId("extend-trial-modal")).toBeVisible();
     await expect(page.getByTestId("extend-trial-7")).toBeVisible();
     await expect(page.getByTestId("extend-trial-14")).toBeVisible();
     await expect(page.getByTestId("extend-trial-30")).toBeVisible();
     await expect(page.getByTestId("extend-trial-custom-date")).toBeVisible();
-    await expect(page.getByTestId("extend-trial-set-date")).toBeVisible();
-
-    page.once("dialog", (dialog) => dialog.accept());
 
     const extendResponse = page.waitForResponse(
       (res) =>
@@ -36,6 +35,9 @@ test.describe("Platform tenant trial extension", () => {
     );
 
     await page.getByTestId("extend-trial-7").click();
+    await expect(page.getByTestId("extend-trial-preview")).toBeVisible();
+    await page.getByTestId("extend-trial-confirm").click();
+
     const res = await extendResponse;
     expect(res.ok()).toBeTruthy();
     await expect(
@@ -52,11 +54,13 @@ test.describe("Platform tenant trial extension", () => {
     await firstTenantLink.click();
     await expect(page).toHaveURL(/\/subscriptions\/[a-f0-9-]+/);
 
+    await expect(page.getByRole("link", { name: "Back to subscriptions" })).toBeVisible();
+
     const card = page.getByTestId("tenant-trial-extend-card");
     if (!(await card.isVisible().catch(() => false))) {
       test.skip();
       return;
     }
-    await expect(page.getByTestId("extend-trial-14")).toBeVisible();
+    await expect(page.getByTestId("extend-trial-open")).toBeVisible();
   });
 });
