@@ -172,6 +172,17 @@ export class PlatformTenantsService {
 
     const ownerName = dto.ownerName?.trim() || organizationName;
     const subscriptionStatus = dto.subscriptionStatus ?? "trial";
+    const billingInterval = dto.billingInterval;
+    const trialEndsAt =
+      subscriptionStatus === "trial" && dto.trialEndsAt ? new Date(dto.trialEndsAt) : undefined;
+
+    if (trialEndsAt && !(trialEndsAt.getTime() > Date.now())) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "trialEndsAt must be in the future",
+        HttpStatus.BAD_REQUEST
+      );
+    }
 
     const result = await this.provisioning.provisionTenant({
       mode: "platform",
@@ -180,6 +191,8 @@ export class PlatformTenantsService {
       ownerName,
       planId: plan.id,
       subscriptionStatus,
+      ...(billingInterval ? { billingInterval } : {}),
+      ...(trialEndsAt ? { trialEndsAt } : {}),
       limitsOverride: dto.limitsOverride ?? undefined,
       firstWorkspace: dto.firstWorkspace
         ? { name: dto.firstWorkspace.name.trim(), slug: dto.firstWorkspace.slug }
@@ -315,13 +328,28 @@ export class PlatformTenantsService {
         })
       : null;
 
-    const billingInterval = openInquiry?.billingInterval || "monthly";
+    const billingInterval =
+      dto.billingInterval ??
+      openInquiry?.billingInterval ??
+      tenant.subscription?.billingInterval ??
+      "monthly";
     const now = new Date();
     const currentPeriodEnd = new Date();
     if (billingInterval === "yearly") {
       currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
     } else {
       currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+    }
+
+    if (dto.trialEndsAt) {
+      const ends = new Date(dto.trialEndsAt);
+      if (!(ends.getTime() > Date.now())) {
+        throw new DomainException(
+          ErrorCodes.VALIDATION_ERROR,
+          "trialEndsAt must be in the future",
+          HttpStatus.BAD_REQUEST
+        );
+      }
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -351,13 +379,22 @@ export class PlatformTenantsService {
         tenant.subscription &&
         (dto.planId !== undefined ||
           effectiveSubscriptionStatus !== undefined ||
-          dto.limitsOverride !== undefined)
+          dto.limitsOverride !== undefined ||
+          dto.billingInterval !== undefined ||
+          dto.trialEndsAt !== undefined)
       ) {
         const oldPlanId = tenant.subscription.planId;
         const newPlanId = dto.planId !== undefined ? dto.planId : oldPlanId;
         const oldStatus = tenant.subscription.status;
         const newStatus =
-          effectiveSubscriptionStatus !== undefined ? effectiveSubscriptionStatus : oldStatus;
+          effectiveSubscriptionStatus !== undefined
+            ? effectiveSubscriptionStatus
+            : dto.trialEndsAt
+              ? "trial"
+              : oldStatus;
+
+        const shouldRefreshPeriod =
+          dto.planId !== undefined || (dto.billingInterval !== undefined && newStatus === "active");
 
         await gtx.tenantSubscription.update({
           where: { tenantId: id },
@@ -365,14 +402,35 @@ export class PlatformTenantsService {
             ...(dto.planId !== undefined
               ? {
                   planId: dto.planId,
-                  billingInterval,
                   billingSource: "manual",
-                  currentPeriodStart: now,
-                  currentPeriodEnd
+                  ...(shouldRefreshPeriod
+                    ? {
+                        billingInterval,
+                        currentPeriodStart: now,
+                        currentPeriodEnd
+                      }
+                    : { billingInterval })
                 }
               : {}),
-            ...(effectiveSubscriptionStatus !== undefined
-              ? { status: effectiveSubscriptionStatus }
+            ...(dto.billingInterval !== undefined && dto.planId === undefined
+              ? {
+                  billingInterval: dto.billingInterval,
+                  ...(newStatus === "active"
+                    ? {
+                        currentPeriodStart: now,
+                        currentPeriodEnd
+                      }
+                    : {})
+                }
+              : {}),
+            ...(effectiveSubscriptionStatus !== undefined || dto.trialEndsAt
+              ? { status: newStatus }
+              : {}),
+            ...(dto.trialEndsAt !== undefined
+              ? {
+                  trialEndsAt: dto.trialEndsAt ? new Date(dto.trialEndsAt) : null,
+                  ...(dto.trialEndsAt ? { status: "trial" as const } : {})
+                }
               : {}),
             ...(dto.limitsOverride !== undefined
               ? { limitsOverride: dto.limitsOverride as object | null }
@@ -409,6 +467,38 @@ export class PlatformTenantsService {
               actorType: "platform_user",
               actorId: ctx.actorPlatformUserId,
               metadata: { reason: "Manual platform admin status change" }
+            },
+            tx
+          );
+        } else if (dto.trialEndsAt !== undefined) {
+          await this.lifecycle.recordEvent(
+            id,
+            {
+              eventType: "trial_extended",
+              fromStatus: oldStatus,
+              toStatus: newStatus,
+              actorType: "platform_user",
+              actorId: ctx.actorPlatformUserId,
+              metadata: {
+                reason: "Platform admin set trialEndsAt",
+                trialEndsAt: dto.trialEndsAt
+              }
+            },
+            tx
+          );
+        } else if (dto.billingInterval !== undefined) {
+          await this.lifecycle.recordEvent(
+            id,
+            {
+              eventType: "status_changed",
+              fromStatus: oldStatus,
+              toStatus: newStatus,
+              actorType: "platform_user",
+              actorId: ctx.actorPlatformUserId,
+              metadata: {
+                reason: "Platform admin billing interval change",
+                billingInterval: dto.billingInterval
+              }
             },
             tx
           );
@@ -661,6 +751,12 @@ export class PlatformTenantsService {
     }
     if (dto.subscriptionStatus !== undefined) {
       summary.subscriptionStatus = dto.subscriptionStatus;
+    }
+    if (dto.billingInterval !== undefined) {
+      summary.billingInterval = dto.billingInterval;
+    }
+    if (dto.trialEndsAt !== undefined) {
+      summary.trialEndsAt = dto.trialEndsAt;
     }
     if (dto.limitsOverride !== undefined) {
       summary.limitsOverride = dto.limitsOverride;

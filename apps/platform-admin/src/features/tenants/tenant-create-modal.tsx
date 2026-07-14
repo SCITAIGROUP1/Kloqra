@@ -6,7 +6,19 @@ import {
   type CreatePlatformTenantDto,
   type CreatePlatformTenantResponseDto
 } from "@kloqra/contracts";
-import { AppModal, Button, Input, Label, SearchableSelect } from "@kloqra/ui";
+import {
+  AppModal,
+  Button,
+  DatePicker,
+  Input,
+  Label,
+  SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@kloqra/ui";
 import { api, usePlatformPlans } from "@kloqra/web-shared";
 import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -26,7 +38,9 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
   const [ownerName, setOwnerName] = useState("");
   const [tenantAdminEmail, setTenantAdminEmail] = useState("");
   const [planId, setPlanId] = useState("");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [trial, setTrial] = useState(true);
+  const [trialEndsDate, setTrialEndsDate] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +63,9 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
     setOwnerName("");
     setTenantAdminEmail("");
     setPlanId("");
+    setBillingInterval("monthly");
     setTrial(true);
+    setTrialEndsDate("");
     setError("");
     setSaving(false);
   }, [open]);
@@ -60,12 +76,25 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
       ownerEmail: ownerEmail.trim(),
       planId: selectedPlanId,
       subscriptionStatus: trial ? "trial" : "active",
+      billingInterval,
       ...(ownerName.trim() ? { ownerName: ownerName.trim() } : {}),
-      ...(tenantAdminEmail.trim() ? { tenantAdminEmail: tenantAdminEmail.trim() } : {})
+      ...(tenantAdminEmail.trim() ? { tenantAdminEmail: tenantAdminEmail.trim() } : {}),
+      ...(trial && trialEndsDate
+        ? { trialEndsAt: new Date(`${trialEndsDate}T23:59:59.000Z`).toISOString() }
+        : {})
     };
     const parsed = createPlatformTenantSchema.safeParse(body);
     return parsed.success ? parsed.data : null;
-  }, [organizationName, ownerEmail, ownerName, selectedPlanId, tenantAdminEmail, trial]);
+  }, [
+    organizationName,
+    ownerEmail,
+    ownerName,
+    selectedPlanId,
+    tenantAdminEmail,
+    trial,
+    trialEndsDate,
+    billingInterval
+  ]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -151,26 +180,46 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
             Creates an organization admin account separate from the owner.
           </p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="plan">Plan</Label>
-          <SearchableSelect
-            id="plan"
-            value={selectedPlanId}
-            onValueChange={setPlanId}
-            options={planOptions}
-            placeholder={plansLoading ? "Loading plans…" : "Select plan"}
-            searchPlaceholder="Search plans…"
-            emptyMessage="No plans found."
-            disabled={plansLoading || planOptions.length === 0}
-            aria-label="Plan"
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="plan">Plan</Label>
+            <SearchableSelect
+              id="plan"
+              value={selectedPlanId}
+              onValueChange={setPlanId}
+              options={planOptions}
+              placeholder={plansLoading ? "Loading plans…" : "Select plan"}
+              searchPlaceholder="Search plans…"
+              emptyMessage="No plans found."
+              disabled={plansLoading || planOptions.length === 0}
+              aria-label="Plan"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="billing-interval">Billing interval</Label>
+            <Select
+              value={billingInterval}
+              onValueChange={(value) => setBillingInterval(value as "monthly" | "yearly")}
+            >
+              <SelectTrigger id="billing-interval">
+                <SelectValue placeholder="Select interval" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="yearly">Annual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <input
             id="trial"
             type="checkbox"
             checked={trial}
-            onChange={(e) => setTrial(e.target.checked)}
+            onChange={(e) => {
+              setTrial(e.target.checked);
+              if (!e.target.checked) setTrialEndsDate("");
+            }}
             className="h-4 w-4 rounded border border-input"
           />
           <div>
@@ -180,6 +229,22 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
             </p>
           </div>
         </div>
+        {trial ? (
+          <div className="space-y-2">
+            <Label>Trial end date (optional)</Label>
+            <DatePicker
+              value={trialEndsDate}
+              onChange={setTrialEndsDate}
+              placeholder="Default: 30 days from now"
+              ariaLabel="Optional trial end date"
+              className="h-10 w-full justify-start bg-background"
+              popoverAlign="start"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave empty to use the default 30-day trial.
+            </p>
+          </div>
+        ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </form>
     </AppModal>

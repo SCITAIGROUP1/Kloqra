@@ -9,6 +9,9 @@ import {
 } from "../tenant-rbac";
 import { emailSchema, isoDatetimeSchema, slugSchema, uuidSchema } from "./common.dto";
 import { planCatalogItemSchema, planCatalogListResponseSchema } from "./plan.dto";
+import { salesInquiryBillingIntervalSchema } from "./sales-inquiry.dto";
+
+export const platformBillingIntervalSchema = salesInquiryBillingIntervalSchema;
 
 export const platformUserSchema = z.object({
   id: uuidSchema,
@@ -80,6 +83,9 @@ export const createPlatformTenantSchema = z
     tenantAdminEmail: emailSchema.optional(),
     planId: uuidSchema,
     subscriptionStatus: z.enum(["trial", "active"]).optional(),
+    billingInterval: platformBillingIntervalSchema.optional(),
+    /** Optional override; when omitted and status is trial, API defaults to now+30d. */
+    trialEndsAt: isoDatetimeSchema.optional(),
     limitsOverride: planLimitsSchema.partial().optional(),
     firstWorkspace: createPlatformTenantFirstWorkspaceSchema.optional()
   })
@@ -91,6 +97,16 @@ export const createPlatformTenantSchema = z
       message: "Tenant admin email must differ from owner email",
       path: ["tenantAdminEmail"]
     }
+  )
+  .refine(
+    (value) =>
+      value.trialEndsAt === undefined ||
+      value.subscriptionStatus === undefined ||
+      value.subscriptionStatus === "trial",
+    {
+      message: "trialEndsAt is only allowed when subscriptionStatus is trial",
+      path: ["trialEndsAt"]
+    }
   );
 
 export const updatePlatformTenantSchema = z
@@ -100,6 +116,8 @@ export const updatePlatformTenantSchema = z
     status: z.enum(["active", "suspended", "churned"]).optional(),
     planId: uuidSchema.optional(),
     subscriptionStatus: subscriptionStatusSchema.optional(),
+    billingInterval: platformBillingIntervalSchema.optional(),
+    trialEndsAt: isoDatetimeSchema.nullable().optional(),
     limitsOverride: planLimitsSchema.partial().nullable().optional(),
     exportWaived: z.boolean().optional()
   })
@@ -110,6 +128,8 @@ export const updatePlatformTenantSchema = z
       value.status !== undefined ||
       value.planId !== undefined ||
       value.subscriptionStatus !== undefined ||
+      value.billingInterval !== undefined ||
+      value.trialEndsAt !== undefined ||
       value.limitsOverride !== undefined ||
       value.exportWaived !== undefined,
     { message: "At least one field is required" }

@@ -486,4 +486,130 @@ describe("PlatformTenantsService", () => {
       }
     });
   });
+
+  it("createTenant passes billingInterval and trialEndsAt to provisioning", async () => {
+    const mockProvisioning = {
+      provisionTenant: vi.fn().mockResolvedValue({
+        tenantId: "tenant-new",
+        ownerUserId: "user-new",
+        temporaryPassword: "TempPass123!"
+      })
+    };
+    const mockLifecycle = { recordEvent: vi.fn().mockResolvedValue(undefined) };
+    service = new PlatformTenantsService(
+      mockPrisma,
+      mockOwnerMailer as never,
+      mockAuth as never,
+      mockStripe as never,
+      mockAudit as never,
+      mockProvisioning as never,
+      { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
+      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never,
+      mockLifecycle as never
+    );
+
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      id: "tenant-new",
+      name: "Acme",
+      slug: "acme",
+      status: "pending_setup",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      subscription: {
+        status: "trial",
+        trialEndsAt: new Date("2026-09-01T00:00:00.000Z"),
+        currentPeriodEnd: null,
+        currentPeriodStart: null,
+        billingInterval: "yearly",
+        billingSource: "simulated",
+        planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
+        plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
+      },
+      members: [{ user: { email: "owner@acme.com" } }],
+      _count: { workspaces: 0, members: 1 }
+    });
+
+    await service.createTenant(
+      {
+        organizationName: "Acme",
+        ownerEmail: "owner@acme.com",
+        planId: PLAN_IDS[PLAN_SLUGS.PILOT],
+        billingInterval: "yearly",
+        subscriptionStatus: "trial",
+        trialEndsAt: "2026-09-01T23:59:59.000Z"
+      },
+      auditCtx
+    );
+
+    expect(mockProvisioning.provisionTenant).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingInterval: "yearly",
+        subscriptionStatus: "trial",
+        trialEndsAt: new Date("2026-09-01T23:59:59.000Z")
+      })
+    );
+  });
+
+  it("updateTenant applies billingInterval and optional trialEndsAt", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T12:00:00.000Z"));
+    try {
+      mockPrisma.tenant.findUnique
+        .mockResolvedValueOnce({
+          id: "tenant-1",
+          name: "Acme",
+          slug: "acme",
+          status: "active",
+          settings: {},
+          subscription: {
+            id: "sub-1",
+            planId: PLAN_IDS[PLAN_SLUGS.PILOT],
+            status: "active",
+            billingInterval: "monthly",
+            limitsOverride: null
+          }
+        })
+        .mockResolvedValueOnce({
+          id: "tenant-1",
+          name: "Acme",
+          slug: "acme",
+          status: "active",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          subscription: {
+            status: "trial",
+            trialEndsAt: new Date("2026-08-01T23:59:59.000Z"),
+            currentPeriodEnd: null,
+            currentPeriodStart: null,
+            billingInterval: "yearly",
+            billingSource: "manual",
+            planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
+            plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
+          },
+          members: [{ user: { email: "owner@acme.com" } }],
+          _count: { workspaces: 1, members: 1 }
+        });
+      mockPrisma.tenantSalesInquiry = { findFirst: vi.fn().mockResolvedValue(null) };
+
+      await service.updateTenant(
+        "tenant-1",
+        {
+          billingInterval: "yearly",
+          trialEndsAt: "2026-08-01T23:59:59.000Z"
+        },
+        auditCtx
+      );
+
+      expect(mockPrisma.tenantSubscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenantId: "tenant-1" },
+          data: expect.objectContaining({
+            billingInterval: "yearly",
+            status: "trial",
+            trialEndsAt: new Date("2026-08-01T23:59:59.000Z")
+          })
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

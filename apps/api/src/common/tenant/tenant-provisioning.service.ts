@@ -15,6 +15,9 @@ export type ProvisionTenantInput = {
   ownerName: string;
   planId: string;
   subscriptionStatus?: "trial" | "active";
+  billingInterval?: "monthly" | "yearly";
+  /** When set and status is trial, overrides the default 30-day trial end. */
+  trialEndsAt?: Date | null;
   limitsOverride?: Partial<PlanLimits> | null;
   firstWorkspace?: { name: string; slug?: string };
   tenantAdminEmail?: string;
@@ -46,14 +49,29 @@ export class TenantProvisioningService {
     const ownerName = input.ownerName.trim() || organizationName;
     const { firstName, lastName } = splitDisplayName(ownerName);
     const subscriptionStatus = input.subscriptionStatus ?? "trial";
-    const trialEndsAt =
-      subscriptionStatus === "trial"
-        ? (() => {
-            const end = new Date();
-            end.setDate(end.getDate() + 30);
-            return end;
-          })()
-        : null;
+    const billingInterval = input.billingInterval ?? null;
+    const now = new Date();
+    let trialEndsAt: Date | null = null;
+    if (subscriptionStatus === "trial") {
+      if (input.trialEndsAt) {
+        trialEndsAt = input.trialEndsAt;
+      } else {
+        trialEndsAt = new Date(now);
+        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+      }
+    }
+
+    let currentPeriodStart: Date | null = null;
+    let currentPeriodEnd: Date | null = null;
+    if (subscriptionStatus === "active" && billingInterval) {
+      currentPeriodStart = now;
+      currentPeriodEnd = new Date(now);
+      if (billingInterval === "yearly") {
+        currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
+      } else {
+        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+      }
+    }
 
     const tenantSlug = await resolveUniqueSlug(
       (slug) => db.tenant.findUnique({ where: { slug } }),
@@ -111,6 +129,9 @@ export class TenantProvisioningService {
           planId: input.planId,
           status: subscriptionStatus,
           trialEndsAt,
+          billingInterval,
+          ...(currentPeriodStart ? { currentPeriodStart } : {}),
+          ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
           ...(input.limitsOverride ? { limitsOverride: input.limitsOverride } : {})
         }
       });

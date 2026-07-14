@@ -62,6 +62,27 @@ describe("createPlatformTenantSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts billingInterval and optional trialEndsAt", () => {
+    expect(
+      createPlatformTenantSchema.safeParse({
+        ...base,
+        billingInterval: "yearly",
+        subscriptionStatus: "trial",
+        trialEndsAt: "2026-08-01T00:00:00.000Z"
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects trialEndsAt when subscriptionStatus is active", () => {
+    expect(
+      createPlatformTenantSchema.safeParse({
+        ...base,
+        subscriptionStatus: "active",
+        trialEndsAt: "2026-08-01T00:00:00.000Z"
+      }).success
+    ).toBe(false);
+  });
 });
 
 describe("listPlatformTenantsQuerySchema", () => {

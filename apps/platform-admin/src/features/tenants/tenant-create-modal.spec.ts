@@ -22,6 +22,17 @@ describe("createPlatformTenantSchema (platform-admin)", () => {
     ).toBe(true);
   });
 
+  it("accepts billing interval and optional trial end", () => {
+    expect(
+      createPlatformTenantSchema.safeParse({
+        ...base,
+        billingInterval: "yearly",
+        subscriptionStatus: "trial",
+        trialEndsAt: "2026-09-01T00:00:00.000Z"
+      }).success
+    ).toBe(true);
+  });
+
   it("rejects tenant admin email matching owner email", () => {
     expect(
       createPlatformTenantSchema.safeParse({

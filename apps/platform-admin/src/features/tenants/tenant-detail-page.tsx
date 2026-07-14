@@ -11,6 +11,7 @@ import {
   CardTitle,
   CenteredLoader,
   DashboardStatCard,
+  DatePicker,
   Input,
   Label,
   Select,
@@ -40,6 +41,8 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [planId, setPlanId] = useState("");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
+  const [trialEndsDate, setTrialEndsDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -49,6 +52,11 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
     setName(tenant.name);
     setSlug(tenant.slug);
     setPlanId(syncPlanId(tenant, plans));
+    const interval = tenant.subscription?.billingInterval;
+    setBillingInterval(interval === "yearly" ? "yearly" : "monthly");
+    setTrialEndsDate(
+      tenant.subscription?.trialEndsAt ? tenant.subscription.trialEndsAt.slice(0, 10) : ""
+    );
   }, [tenant, plans]);
 
   async function patchTenant(body: Record<string, unknown>) {
@@ -238,20 +246,51 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 />
               </div>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="plan-id">Plan</Label>
+                <Select value={planId} onValueChange={setPlanId}>
+                  <SelectTrigger id="plan-id">
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="billing-interval">Billing interval</Label>
+                <Select
+                  value={billingInterval}
+                  onValueChange={(value) => setBillingInterval(value as "monthly" | "yearly")}
+                >
+                  <SelectTrigger id="billing-interval">
+                    <SelectValue placeholder="Select interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="plan-id">Plan</Label>
-              <Select value={planId} onValueChange={setPlanId}>
-                <SelectTrigger id="plan-id">
-                  <SelectValue placeholder="Select plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Trial end date (optional)</Label>
+              <DatePicker
+                value={trialEndsDate}
+                onChange={setTrialEndsDate}
+                placeholder="No trial end date"
+                ariaLabel="Trial end date"
+                className="h-10 w-full max-w-sm justify-start bg-background"
+                popoverAlign="start"
+              />
+              <p className="text-xs text-muted-foreground">
+                Setting a date puts the subscription on trial ending that day.
+              </p>
             </div>
             <div className="flex justify-end">
               <Button
@@ -261,7 +300,14 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                   void patchTenant({
                     name: name.trim(),
                     slug: slug.trim(),
-                    ...(planId ? { planId } : {})
+                    billingInterval,
+                    ...(planId ? { planId } : {}),
+                    ...(trialEndsDate
+                      ? {
+                          trialEndsAt: new Date(`${trialEndsDate}T23:59:59.000Z`).toISOString(),
+                          subscriptionStatus: "trial"
+                        }
+                      : {})
                   })
                 }
               >
