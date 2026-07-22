@@ -5,7 +5,7 @@
   "scripts": {
     "build": "turbo run build",
     "predev:apps": "bash scripts/predev-bootstrap.sh && pnpm build --filter=@kloqra/contracts --filter=@kloqra/ui --filter=@kloqra/web-shared && pnpm prisma:generate",
-    "dev": "pnpm run predev:apps && pnpm --parallel --filter @kloqra/api --filter @kloqra/client --filter @kloqra/admin dev",
+    "dev": "pnpm run predev:apps && pnpm --parallel --filter @kloqra/api --filter @kloqra/client --filter @kloqra/admin --filter @kloqra/platform-admin dev",
     "dev:shared": "pnpm --parallel --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared dev",
     "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
     "dev:api": "pnpm --filter @kloqra/api dev",

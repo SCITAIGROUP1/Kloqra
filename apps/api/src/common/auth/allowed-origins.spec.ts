@@ -23,6 +23,27 @@ describe("allowed-origins", () => {
     expect(isAllowedBrowserOrigin("https://evil.com")).toBe(false);
   });
 
+  it("keeps localhost defaults when only one PUBLIC_* URL is set outside production", () => {
+    delete process.env.NODE_ENV;
+    delete process.env.PUBLIC_CLIENT_URL;
+    delete process.env.PUBLIC_PLATFORM_URL;
+    process.env.PUBLIC_ADMIN_URL = "http://localhost:3002";
+
+    expect(isAllowedBrowserOrigin("http://localhost:3000")).toBe(true);
+    expect(isAllowedBrowserOrigin("http://localhost:3002")).toBe(true);
+    expect(isAllowedBrowserOrigin("http://localhost:3003")).toBe(true);
+  });
+
+  it("does not fall back to localhost defaults in production", () => {
+    process.env.NODE_ENV = "production";
+    delete process.env.PUBLIC_CLIENT_URL;
+    delete process.env.PUBLIC_PLATFORM_URL;
+    process.env.PUBLIC_ADMIN_URL = "https://admin.example.com";
+
+    expect(isAllowedBrowserOrigin("https://admin.example.com")).toBe(true);
+    expect(isAllowedBrowserOrigin("http://localhost:3000")).toBe(false);
+  });
+
   it("allows vercel preview origins", () => {
     expect(isAllowedBrowserOrigin("https://kloqra-client-staging.vercel.app")).toBe(true);
   });

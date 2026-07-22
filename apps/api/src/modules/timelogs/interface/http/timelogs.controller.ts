@@ -13,6 +13,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpStatus,
   Param,
   Patch,
@@ -38,6 +39,10 @@ import { TimelogAuditService } from "../../application/timelog-audit.service";
 import { TimelogImportService } from "../../application/timelog-import.service";
 import { TimelogsService } from "../../application/timelogs.service";
 
+function isClientAuthScope(authScope?: string): boolean {
+  return authScope?.trim().toLowerCase() === "client";
+}
+
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TimelogsController {
@@ -50,14 +55,16 @@ export class TimelogsController {
   @Get(ROUTES.TIMELOGS.LIST)
   list(
     @WorkspaceUser() user: WorkspaceRequestUser,
-    @Query(new ZodValidationPipe(listTimeLogsQuerySchema)) query: unknown
+    @Query(new ZodValidationPipe(listTimeLogsQuerySchema)) query: unknown,
+    @Headers("x-auth-scope") authScope?: string
   ) {
     return this.timelogs.list(
       user.workspaceId,
       user.userId,
       user.role,
       query as ListTimeLogsQueryDto,
-      user.managedProjectIds
+      user.managedProjectIds,
+      { clientScope: isClientAuthScope(authScope) }
     );
   }
 
@@ -66,11 +73,7 @@ export class TimelogsController {
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listTimeLogOccupancyQuerySchema)) query: unknown
   ) {
-    return this.timelogs.listOccupancy(
-      user.userId,
-      user.role,
-      query as ListTimeLogOccupancyQueryDto
-    );
+    return this.timelogs.listOccupancy(user.userId, query as ListTimeLogOccupancyQueryDto);
   }
 
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS(":id"))
@@ -163,19 +166,27 @@ export class TimelogsController {
   update(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(updateTimeLogSchema)) body: unknown
+    @Body(new ZodValidationPipe(updateTimeLogSchema)) body: unknown,
+    @Headers("x-auth-scope") authScope?: string
   ) {
     return this.timelogs.update(
       user.workspaceId,
       user.userId,
       user.role,
       id,
-      body as Parameters<TimelogsService["update"]>[4]
+      body as Parameters<TimelogsService["update"]>[4],
+      { clientScope: isClientAuthScope(authScope) }
     );
   }
 
   @Delete(ROUTES.TIMELOGS.BY_ID(":id"))
-  remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
-    return this.timelogs.remove(user.workspaceId, user.userId, user.role, id);
+  remove(
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Param("id") id: string,
+    @Headers("x-auth-scope") authScope?: string
+  ) {
+    return this.timelogs.remove(user.workspaceId, user.userId, user.role, id, {
+      clientScope: isClientAuthScope(authScope)
+    });
   }
 }

@@ -339,7 +339,7 @@ dev_bootstrap_patch_chronomint_env() {
 }
 
 dev_bootstrap_ensure_frontend_env_files() {
-  for app in client admin; do
+  for app in client admin platform-admin; do
     local env_file="apps/$app/.env.local"
     if [[ ! -f "$env_file" ]]; then
       cp "apps/$app/.env.example" "$env_file"

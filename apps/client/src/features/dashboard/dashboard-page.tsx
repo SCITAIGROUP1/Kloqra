@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { TimeLogDto, ActiveTimerDto, TaskDto, WorkspaceMemberDto } from "@kloqra/contracts";
+import type { TimeLogDto, ActiveTimerDto, TaskDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
@@ -99,7 +99,6 @@ function formatElapsed(sec: number) {
 export function DashboardPage() {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
-  const isAdmin = session?.workspaceRole === "ADMIN";
   const isImpersonating = useIsImpersonating();
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
@@ -119,8 +118,6 @@ export function DashboardPage() {
   const [filterProjectId, setFilterProjectId] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTaskId, setFilterTaskId] = useState("");
-  const [filterUserId, setFilterUserId] = useState("");
-  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const categories = catalog.categories;
 
   const scopeTaskFilters = useMemo(() => {
@@ -157,10 +154,9 @@ export function DashboardPage() {
       from: effectiveFrom.toISOString(),
       to: effectiveTo.toISOString()
     });
-    if (isAdmin && filterUserId) params.set("userId", filterUserId);
     if (filterTaskId) params.set("taskId", filterTaskId);
     return `${ROUTES.TIMELOGS.LIST}?${params}`;
-  }, [startDate, endDate, timezone, isAdmin, filterUserId, filterTaskId]);
+  }, [startDate, endDate, timezone, filterTaskId]);
 
   const {
     data: logsData,
@@ -309,13 +305,6 @@ export function DashboardPage() {
   }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
   useEffect(() => {
-    if (!ws || !isAdmin) return;
-    void api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws })
-      .then(setWorkspaceMembers)
-      .catch(() => setWorkspaceMembers([]));
-  }, [ws, isAdmin]);
-
-  useEffect(() => {
     setLoading(catalog.isLoading);
   }, [catalog.isLoading]);
 
@@ -332,13 +321,6 @@ export function DashboardPage() {
   const timelogMutations = useTimelogMutations(ws);
 
   useEffect(() => {
-    if (!filterUserId) return;
-    if (!workspaceMembers.some((m) => m.userId === filterUserId)) {
-      setFilterUserId("");
-    }
-  }, [workspaceMembers, filterUserId]);
-
-  useEffect(() => {
     if (!filterTaskId) return;
     if (!scopeTasks.some((t) => t.id === filterTaskId)) {
       setFilterTaskId("");
@@ -347,7 +329,6 @@ export function DashboardPage() {
 
   function onFilterProjectChange(nextId: string) {
     setFilterProjectId(nextId);
-    setFilterUserId("");
     setFilterTaskId("");
   }
 
@@ -360,13 +341,7 @@ export function DashboardPage() {
     setFilterProjectId("");
     setFilterCategoryId("");
     setFilterTaskId("");
-    setFilterUserId("");
   }
-
-  const scopeMembers = useMemo(
-    () => workspaceMembers.map((m) => ({ userId: m.userId, userName: m.userName })),
-    [workspaceMembers]
-  );
 
   // Keep timer ticking
   useEffect(() => {
@@ -530,7 +505,7 @@ export function DashboardPage() {
     setTaskChoice(tId);
   };
 
-  // Filter logs by scope (project/category/task/member)
+  // Filter logs by scope (project/category/task)
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const task = tasks.find((t) => t.id === log.taskId);
@@ -543,12 +518,9 @@ export function DashboardPage() {
       if (filterTaskId && log.taskId !== filterTaskId) {
         return false;
       }
-      if (isAdmin && filterUserId && log.userId !== filterUserId) {
-        return false;
-      }
       return true;
     });
-  }, [logs, filterProjectId, filterCategoryId, filterTaskId, filterUserId, isAdmin, tasks]);
+  }, [logs, filterProjectId, filterCategoryId, filterTaskId, tasks]);
 
   // Filter submissions by range and project
   const filteredSubmissions = useMemo(() => {
@@ -585,12 +557,10 @@ export function DashboardPage() {
     }
 
     if (tracking && activeTask) {
-      const currentUserId = session?.user.id;
-      const userMatches = !filterUserId || filterUserId === currentUserId;
       const projectMatches = !filterProjectId || activeTask.projectId === filterProjectId;
       const categoryMatches = !filterCategoryId || activeTask.categoryId === filterCategoryId;
       const taskMatches = !filterTaskId || activeTask.id === filterTaskId;
-      if (userMatches && projectMatches && categoryMatches && taskMatches) {
+      if (projectMatches && categoryMatches && taskMatches) {
         totalSec += elapsedSec;
         if (billableForActive) {
           billableSec += elapsedSec;
@@ -611,8 +581,6 @@ export function DashboardPage() {
     filterProjectId,
     filterCategoryId,
     filterTaskId,
-    filterUserId,
-    session?.user.id,
     elapsedSec,
     billableForActive
   ]);
@@ -622,12 +590,10 @@ export function DashboardPage() {
     let isBillableActive = false;
 
     if (tracking && activeTask) {
-      const currentUserId = session?.user.id;
-      const userMatches = !filterUserId || filterUserId === currentUserId;
       const projectMatches = !filterProjectId || activeTask.projectId === filterProjectId;
       const categoryMatches = !filterCategoryId || activeTask.categoryId === filterCategoryId;
       const taskMatches = !filterTaskId || activeTask.id === filterTaskId;
-      if (userMatches && projectMatches && categoryMatches && taskMatches) {
+      if (projectMatches && categoryMatches && taskMatches) {
         activeTimerSec = elapsedSec;
         isBillableActive = billableForActive;
       }
@@ -647,8 +613,6 @@ export function DashboardPage() {
     filterProjectId,
     filterCategoryId,
     filterTaskId,
-    filterUserId,
-    session?.user.id,
     elapsedSec,
     billableForActive
   ]);
@@ -789,21 +753,21 @@ export function DashboardPage() {
             compact
             className="w-full"
             taskRequiresProject
-            hideMemberFilter={!isAdmin}
+            hideMemberFilter
             values={{
               projectId: filterProjectId,
               categoryId: filterCategoryId,
               taskId: filterTaskId,
-              userId: filterUserId
+              userId: ""
             }}
             projects={projects}
             categories={categories}
             tasks={scopeTasks}
-            members={scopeMembers}
+            members={[]}
             onProjectChange={onFilterProjectChange}
             onCategoryChange={onFilterCategoryChange}
             onTaskChange={setFilterTaskId}
-            onUserChange={setFilterUserId}
+            onUserChange={() => undefined}
             onClearAll={clearScopeFilters}
             hintText="Optional — narrow dashboard widgets"
           />
