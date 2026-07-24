@@ -28,7 +28,7 @@ describe("workspace-settings", () => {
 
   it("exposes HARD_AUTO_STOP_HOURS with a positive default", () => {
     expect(HARD_AUTO_STOP_HOURS).toBeGreaterThan(0);
-    expect(DEFAULT_HARD_AUTO_STOP_HOURS).toBe(12);
+    expect(DEFAULT_HARD_AUTO_STOP_HOURS).toBe(8);
   });
 
   it("reads NEXT_PUBLIC_HARD_AUTO_STOP_HOURS when set", async () => {

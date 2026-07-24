@@ -52,7 +52,7 @@ export function resolveEffectiveCurrency(workspaceSettings: WorkspaceSettings): 
 
 export const DEFAULT_EXPECTED_WEEKLY_HOURS = 40;
 export const DEFAULT_STALE_WARNING_HOURS = 8;
-export const DEFAULT_HARD_AUTO_STOP_HOURS = 12;
+export const DEFAULT_HARD_AUTO_STOP_HOURS = 8;
 
 function resolveHardAutoStopHours(): number {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
