@@ -82,7 +82,8 @@ export class TimelogsService {
     userId: string,
     role: string,
     query: ListTimeLogsQueryDto,
-    managedProjectIds: string[] = []
+    managedProjectIds: string[] = [],
+    options?: { clientScope?: boolean }
   ): Promise<ListTimeLogsResponseDto> {
     const limit = Math.min(query.limit ?? DEFAULT_LIST_LIMIT, 1000);
 
@@ -94,8 +95,9 @@ export class TimelogsService {
       from.setDate(from.getDate() - DEFAULT_LIST_LOOKBACK_DAYS);
     }
 
-    const isGlobalAdmin = role === "ADMIN";
-    const hasManagedProjects = managedProjectIds.length > 0;
+    // Client app is personal: ADMIN still only sees their own logs there.
+    const isGlobalAdmin = role === "ADMIN" && !options?.clientScope;
+    const hasManagedProjects = !options?.clientScope && managedProjectIds.length > 0;
 
     // If not admin, and querying for another user, they must be a project manager
     // and they can ONLY see logs for projects they manage.
@@ -229,17 +231,8 @@ export class TimelogsService {
 
   async listOccupancy(
     userId: string,
-    role: string,
     query: ListTimeLogOccupancyQueryDto
   ): Promise<ListTimeLogOccupancyResponseDto> {
-    if (role === "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Occupancy is only available for members",
-        HttpStatus.FORBIDDEN
-      );
-    }
-
     const from = new Date(query.from);
     const to = new Date(query.to);
 
@@ -438,7 +431,8 @@ export class TimelogsService {
     userId: string,
     role: string,
     id: string,
-    dto: UpdateTimeLogDto
+    dto: UpdateTimeLogDto,
+    options?: { clientScope?: boolean }
   ) {
     const log = await this.prisma.timeLog.findFirst({
       where: { id, task: { project: { workspaceId } } },
@@ -453,7 +447,8 @@ export class TimelogsService {
     });
     if (!log)
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
-    if (role !== "ADMIN" && log.userId !== userId) {
+    const canManageOthers = role === "ADMIN" && !options?.clientScope;
+    if (!canManageOthers && log.userId !== userId) {
       throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
     }
     if (log.source === "timer") {
@@ -566,7 +561,13 @@ export class TimelogsService {
     return { totalSec, billableSec, topTask, logCount: logs.length };
   }
 
-  async remove(workspaceId: string, userId: string, role: string, id: string) {
+  async remove(
+    workspaceId: string,
+    userId: string,
+    role: string,
+    id: string,
+    options?: { clientScope?: boolean }
+  ) {
     const log = await this.prisma.timeLog.findFirst({
       where: { id, task: { project: { workspaceId } } },
       include: {
@@ -580,7 +581,8 @@ export class TimelogsService {
     });
     if (!log)
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
-    if (role !== "ADMIN" && log.userId !== userId) {
+    const canManageOthers = role === "ADMIN" && !options?.clientScope;
+    if (!canManageOthers && log.userId !== userId) {
       throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
     }
 

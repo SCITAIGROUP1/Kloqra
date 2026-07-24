@@ -42,14 +42,19 @@ describe("TimelogsService listOccupancy", () => {
     );
   });
 
-  it("rejects admin role", async () => {
-    await expect(
-      service.listOccupancy("user-1", "ADMIN", {
-        from: "2025-01-01T00:00:00.000Z",
-        to: "2025-01-08T00:00:00.000Z"
+  it("returns occupancy for admin role (own logs)", async () => {
+    mockPrisma.timeLog.findMany.mockResolvedValue([]);
+
+    const res = await service.listOccupancy("user-1", {
+      from: "2025-01-01T00:00:00.000Z",
+      to: "2025-01-08T00:00:00.000Z"
+    });
+
+    expect(res.items).toEqual([]);
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: "user-1" })
       })
-    ).rejects.toSatisfy(
-      (err: unknown) => err instanceof DomainException && err.getStatus() === 403
     );
   });
 
@@ -86,7 +91,7 @@ describe("TimelogsService listOccupancy", () => {
       }
     ]);
 
-    const res = await service.listOccupancy("user-1", "MEMBER", {
+    const res = await service.listOccupancy("user-1", {
       from: "2025-01-01T00:00:00.000Z",
       to: "2025-01-08T00:00:00.000Z"
     });
@@ -139,6 +144,49 @@ describe("TimelogsService list", () => {
       {} as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
+    );
+  });
+
+  it("ADMIN without clientScope lists all workspace logs", async () => {
+    await service.list(
+      "ws-1",
+      "user-1",
+      "ADMIN",
+      {
+        from: "2026-06-01T00:00:00.000Z",
+        to: "2026-07-01T00:00:00.000Z",
+        limit: 10
+      },
+      []
+    );
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({ userId: "user-1" })
+      })
+    );
+  });
+
+  it("ADMIN on clientScope only lists own logs", async () => {
+    await service.list(
+      "ws-1",
+      "user-1",
+      "ADMIN",
+      {
+        from: "2026-06-01T00:00:00.000Z",
+        to: "2026-07-01T00:00:00.000Z",
+        limit: 10
+      },
+      ["proj-managed"],
+      { clientScope: true }
+    );
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user-1"
+        })
+      })
     );
   });
 

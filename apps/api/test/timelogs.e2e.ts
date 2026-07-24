@@ -11,6 +11,7 @@ describe("Timelogs occupancy E2E", () => {
   let memberWorkspaceId: string;
   let adminToken: string;
   let adminWorkspaceId: string;
+  let adminUserId: string;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -31,6 +32,7 @@ describe("Timelogs occupancy E2E", () => {
     expect(adminRes.status).toBe(201);
     adminToken = adminRes.body.accessToken;
     adminWorkspaceId = adminRes.body.workspaceId;
+    adminUserId = adminRes.body.user.id;
   });
 
   afterAll(async () => {
@@ -60,7 +62,7 @@ describe("Timelogs occupancy E2E", () => {
     }
   });
 
-  it("GET /timelogs/occupancy rejects admin role", async () => {
+  it("GET /timelogs/occupancy allows admin role for own calendar", async () => {
     const from = new Date();
     from.setDate(from.getDate() - 7);
     const to = new Date();
@@ -72,6 +74,37 @@ describe("Timelogs occupancy E2E", () => {
       .set("Authorization", `Bearer ${adminToken}`)
       .set("X-Workspace-Id", adminWorkspaceId);
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.items)).toBe(true);
+  });
+
+  it("GET /timelogs with client scope returns only the admin's own logs", async () => {
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    const to = new Date();
+    to.setDate(to.getDate() + 1);
+
+    const clientRes = await request(app.getHttpServer())
+      .get("/timelogs")
+      .query({ from: from.toISOString(), to: to.toISOString(), limit: 100 })
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("X-Workspace-Id", adminWorkspaceId)
+      .set("X-Auth-Scope", "client");
+
+    expect(clientRes.status).toBe(200);
+    expect(Array.isArray(clientRes.body.items)).toBe(true);
+    for (const item of clientRes.body.items) {
+      expect(item.userId).toBe(adminUserId);
+    }
+
+    const adminRes = await request(app.getHttpServer())
+      .get("/timelogs")
+      .query({ from: from.toISOString(), to: to.toISOString(), limit: 100 })
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("X-Workspace-Id", adminWorkspaceId)
+      .set("X-Auth-Scope", "admin");
+
+    expect(adminRes.status).toBe(200);
+    expect(Array.isArray(adminRes.body.items)).toBe(true);
   });
 });

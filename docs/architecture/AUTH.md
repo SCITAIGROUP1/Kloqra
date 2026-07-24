@@ -65,17 +65,17 @@ See [MULTI_DEVICE_SESSIONS.md](./MULTI_DEVICE_SESSIONS.md) for the full multi-de
 
 Workspace roles: `ADMIN` | `MEMBER`.
 
-| Area                              | ADMIN                       | MEMBER                     |
-| --------------------------------- | --------------------------- | -------------------------- |
-| Create/edit/delete projects       | Yes                         | No                         |
-| Team invites                      | Yes                         | No                         |
-| Billing rates                     | Yes                         | No                         |
-| Reporting dashboard               | Yes                         | No                         |
-| Admin export wizard               | Yes                         | No                         |
-| Timer, own timelogs               | Yes                         | Yes                        |
-| Member export (`POST /export/me`) | Yes                         | Yes                        |
-| List projects                     | All in workspace            | Only where on project team |
-| Timelogs list                     | All users (optional filter) | Own logs only              |
+| Area                              | ADMIN                                      | MEMBER                     |
+| --------------------------------- | ------------------------------------------ | -------------------------- |
+| Create/edit/delete projects       | Yes                                        | No                         |
+| Team invites                      | Yes                                        | No                         |
+| Billing rates                     | Yes                                        | No                         |
+| Reporting dashboard               | Yes                                        | No                         |
+| Admin export wizard               | Yes                                        | No                         |
+| Timer, own timelogs               | Yes                                        | Yes                        |
+| Member export (`POST /export/me`) | Yes                                        | Yes                        |
+| List projects                     | All in workspace                           | Only where on project team |
+| Timelogs list                     | Admin app: all users; client app: own only | Own logs only              |
 
 Enforced via `@Roles("ADMIN")` and `RolesGuard` on controllers, plus service-level checks (e.g. timelogs ownership).
 

@@ -24,8 +24,17 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
   return isAllowedBrowserOrigin(origin);
 }
 
+/** Must be passed to NestFactory.create — enableCors() after create() registers too late (OPTIONS 404). */
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    callback(null, isAllowedCorsOrigin(origin));
+  },
+  credentials: true
+};
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // cors must be in create() options so it mounts before the Nest router
+  const app = await NestFactory.create(AppModule, { rawBody: true, cors: corsOptions });
   app.useWebSocketAdapter(new IoAdapter(app));
 
   // ── Security ─────────────────────────────────────────────────────────────
@@ -41,18 +50,13 @@ async function bootstrap() {
           upgradeInsecureRequests: null
         }
       },
-      crossOriginEmbedderPolicy: false // allow Swagger UI to load external resources
+      crossOriginEmbedderPolicy: false, // allow Swagger UI to load external resources
+      // Browser apps run on different localhost ports — same-origin CORP blocks credentialed CORS
+      crossOriginResourcePolicy: { policy: "cross-origin" }
     })
   );
 
   app.use(cookieParser());
-
-  app.enableCors({
-    origin: (origin, callback) => {
-      callback(null, isAllowedCorsOrigin(origin));
-    },
-    credentials: true
-  });
 
   // ── Global Rate Limiting Guard ────────────────────────────────────────────
   // ThrottlerGuard is registered as APP_GUARD in AppModule so NestJS DI handles

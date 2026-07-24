@@ -32,19 +32,17 @@ Timesheet routes are documented in [submissions.md](./submissions.md). Controlle
 **Then**
 
 - **MEMBER:** only their logs are returned (`userId` filter ignored).
-- **ADMIN:** all workspace logs; optional `userId` filter applies.
+- **ADMIN** on the **admin** app (`X-Auth-Scope: admin`): all workspace logs; optional `userId` filter applies.
+- **ADMIN** on the **client** app (`X-Auth-Scope: client`): only their own logs (same as MEMBER). Workspace-wide admin list/edit of others lives in the admin app.
 
-### Occupancy (member calendar)
+### Occupancy (own calendar)
 
-**Given** an authenticated **MEMBER**  
+**Given** an authenticated workspace user (**MEMBER** or **ADMIN**)  
 **When** they GET `/timelogs/occupancy` with required `from` and `to`  
-**Then** their time logs in that interval are returned for **workspaces they belong to** only (same list as the workspace switcher). Logs in projects/workspaces they cannot access are excluded.
+**Then** their own time logs in that interval are returned for **workspaces they belong to** only (same list as the workspace switcher). Logs in projects/workspaces they cannot access are excluded. Admins use this when logging time on the client app.
 
 **When** checking overlap on create/update  
 **Then** only entries in accessible workspaces count toward the one-timeline rule.
-
-**When** an **ADMIN** calls the same route  
-**Then** `403 FORBIDDEN` (client calendar uses workspace-scoped list for admins).
 
 ### Create manual entry
 
@@ -64,8 +62,11 @@ Timesheet routes are documented in [submissions.md](./submissions.md). Controlle
 
 ### Update / delete
 
-**When** a member PATCHes or DELETEs a log they do not own  
+**When** a member (or an ADMIN on the client app) PATCHes or DELETEs a log they do not own  
 **Then** `403 FORBIDDEN`.
+
+**When** an ADMIN on the admin app PATCHes or DELETEs any workspace entry  
+**Then** the change is allowed (subject to period locks and timer rules).
 
 **When** updating times  
 **Then** overlap rules apply again.

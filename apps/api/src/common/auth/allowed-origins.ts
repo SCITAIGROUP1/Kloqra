@@ -3,43 +3,36 @@ import { HttpStatus } from "@nestjs/common";
 import type { Request } from "express";
 import { DomainException } from "../errors/domain.exception";
 
+const LOCAL_DEV_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:3002",
+  "http://localhost:3003",
+  "http://localhost:3004"
+] as const;
+
+function originsFromEnv(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 export function getAllowedFrontendOrigins(): string[] {
-  const customOrigins: string[] = [];
+  const customOrigins = [
+    ...originsFromEnv(process.env.PUBLIC_CLIENT_URL),
+    ...originsFromEnv(process.env.PUBLIC_ADMIN_URL),
+    ...originsFromEnv(process.env.PUBLIC_PLATFORM_URL)
+  ];
 
-  if (process.env.PUBLIC_CLIENT_URL) {
-    customOrigins.push(
-      ...process.env.PUBLIC_CLIENT_URL.split(",")
-        .map((v) => v.trim())
-        .filter(Boolean)
-    );
-  }
-
-  if (process.env.PUBLIC_ADMIN_URL) {
-    customOrigins.push(
-      ...process.env.PUBLIC_ADMIN_URL.split(",")
-        .map((v) => v.trim())
-        .filter(Boolean)
-    );
-  }
-
-  if (process.env.PUBLIC_PLATFORM_URL) {
-    customOrigins.push(
-      ...process.env.PUBLIC_PLATFORM_URL.split(",")
-        .map((v) => v.trim())
-        .filter(Boolean)
-    );
-  }
-
-  if (customOrigins.length > 0) {
+  // Production: only explicitly configured app URLs (plus *.vercel.app in isAllowedBrowserOrigin).
+  if (process.env.NODE_ENV === "production") {
     return Array.from(new Set(customOrigins));
   }
 
-  return [
-    "http://localhost:3000",
-    "http://localhost:3002",
-    "http://localhost:3003",
-    "http://localhost:3004"
-  ];
+  // Dev/test: merge env URLs with localhost defaults so a partial .env
+  // (e.g. only PUBLIC_ADMIN_URL) does not lock out client/platform CORS.
+  return Array.from(new Set([...LOCAL_DEV_ORIGINS, ...customOrigins]));
 }
 
 /** Matches CORS policy — explicit dedicated URLs list plus *.vercel.app previews. */

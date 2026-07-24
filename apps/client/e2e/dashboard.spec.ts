@@ -22,6 +22,8 @@ test.describe("Client dashboard", () => {
     await expect(panel.getByText("Project", { exact: true })).toBeVisible();
     await expect(panel.getByText("Category", { exact: true })).toBeVisible();
     await expect(panel.getByText("Task", { exact: true })).toBeVisible();
+    // Client dashboard is personal — no member filter even for workspace admins.
+    await expect(panel.getByText("Member", { exact: true })).toHaveCount(0);
   });
 
   test("keeps period presets visible after collapsing the sidebar", async ({ page }) => {
